@@ -33,22 +33,38 @@ löscht ein Abo, wenn der Push-Dienst mit 404 oder 410 antwortet.
 3. **VAPID-Prüfung (D-4):** Der Schlüssel `k` im Kopf muss der versiegelte sein, die
    ES256-Unterschrift muss mit ihm stimmen, `aud` muss einer der eigenen Ursprünge aus
    `RELAY_PUSH_ORIGINS` sein, `exp` muss in der Zukunft und höchstens 24 Stunden entfernt liegen.
-   Sonst 403.
+   Sonst 403, mit einer Ausnahme: Stimmt die Unterschrift, fehlt ihr `aud` aber in
+   `RELAY_PUSH_ORIGINS`, ist das ein Fehler der eigenen Einstellung und 503 (Code-Review, Minor 5).
 4. **410 nur, wenn Google das Token nicht mehr kennt** (`errorCode` `UNREGISTERED`). **Jeder eigene
    Fehler ist 503** (D-10): fehlende, falsche oder unbekannte Fassung der Schlüsseldatei, fehlender
    Firebase-Schlüssel, Fehler von Google oder des Netzes, auch `INVALID_ARGUMENT`, weil es auch eine
    fehlerhafte Nachricht des Dienstes bedeuten kann. 404 kommt auf dem Push-Weg nie vor, auch
    nicht für eine unsinnige Adresse, weil der Server auch bei 404 löscht. Ohne Geheimnisse startet
    der Dienst trotzdem und meldet `/v1/healthz` mit 503.
-5. **Grenzen (D-2):** Körper höchstens `RELAY_PUSH_MAX_BODY` Byte (Vorgabe 3000, weil Google 4096
-   Byte Daten nimmt und Base64 ein Drittel mehr daraus macht; die Satzgrösse misst Stufe 0), sonst
-   413; Ratenbegrenzung je Aufrufer, je Push-Adresse und für Anmeldungen, sonst 429.
+5. **Grenzen (D-2):** Körper höchstens `RELAY_PUSH_MAX_BODY` Byte (Vorgabe 2700: die Satzgrösse,
+   mit der ein Server an die Push-Weiterleitung sendet, Stufe 0; Base64 macht 3602 Byte daraus,
+   Google nimmt 4096), sonst 413. `TTL` ist Pflicht (RFC 8030), sonst 400; über vier Wochen wird er
+   gekürzt. Ratenbegrenzung je Aufrufer und je /48 oder /24, für Anmeldungen ebenso, und je
+   Push-Adresse erst nach gültiger Unterschrift, sonst 429. Davor Google ein Vorrat für den ganzen
+   Dienst (Vorgabe 2000 je Sekunde): Ist er leer, antwortet der Dienst 503. Er schützt das
+   Kontingent des Firebase-Projekts vor einer Flut aus vielen Netzen (Sicherheits-Review M-2). Eine
+   volle Ratentabelle weist niemanden ab, ein beliebiger Eintrag weicht.
 6. **Zugang zu Google:** Der Dienst tauscht eine mit dem Dienstkonto (RS256) unterschriebene
    Zusicherung gegen ein Zugangstoken und hält es bis kurz vor dem Ablauf. Die Adressen von FCM
    und des Token-Endpunkts sind einstellbar, damit der Nachbau `relay/cmd/fcmfake` sie in Tests und
    Proben ersetzt. Der Nachbau wird nie ausgeliefert.
 7. **Der Dienst entschlüsselt nie.** Das Paket für RFC 8291 (`relay/internal/webpush`) nutzen nur
    die Prüfprogramme und die Tests; depguard verbietet es der Push-Weiterleitung.
+
+8. **Regel für den Server (Sicherheits-Review M-3):** Für Adressen mit dem Ursprung der
+   Push-Weiterleitung gilt nur 410 als «Abo weg»; 404 ist dort ein Fehler mit Wiederholung wie 503.
+   Ein Reverse-Proxy ohne passenden Eintrag oder ein Server mit veraltetem DNS bekommt sonst ein
+   Standard-404 und löscht Abos massenhaft, genau was D-10 verhindern soll. Der Dienst selbst
+   antwortet auf dem Push-Weg nie 404; der Proxy davor darf es für diesen Namen auch nicht
+   (BETRIEB.md 1.1 und Umzug Schritt 6). Den Serverteil baut Stufe 1.
+9. **Zugang zu Google ohne Stau:** Das Zugangstoken holt ein einziger Abruf ausserhalb der Sperre mit
+   eigenem Zeitlimit (10 s); wartende Meldungen brechen mit ihrem eigenen Kontext ab, ein
+   Fehlschlag bleibt 5 s gemerkt, jede Sendung hat 10 s (Code-Review, Major 1).
 
 ## Verworfen
 

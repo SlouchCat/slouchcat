@@ -26,14 +26,24 @@ Umgebungsdatei `.env` neben der Compose-Datei; sie schaltet auch das Profil `tls
 |---|---|---|
 | Vorlage | `env.home.example` | `env.rented.example` |
 | Profil | keines | `tls` |
-| TLS | der vorhandene Reverse-Proxy | der TLS-Abschluss im selben Stack, eigenes Zertifikat |
-| Port des Dienstes (`RELAY_BIND`) | LAN-Adresse der Maschine, nur für den Reverse-Proxy | `127.0.0.1`, von aussen nicht erreichbar |
-| Vertrauter Proxy (`RELAY_TRUSTED_PROXIES`) | die eine Adresse des Reverse-Proxys | die feste Adresse des TLS-Abschlusses (`RELAY_TLS_IP`) |
+| TLS | der vorhandene Reverse-Proxy | der TLS-Abschluss im selben Stack, im Netz des Hosts, eigenes Zertifikat |
+| Port des Dienstes (`RELAY_BIND`) | LAN-Adresse der Maschine, nur für den Reverse-Proxy (Firewall, 1.1) | `127.0.0.1`, von aussen nicht erreichbar |
+| Vertrauter Proxy (`RELAY_TRUSTED_PROXIES`) | die eine Adresse des Reverse-Proxys | das Gateway des Stack-Netzes (`RELAY_GATEWAY`) |
 | Von aussen | Port 443 am eigenen Anschluss | Ports 80 und 443 am Mietserver |
 
 Auf dem Mietserver ist der Port des Dienstes nur an die Loopback-Adresse gebunden. Von aussen
-erreicht man ihn nicht; der TLS-Abschluss spricht ihn über das Netz des Stacks an. Eine Compose-Datei
-kann einen Port nicht je Umgebungsdatei ganz weglassen, darum diese Lösung.
+erreicht man ihn nicht. Eine Compose-Datei kann einen Port nicht je Umgebungsdatei ganz weglassen,
+darum diese Lösung.
+
+**Warum der TLS-Abschluss im Netz des Hosts läuft:** Hinter der Portweiterleitung von Docker käme
+ein Aufrufer über IPv6 beim TLS-Abschluss mit der IPv4-Adresse des Bridge-Gateways an. Alle
+IPv6-Nutzer zählten dann als ein einziger Aufrufer, und die Grenzen je /64 (D-2) wären wirkungslos.
+Im Netz des Hosts sieht der TLS-Abschluss die echte Adresse, IPv4 wie IPv6. Er erreicht den Dienst
+über `127.0.0.1:RELAY_PORT`; Docker reicht diese Verbindung vom Gateway des Stack-Netzes weiter,
+darum ist das Gateway (`RELAY_GATEWAY`, fest `.1` im Netz `RELAY_SUBNET`) der eine vertraute Proxy.
+Belegt in der lokalen Probe (Abschnitt 8). Der TLS-Abschluss läuft ohne Admin-Schnittstelle,
+schreibgeschützt, ohne Fähigkeiten ausser dem Binden an Ports unter 1024 und mit
+`no-new-privileges`.
 
 ### 1.1 Auf eigener Hardware einrichten
 
@@ -46,6 +56,16 @@ kann einen Port nicht je Umgebungsdatei ganz weglassen, darum diese Lösung.
 4. Nur Push-Weiterleitung: die zwei Geheimnisse nach `secrets/` legen (Abschnitt 3).
 5. `docker compose up -d`, dann `curl http://<RELAY_BIND>:<RELAY_PORT>/v1/healthz`.
 6. Im vorhandenen Reverse-Proxy den Namen auf `http://<RELAY_BIND>:<RELAY_PORT>` weiterleiten.
+7. Den Port nur für den Reverse-Proxy öffnen. An die LAN-Adresse gebunden, erreichte ihn sonst jeder
+   Rechner im Netz ohne TLS. Entweder leistet das die Trennung des Netzes aus Schritt 1, oder eine
+   Regel in der Kette `DOCKER-USER` (ersetzt durch die Werte aus `.env`):
+
+   ```bash
+   iptables -I DOCKER-USER -p tcp --dport 8080 -m conntrack --ctorigdstport <RELAY_PORT> ! -s <Adresse des Reverse-Proxys> -j DROP
+   ```
+
+   Docker leitet den veröffentlichten Port auf den Port 8080 im Container um; die Regel vergleicht
+   darum den ursprünglichen Zielport.
 
 Was der Reverse-Proxy für die zwei Namen tun muss:
 
@@ -56,6 +76,13 @@ Was der Reverse-Proxy für die zwei Namen tun muss:
 - Für diese Namen keine Adressen von Aufrufern in Logs schreiben (D-5).
 - Den `Host`-Kopf unverändert weiterreichen: Die Push-Weiterleitung wählt daran den Namen, unter
   dem sie eine neue Push-Adresse ausgibt.
+- **Für den Namen der Push-Weiterleitung nie 404 antworten,** auch nicht, wenn das Ziel fehlt oder
+  nicht läuft; dann 502 oder 503. Ein Slouchcat-Server löscht ein Abo bei 404 (Sicherheits-Review
+  M-3). Viele Proxys antworten für einen unbekannten Namen mit einem Standard-404: Für
+  `push.slouchcat.com` braucht es darum immer einen Eintrag, auch nach einem Umzug (Abschnitt 5,
+  Schritt 6).
+- Ist `RELAY_TRUSTED_PROXIES` falsch, schreibt der Dienst einmal je Stunde «X-Forwarded-For from a
+  peer that is not a trusted proxy» ins Log.
 
 ### 1.2 Auf einem Mietserver einrichten
 
@@ -81,10 +108,14 @@ Gemeinsam:
 | `RELAY_TRUSTED_PROXIES` | leer | Adressen oder Netze, deren `X-Forwarded-For` gilt, durch Komma getrennt |
 | `RELAY_LOG_FORMAT`, `RELAY_LOG_LEVEL` | `json`, `info` | Logs; `debug` schreibt eine Zeile je Anfrage, ohne Pfad und Adresse |
 | `RELAY_RATE`, `RELAY_BURST` | Vermittlung `2`/`30`, Push `20`/`200` | Anfragen je Sekunde und Vorrat je Aufrufer; IPv6 zählt je /64 (D-2) |
+| `RELAY_NET_RATE`, `RELAY_NET_BURST` | Vermittlung `20`/`300`, Push `200`/`2000` | dasselbe je grösserem Netz: IPv6 je /48, IPv4 je /24. Ein /48 enthält 65 536 Netze /64 und ist billig zu haben; ohne diese Grenze reichte er, um alle Plätze zu belegen (Sicherheits-Review M-1, M-2) |
 | `RELAY_NAMES` | fester Name | Namen des TLS-Abschlusses, durch Komma getrennt; beim Umzug dazu der Probename |
 | `RELAY_TLS` | `internal` | E-Mail-Adresse für das ACME-Konto, oder `internal` für die lokale Prüf-CA des TLS-Abschlusses |
 | `RELAY_TLS_HTTP_PORT`, `RELAY_TLS_HTTPS_PORT` | `80`, `443` | Ports des TLS-Abschlusses am Host |
-| `RELAY_SUBNET`, `RELAY_TLS_IP` | `172.30.89.0/29`, `.6` (Push: `172.30.90.…`) | Netz des Stacks und feste Adresse des TLS-Abschlusses |
+| `RELAY_SUBNET`, `RELAY_GATEWAY` | `172.30.89.0/29`, `172.30.89.1` (Push: `172.30.90.…`) | Netz des Stacks und sein Gateway, der vertraute Proxy auf dem Mietserver |
+
+Eine volle Ratentabelle (100 000 Schlüssel) weist niemanden ab: Ein beliebiger Eintrag weicht dem
+neuen. Fremde können die Tabelle also nicht so füllen, dass neue Handys 429 bekommen.
 
 Nur Vermittlung:
 
@@ -92,7 +123,8 @@ Nur Vermittlung:
 |---|---|---|
 | `RELAY_PAIR_MAX_OPEN` | `10000` | offene Treffpunkte gesamt; darüber 503 |
 | `RELAY_PAIR_MAX_OPEN_PER_CALLER` | `10` | offene Treffpunkte je Aufrufer; darüber 429 |
-| `RELAY_PAIR_TTL` | `5m` | Lebensdauer eines Treffpunkts (K-1); nur für Tests ändern |
+| `RELAY_PAIR_MAX_OPEN_PER_NET` | `50` | offene Treffpunkte je /48 oder /24; darüber 429 |
+| `RELAY_PAIR_TTL` | `5m` | Lebensdauer eines Treffpunkts (K-1); höchstens `5m`, kürzer nur für Tests |
 
 Nur Push-Weiterleitung:
 
@@ -101,9 +133,11 @@ Nur Push-Weiterleitung:
 | `RELAY_PUSH_ORIGINS` | `https://push.slouchcat.com` | eigene Ursprünge; `aud` jeder VAPID-Unterschrift muss einer davon sein (D-4). Der erste ist der feste Name. Beim Umzug kommt der Probename dazu, mit Port, falls er nicht 443 ist |
 | `RELAY_SECRETS_DIR` | `./secrets` | Ordner mit `firebase.json` und `sealing-keys.json`, schreibgeschützt eingebunden |
 | `RELAY_USER` | `65532:65532` | Benutzer im Container; ihm gehören die Geheimnisse |
-| `RELAY_PUSH_MAX_BODY` | `3000` | grösster Web-Push-Körper in Byte; darüber 413. Google nimmt 4096 Byte Daten, Base64 macht ein Drittel mehr daraus |
-| `RELAY_PUSH_ADDRESS_RATE`, `…_BURST` | `0.5`, `20` | Meldungen je Sekunde und Vorrat je Push-Adresse |
+| `RELAY_PUSH_MAX_BODY` | `2700` | grösster Web-Push-Körper in Byte; darüber 413. Ein Server sendet an die Push-Weiterleitung mit der Satzgrösse 2700 (Stufe 0); Base64 macht 3602 Byte daraus, Google nimmt 4096 |
+| `RELAY_PUSH_ADDRESS_RATE`, `…_BURST` | `0.5`, `20` | Meldungen je Sekunde und Vorrat je Push-Adresse; belastet erst nach gültiger VAPID-Unterschrift |
 | `RELAY_PUSH_REGISTER_RATE`, `…_BURST` | `0.2`, `10` | Anmeldungen je Sekunde und Vorrat je Aufrufer |
+| `RELAY_PUSH_REGISTER_NET_RATE`, `…_BURST` | `2`, `100` | Anmeldungen je /48 oder /24 |
+| `RELAY_PUSH_GLOBAL_RATE`, `…_BURST` | `2000`, `4000` | Meldungen an Google je Sekunde für den ganzen Dienst; leer gibt es 503 mit `Retry-After`. Schützt das Kontingent des Firebase-Projekts vor einer Flut |
 | `RELAY_FCM_BASE_URL`, `RELAY_FCM_TOKEN_URL` | leer (Google) | nur für den Nachbau `fcmfake` in Proben |
 
 ## 3. Geheimnisse der Push-Weiterleitung
@@ -159,9 +193,10 @@ Geheimnis), 410, 404; `DELETE /v1/pair/{id}` → 204; `GET /tv` Hilfeseite; `GET
 Der Fernseher fragt alle 2 Sekunden nach.
 
 **Push-Weiterleitung:** `POST /v1/register` `{"fcmToken","vapidKey"}` → 200 `{"endpoint"}`;
-`POST /v1/push/<Fassung>.<Blob>` (Web-Push) → 201, 403 (VAPID), 413, 415 (nicht `aes128gcm`),
-429, **410 nur, wenn Google das Token nicht mehr kennt**, 503 bei jedem eigenen Fehler. 404 kommt
-auf diesem Weg nie vor, weil ein Server auch bei 404 das Abo löscht.
+`POST /v1/push/<Fassung>.<Blob>` (Web-Push) → 201, 400 (`TTL` fehlt), 403 (VAPID), 413, 415
+(nicht `aes128gcm`), 429, **410 nur, wenn Google das Token nicht mehr kennt**, 503 bei jedem
+eigenen Fehler, auch wenn die Unterschrift stimmt, ihr `aud` aber in `RELAY_PUSH_ORIGINS` fehlt.
+404 kommt auf diesem Weg nie vor, weil ein Server auch bei 404 das Abo löscht.
 
 Fehlerkörper beider Dienste: `{"error":"<code>"}`.
 
@@ -185,8 +220,11 @@ Vermittlung zieht gleich um, ohne Geheimnisse.
    task relay:build
    relay/bin/paircheck -url https://pair-probe.slouchcat.com
    relay/bin/pushcheck -register-url https://push.slouchcat.com -url https://push-probe.slouchcat.com \
-     -token <Google-Token eines Testgeräts>
+     -token "$PUSHCHECK_TOKEN"
    ```
+
+   Das Token eines Testgeräts kommt aus der Variable `PUSHCHECK_TOKEN` (ohne `-token` liest
+   `pushcheck` sie selbst); so landet es nicht in der Shell-Historie.
 
    `pushcheck` lässt die Adresse am alten Ort versiegeln und schickt die Meldung an den neuen; das
    gelingt nur mit dem mitkopierten Schlüssel. Gegen das echte Google braucht es mit `-token` das
@@ -199,8 +237,13 @@ Vermittlung zieht gleich um, ohne Geheimnisse.
    ist von Anfang an gesetzt (F-37).
 5. **Warten, bis am alten Ort nichts mehr ankommt.** Die Logs zeigen keine Adressen; mit
    `RELAY_LOG_LEVEL=debug` schreibt der alte Dienst eine Zeile je Anfrage.
-6. **Aufräumen:** den Eintrag im Reverse-Proxy und den Container am alten Ort entfernen, den
-   Probenamen aus `.env` und aus dem DNS nehmen, `docker compose up -d`.
+6. **Aufräumen:** den Container am alten Ort entfernen, den Probenamen aus `.env` und aus dem DNS
+   nehmen, `docker compose up -d`. **Den Eintrag des Namens im alten Reverse-Proxy nicht löschen,**
+   sondern einige Tage lang mit 503 und `Retry-After` antworten lassen. Ein Server, der den alten
+   DNS-Eintrag noch zwischengespeichert hat, landet sonst beim Standard-404 des Proxys und löscht das
+   Abo (Sicherheits-Review M-3). Mit 503 wiederholt er und erreicht nach dem Ablauf seines DNS den
+   neuen Ort. Der Serverbau löscht für Adressen der Push-Weiterleitung nur noch bei 410 (ADR 0044);
+   der Eintrag mit 503 bleibt trotzdem, weil ältere Server bei 404 löschen.
 
 **Das Zertifikat beim Umschalten (F-41, Empfehlung: die Lücke hinnehmen).** Für den festen Namen
 bekommt der Mietserver erst ein Zertifikat, wenn der DNS-Eintrag auf ihn zeigt, also nach Schritt 4.
@@ -260,3 +303,66 @@ Prüfprogramme erreichen sie mit `-connect 127.0.0.1:<Port>` und `-ca` (Wurzel d
 Nur nachgestellt ist dabei: der DNS-Eintrag (ersetzt durch `-connect`), das öffentliche Zertifikat
 (lokale CA statt ACME), die zweite Maschine (ein zweiter Stack auf demselben Rechner), Google
 (der Nachbau) und Port 443 (andere Ports).
+
+Am 21. November 2026 belegt, mit dem TLS-Abschluss im Netz des Hosts:
+
+- Fünf Anfragen von einer globalen IPv6-Adresse des Rechners durch den TLS-Abschluss bekommen 200,
+  die sechste von einer zweiten Adresse im selben /64 bekommt 429 (Vorrat 5): Der Dienst zählt die
+  echte IPv6-Adresse je /64. Eine Anfrage über IPv4 und eine über `::1` bekommen danach 200, also
+  zählen sie getrennt und nicht unter dem Gateway.
+- Keine Warnung «untrusted peer»: Das Gateway als vertrauter Proxy stimmt.
+- Nach einem fehlerhaften TLS-Handshake, einer Anfrage mit unbekanntem Namen und einer Anfrage bei
+  gestopptem Dienst (502, nie 404) steht im Log des TLS-Abschlusses keine IP-Adresse.
+
+## 9. Abnahme nach dem Einrichten
+
+Diese Belege aus Konzept 27 Abschnitt 13 (Zeile «2 Dienste») brauchen Marcos Infrastruktur und
+stehen nach dem Bau noch aus. Jeder Schritt nennt den Befehl und was man sehen muss.
+
+1. **Beide Container hinter dem vorhandenen Reverse-Proxy** (Abschnitt 1.1), dann von einem Rechner
+   ausserhalb des eigenen Netzes:
+
+   ```bash
+   curl -s https://pair.slouchcat.com/v1/healthz     # {"status":"ok"}
+   curl -s https://push.slouchcat.com/v1/healthz     # {"status":"ok"}
+   curl -sI https://pair.slouchcat.com/tv | grep -i content-security-policy   # default-src 'none'; …
+   ```
+
+   Zu sehen: zweimal `ok`; die Hilfeseite mit der strengen CSP. Steht im Log eines Dienstes «peer
+   that is not a trusted proxy», ist `RELAY_TRUSTED_PROXIES` falsch.
+2. **Zwei Prüfprogramme koppeln über die laufende Vermittlung:**
+
+   ```bash
+   relay/bin/paircheck -url https://pair.slouchcat.com
+   ```
+
+   Zu sehen: `paircheck: 21 checks passed against https://pair.slouchcat.com`.
+3. **Eine Push-Probe kommt an,** mit echtem Firebase-Projekt und einem Testgerät, auf dem eine
+   Entwicklungsfassung der App angemeldet ist:
+
+   ```bash
+   PUSHCHECK_TOKEN=<Google-Token des Testgeräts> relay/bin/pushcheck -url https://push.slouchcat.com
+   ```
+
+   Zu sehen: `pushcheck: 7 checks passed` (ohne `-fcmfake` fallen die Prüfungen am Nachbau weg),
+   201 für die Probe-Meldung. Das Testgerät bekommt eine Datennachricht, die die App verwirft (sie
+   ist für einen Schlüssel von `pushcheck` verschlüsselt). Dass eine echte Meldung ankommt und
+   angezeigt wird, belegt Stufe 8 mit einem Server.
+4. **Ein abgeschalteter Dienst löst die Meldung an Marco aus:** `watch` auf einem Rechner ausserhalb
+   des Netzes der Dienste starten (Abschnitt 6) mit der echten Meldeadresse, dann am Dienst
+   `docker compose stop pair`. Zu sehen: nach zwei Intervallen «Slouchcat relay pair is DOWN»;
+   nach `docker compose start pair` «… is back up».
+5. **Umzugsprobe auf einer zweiten, von aussen erreichbaren Maschine:** die Schritte 1 bis 3 aus
+   Abschnitt 5 mit einem Probenamen, dann:
+
+   ```bash
+   relay/bin/paircheck -url https://pair-probe.slouchcat.com
+   PUSHCHECK_TOKEN=<…> relay/bin/pushcheck -register-url https://push.slouchcat.com \
+     -url https://push-probe.slouchcat.com
+   ```
+
+   Zu sehen: wie in 2 und 3; der TLS-Abschluss hat für den Probenamen selbst ein Zertifikat geholt.
+   Danach den Schlüssel `sealing-keys.json` am neuen Ort kurz wegnehmen und
+   `docker compose up -d --force-recreate push`: `pushcheck … -expect-unavailable` zeigt 503, und
+   `/v1/healthz` meldet `no_sealing_key`. Den Schlüssel zurücklegen, neu starten, dann die Schritte
+   4 bis 6 aus Abschnitt 5.

@@ -44,13 +44,19 @@ schaltbaren Teilen sind (F-39), und wie Betrieb und Umzug im Einzelnen aussehen.
    `Accept-Language`. Der Teil hinter `#` erreicht keinen Server und kein Skript.
 4. **Adresse des Aufrufers** nur aus `X-Forwarded-For` eines eingetragenen Proxys, von hinten
    gelesen; der erste Eintrag, der kein eingetragener Proxy ist, zählt (D-9). IPv6 zählt je /64
-   (D-2). Die Adresse lebt nur im Arbeitsspeicher; der Redaktions-Handler maskiert Adressen,
+   (D-2), zusätzlich gilt eine zweite Grenze je /48 (IPv6) und /24 (IPv4) für offene Treffpunkte
+   (Vorgabe 50) und für jede Ratentabelle: Ein /48 ist billig und enthält 65 536 Netze /64
+   (Sicherheits-Review M-1). Nach dem Abholen bleibt ein Treffpunkt auch dann «verbraucht», wenn der
+   Fernseher ihn abbricht (410 statt 404 für ein spätes Handy). Die Adresse lebt nur im Arbeitsspeicher; der Redaktions-Handler maskiert Adressen,
    Treffpunkt-Kennungen und Push-Adressen auch in Fehlermeldungen (D-5).
 5. **Betrieb: dieselbe Compose-Datei an beiden Orten.** Je Dienst eine Compose-Datei unter
    `deploy/relay/<dienst>/` mit Vorlagen `env.home.example` und `env.rented.example`. Die
    Umgebungsdatei setzt die Bindeadresse des Ports und schaltet mit `COMPOSE_PROFILES=tls` den
-   TLS-Abschluss im selben Stack ein. Er hat eine feste Adresse im Netz des Stacks; nur sie ist der
-   vertraute Proxy. Auf dem Mietserver ist der Port des Dienstes an `127.0.0.1` gebunden.
+   TLS-Abschluss im selben Stack ein. Er läuft im Netz des Hosts, damit er die echte Adresse eines
+   IPv6-Aufrufers sieht (Code-Review, Major 2), erreicht den Dienst über `127.0.0.1:RELAY_PORT`, und
+   das feste Gateway des Stack-Netzes ist der eine vertraute Proxy. Er läuft schreibgeschützt, ohne
+   Admin-Schnittstelle und ohne Fähigkeiten ausser `NET_BIND_SERVICE`; Images per Digest gepinnt,
+   Logs von Docker begrenzt. Auf dem Mietserver ist der Port des Dienstes an `127.0.0.1` gebunden.
 6. **Umzug in sechs Schritten** (K27 7.5) mit den Prüfprogrammen `paircheck` und `pushcheck` unter
    einem Probenamen. Für das Zertifikat des festen Namens gilt die Empfehlung zu F-41: die kurze
    Lücke nach dem Umstellen des DNS hinnehmen.
@@ -70,6 +76,11 @@ schaltbaren Teilen sind (F-39), und wie Betrieb und Umzug im Einzelnen aussehen.
   kann einen Port nicht je Umgebungsdatei weglassen. Die Bindung an die Loopback-Adresse erreicht
   dasselbe Ziel, von aussen ist der Port nicht erreichbar.
 - **Lange offene Abholanfrage:** siehe Entscheid 2.
+- **TLS-Abschluss im Bridge-Netz:** Hinter der Portweiterleitung von Docker kommt ein Aufrufer über
+  IPv6 mit der IPv4-Adresse des Gateways an; alle IPv6-Nutzer zählten als einer.
+- **IPv6 im Netz des Stacks (ULA, `enable_ipv6`):** hängt davon ab, wie Docker auf dem Mietserver
+  eingestellt ist (`userland-proxy`, `ip6tables`), und liess sich lokal nicht belegen. Das Netz des
+  Hosts wirkt unabhängig davon und ist in der lokalen Probe belegt.
 - **Zertifikat vorab über einen DNS-Nachweis:** verlangte ein weiteres Geheimnis auf dem
   Mietserver (F-41).
 
@@ -82,5 +93,8 @@ schaltbaren Teilen sind (F-39), und wie Betrieb und Umzug im Einzelnen aussehen.
   mit dem Vektor A.1.1 aus RFC 9180) belegen die Verschlüsselung in Go und Kotlin.
 - Die Dienste laufen als eigene Betriebspflicht (R-3); Anleitung in `docs/relay/BETRIEB.md`.
 - CI: Job `relay` im Gate `ci`; `task ci` ruft `task ci:relay`.
-- Die echte Umzugsprobe auf einer zweiten, von aussen erreichbaren Maschine steht aus; in Stufe 2
-  ist sie nur lokal nachgestellt (BETRIEB.md, Abschnitt 8).
+- **Stufe 2 ist erst mit den Belegen auf Marcos Infrastruktur abgeschlossen** (K27 13): Container
+  hinter dem vorhandenen Reverse-Proxy, Kopplung über die laufende Vermittlung, Push-Probe mit dem
+  echten Firebase-Projekt, Meldung der Überwachung an Marco, Umzugsprobe auf einer zweiten, von
+  aussen erreichbaren Maschine. Im Bau sind sie nur lokal nachgestellt (BETRIEB.md, Abschnitt 8);
+  die Befehle und was man sehen muss stehen in BETRIEB.md, Abschnitt 9.
