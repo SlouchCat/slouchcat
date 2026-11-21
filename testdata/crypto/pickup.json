@@ -1,0 +1,16 @@
+{
+  "format": "slouchcat-crypto-vectors-v1",
+  "kind": "pickup-sha256",
+  "generator": "go go1.27.2",
+  "cases": [
+    {
+      "name": "pickup secret of a meeting point: SHA-256 over the 32 raw bytes",
+      "input": {
+        "secret": "HyebgE8gL8P4rKG_IHQfPkjNIvbTBCeOg6hdFgpivds"
+      },
+      "expected": {
+        "hash": "fflVM-1vVNxiHnSpQrtNlYqo5nucNRO-2v-KLIX1os4"
+      }
+    }
+  ]
+}

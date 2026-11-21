@@ -1,0 +1,75 @@
+{
+  "format": "slouchcat-crypto-vectors-v1",
+  "kind": "hpke-base-single-shot",
+  "generator": "go go1.27.2; RFC 9180 Appendix A.1.1",
+  "cases": [
+    {
+      "name": "pair packet (slouchcat-pair-v1)",
+      "input": {
+        "aad": "",
+        "aead": 2,
+        "info": "c2xvdWNoY2F0LXBhaXItdjE6eDJsdEM0blZpQWtNc3Bucm1tMHJyQQ",
+        "kdf": 1,
+        "kem": 32,
+        "mode": 0,
+        "recipientPrivateKey": "6YaelMWm3MCYja39ZMDUVyGYyk0CJUeYsXzQLknh7KA",
+        "recipientPublicKey": "QCYdnDrDMuTaRSfMmHi3L0lWboCDrMRS8Qe0vcuBxnk",
+        "sealed": "evyyGWKmy7fpMVL3ArozSyPti0-Bodd18v9Vbq_KkgxSO2or0lOeI_83uwBJh_mCz0IPuBa1kVHis4blpzCmQxdyR1z5zAEcehT33TnwgBHNIjLx6BE9h76gTFI4hfKBMWXk-wvWfPzQ8C9MfjeKuBrcSN2W49TZmyKR3NdjqlbVXmp6bUspnLybLwjGiZ40vwGo14l64pMsQ5ZQnbt5cO5iSQGuhyVWd7IBffMVbvr74lu4E6pT-GA61msYYgtUqakInc6hx3ZtjX0"
+      },
+      "expected": {
+        "plaintext": "eyJzZXJ2ZXIiOiJodHRwOi8vMTkyLjAuMi4xMDo4MDk2Iiwic2VydmVyS2V5IjoiRlRoUkdGY0ItdkFXcEFnV1RiVzkwWV9rT213Y0NqaUdZVE9JVkh0c2RKSSIsInYiOjEsInZvdWNoZXIiOiJoMWptdFY0VnFDV2s3cmp6ZUJuWDF0YWszTnhic01GZG1VMGVzbDloVEhzIn0"
+      }
+    },
+    {
+      "name": "sealed token (slouchcat-redeem-v1)",
+      "input": {
+        "aad": "",
+        "aead": 2,
+        "info": "c2xvdWNoY2F0LXJlZGVlbS12MQ",
+        "kdf": 1,
+        "kem": 32,
+        "mode": 0,
+        "recipientPrivateKey": "6YaelMWm3MCYja39ZMDUVyGYyk0CJUeYsXzQLknh7KA",
+        "recipientPublicKey": "QCYdnDrDMuTaRSfMmHi3L0lWboCDrMRS8Qe0vcuBxnk",
+        "sealed": "Fea_vaN0ZSemFBqyCt560QKz5JHSq62h-W2r2HfQzw0vXcW-kYW4yiTlcGlTzcjdpX6icYmWCnIo8OXIkfv8_SKivDKg0hWbJm17n5fLsucDirtgrK-TXAWXGrL3_J0NDfiBSkKtN16eS6aCYfw7DkyXr7M"
+      },
+      "expected": {
+        "plaintext": "eyJkZXZpY2VJZCI6ImRldl9leGFtcGxlIiwidG9rZW4iOiJleGFtcGxlLWRldmljZS10b2tlbi0wMTIzNDU2Nzg5In0"
+      }
+    },
+    {
+      "name": "empty plaintext",
+      "input": {
+        "aad": "",
+        "aead": 2,
+        "info": "c2xvdWNoY2F0LXJlZGVlbS12MQ",
+        "kdf": 1,
+        "kem": 32,
+        "mode": 0,
+        "recipientPrivateKey": "6YaelMWm3MCYja39ZMDUVyGYyk0CJUeYsXzQLknh7KA",
+        "recipientPublicKey": "QCYdnDrDMuTaRSfMmHi3L0lWboCDrMRS8Qe0vcuBxnk",
+        "sealed": "7LDCbmiEPR7pVLjNctVx6P1gBYgd7WeewSN5DDUPxlNXs0Z7wYDZdYjOo0u0ZWdr"
+      },
+      "expected": {
+        "plaintext": ""
+      }
+    },
+    {
+      "name": "RFC 9180 A.1.1, encryption 0 (DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM; the closest suite the RFC lists)",
+      "input": {
+        "aad": "Q291bnQtMA",
+        "aead": 1,
+        "info": "T2RlIG9uIGEgR3JlY2lhbiBVcm4",
+        "kdf": 1,
+        "kem": 32,
+        "mode": 0,
+        "recipientPrivateKey": "RhLFUCY_yK1YN13z9VeqxTHSaFCQPlWp8j8h2FNOisg",
+        "recipientPublicKey": "OUjP4K0d22ldeA5ZB3GV2mxWUGsCcyl5SrAryoCBXE0",
+        "sealed": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDH5OFWLXXLxojgQtL4qtPhDMazAL8l7q8U6Uq6CGKNVqW2HcKyD0Hvqh-E8USo"
+      },
+      "expected": {
+        "plaintext": "QmVhdXR5IGlzIHRydXRoLCB0cnV0aCBiZWF1dHk"
+      }
+    }
+  ]
+}

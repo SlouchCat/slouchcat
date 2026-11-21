@@ -1,0 +1,114 @@
+# golangci-lint v2 configuration of the relay module (concept 27 section 5.7: the Go rules hold
+# here as in the server). `task relay:lint` runs the golangci-lint that server/go.mod pins, so both
+# modules use the same version. The server's linters are enabled; its depguard rules about titles
+# and library files have no counterpart here. Instead depguard keeps the two services apart (E-21,
+# section 7): the meeting point service never links the code that handles the Firebase key or
+# the sealing key, and nothing that ships links the test helpers.
+version: "2"
+
+run:
+  timeout: 5m
+  relative-path-mode: gomod
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - forbidigo
+    - gosec
+    - misspell
+    - noctx
+    - nolintlint
+    - unconvert
+    - usestdlibvars
+  settings:
+    depguard:
+      rules:
+        os-exec:
+          files:
+            - $all
+          deny:
+            - pkg: os/exec
+              desc: the relay services start no processes (CLAUDE.md rule 3)
+        pair-has-no-secrets:
+          # The image of the meeting point service holds no code that handles the Firebase key or
+          # the sealing key (E-21, D-6), and no crypto of the packet: it sees only ciphertext.
+          files:
+            - "**/cmd/pair/**"
+            - "**/internal/pair/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/fcm
+              desc: the meeting point service never handles the Firebase key (E-21, D-6)
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/seal
+              desc: the meeting point service never handles the sealing key (E-21, D-6)
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/push
+              desc: the two services are separate programs (E-21)
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/vapid
+              desc: the two services are separate programs (E-21)
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/pairing
+              desc: the meeting point service sees only ciphertext (7.2)
+        push-is-not-pair:
+          files:
+            - "**/cmd/push/**"
+            - "**/internal/push/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/pair
+              desc: the two services are separate programs (E-21)
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/webpush
+              desc: the push forwarder never decrypts a message (7.3); webpush is for the check programs
+        test-helpers:
+          # fcmfake stands in for Google and never ships; webpush and pairing are the client side
+          # the check programs play.
+          files:
+            - $all
+            - "!$test"
+            - "!**/cmd/fcmfake/**"
+            - "!**/cmd/pushcheck/**"
+            - "!**/cmd/paircheck/**"
+            - "!**/internal/fcmfake/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/relay/internal/fcmfake
+              desc: the stand-in for Google's push service never ships; import it only from tests and cmd/fcmfake
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^exec\.(Command|CommandContext|LookPath)$
+          pkg: ^os/exec$
+          msg: the relay services start no processes (CLAUDE.md rule 3)
+        - pattern: ^(fmt\.Print|log\.(Print|Fatal|Panic))
+          msg: services log only through slog behind internal/logging (CLAUDE.md rule 10)
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # readability of structs wins over a few bytes
+        - shadow # `err` shadowing is idiomatic
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: lax
+    warn-unused: true
+    presets:
+      - std-error-handling
+    rules:
+      # The command-line programs print their results; the services log through slog.
+      - path: ^cmd/(paircheck|pushcheck|fcmfake|watch|push|pair)/
+        linters:
+          - forbidigo
+        text: fmt\.Print
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+          - bodyclose
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/slouchcat/slouchcat/relay
