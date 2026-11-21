@@ -103,7 +103,7 @@ func TestPairingRoundTrip(t *testing.T) {
 	if stored != hashToken(v.Voucher) || stored == v.Voucher {
 		t.Fatalf("stored %q, want the hash of the voucher", stored)
 	}
-	out, err := s.RedeemPairingVoucher(ctx, v.Voucher, tvKey, " Wohnzimmer-TV ", "Android TV 14")
+	out, err := s.RedeemPairingVoucher(ctx, v.Voucher, tvKey, " Wohnzimmer\u202e-TV\u200b ", "Android TV 14")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestPairingRedeemRefusals(t *testing.T) {
 
 	// The shape is checked before the lookup.
 	var verr *model.ValidationError
-	if _, err := s.RedeemPairingVoucher(ctx, "short", "short", "", "x\x00"); !errors.As(err, &verr) || len(verr.Fields) != 4 {
+	if _, err := s.RedeemPairingVoucher(ctx, "short", "short", "", "\u202e\x00"); !errors.As(err, &verr) || len(verr.Fields) != 4 {
 		t.Errorf("bad shape: %v", err)
 	}
 }

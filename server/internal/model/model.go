@@ -159,6 +159,21 @@ func DeviceID(ctx context.Context) string {
 	return id
 }
 
+type carrierKey struct{}
+
+// WithCarrier records how a session token travels: as Authorization: Bearer (bearer true) or in
+// the session cookie. Resolving a token whose session kind does not fit the carrier then fails
+// before the session is touched (ADR 0040); without it every kind resolves.
+func WithCarrier(ctx context.Context, bearer bool) context.Context {
+	return context.WithValue(ctx, carrierKey{}, bearer)
+}
+
+// Carrier returns the carrier recorded by WithCarrier and whether one was recorded.
+func Carrier(ctx context.Context) (bearer, known bool) {
+	bearer, known = ctx.Value(carrierKey{}).(bool)
+	return bearer, known
+}
+
 type clientIPKey struct{}
 
 // WithClientIP stores the client address of the request (login and setup rate limit).
@@ -308,7 +323,10 @@ type Session struct {
 	Profile   Profile
 	DeviceID  string // device the session started on (PIN locks count per profile and device)
 	ExpiresAt time.Time
-	Kind      string // SessionBrowser, SessionApp or SessionDevice; empty counts as SessionBrowser
+	// Kind is SessionBrowser, SessionApp or SessionDevice; empty counts as SessionBrowser. The session
+	// inside a PlaybackGrant (the stream token st) carries no kind: nothing behind the token routes may
+	// ask IsBearer (code review m-7 of concept 27 stage 1).
+	Kind string
 }
 
 // IsBearer reports whether the session travels as Authorization: Bearer (app or device session).

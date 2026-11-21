@@ -467,13 +467,13 @@ func (s *Service) StartSession(ctx context.Context, account model.Account, profi
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	return s.insertSession(ctx, account, profile, userAgent, device, model.SessionBrowser)
+	return s.insertSession(ctx, s.write, account, profile, userAgent, device, model.SessionBrowser)
 }
 
 // insertSession stores a session of kind on device and returns it with its plain token: 256 random
 // bits, of which the store keeps only the hash. A browser session expires after SessionLifetime; an
 // app or device session gets NeverExpires.
-func (s *Service) insertSession(ctx context.Context, account model.Account, profile model.Profile, userAgent, device, kind string) (model.Session, string, error) {
+func (s *Service) insertSession(ctx context.Context, q *appq.Queries, account model.Account, profile model.Profile, userAgent, device, kind string) (model.Session, string, error) {
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return model.Session{}, "", fmt.Errorf("session token: %w", err)
@@ -485,7 +485,7 @@ func (s *Service) insertSession(ctx context.Context, account model.Account, prof
 		expires = NeverExpires
 	}
 	ua := sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""}
-	row, err := s.write.InsertSession(ctx, appq.InsertSessionParams{
+	row, err := q.InsertSession(ctx, appq.InsertSessionParams{
 		TokenHash: hashToken(token), AccountID: account.ID,
 		ProfileID: sql.NullInt64{Int64: profile.ID, Valid: profile.ID != 0},
 		DeviceID:  sql.NullString{String: device, Valid: true},
@@ -513,6 +513,10 @@ func (s *Service) Resolve(ctx context.Context, token string) (session model.Sess
 	}
 	if err != nil {
 		return model.Session{}, false, fmt.Errorf("get session: %w", err)
+	}
+	// A token on the wrong carrier is no session, and it must not keep its session alive either.
+	if bearer, known := model.Carrier(ctx); known && bearer != (row.Kind != model.SessionBrowser) {
+		return model.Session{}, false, model.ErrNotFound
 	}
 	session, err = s.loadSession(ctx, s.read, row)
 	if err != nil {

@@ -115,7 +115,7 @@ func TestAppLoginRefuses(t *testing.T) {
 		{"", AppDevicePhone, "deviceName", "required"},
 		{"   ", AppDevicePhone, "deviceName", "required"},
 		{string(long), AppDevicePhone, "deviceName", "too_long"},
-		{"Pixel\n9", AppDevicePhone, "deviceName", "invalid_value"},
+		{"\u200b\u202e\n", AppDevicePhone, "deviceName", "required"}, // only hidden characters (L-4)
 		{"Pixel", "desktop", "kind", "invalid_value"},
 		{"Pixel", "", "kind", "invalid_value"},
 	} {
@@ -274,5 +274,41 @@ func TestVanishedDeviceEndsBearerSession(t *testing.T) {
 	got, _, err := s.Resolve(ctx, browserToken)
 	if err != nil || got.DeviceID == "" || got.DeviceID == browser.DeviceID {
 		t.Errorf("browser session without device: %+v, %v; want a fresh device", got, err)
+	}
+}
+
+// A new appLogin of the account on the same device ends the older app session there (code review
+// m-5, security review L-3): a token the app lost does not live on. A browser session on the device
+// and an app session on another device stay.
+func TestAppLoginReplacesTheOlderSessionOfTheDevice(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, acc := appOwner(t)
+	first, oldToken, err := s.AppLogin(ctx, testEmail, testPassword, "Pixel", AppDevicePhone, "", "okhttp/5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	browser, browserToken, err := s.StartSession(model.WithDeviceID(ctx, first.DeviceID), acc, model.Profile{}, "Firefox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, otherToken, err := s.AppLogin(ctx, testEmail, testPassword, "Tablet", AppDeviceTablet, "", "okhttp/5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, newToken, err := s.AppLogin(ctx, testEmail, testPassword, "Pixel", AppDevicePhone, first.DeviceID, "okhttp/5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.DeviceID != first.DeviceID || browser.DeviceID != first.DeviceID {
+		t.Fatalf("devices %s, %s, %s; want one", first.DeviceID, second.DeviceID, browser.DeviceID)
+	}
+	if _, _, err := s.Resolve(ctx, oldToken); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("older app token on the device: %v, want revoked", err)
+	}
+	for name, token := range map[string]string{"new": newToken, "browser": browserToken, "other device": otherToken} {
+		if _, _, err := s.Resolve(ctx, token); err != nil {
+			t.Errorf("%s: %v, want alive", name, err)
+		}
 	}
 }

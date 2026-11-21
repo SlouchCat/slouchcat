@@ -127,11 +127,16 @@ type requestAuth struct {
 // resolveRequest finds the session of a request. A bearer token (Authorization) counts only for an
 // app or device session, the cookie only for a browser session (concept 27 4.1): the kind is
 // stored with the session, the server never derives it from the carrier.
+//
+// Only the scheme Bearer enters the bearer way. Any other Authorization (Basic of a reverse proxy
+// in front of the web app) counts as no header: the browser keeps its cookie (code review M-1).
 func resolveRequest(ctx context.Context, auth AuthService, r *http.Request, appRoute bool) requestAuth {
-	authz, hasAuthz := r.Header.Get("Authorization"), r.Header.Get("Authorization") != ""
+	scheme, token, _ := strings.Cut(strings.TrimSpace(r.Header.Get("Authorization")), " ")
+	hasBearer := strings.EqualFold(scheme, "Bearer")
+	token = strings.TrimSpace(token) // RFC 6750: 1*SP after the scheme
 	_, hasDevice := r.Header[DeviceHeader]
-	out := requestAuth{app: hasAuthz || hasDevice || appRoute}
-	if !hasAuthz {
+	out := requestAuth{app: hasBearer || hasDevice || appRoute}
+	if !hasBearer {
 		out.session, out.token, out.extended, out.ok = resolveSession(ctx, auth, r)
 		return out
 	}
@@ -139,11 +144,10 @@ func resolveRequest(ctx context.Context, auth AuthService, r *http.Request, appR
 		out.conflict = true
 		return out
 	}
-	scheme, token, _ := strings.Cut(authz, " ")
-	if auth == nil || !strings.EqualFold(scheme, "Bearer") || token == "" {
+	if auth == nil || token == "" {
 		return out
 	}
-	s, _, err := auth.Resolve(ctx, token)
+	s, _, err := auth.Resolve(model.WithCarrier(ctx, true), token)
 	if err != nil || !s.IsBearer() {
 		return out // a browser token as bearer is refused like an unknown one
 	}
@@ -188,6 +192,13 @@ func (w *noCookies) Flush() {
 	}
 	if f, ok := w.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
+	}
+}
+
+// dropUnwritten removes Set-Cookie when nothing was written yet (the headers still go out).
+func (w *noCookies) dropUnwritten() {
+	if !w.wrote {
+		w.Header().Del("Set-Cookie")
 	}
 }
 
@@ -255,6 +266,15 @@ func clientTooOld(r *http.Request, min map[string]string) bool {
 // healthRoute is getHealth: an app too old for the server still reads contractVersion there.
 const healthRoute = http.MethodGet + " " + BasePath + "/healthz"
 
+// tooOldExempt are the routes an app older than the server accepts may still call (code review
+// m-1): getHealth (contractVersion), checkOfflineRevocations (a revoked download must stop playing
+// offline) and logout (the app can still sign out).
+var tooOldExempt = map[string]bool{
+	healthRoute: true,
+	http.MethodPost + " " + BasePath + "/offline/revocations": true,
+	http.MethodPost + " " + BasePath + "/auth/logout":         true,
+}
+
 // csrfOK accepts safe methods and state-changing requests that carry the custom header. Browsers
 // never add it to cross-site form posts, so together with SameSite=Lax the cookie cannot be
 // replayed from another origin. Checked after routing, so unknown routes still answer 404/405.
@@ -281,13 +301,13 @@ func csrfOK(r *http.Request) bool {
 // without one. A bearer session may call an account or scoped operation only when its x-clients
 // (clients) names the session's kind, and never an admin or owner operation (403
 // client_not_allowed). An app older than minClients allows gets 426 app_too_old on every route but
-// getHealth.
+// the routes of tooOldExempt.
 func (p problems) authorize(auth AuthService, visibility map[string]string, clients map[string][]string, minClients map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			pattern := chi.RouteContext(r.Context()).RoutePattern()
 			route := r.Method + " " + pattern
-			if route != healthRoute && clientTooOld(r, minClients) {
+			if !tooOldExempt[route] && clientTooOld(r, minClients) {
 				p.write(w, r, http.StatusUpgradeRequired, "app_too_old", "This app is older than the server accepts; update the app.")
 				return
 			}
@@ -300,7 +320,11 @@ func (p problems) authorize(auth AuthService, visibility map[string]string, clie
 			ra := resolveRequest(ctx, auth, r, appRoutes[route])
 			session, hasSession := ra.session, ra.ok
 			if ra.app {
-				w = &noCookies{ResponseWriter: w}
+				nc := &noCookies{ResponseWriter: w}
+				// A handler that writes nothing leaves the headers to net/http, which sends them after
+				// the handler returned: drop a cookie set on the way there too (code review m-9).
+				defer nc.dropUnwritten()
+				w = nc
 			}
 			if ra.conflict {
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "Send either the session cookie or a bearer token, not both.")
@@ -406,7 +430,7 @@ func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (ses
 	if err != nil || c.Value == "" {
 		return model.Session{}, "", false, false
 	}
-	s, extended, err := auth.Resolve(ctx, c.Value)
+	s, extended, err := auth.Resolve(model.WithCarrier(ctx, false), c.Value)
 	if err != nil || s.IsBearer() {
 		return model.Session{}, "", false, false
 	}

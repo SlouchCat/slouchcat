@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -49,7 +48,7 @@ func SessionKindOfDevice(deviceKind string) (string, bool) {
 // Errors: *model.ValidationError (email, password, deviceName, kind), model.ErrTooManyAttempts,
 // model.ErrInvalidCredentials.
 func (s *Service) AppLogin(ctx context.Context, email, password, deviceName, deviceKind, deviceID, userAgent string) (model.Session, string, error) {
-	name := strings.TrimSpace(deviceName)
+	name := model.CleanDeviceName(deviceName, 0) // hidden and control characters go (security review L-4)
 	var verr *model.ValidationError
 	if code := deviceNameProblem(name, maxDeviceName); code != "" {
 		verr = verr.Add("deviceName", code)
@@ -85,34 +84,61 @@ func (s *Service) AppLogin(ctx context.Context, email, password, deviceName, dev
 // check: the session kind follows deviceKind (SessionKindOfDevice), the device row gets deviceName
 // and deviceKind, and deviceID is kept under the rules of AppLogin. A zero profile starts the
 // session without an active profile. deviceName must be valid (AppLogin checks it).
+//
+// The check of the device, its row and the session are one write transaction (code review m-4):
+// two accounts bringing the same id at once cannot both keep it. The new session ends the older app
+// and device sessions of the account on the same device, with their playback (code review m-5).
 func (s *Service) StartAppSession(ctx context.Context, account model.Account, profile model.Profile, deviceName, deviceKind, deviceID, userAgent string) (model.Session, string, error) {
 	kind, ok := SessionKindOfDevice(deviceKind)
 	if !ok {
 		return model.Session{}, "", (&model.ValidationError{}).Add("kind", "invalid_value")
 	}
-	device, err := s.appDevice(ctx, account.ID, deviceID)
+	tx, err := s.db.BeginTx(ctx, nil) // the write pool begins IMMEDIATE: writers are serialised
+	if err != nil {
+		return model.Session{}, "", fmt.Errorf("begin app session: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.write.WithTx(tx)
+	device, err := s.appDevice(ctx, q, account.ID, deviceID)
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	if err := s.write.UpsertNamedDevice(ctx, appq.UpsertNamedDeviceParams{
+	now := s.now().UnixMilli()
+	if err := q.UpsertNamedDevice(ctx, appq.UpsertNamedDeviceParams{
 		ID: device, UserAgent: sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""},
-		Now: s.now().UnixMilli(), Name: sql.NullString{String: deviceName, Valid: true}, Type: sql.NullString{String: deviceKind, Valid: true},
+		Now: now, Name: sql.NullString{String: deviceName, Valid: true}, Type: sql.NullString{String: deviceKind, Valid: true},
 	}); err != nil {
 		return model.Session{}, "", fmt.Errorf("upsert device: %w", err)
 	}
-	sess, token, err := s.insertSession(ctx, account, profile, userAgent, device, kind)
+	sess, token, err := s.insertSession(ctx, q, account, profile, userAgent, device, kind)
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	s.log.InfoContext(ctx, "app session started", "account_id", account.ID, "session_id", sess.ID, "kind", kind)
+	older, err := q.RevokeOlderBearerSessionsOnDevice(ctx, appq.RevokeOlderBearerSessionsOnDeviceParams{
+		Now: sql.NullInt64{Int64: now, Valid: true}, AccountID: account.ID, DeviceID: sql.NullString{String: device, Valid: true}, KeepID: sess.ID,
+	})
+	if err != nil {
+		return model.Session{}, "", fmt.Errorf("revoke older sessions of the device: %w", err)
+	}
+	for _, id := range older {
+		if _, err := q.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{
+			SessionID: id, Now: sql.NullInt64{Int64: now, Valid: true}, StoppedBy: sql.NullString{String: model.StoppedByLogout, Valid: true},
+		}); err != nil {
+			return model.Session{}, "", fmt.Errorf("revoke playback sessions: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return model.Session{}, "", fmt.Errorf("commit app session: %w", err)
+	}
+	s.log.InfoContext(ctx, "app session started", "account_id", account.ID, "session_id", sess.ID, "kind", kind, "replaced", len(older))
 	return sess, token, nil
 }
 
 // appDevice returns the device of an app sign-in: the id the app brought along when it may keep it
 // (see AppLogin), else a fresh one.
-func (s *Service) appDevice(ctx context.Context, accountID int64, brought string) (string, error) {
+func (s *Service) appDevice(ctx context.Context, q *appq.Queries, accountID int64, brought string) (string, error) {
 	if devicePattern.MatchString(brought) && brought != profileCeilingDevice {
-		held, err := s.write.DeviceHeldByOtherAccount(ctx, appq.DeviceHeldByOtherAccountParams{
+		held, err := q.DeviceHeldByOtherAccount(ctx, appq.DeviceHeldByOtherAccountParams{
 			ID: sql.NullString{String: brought, Valid: true}, AccountID: accountID, Now: s.now().UnixMilli(),
 		})
 		if err != nil {

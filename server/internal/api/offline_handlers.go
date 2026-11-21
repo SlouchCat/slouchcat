@@ -218,10 +218,14 @@ func (s *server) CheckOfflineRevocations(ctx context.Context, req gen.CheckOffli
 	}
 	device := ""
 	if r := requestFrom(ctx); r != nil {
-		if c, err := r.Cookie(DeviceCookie); err == nil && deviceIDPattern.MatchString(c.Value) {
+		session, ok := sessionFrom(ctx)
+		switch c, err := r.Cookie(DeviceCookie); {
+		case ok && session.IsBearer():
+			device = session.DeviceID // with a bearer session the device is the session's (ADR 0040)
+		case err == nil && deviceIDPattern.MatchString(c.Value):
 			device = c.Value
-		} else {
-			device = appDeviceID(r) // an Android app names its device in the header (ADR 0040)
+		default:
+			device = appDeviceID(r) // an Android app without session names its device in the header
 		}
 	}
 	revoked, err := s.opts.Offline.Revocations(ctx, device, req.Body.Ids)

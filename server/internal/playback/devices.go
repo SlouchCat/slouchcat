@@ -23,6 +23,9 @@ import (
 
 // devicePattern is the form of a device id (the device cookie, 128 random bits as hex, like
 // package auth).
+// maxCapabilityDeviceName limits the name a browser reports with its capability profile (devices.name).
+const maxCapabilityDeviceName = 80
+
 var devicePattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 // recordDevice records the device of a start and returns its reference for PlaybackInfo (nil when
@@ -55,7 +58,7 @@ func (s *Service) recordDevice(ctx context.Context, session model.Session, req m
 		if !session.IsBearer() {
 			// An app or device session named its device at appLogin; a playback start keeps that name
 			// and type (concept 27, 4.2).
-			p.Name, p.Type = nullString(caps.Name), nullString(caps.Type)
+			p.Name, p.Type = nullString(model.CleanDeviceName(caps.Name, maxCapabilityDeviceName)), nullString(caps.Type)
 		}
 	}
 	if err := s.write.RecordDeviceProfile(ctx, p); err != nil {

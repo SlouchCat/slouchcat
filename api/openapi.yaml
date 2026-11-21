@@ -47,8 +47,9 @@ info:
     operation, gets 403 `client_not_allowed`. The media URLs keep their own tokens (`st`, `dt`, `rt`).
     An app names its device in the header `X-Slouchcat-Device` where a request has no session
     (`checkOfflineRevocations`), and itself in `X-Slouchcat-Client` (`mobile/1.2.3`, `tv/1.2.3`); an app
-    older than the server accepts gets 426 `app_too_old` on every operation except `getHealth`, whose
-    `contractVersion` tells the app whether the server is new enough. A phone pairs a TV with a voucher
+    older than the server accepts gets 426 `app_too_old` (response `AppTooOld`, no `Upgrade` header) on every
+    operation except `getHealth`, whose `contractVersion` tells the app whether the server is new enough,
+    `checkOfflineRevocations` and `logout`; routes with their own token (`st`, `dt`, `rt`) do not check it. A phone pairs a TV with a voucher
     (`createPairingVoucher`, app sessions only) that the TV redeems for a device token sealed with HPKE
     for its one-time key (`redeemPairingVoucher`); every pairing goes out as the message `device_linked`
     on the account's channels. `getHealth.serverKey` and `proveServer` let an app check over HTTP that it
@@ -498,6 +499,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PairingVoucherRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The voucher; it appears only in this answer.
           content:
@@ -631,6 +634,8 @@ paths:
       x-visibility: account
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The current session.
           content:
@@ -664,6 +669,8 @@ paths:
             schema:
               $ref: "#/components/schemas/AccountUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session with the changed account.
           content:
@@ -719,6 +726,8 @@ paths:
       x-visibility: account
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Profiles of the account, primary profile first.
           content:
@@ -752,6 +761,8 @@ paths:
             schema:
               $ref: "#/components/schemas/SelectProfileRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session now runs as this profile.
           headers:
@@ -806,6 +817,8 @@ paths:
       x-visibility: account
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Profiles, primary profile first.
           content:
@@ -831,6 +844,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProfileRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: Created.
           content:
@@ -871,6 +886,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProfileUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Updated.
           content:
@@ -903,6 +920,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Deleted.
         "401":
@@ -938,6 +957,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PinRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: PIN stored (argon2id); the lock counters of the profile are reset.
         "401":
@@ -965,6 +986,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: PIN removed. Also 204 when the profile had none.
         "401":
@@ -1000,6 +1023,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflinePinRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Offline PIN stored.
         "401":
@@ -1028,6 +1053,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Offline PIN removed. Also 204 when the profile had none.
         "401":
@@ -1063,6 +1090,8 @@ paths:
             maximum: 90
             default: 30
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Report.
           content:
@@ -1091,6 +1120,8 @@ paths:
       x-visibility: account
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Libraries, by name.
           content:
@@ -1119,6 +1150,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The visible libraries, administration order.
           content:
@@ -1147,6 +1180,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The entries shown in the side navigation, in the stored order.
           content:
@@ -1274,6 +1309,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the library with its facets.
           content:
@@ -1359,6 +1396,8 @@ paths:
               $ref: "#/components/schemas/LibraryItemStatus"
           description: Several values are combined with OR.
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The series and audiobook collections of the library, by name.
           content:
@@ -1401,6 +1440,8 @@ paths:
         - $ref: "#/components/parameters/LibraryID"
         - $ref: "#/components/parameters/AudioSeriesID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The series with its visible volumes.
           content:
@@ -1578,6 +1619,8 @@ paths:
             Repeat an earlier draw of `heroStart` (from `data-start` of the app shell). Clamped to
             the stage row; a value outside it or without a stage is ignored and the server draws.
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Start page rows.
           content:
@@ -1639,6 +1682,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the list.
           content:
@@ -1690,6 +1735,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the recommendations.
           content:
@@ -1709,6 +1756,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The title with its media files and the resume position of the active profile.
           content:
@@ -1766,6 +1815,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -1841,6 +1892,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The chapter image.
           content:
@@ -1890,6 +1943,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preview set of the file.
           content:
@@ -1950,6 +2005,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The sheet.
           content:
@@ -1986,6 +2043,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Trailers, profile language first; empty when none is known.
           content:
@@ -2027,6 +2086,8 @@ paths:
             format: int64
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The person and the visible credits.
           content:
@@ -2083,6 +2144,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The portrait.
           content:
@@ -2131,6 +2194,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PlaybackRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Playback description.
           content:
@@ -2206,6 +2271,8 @@ paths:
             type: string
             maxLength: 64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Tracks of the file.
           content:
@@ -2254,6 +2321,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of episodes.
           content:
@@ -2298,6 +2367,8 @@ paths:
             type: string
             maxLength: 64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Download options.
           content:
@@ -2344,6 +2415,8 @@ paths:
             schema:
               $ref: "#/components/schemas/DownloadRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The downloads of the request, new or existing.
           content:
@@ -2404,6 +2477,8 @@ paths:
             type: string
             examples: ["bytes=0-"]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Whole file.
           content:
@@ -2465,6 +2540,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProgressEvent"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Merged progress after the event.
           content:
@@ -2511,6 +2588,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Playback session ended.
         "401":
@@ -2558,6 +2637,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The state of the playback session.
           content:
@@ -2609,6 +2690,8 @@ paths:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Master playlist.
           content:
@@ -2642,6 +2725,8 @@ paths:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media playlist.
           content:
@@ -2671,6 +2756,8 @@ paths:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Initialisation segment.
           content:
@@ -2711,6 +2798,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media segment.
           content:
@@ -2758,6 +2847,8 @@ paths:
             minimum: 1
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: WebVTT file.
           content:
@@ -2787,6 +2878,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Deleted.
         "401":
@@ -2824,6 +2917,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Manifest.
           content:
@@ -2880,6 +2975,8 @@ paths:
             type: string
             examples: ["bytes=0-8388607"]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Whole file.
           content:
@@ -2932,6 +3029,8 @@ paths:
             minimum: 1
         - $ref: "#/components/parameters/DownloadToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: WebVTT file.
           content:
@@ -2970,6 +3069,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/DownloadToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The sheet.
           content:
@@ -3010,6 +3111,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflineSyncRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: State of the device's downloads.
           content:
@@ -3045,6 +3148,8 @@ paths:
       x-visibility: scoped
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored rule, or the default rule (disabled).
           content:
@@ -3078,6 +3183,8 @@ paths:
             schema:
               $ref: "#/components/schemas/DownloadRules"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Stored rule.
           content:
@@ -3169,6 +3276,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflineEventBatch"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Result per event.
           content:
@@ -5850,6 +5959,8 @@ paths:
             schema:
               $ref: "#/components/schemas/SearchRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Matches for the active profile.
           content:
@@ -5880,6 +5991,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Genres with the number of visible titles.
           content:
@@ -5910,6 +6023,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The collections, by name.
           content:
@@ -5952,6 +6067,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The collection.
           content:
@@ -5990,6 +6107,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ItemWatchedRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: The check marks are set or removed.
         "401":
@@ -6033,6 +6152,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The poster.
           content:
@@ -6078,6 +6199,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the watchlist.
           content:
@@ -6119,6 +6242,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ItemWatchedRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: The check mark is set or removed.
         "401":
@@ -6171,6 +6296,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the list.
           content:
@@ -6201,6 +6328,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: On the watchlist.
         "401":
@@ -6227,6 +6356,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Not on the watchlist (any more).
         "401":
@@ -6253,6 +6384,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Recommended.
           content:
@@ -6279,6 +6412,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Not recommended by the active profile (any more).
         "401":
@@ -6317,6 +6452,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the inbox.
           content:
@@ -6342,6 +6479,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Read.
         "401":
@@ -6361,6 +6500,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: All read.
         "401":
@@ -8679,6 +8820,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The open announcements.
           content:
@@ -8702,6 +8845,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AnnouncementID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Acknowledged.
         "401":
@@ -8725,6 +8870,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preferences of the active profile.
           content:
@@ -8753,6 +8900,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PlaybackPrefs"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored preferences.
           content:
@@ -8789,6 +8938,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Forgotten.
         "401":
@@ -8813,6 +8964,8 @@ paths:
       x-visibility: account
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The three channels.
           content:
@@ -8843,6 +8996,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ChannelSettingUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored channel.
           content:
@@ -8883,6 +9038,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ChannelName"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Sent; for push, every subscription of the account was handed to its push service.
         "401":
@@ -8936,6 +9093,8 @@ paths:
       x-visibility: account
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The Telegram channel with the code.
           content:
@@ -8963,6 +9122,8 @@ paths:
       x-visibility: account
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Unlinked.
         "401":
@@ -8979,6 +9140,8 @@ paths:
       x-visibility: account
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The public key.
           content:
@@ -9018,6 +9181,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PushSubscriptionRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The subscription.
           content:
@@ -9055,6 +9220,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PushSubscriptionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Removed.
         "401":
@@ -10139,6 +10306,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The rows.
           content:
@@ -10212,6 +10381,8 @@ paths:
             type: integer
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -10304,6 +10475,8 @@ paths:
             maximum: 500
             default: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -10366,6 +10539,8 @@ paths:
           schema:
             $ref: "#/components/schemas/ExternalMedia"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The genres.
           content:
@@ -10432,6 +10607,8 @@ paths:
             type: integer
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image (JPEG), `Cache-Control` private for a day with an ETag.
           content:
@@ -10504,6 +10681,8 @@ paths:
             maximum: 500
             default: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -10589,6 +10768,8 @@ paths:
             maximum: 50
             default: 20
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The missing titles, TMDB's order, films first.
           content:
@@ -10640,6 +10821,8 @@ paths:
         - $ref: "#/components/parameters/ExternalMediaPath"
         - $ref: "#/components/parameters/TmdbIdPath"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The title.
           content:
@@ -10713,6 +10896,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -10774,6 +10959,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/TmdbIdPath"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The seasons.
           content:
@@ -10824,6 +11011,8 @@ paths:
         - $ref: "#/components/parameters/WishPageOffset"
         - $ref: "#/components/parameters/WishPageLimit"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of wishes.
           content:
@@ -10860,6 +11049,8 @@ paths:
             schema:
               $ref: "#/components/schemas/WishCreate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The wish existed (asked again, or joined).
           content:
@@ -10937,6 +11128,8 @@ paths:
       x-visibility: account
       x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The devices, last contact first.
           content:
@@ -10967,6 +11160,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/MyDeviceID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Signed out.
         "401":
@@ -10998,6 +11193,8 @@ paths:
         - $ref: "#/components/parameters/WishPageOffset"
         - $ref: "#/components/parameters/WishPageLimit"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of wishes.
           content:
@@ -11027,6 +11224,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The limit.
           content:
@@ -11060,6 +11259,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Withdrawn.
         "401":
@@ -11381,6 +11582,8 @@ paths:
             maximum: 120
             default: 60
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of stations.
           content:
@@ -11423,6 +11626,8 @@ paths:
         - $ref: "#/components/parameters/RadioTitles"
         - $ref: "#/components/parameters/RadioFavorites"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The facets.
           content:
@@ -11454,6 +11659,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The station.
           content:
@@ -11477,6 +11684,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The favourites, first first.
           content:
@@ -11503,6 +11712,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioFavoriteOrder"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Stored.
         "401":
@@ -11525,6 +11736,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Marked.
         "401":
@@ -11541,6 +11754,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Removed.
         "401":
@@ -11565,6 +11780,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The listen session.
           content:
@@ -11623,6 +11840,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioHeartbeatRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session is open.
           content:
@@ -11663,6 +11882,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RadioListenID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Ended.
         "401":
@@ -11699,6 +11920,8 @@ paths:
             format: int64
             minimum: 0
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The timeline.
           content:
@@ -11721,6 +11944,8 @@ paths:
       x-visibility: scoped
       x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preferences.
           content:
@@ -11743,6 +11968,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioPreferences"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored preferences.
           content:
@@ -11786,6 +12013,8 @@ paths:
             type: string
             enum: ["YES", v2]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Live playlist.
           content:
@@ -11821,6 +12050,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/RadioToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Initialisation segment.
           content:
@@ -11859,6 +12090,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/RadioToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media segment.
           content:
@@ -11896,6 +12129,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -11947,6 +12182,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -12615,6 +12852,16 @@ paths:
 
 components:
   responses:
+    AppTooOld:
+      description: |
+        The app is older than the server accepts (`app_too_old`, header `X-Slouchcat-Client`, contract 1.42.0).
+        Every operation an app may call can answer it, except `getHealth`, `checkOfflineRevocations` and
+        `logout`; the app then asks to update itself. No `Upgrade` header: the remedy is a newer app, not
+        another protocol.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     Unauthenticated:
       description: No valid session (`unauthenticated`).
       content:

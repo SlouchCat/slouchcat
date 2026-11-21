@@ -407,6 +407,51 @@ func (q *Queries) RevokeAccountSessions(ctx context.Context, arg RevokeAccountSe
 	return result.RowsAffected()
 }
 
+const revokeOlderBearerSessionsOnDevice = `-- name: RevokeOlderBearerSessionsOnDevice :many
+UPDATE sessions SET revoked_at = ?1
+WHERE account_id = ?2 AND device_id = ?3 AND kind <> 'browser' AND id <> ?4
+  AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeOlderBearerSessionsOnDeviceParams struct {
+	Now       sql.NullInt64
+	AccountID int64
+	DeviceID  sql.NullString
+	KeepID    int64
+}
+
+// A new app or device session of an account on a device ends the older app and device sessions of
+// the same account on the same device (concept 27, code review m-5): a lost token dies with the
+// next sign-in.
+func (q *Queries) RevokeOlderBearerSessionsOnDevice(ctx context.Context, arg RevokeOlderBearerSessionsOnDeviceParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, revokeOlderBearerSessionsOnDevice,
+		arg.Now,
+		arg.AccountID,
+		arg.DeviceID,
+		arg.KeepID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeSession = `-- name: RevokeSession :execrows
 UPDATE sessions SET revoked_at = ?1 WHERE id = ?2 AND revoked_at IS NULL
 `

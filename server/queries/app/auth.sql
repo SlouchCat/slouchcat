@@ -51,6 +51,15 @@ UPDATE sessions SET last_seen_at = @now, expires_at = @expires_at WHERE id = @id
 -- name: RevokeSession :execrows
 UPDATE sessions SET revoked_at = @now WHERE id = @id AND revoked_at IS NULL;
 
+-- name: RevokeOlderBearerSessionsOnDevice :many
+-- A new app or device session of an account on a device ends the older app and device sessions of
+-- the same account on the same device (concept 27, code review m-5): a lost token dies with the
+-- next sign-in.
+UPDATE sessions SET revoked_at = @now
+WHERE account_id = @account_id AND device_id = @device_id AND kind <> 'browser' AND id <> @keep_id
+  AND revoked_at IS NULL
+RETURNING id;
+
 -- name: RevokeAccountSessions :execrows
 UPDATE sessions SET revoked_at = @now WHERE account_id = @account_id AND revoked_at IS NULL;
 

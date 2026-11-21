@@ -101,7 +101,9 @@ func TestBearerCarrierPairings(t *testing.T) {
 		{"tv token as bearer", sendBearer(t, h, http.MethodGet, session, "tv", "", nil), http.StatusOK, true},
 		{"browser token as bearer", sendBearer(t, h, http.MethodGet, session, "p18", "", nil), http.StatusUnauthorized, true},
 		{"unknown bearer", sendBearer(t, h, http.MethodGet, session, "no-such-token", "", nil), http.StatusUnauthorized, true},
-		{"other scheme", sendBearer(t, h, http.MethodGet, session, "", "", map[string]string{"Authorization": "Basic YTpi"}), http.StatusUnauthorized, true},
+		// Another scheme counts as no header: the browser way (code review M-1).
+		{"other scheme", sendBearer(t, h, http.MethodGet, session, "", "", map[string]string{"Authorization": "Basic YTpi"}), http.StatusUnauthorized, false},
+		{"cookie and another scheme", cookieWith("p18", map[string]string{"Authorization": "Basic YTpi"}), http.StatusOK, false},
 		{"app token in the cookie", cookieWith("app", nil), http.StatusUnauthorized, false},
 		{"tv token in the cookie", cookieWith("tv", nil), http.StatusUnauthorized, false},
 		{"cookie and bearer together", cookieWith("p18", map[string]string{"Authorization": "Bearer app"}), http.StatusUnauthorized, true},

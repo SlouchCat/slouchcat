@@ -14100,6 +14100,20 @@ export interface components {
         };
     };
     responses: {
+        /**
+         * @description The app is older than the server accepts (`app_too_old`, header `X-Slouchcat-Client`, contract 1.42.0).
+         *     Every operation an app may call can answer it, except `getHealth`, `checkOfflineRevocations` and
+         *     `logout`; the app then asks to update itself. No `Upgrade` header: the remedy is a newer app, not
+         *     another protocol.
+         */
+        AppTooOld: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description No valid session (`unauthenticated`). */
         Unauthenticated: {
             headers: {
@@ -14694,6 +14708,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description Too many vouchers for this account (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -14836,6 +14851,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateAccount: {
@@ -14899,6 +14915,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -14930,6 +14947,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     selectProfile: {
@@ -14986,6 +15004,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description `pin_locked`: too many wrong PINs for this profile on this device; `Retry-After` and the
              *     problem member `retryAfterSeconds` name the remaining lock in seconds. Also
@@ -15022,6 +15041,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["PrimaryProfileRequired"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     createProfile: {
@@ -15064,6 +15084,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteProfile: {
@@ -15104,6 +15125,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateProfile: {
@@ -15150,6 +15172,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setProfilePin: {
@@ -15194,6 +15217,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeProfilePin: {
@@ -15225,6 +15249,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setOfflinePin: {
@@ -15269,6 +15294,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeOfflinePin: {
@@ -15300,6 +15326,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getWatchReport: {
@@ -15335,6 +15362,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAccountLibraries: {
@@ -15356,6 +15384,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listVisibleLibraries: {
@@ -15377,6 +15406,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listMyMedia: {
@@ -15398,6 +15428,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listLibraryItems: {
@@ -15466,6 +15497,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAudioGroups: {
@@ -15519,6 +15551,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getAudioSeries: {
@@ -15553,6 +15586,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getInvitation: {
@@ -15712,6 +15746,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listHomeRow: {
@@ -15758,6 +15793,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listPicks: {
@@ -15782,6 +15818,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItem: {
@@ -15823,6 +15860,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemImage: {
@@ -15871,6 +15909,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getChapterImage: {
@@ -15922,6 +15961,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getTrickplay: {
@@ -15966,6 +16006,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getTrickplaySheet: {
@@ -16014,6 +16055,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemTrailers: {
@@ -16055,6 +16097,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPerson: {
@@ -16095,6 +16138,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPersonImage: {
@@ -16141,6 +16185,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     startPlayback: {
@@ -16225,6 +16270,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later.
              *     For SDR sources the server first retries one rung lower (`budget_lowered`, plan 3.5); only an
@@ -16281,6 +16327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listPodcastEpisodes: {
@@ -16326,6 +16373,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadOptions: {
@@ -16370,6 +16418,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createDownloads: {
@@ -16434,6 +16483,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemStream: {
@@ -16499,6 +16549,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     reportProgress: {
@@ -16562,6 +16613,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     stopPlayback: {
@@ -16610,6 +16662,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPlaybackSessionState: {
@@ -16669,6 +16722,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPlaybackMaster: {
@@ -16698,6 +16752,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16728,6 +16783,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16758,6 +16814,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16790,6 +16847,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16822,6 +16880,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteDownload: {
@@ -16862,6 +16921,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadManifest: {
@@ -16913,6 +16973,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadFile: {
@@ -16961,6 +17022,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadSubtitle: {
@@ -16992,6 +17054,7 @@ export interface operations {
             401: components["responses"]["DownloadUnauthenticated"];
             404: components["responses"]["DownloadNotFound"];
             410: components["responses"]["DownloadEvicted"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadTrickplaySheet: {
@@ -17023,6 +17086,7 @@ export interface operations {
             401: components["responses"]["DownloadUnauthenticated"];
             404: components["responses"]["DownloadNotFound"];
             410: components["responses"]["DownloadEvicted"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     syncOffline: {
@@ -17075,6 +17139,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadRules: {
@@ -17105,6 +17170,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setDownloadRules: {
@@ -17157,6 +17223,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     checkOfflineRevocations: {
@@ -17242,6 +17309,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listLibraries: {
@@ -19827,6 +19895,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listGenres: {
@@ -19848,6 +19917,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listVisibleCollections: {
@@ -19869,6 +19939,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getCollection: {
@@ -19905,6 +19976,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setCollectionWatched: {
@@ -19940,6 +20012,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getCollectionImage: {
@@ -19979,6 +20052,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listWatchlist: {
@@ -20003,6 +20077,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setItemWatched: {
@@ -20038,6 +20113,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listWatched: {
@@ -20074,6 +20150,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     addToWatchlist: {
@@ -20114,6 +20191,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeFromWatchlist: {
@@ -20145,6 +20223,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     recommendItem: {
@@ -20178,6 +20257,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     unrecommendItem: {
@@ -20209,6 +20289,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listNotifications: {
@@ -20233,6 +20314,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     markNotificationRead: {
@@ -20263,6 +20345,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     markAllNotificationsRead: {
@@ -20282,6 +20365,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAdminUserPicks: {
@@ -22698,6 +22782,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     ackAnnouncement: {
@@ -22728,6 +22813,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getMyPlaybackPrefs: {
@@ -22758,6 +22844,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     putMyPlaybackPrefs: {
@@ -22805,6 +22892,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     resetMySeriesTracks: {
@@ -22833,6 +22921,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getMyChannels: {
@@ -22854,6 +22943,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateMyChannel: {
@@ -22904,6 +22994,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     testMyChannel: {
@@ -22947,6 +23038,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -23000,6 +23092,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteTelegramLink: {
@@ -23020,6 +23113,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["PrimaryProfileRequired"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPushPublicKey: {
@@ -23050,6 +23144,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createPushSubscription: {
@@ -23094,6 +23189,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deletePushSubscription: {
@@ -23125,6 +23221,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getSeerrSettings: {
@@ -24314,6 +24411,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24392,6 +24490,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24472,6 +24571,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24538,6 +24638,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24612,6 +24713,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 600 a minute (300 at once, shared with `getExternalTitleImage`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24688,6 +24790,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 30 a minute of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24745,6 +24848,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description More than 30 searches of the profile within a minute (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -24807,6 +24911,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["WishProblem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 60 a minute (30 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24879,6 +24984,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 600 a minute (300 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24933,6 +25039,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 60 a minute (30 at once, shared with `getExternalTitle`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24993,6 +25100,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createWish: {
@@ -25074,6 +25182,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description More than 20 wishes made or joined by the profile within the last hour (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -25114,6 +25223,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     signOutMyDevice: {
@@ -25146,6 +25256,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAccountWishes: {
@@ -25185,6 +25296,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getWishQuota: {
@@ -25215,6 +25327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     withdrawWish: {
@@ -25263,6 +25376,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listIntegrations: {
@@ -25575,6 +25689,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["RadioCatalogLoading"];
         };
     };
@@ -25627,6 +25742,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["RadioCatalogLoading"];
         };
     };
@@ -25653,6 +25769,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listRadioFavorites: {
@@ -25674,6 +25791,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setRadioFavoriteOrder: {
@@ -25706,6 +25824,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     addRadioFavorite: {
@@ -25729,6 +25848,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeRadioFavorite: {
@@ -25751,6 +25871,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     startRadioListen: {
@@ -25806,6 +25927,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description No stream of the station answered (`radio_unreachable`). */
             502: {
                 headers: {
@@ -25870,6 +25992,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     endRadioListen: {
@@ -25901,6 +26024,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioNow: {
@@ -25929,6 +26053,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioPreferences: {
@@ -25950,6 +26075,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setRadioPreferences: {
@@ -25984,6 +26110,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLivePlaylist: {
@@ -26014,6 +26141,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLiveInit: {
@@ -26044,6 +26172,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLiveSegment: {
@@ -26074,6 +26203,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioImage: {
@@ -26114,6 +26244,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioCover: {
@@ -26152,6 +26283,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioConfig: {

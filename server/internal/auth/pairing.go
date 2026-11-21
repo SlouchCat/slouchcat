@@ -164,7 +164,7 @@ func (s *Service) RedeemPairingVoucher(ctx context.Context, voucher, tvKey, devi
 	if err := s.pairing.redeems.Allow(model.ClientIP(ctx), now); err != nil {
 		return model.PairingRedeemed{}, err
 	}
-	name, system := strings.TrimSpace(deviceName), strings.TrimSpace(systemVersion)
+	name, system := model.CleanDeviceName(deviceName, 0), model.CleanDeviceName(systemVersion, 0)
 	var verr *model.ValidationError
 	if raw, err := b64.DecodeString(voucher); err != nil || len(raw) != tokenBytes {
 		verr = verr.Add("voucher", "invalid_value")
