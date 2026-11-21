@@ -2535,6 +2535,7 @@
       "empty": "Noch keine Geräte.",
       "columns": {
         "name": "Gerät",
+        "session": "Anmeldung",
         "owner": "Eigentümer",
         "lastSeen": "Letzter Kontakt",
         "containers": "Container",
@@ -2544,6 +2545,12 @@
         "hdr": "HDR",
         "streams": "Streams",
         "actions": "Aktionen"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "TV-App",
+        "none": "Abgemeldet"
       },
       "unnamed": "Unbekanntes Gerät",
       "owner": "{{email}} · {{profile}}",
