@@ -100,6 +100,8 @@ fun TvCard(
     subcaption: String? = null,
     tag: String? = null,
     progress: Float? = null,
+    /** `null`: as wide as its cell (a grid of seven columns). */
+    width: Dp? = shape.width,
 ) {
     val c = SlouchcatTheme.colors
     val corner = RoundedCornerShape(TvDimens.radiusCard)
@@ -108,7 +110,7 @@ fun TvCard(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .width(shape.width)
+            .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
             .aspectRatio(shape.ratio)
             .semantics(mergeDescendants = true) { contentDescription = title },
         shape = ClickableSurfaceDefaults.shape(shape = corner),

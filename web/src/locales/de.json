@@ -8035,6 +8035,9 @@
       "source": "Quellcode",
       "sourceValue": "github.com/SlouchCat/slouchcat",
       "advanced": "Erweitert"
+    },
+    "library": {
+      "show": "Anzeigen"
     }
   }
 }

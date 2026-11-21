@@ -95,8 +95,10 @@ fun MediaCard(
     subcaption: String? = null,
     tag: String? = null,
     progress: Float? = null,
+    /** `null`: as wide as its cell (a grid). */
+    width: Dp? = shape.width,
 ) {
-    val image = if (shape == CardShape.Wide) item.backdrop.or(item.poster).forWidth(shape.width) else item.poster.forWidth(shape.width)
+    val image = if (shape == CardShape.Wide) item.backdrop.or(item.poster).forWidth(shape.width) else item.poster.forWidth(width ?: shape.width)
     val said = listOfNotNull(item.cardTitle, caption?.takeIf { it != item.cardTitle }, subcaption, tag).joinToString(stringResource(R.string.format_listSeparator))
     TvCard(
         title = said,
@@ -108,6 +110,7 @@ fun MediaCard(
         subcaption = subcaption,
         tag = tag,
         progress = progress,
+        width = width,
     )
 }
 

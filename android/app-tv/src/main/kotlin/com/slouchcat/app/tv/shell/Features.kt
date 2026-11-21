@@ -1,5 +1,7 @@
 package com.slouchcat.app.tv.shell
 
+import com.slouchcat.app.tv.home.HomeFeature
+import com.slouchcat.app.tv.library.LibraryFeature
 import com.slouchcat.app.tv.settings.SettingsFeature
 
 /**
@@ -11,4 +13,6 @@ import com.slouchcat.app.tv.settings.SettingsFeature
  */
 val features: List<TvFeature> = listOf(
     SettingsFeature,
+    HomeFeature,
+    LibraryFeature,
 )
