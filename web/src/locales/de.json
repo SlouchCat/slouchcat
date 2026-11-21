@@ -13,6 +13,7 @@
     "saving": "Wird gespeichert …"
   },
   "nav": {
+    "devices": "Meine Geräte",
     "main": "Hauptnavigation",
     "home": "Start",
     "logout": "Abmelden",
@@ -6195,6 +6196,11 @@
     "loadFailed": "Die Bibliotheken konnten nicht geladen werden."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "PIN für das Hauptprofil empfohlen",
+      "body": "In diesem Konto gibt es Profile mit Altersfreigabe. Ohne PIN im Hauptprofil kann jeder ins Hauptprofil wechseln und die Freigaben ändern.",
+      "action": "PIN setzen"
+    },
     "picker": {
       "title": "Wer schaut?",
       "intro": "Wähle dein Profil.",
@@ -6699,6 +6705,44 @@
     "wish_failed": "Dein Wunsch ist fehlgeschlagen"
   },
   "settings": {
+    "devices": {
+      "title": "Meine Geräte",
+      "intro": "Alle Geräte, auf denen dieses Konto angemeldet ist oder Downloads hat. Meldest du ein Gerät ab, verliert es alles, was dieses Konto dort hat.",
+      "list": "Geräte dieses Kontos",
+      "none": "Kein Gerät hält eine Anmeldung oder Downloads dieses Kontos.",
+      "thisDevice": "Dieses Gerät",
+      "unnamed": "Unbekanntes Gerät",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "Fernseher",
+        "other": "Anderes Gerät"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Handy-App",
+        "device": "TV-App"
+      },
+      "signedIn": "{{kind}}, angemeldet am {{date}}",
+      "downloadsOnly": "Abgemeldet, hält noch Downloads dieses Kontos",
+      "lastSeen": "Letzter Kontakt: {{date}}",
+      "downloads_one": "{{count}} Download",
+      "downloads_other": "{{count}} Downloads",
+      "signOut": {
+        "action": "Abmelden",
+        "label": "{{name}} abmelden",
+        "title": "„{{name}}“ abmelden?",
+        "body": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben.",
+        "current": "Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
+        "confirm": "Gerät abmelden"
+      },
+      "signedOut": "„{{name}}“ abgemeldet.",
+      "onlyPrimary": {
+        "title": "Abmelden nur im Hauptprofil",
+        "body": "Geräte abmelden kannst du im Hauptprofil dieses Kontos. Hier siehst du die Liste."
+      }
+    },
     "playback": {
       "title": "Einstellungen",
       "intro": "Ton und Untertitel für das Profil {{name}}, auf jedem Gerät. Was du im Player von Hand wählst, geht vor.",
