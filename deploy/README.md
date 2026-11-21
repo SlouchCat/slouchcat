@@ -12,7 +12,8 @@ Slouchcat läuft als ein Container (Plan 3.7, ADR 0001 "Auslieferung"). Dieser O
 | `.env.example` | Vorlage für `.env` (Medienordner, Benutzer, Render-Gruppe, Zeitzone) |
 | `licenses/FFMPEG-NOTICE.md` | GPL-Hinweis und schriftliches Quellcode-Angebot für ffmpeg, landet in `/licenses` |
 | `scripts/measure-healthy.sh` | Misst Zeit bis `healthy` und Leerlauf-RSS (DoD M0) |
-| `Taskfile.yml` | `task deploy:build`, `deploy:build:arm64`, `deploy:build:multi`, `deploy:binfmt`, `deploy:up`, `deploy:down`, `deploy:config` (prüft auch `compose.podcasts.yaml`), `deploy:healthy-time`, `deploy:healthy-time:arm64` |
+| `Taskfile.yml` | `task deploy:build`, `deploy:build:arm64`, `deploy:build:multi`, `deploy:binfmt`, `deploy:up`, `deploy:down`, `deploy:config` (prüft auch `compose.podcasts.yaml` und `demo/compose.yaml`), `deploy:healthy-time`, `deploy:healthy-time:arm64` |
+| `demo/` | Vorführserver für Googles Prüfung der Android-Apps mit offenen Filmen der Blender Foundation (`demo/README.md`, Konzept 27 F-10) |
 
 ## Image bauen
 

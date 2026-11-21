@@ -1,0 +1,91 @@
+# Slouchcat demo server for Google's app review (concept 27, F-10; README.md next to this file).
+# Only for the review: open movies, one main account, one review account, nothing private.
+#
+# Usage: cp .env.example .env, fill in the four DEMO_* values, then `docker compose up -d`.
+#   1. "media" downloads the open movies of films.tsv into ./media (once, SHA-256 checked).
+#   2. "slouchcat" starts the server on ${DEMO_BIND}:${DEMO_PORT}.
+#   3. "seed" runs the first-start wizard and creates the review account over the API.
+# HTTPS on a rented server: COMPOSE_PROFILES=https and DEMO_DOMAIN in .env (Caddy, Let's Encrypt);
+#   set DEMO_BIND=127.0.0.1 then, so the server is reachable through Caddy only.
+name: slouchcat-demo
+
+services:
+  media:
+    image: curlimages/curl:8.17.0
+    user: "${PUID:-1000}:${PGID:-1000}"
+    entrypoint: ["sh", "/demo/prepare-media.sh"]
+    restart: "no"
+    environment:
+      DEMO_SOURCE: ${DEMO_SOURCE:-blender}
+    volumes:
+      - ./prepare-media.sh:/demo/prepare-media.sh:ro
+      - ./films.tsv:/demo/films.tsv:ro
+      - ${DEMO_MEDIA_DIR:-./media}:/media
+
+  slouchcat:
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.41.3}
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    depends_on:
+      media:
+        condition: service_completed_successfully
+    ports:
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_PORT:-8797}:8096"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ${DEMO_MEDIA_DIR:-./media}:/media:ro
+    tmpfs:
+      - /run/slouchcat/radio:size=564m,mode=0700,uid=${PUID:-1000},gid=${PGID:-1000}
+    environment:
+      TZ: ${TZ:-Europe/Zurich}
+      SLOUCHCAT_LOG_FORMAT: json
+      SLOUCHCAT_HW: software
+      # Optional: posters, descriptions and cast from TMDB. Without it the films show their file
+      # names and no images.
+      SLOUCHCAT_TMDB_API_KEY: ${SLOUCHCAT_TMDB_API_KEY:-}
+      SLOUCHCAT_PUBLIC_URL: ${SLOUCHCAT_PUBLIC_URL:-}
+      # "private" with the https profile (Caddy in front), empty otherwise.
+      SLOUCHCAT_TRUSTED_PROXIES: ${SLOUCHCAT_TRUSTED_PROXIES:-}
+
+  seed:
+    image: curlimages/curl:8.17.0
+    entrypoint: ["sh", "/demo/seed.sh"]
+    restart: "no"
+    depends_on:
+      slouchcat:
+        condition: service_healthy
+    environment:
+      DEMO_OWNER_EMAIL: ${DEMO_OWNER_EMAIL:?set DEMO_OWNER_EMAIL in .env}
+      DEMO_OWNER_PASSWORD: ${DEMO_OWNER_PASSWORD:?set DEMO_OWNER_PASSWORD in .env}
+      DEMO_REVIEW_EMAIL: ${DEMO_REVIEW_EMAIL:?set DEMO_REVIEW_EMAIL in .env}
+      DEMO_REVIEW_PASSWORD: ${DEMO_REVIEW_PASSWORD:?set DEMO_REVIEW_PASSWORD in .env}
+      DEMO_REVIEW_PROFILE: ${DEMO_REVIEW_PROFILE:-Demo}
+      DEMO_LANGUAGE: ${DEMO_LANGUAGE:-en}
+    volumes:
+      - ./seed.sh:/demo/seed.sh:ro
+      - ${DEMO_MEDIA_DIR:-./media}:/media:ro
+
+  # HTTPS front end for a rented server: only started with COMPOSE_PROFILES=https.
+  caddy:
+    image: caddy:2.10
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on:
+      slouchcat:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DEMO_DOMAIN: ${DEMO_DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -28,6 +28,10 @@ coverage/
 /cache/
 testdata/media/
 .env
+# Runtime data of a local demo server run (deploy/demo/README.md)
+deploy/demo/config/
+deploy/demo/cache/
+deploy/demo/media/
 
 # Local dev runtime (task dev)
 .dev/
