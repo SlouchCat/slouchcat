@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and later: what Google's backup and a device transfer take along. Only the server
+     address (DataStore «server»); the token store of the sign-in, databases and caches stay on the
+     device, so a restored phone signs in again instead of carrying a session along. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="datastore/server.preferences_pb" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="datastore/server.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>

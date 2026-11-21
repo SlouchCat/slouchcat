@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E-18: the app reaches its server over HTTP as well as HTTPS. Android can permit plain HTTP only
+     for named domains or for everything (concept 27, 2.7); a household server has no known name,
+     so it is everything. Certificates: those of the system and those the user installed, so a
+     server with a certificate of a household's own authority works as it does in the browser. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

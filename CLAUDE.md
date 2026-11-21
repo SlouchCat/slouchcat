@@ -18,6 +18,10 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
   Go-Werkzeuge (sqlc, goose, oapi-codegen, golangci-lint) laufen über `go tool` aus `server/go.mod`.
 - Node 24 LTS (lokal unter `~/.local/share/node`), pnpm Workspaces, `task` (Taskfile.yml) als einziger
   Einstieg: `task ci` baut und prüft alles, lokal wie in CI.
+- Zweites Go-Modul `relay/` (die zwei Dienste aus Konzept 27), dieselbe Go-Version, `task relay:*`.
+- Android: JDK 21 und Android-SDK ohne sudo unter `~/.local/share` (`scripts/install-android-tools.sh`),
+  Gradle über den Wrapper in `android/`, Versionen im Versionskatalog `android/gradle/libs.versions.toml`;
+  Einstieg `task android:*` (ADR 0039).
 - Installationen mit sudo macht Marco selbst (`scripts/install-system-tools.sh`).
 
 ## Harte Regeln (Lint setzt sie durch, wo möglich)
@@ -46,15 +50,23 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    ADR 0014). Antworten mit `ItemRef` sind `scoped`. Der Schema-Test
    schlägt sonst fehl; jede Operation braucht einen Eintrag im Vertragstest (`TestContractCoversEveryOperation`).
 8. **Jede neue Seite hat einen Playwright-Tastaturtest** (Pfeiltasten, Tab, Enter, Zurück, sichtbarer
-   Fokus, keine Fokusfalle). Gilt ab M1a.
+   Fokus, keine Fokusfalle). Gilt ab M1a. Dazu je Seite der Handy-App ein Oberflächentest
+   (`XScreenTest`, Robolectric und Compose: jedes Bedienelement erreichbar und beschriftet, Zurück
+   führt hinaus, zwei Breiten; Konzept 27 Abschnitt 12).
 9. **Keine Farbe und kein Text hart im Code.** Farben nur aus Tokens (`stylelint`: `color-no-hex`,
    `declaration-strict-value`), Texte nur aus `web/src/locales/*.json` (`eslint-plugin-i18next`;
    neue Texte in `de` und `en`, `de-DE` bei ss-Wörtern und «Guillemets», ADR 0033). Benannte Ausnahme:
    die Sprachnamen in `web/src/i18n/languages.ts` und die Freigabebezeichnungen in
-   `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
+   `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Gilt auch für `android/`: Texte
+   als erzeugte Ressourcen aus `web/src/locales` (Namensräume in `android/strings-namespaces.txt`),
+   Farben aus den erzeugten `SlouchcatTokens` oder dem Thema (Lint `SlouchcatHardcodedText`,
+   `SlouchcatHardcodedColor`). Nur für die Web-App: Admin und Zuschauer nutzen dieselben Komponenten
+   aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test (seit Konzept 25 auch `seerrapikey`,
-    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin).
+    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin). In `android/` nur über
+    `com.slouchcat.core.api.log.Log` (gleiche Schlüsselendungen wie der Server, Werte als Felder);
+    `android.util.Log`, `println` und `printStackTrace` meldet die Lint-Regel `SlouchcatDirectLog`.
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
     und Konzept 27 und die Android-TV-App nach Frage 34 und Konzept 26; Apple TV, webOS, Tizen, Fire TV und
     native iOS-Apps bleiben Nicht-Ziele), Plugins,
