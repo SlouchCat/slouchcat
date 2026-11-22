@@ -398,6 +398,7 @@
       "failed": "Not saved. Try again."
     },
     "downloads": {
+      "episodeShort": "E{{episode}} · {{title}}",
       "toDownloads": "Go to downloads",
       "episodeLine": "S{{season}} · E{{episode}} · {{title}}",
       "maxCountLess": "One episode fewer",

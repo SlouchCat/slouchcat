@@ -427,3 +427,50 @@ Hardware-Encoder; ein Server ohne GPU braucht für das erste Segment länger.
 
 Der Emulator ist kein Gerät: Software-Decoder, kein HDR, keine Tonausgänge ausser dem Lautsprecher.
 Die Zeiten oben zeigen die Grössenordnung und dass der Weg trägt, nicht, was ein Handy misst.
+
+## Stufe 6: Downloads und Offline (22. November 2026)
+
+**Emulator-Messung**, nicht auf einem Gerät: `OfflineFlowTest` (`task android:e2e
+CLASS=com.slouchcat.app.mobile.OfflineFlowTest PORT=9197 EMU_PORT=5592`, dazu `AVD=sc_tablet`) gegen
+den Server dieses Zweigs mit dem Film «Two Voices» aus `scripts/android-test-video.sh` (H.264 1280 × 720,
+zwei AAC-Spuren, 90 s), Stufe `low`. Der Test schreibt die Werte nach `offline-measures.txt` neben
+die Fotos. Netz weg heisst hier: WLAN und Mobilfunk des Emulators aus (`svc wifi/data disable`).
+
+| Messung | `sc_phone` (API 36) | `sc_tablet` (API 36) |
+|---|---|---|
+| Bestellen bis Datei vollständig (Vorbereitung im Server samt Transcode, dann Abruf) | 57,9 s | 57,5 s |
+| Abruf der Datei (10'014'996 Byte, Server auf dem Host über `10.0.2.2`) | 0,50 s (rund 20 MB/s) | 0,50 s |
+| Offline-Player: Tippen auf «Abspielen» bis «Pause» sichtbar | 1209 ms | 1268 ms |
+| Offline-Player: Abspielstart bis erstes Bild (lokale HLS-Liste, Log `first picture`) | 592 ms | 556 ms |
+| Abgleich nach Rückkehr des Netzes (`syncOffline` samt Hochladen der Offline-Ereignisse) | 218 ms | 1564 ms |
+| Position offline gespielt → nach dem Abgleich im Server | 30'296 → 30'296 ms | 40'338 → 40'347 ms |
+
+Danach meldet eine zweite Sitzung desselben Kontos das Gerät unter «Meine Geräte» ab; beim nächsten
+Kontakt antwortet der Server mit 401, die App fragt die Widerrufsliste mit der Gerätekennung und
+löscht Datensatz und Ordner (Test grün auf beiden Geräten).
+
+Die Zeiten zeigen, dass der Weg trägt, nicht, was ein Handy misst: Der Abruf läuft über die
+Loopback-Verbindung des Emulators zum Host, die Datei ist klein, und die 1,5 s des Tablets beim
+Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
+
+**Gerätecheckliste Stufe 6 (nur Marco, auf dem echten Handy):**
+
+1. Einen Film in Stufe «Hoch» herunterladen, die App wegwischen: Die Mitteilung zeigt den Fortschritt
+   weiter, der Download wird fertig.
+2. Während eines Downloads das Handy neu starten: Der Abruf setzt nach dem Start von selbst fort
+   (Mitteilung), die Datei spielt danach ohne Fehler.
+3. 20 GB über Nacht im WLAN, Handy gesperrt und am Ladegerät: am Morgen alles «Fertig».
+4. Flugmodus an: Die App öffnet beim Start von selbst «Downloads» mit «Kein Kontakt zum Server»;
+   ein Film spielt, spulen geht, Untertitel und Tonspur wie heruntergeladen.
+5. Flugmodus aus: Die App kehrt zum Start zurück; die Position steht in der Web-App.
+6. «Nur im WLAN» an, WLAN aus, Mobilfunk an: Ein neuer Download wartet («Wartet auf WLAN»), mit
+   WLAN läuft er weiter.
+7. Automatische Downloads einschalten (nächste Folgen), eine Folge einer Serie fertig schauen, die
+   App schliessen: innerhalb eines Tages liegt die nächste Folge auf dem Handy (WorkManager unter der
+   Akku-Optimierung des Herstellers).
+8. Unter «Meine Geräte» in der Web-App dieses Handy abmelden: Beim nächsten Öffnen mit Netz sind die
+   Downloads weg.
+9. Ein Profil mit PIN offline öffnen: einmal online mit PIN gewählt, dann offline mit derselben PIN;
+   dreimal falsch: 30 s Pause, auch nach Verstellen der Uhr.
+10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
+    Web-App unter «Meine Geräte» nicht mehr.

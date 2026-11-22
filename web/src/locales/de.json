@@ -398,6 +398,7 @@
       "failed": "Nicht gespeichert. Versuche es noch einmal."
     },
     "downloads": {
+      "episodeShort": "F{{episode}} · {{title}}",
       "toDownloads": "Zu den Downloads",
       "episodeLine": "S{{season}} · F{{episode}} · {{title}}",
       "maxCountLess": "Eine Folge weniger",

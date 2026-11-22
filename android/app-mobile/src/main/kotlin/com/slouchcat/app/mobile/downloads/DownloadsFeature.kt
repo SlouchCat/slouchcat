@@ -112,9 +112,13 @@ fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostStat
         }
     }
     ActionButton(icon, label, null, { vm.open(item) }, isWideLayout(), modifier)
+    // Mockup photos 45 and 46: «2026 · Film», or the series with «S1 · F1 · Titel» of the episode.
+    val episode = state.episode
     val subtitle = when {
-        state.episode != null && item.kind != com.slouchcat.core.api.generated.models.ItemKind.MOVIE -> state.episode?.title
-        else -> item.year?.toString()
+        episode != null && item.kind != com.slouchcat.core.api.generated.models.ItemKind.MOVIE ->
+            androidx.compose.ui.res.stringResource(R.string.app_downloads_episodeLine, (episode.seasonNumber ?: 1).toString(), (episode.episodeNumber ?: 1).toString(), episode.title)
+        else -> listOfNotNull(item.year?.toString(), com.slouchcat.app.mobile.media.kindName(item.kind)).joinToString(" · ").ifEmpty { null }
     }
-    DownloadDialog(state, item.seriesTitle ?: item.title, subtitle, vm) { graph.links.request("downloads") }
+    val title = if (item.kind == com.slouchcat.core.api.generated.models.ItemKind.MOVIE) item.title else item.seriesTitle ?: item.seriesRef?.title ?: item.series?.title ?: item.title
+    DownloadDialog(state, title, subtitle, vm) { graph.links.request("downloads") }
 }

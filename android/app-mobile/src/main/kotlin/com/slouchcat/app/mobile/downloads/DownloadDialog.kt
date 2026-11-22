@@ -330,7 +330,9 @@ private fun Body(state: DownloadDialogState, vm: DownloadDialogViewModel) {
         Column(Modifier.selectableGroup()) {
             for (scope in state.scopes) {
                 val (label, detail) = when (scope) {
-                    DownloadScope.One -> stringResource(R.string.app_downloads_scopeOne) to state.episode?.title
+                    DownloadScope.One -> stringResource(R.string.app_downloads_scopeOne) to state.episode?.let {
+                        stringResource(R.string.app_downloads_episodeShort, (it.episodeNumber ?: 1).toString(), it.title)
+                    }
                     DownloadScope.Next -> stringResource(R.string.app_downloads_scopeNext) to stringResource(
                         R.string.app_downloads_scopeNextRange,
                         (state.next.firstOrNull()?.episodeNumber ?: 1).toString(),

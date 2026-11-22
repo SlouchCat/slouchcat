@@ -118,6 +118,8 @@ data class DownloadsUiState(
     /** The profile whose downloads the page shows. */
     val profileName: String? = null,
     val viewerIsSession: Boolean = true,
+    /** The rule of the profile on this device is on (from the last sync; the fold's second line). */
+    val ruleOn: Boolean = false,
     /** Profiles that may open the offline library (for «Profil wechseln» offline). */
     val offlineProfiles: List<StoredProfile> = emptyList(),
     val wifiOnly: Boolean = false,
@@ -200,7 +202,8 @@ class DownloadsViewModel(
         val rows = own.map { row(it, progress, profiles, wifiOnly) }
         val storage = Storage(engine.files.usedBytes(), engine.files.freeBytes(), engine.files.totalBytes())
         val name = profiles.firstOrNull { it.account == account && it.id == profileId }?.snapshot?.name ?: ready?.profile?.name
-        Snapshot(rows, storage, name, viewing == null || viewing == ready?.profile?.id, offlineProfiles(profiles, downloads, account))
+        val rule = profiles.firstOrNull { it.account == account && it.id == profileId }?.rules
+        Snapshot(rows, storage, name, viewing == null || viewing == ready?.profile?.id, offlineProfiles(profiles, downloads, account), rule?.enabled == true)
     }.flowOn(Dispatchers.IO)
 
     private suspend fun settingsWifi(): Boolean = settings.settings.first().downloadsWifiOnly
@@ -213,6 +216,7 @@ class DownloadsViewModel(
             storage = snap.storage,
             profileName = snap.name,
             viewerIsSession = snap.ownProfile,
+            ruleOn = l.rule?.rules?.enabled ?: snap.ruleOn,
             offlineProfiles = snap.profiles,
             wifiOnly = device.downloadsWifiOnly,
             autoOpen = l.autoOpen,
@@ -376,7 +380,7 @@ class DownloadsViewModel(
 
     private data class Quad(val a: List<StoredDownload>, val b: List<StoredProfile>, val c: FetchProgress?, val d: Long?)
 
-    private data class Snapshot(val rows: List<DownloadRowUi>, val storage: Storage, val name: String?, val ownProfile: Boolean, val profiles: List<StoredProfile>)
+    private data class Snapshot(val rows: List<DownloadRowUi>, val storage: Storage, val name: String?, val ownProfile: Boolean, val profiles: List<StoredProfile>, val ruleOn: Boolean)
 
     companion object {
         const val MIN_COUNT = 1

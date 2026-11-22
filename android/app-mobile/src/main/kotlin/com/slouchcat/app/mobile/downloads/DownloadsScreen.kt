@@ -376,7 +376,7 @@ private fun Folds(state: DownloadsUiState, events: DownloadsEvents) {
     Fold(
         icon = SlouchcatIcon.Refresh,
         title = stringResource(R.string.app_downloads_autoTitle),
-        subtitle = stringResource(if (rule?.rules?.enabled == true) R.string.app_downloads_autoOn else R.string.app_downloads_autoOff),
+        subtitle = stringResource(if (state.ruleOn) R.string.app_downloads_autoOn else R.string.app_downloads_autoOff),
         open = state.autoOpen,
         enabled = !state.offline,
         onToggle = events::onToggleAuto,

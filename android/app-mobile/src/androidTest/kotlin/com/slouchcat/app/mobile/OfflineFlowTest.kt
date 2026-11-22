@@ -98,6 +98,16 @@ class OfflineFlowTest {
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    private val measures = mutableListOf<String>()
+
+    /** A measure into the log and into `offline-measures.txt` beside the photos (docs/perf/K27-android-handy.md). */
+    private fun measure(line: String) {
+        Log.i(TAG, "measure", "value" to line)
+        measures += line
+        val dir = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
+        File(dir, "offline-measures.txt").writeText(measures.joinToString("\n", postfix = "\n"))
+    }
+
     private val graph: AppGraph get() = (context.applicationContext as SlouchcatApplication).graph
 
     private fun jump(address: String) = instrumentation.runOnMainSync { assertTrue(graph.links.request(address)) }
@@ -137,10 +147,14 @@ class OfflineFlowTest {
         compose.waitUntil(20_000) { ready() }
     }
 
-    private fun film(): String {
+    /** The account (without the seeded media) and the library of the test clips, before the app signs in. */
+    private fun prepareServer() {
         val setup = SlouchcatApi.create(::SetupApi, server, SlouchcatHttp.client(identity))
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
         DetailFlowTest.Admin(server, email, password, pin).ensureLibrary(requireNotNull(media) { "run through scripts/android-e2e.sh" }, name = LIBRARY, folder = "/Playback")
+    }
+
+    private fun film(): String {
         val items = SlouchcatApi.create(::ItemsApi, server, graph.http)
         val library = items.listVisibleLibraries()!!.single { it.name == LIBRARY }
         val id = items.listLibraryItems(library.id)!!.items.single { it.title == FILM }.id
@@ -168,6 +182,8 @@ class OfflineFlowTest {
         // The notification of the transfer may show without asking (Android 13 and later).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.POST_NOTIFICATIONS)
         network(true)
+        Runtime.getRuntime().exec(arrayOf("logcat", "-c")).waitFor()
+        prepareServer()
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         signIn()
         val film = film()
@@ -197,7 +213,7 @@ class OfflineFlowTest {
         }
         val done = downloads().single { it.complete }
         val seconds = (System.nanoTime() - (if (fetchStart > 0) fetchStart else ordered)) / 1e9
-        Log.i(TAG, "measure fetch", "bytes" to done.bytesWritten, "seconds" to "%.2f".format(seconds), "ordered" to "%.2f".format((System.nanoTime() - ordered) / 1e9))
+        measure("fetch bytes=${done.bytesWritten} seconds=${"%.2f".format(seconds)} order-to-complete=${"%.1f".format((System.nanoTime() - ordered) / 1e9)}s")
         waitFor(hasText(s(R.string.app_downloads_sectionDone)))
         shot("o03-downloads-done")
 
@@ -210,17 +226,27 @@ class OfflineFlowTest {
         val play = hasContentDescription(s(R.string.app_downloads_play, FILM)) and hasClickAction()
         compose.onAllNodes(play).onFirst().performScrollTo().performClick()
         val seek = hasContentDescription(s(R.string.player_seek))
+        val pause = hasContentDescription(s(R.string.player_pause)) and hasClickAction()
+        val opened = System.nanoTime()
+        // Playing: the controls show «Pause» (a tap on the picture shows them).
         compose.waitUntil(30_000) {
-            if (!present(seek)) compose.onRoot().performTouchInput { click(Offset(width * 0.5f, height * 0.3f)) }
-            present(seek)
+            if (!present(pause)) compose.onRoot().performTouchInput { click(Offset(width * 0.5f, height * 0.3f)) }
+            present(pause)
         }
+        measure("offline player playing after ms=${(System.nanoTime() - opened) / 1_000_000}")
         compose.onAllNodes(seek).onFirst().performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
-        compose.waitUntil(20_000) { (downloads().single().positions.values.maxOfOrNull { it.positionMs } ?: 0) > 0 || present(seek) }
+        compose.waitUntil(30_000) {
+            if (!present(pause)) compose.onRoot().performTouchInput { click(Offset(width * 0.5f, height * 0.3f)) }
+            present(pause)
+        }
         shot("o05-offline-player")
-        // Leaving the player writes the last position into the queue.
-        instrumentation.runOnMainSync { scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+        // Pause writes the progress event and the position on the device.
+        compose.onAllNodes(pause).onFirst().performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntil(20_000) { (downloads().single().positions.values.maxOfOrNull { it.positionMs } ?: 0) > 0 }
+        instrumentation.runOnMainSync { scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
         val offlinePosition = downloads().single().positions.values.maxOf { it.positionMs }
+        val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "raw", "-s", "Slouchcat/player:I"))
+        java.io.InputStreamReader(process.inputStream).readLines().filter { it.contains("first picture") }.forEach { measure("offline $it") }
 
         // Network back: the sync uploads the progress; the server has the position.
         network(true)
@@ -230,10 +256,10 @@ class OfflineFlowTest {
             synced = runBlocking { engine.sync() }
             synced == Contact.Online
         }
-        Log.i(TAG, "measure sync", "ms" to (System.nanoTime() - started) / 1_000_000)
+        measure("sync after network back ms=${(System.nanoTime() - started) / 1_000_000}")
         val items = SlouchcatApi.create(::ItemsApi, server, graph.http)
         compose.waitUntil(30_000) { (items.getItem(film)!!.progress?.positionMs ?: 0) > 0 }
-        Log.i(TAG, "offline position on the server", "local" to offlinePosition, "server" to items.getItem(film)!!.progress?.positionMs)
+        measure("offline position local=$offlinePosition server=${items.getItem(film)!!.progress?.positionMs}")
 
         // Another session of the account signs this device out (as under «Meine Geräte»): files gone.
         val device = requireNotNull(graph.session.knownDeviceId)
