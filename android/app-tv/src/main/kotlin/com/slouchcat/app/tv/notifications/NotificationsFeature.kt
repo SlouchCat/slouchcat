@@ -69,7 +69,7 @@ class NotificationsFeature(
     override val badges = listOf(
         RailBadge(
             key = SETTINGS,
-            count = { graph -> Badge(graph) },
+            count = { graph -> badgeCount(graph) },
             label = { count -> pluralCount(R.plurals.notifications_unreadLabel, count) },
         ),
     )
@@ -129,7 +129,7 @@ private fun summary(unread: Int?): String? = when {
  * back to the front (the TV has no push), kept current by the page while it is open.
  */
 @Composable
-private fun Badge(graph: TvGraph): Int? {
+private fun badgeCount(graph: TvGraph): Int? {
     val count by graph.media.unreadCount.count.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     // Also on the first drawing: a new observer gets ON_RESUME while the app is in front.
