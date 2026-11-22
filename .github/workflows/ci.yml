@@ -418,8 +418,10 @@ jobs:
 
       - run: task android:e2e AVD=ci_phone
 
+      # Also when the job was cancelled: a flow that hangs ends at the job's time limit, and its
+      # logs (server, emulator, logcat) are what explains it.
       - name: Keep the instrumentation reports on failure
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-e2e-reports

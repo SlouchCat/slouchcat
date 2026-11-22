@@ -32,6 +32,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
 adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
+adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
@@ -44,11 +46,11 @@ cleanup() {
     mkdir -p "$logs"
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
-    if [ -n "$emulator_pid" ]; then adb logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
+    if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
   if [ -n "$emulator_pid" ]; then
-    adb emu kill >/dev/null 2>&1 || true
+    adb_brief emu kill >/dev/null 2>&1 || true
     # Also before the emulator reached adb: the process itself (code review minor 31).
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
