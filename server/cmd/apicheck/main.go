@@ -69,9 +69,10 @@ func main() {
 	pairWantServer := flag.String("pair-want-server", "", "with -pair-tv: the server address the packet must carry (default: any)")
 	pairWantEmail := flag.String("pair-want-email", "", "with -pair-tv: the account the sealed answer must name (default: any)")
 	pairWithin := flag.Duration("pair-within", 5*time.Minute, "with -pair-tv: how long to wait for the phone's packet")
+	pairHold := flag.Duration("pair-hold", 15*time.Second, "with -pair-tv: how long the paired TV stays signed in before it signs out again (the phone must see it)")
 	flag.Parse()
 	if *pairTV != "" {
-		options := pairTVOptions{codeFile: *pairTV, relay: strings.TrimRight(*relay, "/"), codeRelay: *pairCodeRelay, wantServer: *pairWantServer, wantEmail: *pairWantEmail, expiry: *pairWithin}
+		options := pairTVOptions{codeFile: *pairTV, relay: strings.TrimRight(*relay, "/"), codeRelay: *pairCodeRelay, wantServer: *pairWantServer, wantEmail: *pairWantEmail, expiry: *pairWithin, hold: *pairHold}
 		if err := runTVOnly(*base, *spec, options, *wait, *timeout); err != nil {
 			fmt.Fprintf(os.Stderr, "apicheck: %v\n", err)
 			os.Exit(1)
