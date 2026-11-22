@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -20,6 +23,7 @@ import com.slouchcat.app.mobile.testing.device
 import com.slouchcat.core.api.generated.models.MyDevice
 import com.slouchcat.core.api.generated.models.SessionKind
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.core.strings.R
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
@@ -37,7 +41,14 @@ private fun s(id: Int, vararg args: Any): String = ApplicationProvider.getApplic
 /** A scanner without camera: the test decides what it reads. */
 private class TestScanner(override val asksForCamera: Boolean = false) : CodeScanner {
     @Composable
-    override fun Camera(onCode: (String) -> Unit, onClose: () -> Unit, onUnavailable: () -> Unit, modifier: Modifier) {
+    override fun Camera(
+        accepts: (String) -> Boolean,
+        onCode: (String) -> Unit,
+        onClose: () -> Unit,
+        onLoading: (Boolean) -> Unit,
+        onTrouble: (ScannerTrouble) -> Unit,
+        modifier: Modifier,
+    ) {
         Box(modifier)
     }
 }
@@ -57,14 +68,14 @@ class TvLinkScreenTest {
         onScan = { events += "scan" },
         onScanned = { events += "scanned" },
         onScanClosed = { events += "closed" },
-        onScannerUnavailable = { events += "unavailable" },
         onConfirm = { events += "confirm" },
         onBackToIntro = { events += "intro" },
         onSwitchProfile = { events += "profiles" },
         onDevices = { events += "devices" },
         onFinish = { events += "finish" },
-        onEditRelay = { events += "relay:$it" },
-        onRelay = { events += "relay=${it ?: "default"}" },
+        onNotMine = { events += "notMine" },
+        onNotMineConfirm = { events += "notMineConfirm:$it" },
+        onNotMineDismiss = { events += "notMineDismiss" },
     )
 
     private fun show(state: TvLinkUiState, scanner: CodeScanner = TestScanner()) = compose.setContent {
@@ -86,9 +97,8 @@ class TvLinkScreenTest {
         compose.assertEveryControlLabelledAndTappable()
         button(s(R.string.app_tv_intro_scan)).performScrollTo().performClick()
         compose.onNodeWithText("Living room").performScrollTo().performClick()
-        button(s(R.string.app_tv_relay_change)).performScrollTo().performClick()
         compose.onNodeWithContentDescription(s(R.string.common_back)).performClick()
-        assertEquals(listOf("scan", "devices", "relay:true", "back"), events)
+        assertEquals(listOf("scan", "devices", "back"), events)
     }
 
     @Test @Config(qualifiers = PHONE)
@@ -104,9 +114,11 @@ class TvLinkScreenTest {
     fun introTabletLargeFont() = intro()
 
     private fun notPrimary() {
-        show(TvLinkUiState(primary = false, scanProblem = ScanProblem.OtherRelay("pair.example.test")))
+        show(TvLinkUiState(primary = false, scanProblem = ScanProblem.OtherRelay, relay = "https://pair.example.test".toHttpUrl()))
         compose.onNodeWithText(s(R.string.app_tv_intro_primaryOnly)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(s(R.string.app_tv_problem_otherRelay, "pair.example.test")).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_problem_otherRelay)).performScrollTo().assertIsDisplayed()
+        // An own relay is named on the page, the host of a code never (security review L-4).
+        compose.onNodeWithText(s(R.string.tv_pair_ownRelay, "pair.example.test")).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(s(R.string.app_tv_intro_scan)).assertDoesNotExist()
         compose.assertEveryControlLabelledAndTappable()
         button(s(R.string.app_more_switchProfile)).performScrollTo().performClick()
@@ -121,9 +133,9 @@ class TvLinkScreenTest {
 
     @Test @Config(qualifiers = PHONE)
     fun theOwnScannerSaysItAsksForTheCamera() {
-        show(TvLinkUiState(primary = true, scanProblem = ScanProblem.Unavailable), TestScanner(asksForCamera = true))
+        show(TvLinkUiState(primary = true, scanProblem = ScanProblem.Scanner(ScannerTrouble.NoCamera)), TestScanner(asksForCamera = true))
         compose.onNodeWithText(s(R.string.app_tv_intro_cameraHint)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(s(R.string.app_tv_problem_unavailable)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_problem_noCamera)).performScrollTo().assertIsDisplayed()
     }
 
     // --- scanner ---
@@ -210,6 +222,8 @@ class TvLinkScreenTest {
         compose.onNodeWithText(s(R.string.app_tv_run_failedTitle)).assertIsDisplayed()
         compose.onNodeWithContentDescription("${RUN[at]}: ${s(R.string.app_tv_run_failed)}").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+        // The message of the end says itself (code review m-5).
+        compose.onNode(androidx.compose.ui.test.hasAnyDescendant(hasText(text)) and SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive)).assertExists()
         compose.assertEveryControlLabelledAndTappable()
         for (b in buttons) button(b).performScrollTo().performClick()
         assertEquals(expected, events)
@@ -250,7 +264,14 @@ class TvLinkScreenTest {
     fun notAllowed() = failure(TvLinkFailure.NotAllowed, 0, s(R.string.app_tv_fail_notAllowed), listOf(s(R.string.app_tv_fail_ok)), listOf("intro"))
 
     @Test @Config(qualifiers = PHONE)
-    fun tooManyAttempts() = failure(TvLinkFailure.TooManyAttempts(30), 0, s(R.string.errors_code_too_many_attempts), listOf(s(R.string.app_tv_fail_again)), listOf("scan"))
+    fun tooManyAttempts() = failure(
+        TvLinkFailure.TooManyAttempts(30), 0,
+        ApplicationProvider.getApplicationContext<Context>().resources.getQuantityString(R.plurals.app_tv_fail_tooMany, 30, 30),
+        listOf(s(R.string.app_tv_fail_again)), listOf("scan"),
+    )
+
+    @Test @Config(qualifiers = PHONE)
+    fun tooManyAttemptsWithoutPause() = failure(TvLinkFailure.TooManyAttempts(null), 0, s(R.string.errors_code_too_many_attempts), listOf(s(R.string.app_tv_fail_again)), listOf("scan"))
 
     @Test @Config(qualifiers = PHONE)
     fun serverUnconfirmed() = failure(TvLinkFailure.ServerUnconfirmed, 0, s(R.string.app_serverKey_unconfirmedBody), listOf(s(R.string.app_tv_fail_ok)), listOf("intro"))
@@ -276,15 +297,20 @@ class TvLinkScreenTest {
 
     // --- connected ---
 
+    private val linkedTv = device("tv-new", "Living room", type = MyDevice.Type.TV, kind = SessionKind.DEVICE)
+
     private fun done() {
-        show(TvLinkUiState(step = TvLinkStep.Done("Living room"), primary = true))
+        show(TvLinkUiState(step = TvLinkStep.Done(linkedTv), primary = true))
         compose.onNodeWithText(s(R.string.app_tv_done_title)).assertIsDisplayed()
-        compose.onNodeWithText("Living room").assertIsDisplayed()
+        // The name as the TV gave it, marked as such (security review L-2).
+        compose.onNodeWithText(s(R.string.app_tv_done_named, "Living room")).assertIsDisplayed()
+        compose.onNode(hasText(s(R.string.app_tv_done_title)) and SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive)).assertExists()
         compose.assertEveryControlLabelledAndTappable()
         button(s(R.string.nav_devices)).performScrollTo().performClick()
         button(s(R.string.app_tv_done_finish)).performScrollTo().performClick()
+        button(s(R.string.app_tv_done_notMine)).performScrollTo().performClick()
         systemBack()
-        assertEquals(listOf("devices", "finish", "finish"), events)
+        assertEquals(listOf("devices", "finish", "notMine", "finish"), events)
     }
 
     @Test @Config(qualifiers = PHONE)
@@ -297,15 +323,58 @@ class TvLinkScreenTest {
     fun donePhoneLargeFont() = done()
 
     @Test @Config(qualifiers = PHONE)
-    fun aTvWithoutNameIsUnnamed() {
+    fun twoNewTvsGiveNoName() {
         show(TvLinkUiState(step = TvLinkStep.Done(null), primary = true))
-        compose.onNodeWithText(s(R.string.settings_devices_unnamed)).assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_done_several)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_done_notMine)).assertDoesNotExist()
     }
 
-    // --- the relay ---
+    private fun notMine() {
+        show(TvLinkUiState(step = TvLinkStep.Done(linkedTv), primary = true, notMine = NotMine(linkedTv, error = com.slouchcat.app.mobile.devices.DeviceSignOutError.Unreachable)))
+        compose.onNodeWithText(s(R.string.app_tv_notMine_title, "Living room")).assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_notMine_body)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_setup_error_unreachable)).performScrollTo().assertIsDisplayed()
+        button(s(R.string.settings_devices_signOut_confirm)).performScrollTo().performClick()
+        button(s(R.string.common_cancel)).performScrollTo().performClick()
+        assertEquals(listOf("notMineConfirm:${s(R.string.settings_devices_unnamed)}", "notMineDismiss"), events)
+    }
 
-    private fun relaySheet() {
-        show(TvLinkUiState(primary = true, editingRelay = true))
+    @Test @Config(qualifiers = PHONE)
+    fun notMinePhone() = notMine()
+
+    @Test @Config(qualifiers = TABLET, fontScale = 2f)
+    fun notMineTabletLargeFont() = notMine()
+
+    @Test @Config(qualifiers = PHONE)
+    fun signedOutIsSaidOnTheStart() {
+        show(TvLinkUiState(primary = true, signedOutTv = "Living room"))
+        compose.onNodeWithText(s(R.string.app_tv_notMine_done, "Living room")).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun theScannerSaysWhenItLoads() {
+        show(TvLinkUiState(step = TvLinkStep.Scan, primary = true, scannerLoading = true))
+        compose.onNodeWithText(s(R.string.app_tv_scan_loading)).assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_tv_scan_aim)).assertDoesNotExist()
+    }
+
+    // --- the relay (F-21, «Mehr › Einstellungen») ---
+
+    private val relayEvents = mutableListOf<String>()
+
+    private fun relayPage(primary: Boolean) = compose.setContent {
+        SlouchcatTheme {
+            RelayScreen(
+                relay = RelaySettings.DEFAULT,
+                primary = primary,
+                onBack = { relayEvents += "back" },
+                onSave = { relayEvents += "relay=${it ?: "default"}" },
+            )
+        }
+    }
+
+    private fun relay() {
+        relayPage(primary = true)
         compose.onNodeWithText(s(R.string.tv_relay_lead)).performScrollTo().assertIsDisplayed()
         compose.assertEveryControlLabelledAndTappable()
         val field = compose.onNode(androidx.compose.ui.test.hasSetTextAction())
@@ -316,12 +385,20 @@ class TvLinkScreenTest {
         field.performTextReplacement("pair.example.test")
         button(s(R.string.tv_relay_save)).performScrollTo().performClick()
         button(s(R.string.tv_relay_reset)).performScrollTo().performClick()
-        assertEquals(listOf("relay=${"https://pair.example.test/".toHttpUrl()}", "relay=default"), events)
+        compose.onNodeWithContentDescription(s(R.string.common_back)).performClick()
+        assertEquals(listOf("relay=${"https://pair.example.test/".toHttpUrl()}", "relay=default", "back"), relayEvents)
     }
 
     @Test @Config(qualifiers = PHONE)
-    fun relaySheetPhone() = relaySheet()
+    fun relayPhone() = relay()
 
     @Test @Config(qualifiers = TABLET, fontScale = 2f)
-    fun relaySheetTabletLargeFont() = relaySheet()
+    fun relayTabletLargeFont() = relay()
+
+    @Test @Config(qualifiers = PHONE)
+    fun onlyThePrimaryProfileChangesTheRelay() {
+        relayPage(primary = false)
+        compose.onNodeWithText(s(R.string.app_tv_relay_primaryOnly)).assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.tv_relay_save)).assertDoesNotExist()
+    }
 }

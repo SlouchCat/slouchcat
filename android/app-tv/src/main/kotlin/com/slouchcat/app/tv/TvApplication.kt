@@ -7,8 +7,8 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
-import com.slouchcat.app.tv.common.DataStoreRelaySettings
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.DataStoreRelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.app.tv.common.TvSessionHooks
 import com.slouchcat.app.tv.shell.TvFeature
@@ -71,7 +71,7 @@ class TvGraph(
     tokenStore: TokenStore = EncryptedFileTokenStore(File(context.applicationContext.noBackupFilesDir, "session.bin"), KeystoreSecretBox()),
     accountStore: AccountStore = DataStoreAccountStore(context.applicationContext),
     /** The address of the relay (F-21); tests bring one in memory. */
-    val relaySettings: RelaySettings = DataStoreRelaySettings(context.applicationContext),
+    val relaySettings: RelaySettings = DataStoreRelaySettings(context.applicationContext, "tv"),
     /** Seams for tests: `null` takes the real one. */
     serverProbe: ServerProbe? = null,
     auth: AuthRepository? = null,

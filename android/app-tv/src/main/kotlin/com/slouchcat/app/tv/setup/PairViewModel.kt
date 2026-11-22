@@ -2,7 +2,7 @@ package com.slouchcat.app.tv.setup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.common.takeServer
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.pairing.PairingFlow

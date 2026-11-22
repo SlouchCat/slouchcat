@@ -30,6 +30,7 @@ import com.slouchcat.app.mobile.more.AccountRoute
 import com.slouchcat.app.mobile.more.DevicesRoute
 import com.slouchcat.app.mobile.more.MoreRoute
 import com.slouchcat.app.mobile.playback.PlaybackSettingsRoute
+import com.slouchcat.app.mobile.tvlink.RelayRoute
 import com.slouchcat.app.mobile.tvlink.TvLinkRoute
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryKind
@@ -72,7 +73,7 @@ class RegistryTest {
         WatchlistRoute::class, WatchedRoute::class, CollectionsRoute::class, CollectionRoute::class, ProfilesSettingsRoute::class,
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
         DownloadsRoute::class, OfflinePlayerRoute::class,
-        TvLinkRoute::class,
+        TvLinkRoute::class, RelayRoute::class,
     )
 
     @Test
