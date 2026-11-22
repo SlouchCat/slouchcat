@@ -30,7 +30,8 @@ class ShowcaseImages(private val names: Map<String, String>) {
             add(
                 Interceptor { chain ->
                     val url = chain.request.data.toString()
-                    SuccessResult(draw(url).asImage(), chain.request) as ImageResult
+                    // A file of the device (a poster a download stored) loads as it is.
+                    if (url.startsWith("file:")) chain.proceed() else SuccessResult(draw(url).asImage(), chain.request) as ImageResult
                 },
             )
         }

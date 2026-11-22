@@ -14,7 +14,7 @@ import com.slouchcat.app.mobile.common.SessionActions
 import com.slouchcat.app.mobile.common.SessionHooks
 import com.slouchcat.app.mobile.common.ShellNotices
 import com.slouchcat.app.mobile.downloads.OfflineStarter
-import com.slouchcat.app.mobile.downloads.offline
+import com.slouchcat.app.mobile.downloads.OfflineData
 import com.slouchcat.app.mobile.shell.AppLinks
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.ShellRegistry
@@ -81,6 +81,8 @@ class AppGraph(
     devicesRepository: DevicesRepository? = null,
     /** The data of the pages (`:core:media`); tests and the showcase bring their own. `null`: from the server. */
     private val mediaData: ((AppGraph) -> MediaData)? = null,
+    /** Downloads and offline (stage 6); tests bring an engine over a database in memory. `null`: the real one. */
+    private val offlineData: ((AppGraph) -> OfflineData)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -153,6 +155,9 @@ class AppGraph(
         (mediaData?.invoke(this) ?: MediaData.api(api, http)).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
     }
 
+    /** Downloads and offline (concept 27 section 9): built on first use, the same way for the app and its tests. */
+    val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
+
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
@@ -195,7 +200,7 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
         Log.sink = AndroidLogSink(BuildConfig.DEBUG)
         graph = AppGraph(this)
         // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
-        OfflineStarter.start(this, graph)
+        OfflineStarter(this, graph).start()
         // Wishes and notifications (stage 8): the push subscription follows the session.
         com.slouchcat.app.mobile.push.PushStarter.start(this, graph)
     }

@@ -105,6 +105,8 @@ class FakeOfflineServer : OfflineServer {
     override suspend fun upload(batch: OfflineEventBatch): ApiResult<OfflineEventResult> =
         ApiResult.Ok(OfflineEventResult(accepted = batch.events.size, duplicates = 0, rejected = 0, results = emptyList()))
 
+    override suspend fun accountId(): ApiResult<Long> = ApiResult.Ok(7)
+
     override fun absolute(path: String): HttpUrl? = "http://192.0.2.10:8096/".toHttpUrl().resolve(path)
 }
 
@@ -135,3 +137,9 @@ fun testEngine(
 }
 
 fun testOfflineData(engine: OfflineEngine) = OfflineData(engine, MemoryDeviceSettingsStore(), { NetworkKind.Wifi })
+
+/** The server's key of the fakes and the account the fake server names. */
+const val OFFLINE_SERVER = "server-key"
+const val OFFLINE_ACCOUNT = "$OFFLINE_SERVER|#7"
+
+fun offlineIdentity(profile: Long? = 1) = com.slouchcat.core.offline.OfflineIdentity(OFFLINE_SERVER, "viewer@example.test", profile)

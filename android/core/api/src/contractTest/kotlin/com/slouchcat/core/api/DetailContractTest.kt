@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -177,6 +178,17 @@ class DetailContractTest {
         }
 
         private fun libraries(): JsonArray = call("GET", "admin/libraries")!!.jsonArray
+
+        /** Runs of the job [type] in [state] (`listJobRuns`), after [ensureLibrary] signed in. */
+        fun jobs(type: String, state: String): Int {
+            val url = base.newBuilder().addPathSegments(SlouchcatApi.BASE_PATH).addPathSegments("admin/jobs")
+                .addQueryParameter("type", type).addQueryParameter("state", state).build()
+            http.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
+                val text = response.body.string()
+                check(response.isSuccessful) { "GET admin/jobs: ${response.code} $text" }
+                return Json.parseToJsonElement(text).jsonObject["total"]!!.jsonPrimitive.int
+            }
+        }
 
         /** The library [name] with the film and series folders of [media] ([folder] below it), scanned. */
         fun ensureLibrary(media: File, name: String = LIBRARY, folder: String = "") {

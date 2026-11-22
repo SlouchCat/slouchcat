@@ -96,22 +96,26 @@ object OfflinePin {
         return (FIRST_LOCK_MS shl steps).coerceAtMost(MAX_LOCK_MS)
     }
 
-    /** The brake after one more failure at device time [now], clock since boot [elapsed] of boot [boot]. */
-    fun registerFailure(lock: PinLock, now: Long, elapsed: Long, boot: Int): PinLock {
+    /** The brake after one more failure at clock since boot [elapsed] of boot [boot]. */
+    fun registerFailure(lock: PinLock, elapsed: Long, boot: Int): PinLock {
         val failures = lock.failures + 1
         val delay = lockDelayMs(failures)
-        return if (delay > 0) PinLock(failures, now + delay, elapsed + delay, boot) else PinLock(failures, 0, 0, boot)
+        return PinLock(failures, if (delay > 0) elapsed + delay else 0, boot, delay)
     }
 
     /**
-     * Milliseconds until the next attempt is accepted (0: now). The longer of the wall clock and,
-     * within the same boot, the clock since boot: moving the date forward does not end a pause.
+     * The brake as it counts now: in the same boot unchanged; after a restart its last rest starts
+     * again on the new clock (a restart never shortens a pause, the wall clock plays no part).
      */
-    fun remainingMs(lock: PinLock, now: Long, elapsed: Long, boot: Int): Long {
-        val wall = lock.until - now
-        val sinceBoot = if (lock.boot == boot && lock.untilElapsed > 0) lock.untilElapsed - elapsed else 0
-        // A wall clock set back would stretch the pause beyond its length: cap it.
-        val capped = wall.coerceAtMost(lockDelayMs(lock.failures))
-        return maxOf(capped, sinceBoot, 0)
+    fun anchored(lock: PinLock, elapsed: Long, boot: Int): PinLock {
+        if (lock.boot == boot || lock.remaining <= 0) return lock
+        return lock.copy(untilElapsed = elapsed + lock.remaining, boot = boot)
+    }
+
+    /** Milliseconds until the next attempt is accepted (0: now), on the clock since boot. */
+    fun remainingMs(lock: PinLock, elapsed: Long, boot: Int): Long {
+        val current = anchored(lock, elapsed, boot)
+        if (current.remaining <= 0) return 0
+        return (current.untilElapsed - elapsed).coerceIn(0, lockDelayMs(current.failures))
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.slouchcat.app.mobile.downloads.offline
 import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SessionCredentials
 import com.slouchcat.core.api.SlouchcatApi
@@ -35,6 +34,7 @@ import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.SetupApi
 import com.slouchcat.core.api.generated.models.AppLoginRequest
+import com.slouchcat.core.api.generated.models.ItemWatchedRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.offline.Contact
@@ -163,7 +163,18 @@ class OfflineFlowTest {
             check(System.nanoTime() < deadline) { "the test film was not probed" }
             Thread.sleep(POLL_MS)
         }
+        resetProgress(items, id)
+        filmId = id
         return id
+    }
+
+    /** The film's id once known, for the clean-up. */
+    private var filmId: String? = null
+
+    /** Marked as watched and back: the title starts at 0, no progress of a flow before or after this one. */
+    private fun resetProgress(items: ItemsApi, id: String) {
+        items.setItemWatched(id, ItemWatchedRequest(true))
+        items.setItemWatched(id, ItemWatchedRequest(false))
     }
 
     private val engine get() = graph.offline.engine
@@ -173,7 +184,11 @@ class OfflineFlowTest {
     @After
     fun cleanUp() = runBlocking {
         network(true)
-        if (graph.session.state.value is SessionState.Ready) graph.sessionActions.signOut()
+        if (graph.session.state.value is SessionState.Ready) {
+            // The server as this flow found it: the film without the progress of its playback.
+            filmId?.let { id -> runCatching { resetProgress(SlouchcatApi.create(::ItemsApi, server, graph.http), id) } }
+            graph.sessionActions.signOut()
+        }
         graph.serverStore.clear()
     }
 

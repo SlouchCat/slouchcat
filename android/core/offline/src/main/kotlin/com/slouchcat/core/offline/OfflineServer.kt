@@ -3,6 +3,7 @@ package com.slouchcat.core.offline
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.SlouchcatApi
+import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.OfflineApi
 import com.slouchcat.core.api.generated.models.DownloadList
 import com.slouchcat.core.api.generated.models.DownloadManifest
@@ -44,6 +45,9 @@ interface OfflineServer {
 
     suspend fun upload(batch: OfflineEventBatch): ApiResult<OfflineEventResult>
 
+    /** The id of the signed-in account (`getSession`): with the server's key it names the downloads' owner (security review L-3). */
+    suspend fun accountId(): ApiResult<Long>
+
     /** A path of the server (`fileUrl`, a subtitle, a sheet, a poster) under its address; `null` for another host. */
     fun absolute(path: String): HttpUrl?
 }
@@ -76,6 +80,11 @@ class ApiOfflineServer(
     override suspend fun revocations(ids: List<String>) = offline { it.checkOfflineRevocations(RevocationCheck(ids.take(MAX_HELD))) }
 
     override suspend fun upload(batch: OfflineEventBatch) = offline { it.uploadOfflineEvents(batch) }
+
+    override suspend fun accountId(): ApiResult<Long> {
+        val base = server() ?: return ApiResult.SignedOut
+        return api.call("offline") { SlouchcatApi.create(::AuthApi, base, http).getSession()?.account?.id }
+    }
 
     override fun absolute(path: String): HttpUrl? = server()?.let { ServerPaths.absolute(it, path) }?.toHttpUrlOrNull()
 }

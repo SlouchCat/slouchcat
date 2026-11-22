@@ -77,7 +77,10 @@ data class StoredDownload(
     val positions: Map<String, LocalPosition> = emptyMap(),
     val serverPositions: Map<String, ServerPosition> = emptyMap(),
     val updatedAt: Long = 0,
-)
+) {
+    /** Without the title and without the addresses of the manifest: they carry the download token `dt` (rule 10, security review L-7). */
+    override fun toString() = "StoredDownload(id=$id, state=${state.value}, complete=$complete, bytes=$bytesWritten, paused=$paused, pendingDelete=$pendingDelete)"
+}
 
 /** Remaining watch time of a profile for the offline player (AN-18): all times are server time except [syncedAt]. */
 @Serializable
@@ -100,12 +103,13 @@ data class LocalPinVerifier(val salt: String, val iterations: Int, val hash: Str
 }
 
 /**
- * The brake of the offline PIN (30 s after the third failure, doubling up to 15 min). [until] is
- * device time; [untilElapsed] the same moment on the clock since boot of boot [boot], so moving
- * the wall clock forward does not end a pause early.
+ * The brake of the offline PIN (30 s after the third failure, doubling up to 15 min). The pause runs
+ * on the clock since boot only: [untilElapsed] is its end in boot [boot]. [remaining] is the rest
+ * seen at the last check; after a restart of the phone (another boot) that rest starts again on the
+ * new clock. Neither a date set forward nor a restart ends a pause (security review M-1).
  */
 @Serializable
-data class PinLock(val failures: Int = 0, val until: Long = 0, val untilElapsed: Long = 0, val boot: Int = -1)
+data class PinLock(val failures: Int = 0, val untilElapsed: Long = 0, val boot: Int = -1, val remaining: Long = 0)
 
 /** A profile as the offline library needs it, from the last sync that listed it. */
 @Serializable

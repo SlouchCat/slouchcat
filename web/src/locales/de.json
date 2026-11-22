@@ -141,7 +141,6 @@
     "more": {
       "title": "Mehr",
       "switchProfile": "Profil wechseln",
-      "profileLine": "{{role}} · {{email}}",
       "insecureTitle": "Unverschlüsselte Verbindung.",
       "insecureBody": "Passwort und Zugang gehen offen über das Netz. In fremden Netzen kann jemand mitlesen. Richte für den Server HTTPS ein.",
       "section": {
@@ -398,6 +397,10 @@
       "failed": "Nicht gespeichert. Versuche es noch einmal."
     },
     "downloads": {
+      "legendOtherApps": "Andere Apps",
+      "storageBarApps": "Downloads {{used}}, andere Apps {{other}}, frei {{free}}",
+      "backOnline": "Wieder mit dem Server verbunden",
+      "pinWeakCopy": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Der Prüfwert der normalen PIN liegt dafür auf diesem Gerät; wer ihn kopiert, findet damit auch die PIN, die online gilt. Eine eigene, längere Offline-PIN unter «Profile verwalten» ist davon getrennt.",
       "episodeShort": "F{{episode}} · {{title}}",
       "toDownloads": "Zu den Downloads",
       "episodeLine": "S{{season}} · F{{episode}} · {{title}}",
@@ -432,9 +435,7 @@
       "storageLabel": "Speicher",
       "storageUsed": "{{size}} Downloads",
       "storageFree": "{{free}} frei von {{total}}",
-      "storageBar": "Downloads {{used}}, andere Daten {{other}}, frei {{free}}",
       "legendDownloads": "Downloads",
-      "legendOther": "Andere Daten",
       "legendFree": "Frei",
       "sectionActive": "Wird geladen",
       "sectionWaiting": "Wartet",
@@ -507,7 +508,6 @@
       "pinWrong": "Die PIN stimmt nicht.",
       "pinLocked": "Zu viele falsche Versuche. Versuche es in {{seconds}} s wieder.",
       "pinUnavailable": "Gib die PIN dieses Profils einmal online auf diesem Gerät ein, dann lässt es sich auch offline öffnen.",
-      "pinWeak": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Eine eigene, längere Offline-PIN legst du unter «Profile verwalten» fest.",
       "watchLimit": "Die Schauzeit für heute ist aufgebraucht.",
       "signOutQuestion": "Downloads auf diesem Gerät löschen",
       "signOutSize_one": "{{count}} Download · {{size}}",

@@ -2,6 +2,9 @@ package com.slouchcat.app.mobile.downloads
 
 import android.content.Context
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
@@ -152,11 +155,16 @@ class DownloadsScreenTest {
 
     private fun pinSheet() {
         val kim = StoredProfile(2, "acc", OfflineProfile(id = 2, name = "Kim", language = Language.DE, isPrimary = false, hasPin = true), 0)
-        show(DownloadsUiState(loaded = true, sheet = DownloadsSheet.Pin, pin = OfflinePinUi(kim, digits = "1234", lockedSeconds = 30)))
+        var pin by mutableStateOf(OfflinePinUi(kim, digits = "1234", lockedSeconds = 30))
+        compose.setContent { SlouchcatTheme { DownloadsScreen(DownloadsUiState(loaded = true, sheet = DownloadsSheet.Pin, pin = pin), recorder, links, SnackbarHostState()) } }
         compose.onNodeWithText(s(R.string.app_downloads_pinTitle, "Kim")).assertIsDisplayed()
         compose.onNodeWithText(s(R.string.app_downloads_pinLocked, "30")).assertIsDisplayed()
-        compose.onNodeWithText(s(R.string.app_downloads_pinWeak)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_downloads_pinWeakCopy)).performScrollTo().assertIsDisplayed()
         compose.assertEveryControlLabelledAndTappableWhenScrolled()
+        // During the pause the pad and «Öffnen» are locked (code review L-3).
+        compose.onNode(hasText("7") and hasClickAction()).performScrollTo().assertIsNotEnabled()
+        compose.onNode(hasText(s(R.string.app_downloads_pinOpen)) and hasClickAction()).performScrollTo().assertIsNotEnabled()
+        pin = pin.copy(lockedSeconds = 0)
         compose.onNode(hasText("7") and hasClickAction()).performScrollTo().performClick()
         compose.onNode(hasContentDescription(s(R.string.app_downloads_pinDelete))).performScrollTo().performClick()
         compose.onNode(hasText(s(R.string.app_downloads_pinOpen)) and hasClickAction()).performScrollTo().performClick()

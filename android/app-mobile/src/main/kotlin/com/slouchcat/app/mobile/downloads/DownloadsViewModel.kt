@@ -22,6 +22,8 @@ import com.slouchcat.core.player.DeviceSettingsStore
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -191,15 +193,19 @@ class DownloadsViewModel(
     private val messages = Channel<DownloadsMessage>(Channel.BUFFERED)
     val events: Flow<DownloadsMessage> = messages.receiveAsFlow()
 
-    private val data = combine(engine.downloads, engine.profiles, engine.progress, viewer) { downloads, profiles, progress, viewing ->
-        Quad(downloads, profiles, progress, viewing)
-    }.map { (downloads, profiles, progress, viewing) ->
+    /**
+     * The list and the storage follow the records, not the progress: the folder is walked when the
+     * downloads change, not with every step of a fetch (code review M-5).
+     */
+    private val data = combine(engine.downloads, engine.profiles, viewer) { downloads, profiles, viewing ->
+        Triple(downloads, profiles, viewing)
+    }.map { (downloads, profiles, viewing) ->
         val ready = session.state.value as? SessionState.Ready
         val account = engine.account()?.key
         val profileId = viewing ?: ready?.profile?.id
         val own = if (account != null && profileId != null) downloadsForProfile(downloads, account, profileId) else emptyList()
         val wifiOnly = runCatching { settingsWifi() }.getOrDefault(false)
-        val rows = own.map { row(it, progress, profiles, wifiOnly) }
+        val rows = own.map { row(it, profiles, wifiOnly) }
         val storage = Storage(engine.files.usedBytes(), engine.files.freeBytes(), engine.files.totalBytes())
         val name = profiles.firstOrNull { it.account == account && it.id == profileId }?.snapshot?.name ?: ready?.profile?.name
         val rule = profiles.firstOrNull { it.account == account && it.id == profileId }?.rules
@@ -208,9 +214,9 @@ class DownloadsViewModel(
 
     private suspend fun settingsWifi(): Boolean = settings.settings.first().downloadsWifiOnly
 
-    val state: StateFlow<DownloadsUiState> = combine(data, engine.contact, settings.settings, local) { snap, contact, device, l ->
+    val state: StateFlow<DownloadsUiState> = combine(data, engine.progress, engine.contact, settings.settings, local) { snap, progress, contact, device, l ->
         DownloadsUiState(
-            rows = snap.rows,
+            rows = snap.rows.map { it.with(progress) },
             loaded = true,
             offline = contact == Contact.Offline || network() == NetworkKind.None,
             storage = snap.storage,
@@ -233,14 +239,20 @@ class DownloadsViewModel(
         viewModelScope.launch { engine.sync() }
     }
 
-    private fun row(d: StoredDownload, progress: FetchProgress?, profiles: List<StoredProfile>, wifiOnly: Boolean): DownloadRowUi {
+    /** The running fetch over its row: a cheap step, at most twice a second (the fetcher's pace). */
+    private fun DownloadRowUi.with(progress: FetchProgress?): DownloadRowUi {
+        if (progress == null || progress.id != id || state == RowState.Done || state is RowState.Paused) return this
+        val percent = if (progress.total > 0) (progress.bytes * 100 / progress.total).toInt() else 0
+        return copy(state = RowState.Fetching(percent, progress.bytes, progress.total))
+    }
+
+    private fun row(d: StoredDownload, profiles: List<StoredProfile>, wifiOnly: Boolean): DownloadRowUi {
         val item = d.item
         val size = d.manifest?.sizeBytes ?: d.sizeBytes ?: d.estimatedBytes
         val percent = if (size > 0) (d.bytesWritten * 100 / size).toInt().coerceIn(0, 100) else 0
         val state = when {
             d.complete -> RowState.Done
             d.paused -> RowState.Paused(percent)
-            progress?.id == d.id -> RowState.Fetching(if (progress.total > 0) (progress.bytes * 100 / progress.total).toInt() else 0, progress.bytes, progress.total)
             d.fetchError != null && d.fetchError != FetchError.NETWORK -> RowState.Error(d.fetchError!!)
             d.state == DownloadStateValue.READY && waitsForWifi(d, profiles, network(), wifiOnly) -> RowState.WaitsForWifi
             d.state == DownloadStateValue.READY -> RowState.Fetching(percent, d.bytesWritten, size)
@@ -352,7 +364,7 @@ class DownloadsViewModel(
 
     override fun onPinDigit(digit: Char) = local.update { l ->
         val pin = l.pin ?: return@update l
-        if (!digit.isDigit() || pin.checking || pin.digits.length >= MAX_PIN) return@update l
+        if (!digit.isDigit() || pin.checking || pin.lockedSeconds > 0 || pin.digits.length >= MAX_PIN) return@update l
         l.copy(pin = pin.copy(digits = pin.digits + digit, wrong = false))
     }
 
@@ -360,7 +372,7 @@ class DownloadsViewModel(
 
     override fun onPinSubmit() {
         val pin = local.value.pin ?: return
-        if (pin.checking || pin.digits.length < MIN_PIN || pin.unavailable) return
+        if (pin.checking || pin.lockedSeconds > 0 || pin.digits.length < MIN_PIN || pin.unavailable) return
         local.update { it.copy(pin = pin.copy(checking = true)) }
         viewModelScope.launch {
             val digits = pin.digits.toCharArray()
@@ -372,13 +384,33 @@ class DownloadsViewModel(
                     local.update { it.copy(sheet = null, pin = null) }
                 }
                 PinCheck.Wrong -> local.update { it.copy(pin = pin.copy(digits = "", checking = false, wrong = true, lockedSeconds = 0)) }
-                is PinCheck.Locked -> local.update { it.copy(pin = pin.copy(digits = "", checking = false, wrong = false, lockedSeconds = (result.remainingMs + 999) / 1000)) }
+                is PinCheck.Locked -> {
+                    local.update { it.copy(pin = pin.copy(digits = "", checking = false, wrong = false, lockedSeconds = (result.remainingMs + 999) / 1000)) }
+                    countDown(pin.profile.id)
+                }
                 PinCheck.Unavailable -> local.update { it.copy(pin = pin.copy(digits = "", checking = false, unavailable = true)) }
             }
         }
     }
 
-    private data class Quad(val a: List<StoredDownload>, val b: List<StoredProfile>, val c: FetchProgress?, val d: Long?)
+    private var countdown: Job? = null
+
+    /** The pause of the PIN counts down; the pad stays locked until it ends (code review L-3). */
+    private fun countDown(profileId: Long) {
+        countdown?.cancel()
+        countdown = viewModelScope.launch {
+            while (true) {
+                delay(SECOND)
+                var left = 0L
+                local.update { l ->
+                    val pin = l.pin?.takeIf { it.profile.id == profileId } ?: return@update l
+                    left = (pin.lockedSeconds - 1).coerceAtLeast(0)
+                    l.copy(pin = pin.copy(lockedSeconds = left))
+                }
+                if (left == 0L) break
+            }
+        }
+    }
 
     private data class Snapshot(val rows: List<DownloadRowUi>, val storage: Storage, val name: String?, val ownProfile: Boolean, val profiles: List<StoredProfile>, val ruleOn: Boolean)
 
@@ -387,5 +419,6 @@ class DownloadsViewModel(
         const val MAX_COUNT = 20
         const val MIN_PIN = 4
         const val MAX_PIN = 12
+        private const val SECOND = 1_000L
     }
 }
