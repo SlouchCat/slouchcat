@@ -8113,7 +8113,10 @@
       "connected": "Connected to {{host}}"
     },
     "profiles": {
-      "connected": "Connected to {{host}} · {{email}}"
+      "connected": "Connected to {{host}} · {{email}}",
+      "pane": "Add, change and delete profiles, set PINs and age ratings.",
+      "pinSet": "PIN set",
+      "addHint": "for example for children, with an age rating"
     },
     "pin": {
       "prompt": "Enter the PIN, 4 to 8 digits."
@@ -8151,6 +8154,34 @@
       "source": "Source code",
       "sourceValue": "github.com/SlouchCat/slouchcat",
       "advanced": "Advanced"
+    },
+    "library": {
+      "show": "Show"
+    },
+    "item": {
+      "more": "More info",
+      "recommended": "Recommended. The title is now among the user picks."
+    },
+    "person": {
+      "kind": "Person"
+    },
+    "search": {
+      "voice": "Voice input",
+      "hint": "You can also type with a keyboard on the TV.",
+      "space": "Space",
+      "clear": "Clear",
+      "delete": "Delete character",
+      "symbols": "#+=",
+      "letters": "abc",
+      "hitsFor": "{{hits}} for “{{query}}”",
+      "libraries": "Libraries"
+    },
+    "lists": {
+      "removeHint": "OK on a title takes it off the watchlist.",
+      "unwatchHint": "OK on a title removes its check mark.",
+      "removed": "Removed from the watchlist: {{title}}",
+      "unwatched": "Check mark removed: {{title}}",
+      "listed": "Added {{count}} to the watchlist"
     }
   }
 }

@@ -8,6 +8,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -48,11 +49,14 @@ import java.io.File
  * wrong one first), «Einstellungen» with «Server und Konto», sign this TV out; (b) set up by scan:
  * the TV shows its QR code, the test hands its content out as an instrumentation status
  * (`pairCode=…`), the script lets `apicheck -pair-phone` play the phone through the local relay,
- * the TV redeems and lands in the profile choice with server and account (K-9).
+ * the TV redeems and lands in the profile choice with server and account (K-9). Between profile
+ * and settings (a) browses as stage 2b: start page, a title with «Merken», a library from the
+ * rail, the search with a keyboard, the watchlist, «Profile verwalten».
  *
  * Arguments (`am instrument -e <name> …`): `slouchcatServer` (default `http://10.0.2.2:8697`),
  * `slouchcatRelay` (default `http://10.0.2.2:8180`), `slouchcatEmail`, `slouchcatPassword`,
- * `slouchcatPin`; `slouchcatShots` saves a photo of every page and menu (the app's `files/shots/`).
+ * `slouchcatPin`, `slouchcatMedia` (the folder of scripts/android-test-media.sh on the host, which
+ * the test adds as a library); `slouchcatShots` saves a photo of every page and menu (the app's `files/shots/`).
  */
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -68,6 +72,7 @@ class TvFlowTest {
     private val password = args.getString("slouchcatPassword") ?: "e2e-password-0123"
     private val pin = args.getString("slouchcatPin") ?: "246810"
     private val shots = args.getString("slouchcatShots") != null
+    private val media = args.getString("slouchcatMedia")
     private val context = instrumentation.targetContext
 
     /** The server as the TV shows it (K-9): scheme, host and port. */
@@ -93,6 +98,26 @@ class TvFlowTest {
         auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
         SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
         auth.logout()
+        TestLibrary(server, email, password, pin).ensure(requireNotNull(media) { "run through scripts/android-tv-e2e.sh, which writes the media" }, LIBRARY)
+    }
+
+    /** Whether the focus is on an element with [text] now. */
+    private fun isFocusedOn(text: String): Boolean =
+        compose.onAllNodes(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true))).fetchSemanticsNodes().isNotEmpty()
+
+    /** An entry of the rail from any page: Left into the rail, to its top, down to [label], OK. */
+    private fun rail(label: String) {
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
+        key(KeyEvent.KEYCODE_DPAD_UP, RAIL_MAX)
+        repeat(RAIL_MAX) {
+            if (isFocusedOn(label)) {
+                key(KeyEvent.KEYCODE_DPAD_CENTER)
+                return
+            }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+        }
+        shot("zz-rail-without-$label")
+        throw AssertionError("no entry «$label» in the rail")
     }
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 30_000, unmerged: Boolean = true) {
@@ -210,15 +235,56 @@ class TvFlowTest {
         shot("09-pin-typed")
         submitPin()
 
-        // «Einstellungen» (the first entry of the rail while no other page exists).
-        waitForText(s(R.string.tv_settings_switchPane))
-        shot("10-settings")
+        // «Start» (stage 2b): the rows of the server; the first card has the focus, the film is in its row.
+        waitForText(TITLE)
+        shot("30-start")
         key(KeyEvent.KEYCODE_DPAD_LEFT)
         shot("11-rail-open")
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        repeat(ROW_MAX) { if (!isFocusedOn(TITLE)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        focused(TITLE)
+        // A title: «Merken» to the server, Back to the same card.
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(hasContentDescription(s(R.string.tv_item_more)))
+        focused(s(R.string.item_watchlist_add))
+        shot("31-item")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.item_watchlist_added))
+        key(KeyEvent.KEYCODE_BACK)
+        focused(TITLE)
+        // The library from the rail.
+        rail(LIBRARY)
+        waitForText(s(R.string.library_filters_genre))
+        waitForText(TITLE)
+        shot("32-library")
+        // The search: a keyboard of the TV types into the field.
+        rail(s(R.string.nav_search))
+        focused("q")
+        "night".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+        waitFor(hasText(TITLE) and hasClickAction().not() or hasContentDescription(TITLE, substring = true))
+        shot("33-search")
+        // The watchlist from the rail: the title of before is on it.
+        rail(s(R.string.watchlist_title))
+        waitForText(s(R.string.app_lists_edit))
+        focused(TITLE)
+        shot("34-watchlist")
+
+        // «Einstellungen»: «Profile verwalten» below «Profil wechseln».
+        rail(s(R.string.tv_settings_title))
+        waitForText(s(R.string.tv_settings_switchPane))
+        shot("10-settings")
+        focused(s(R.string.tv_shell_switchProfile))
+        key(KeyEvent.KEYCODE_DPAD_DOWN)
+        focused(s(R.string.app_profiles_manage_title))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.profiles_settings_add))
+        shot("35-profiles-manage")
+        key(KeyEvent.KEYCODE_BACK)
+        focused(s(R.string.app_profiles_manage_title))
+        key(KeyEvent.KEYCODE_DPAD_UP)
         focused(s(R.string.tv_shell_switchProfile))
         // «Erweitert»: the relay is changed here (F-21), not on the page with the code.
-        key(KeyEvent.KEYCODE_DPAD_DOWN, 3)
+        key(KeyEvent.KEYCODE_DPAD_DOWN, 4)
         focused(s(R.string.tv_settings_advanced))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(s(R.string.tv_relay_label))
@@ -292,5 +358,14 @@ class TvFlowTest {
 
     private companion object {
         const val FRAME_MS = 500L
+
+        /** The film of scripts/android-test-media.sh and the library the test makes of it. */
+        const val TITLE = "Night Train"
+        const val LIBRARY = "Testmedien"
+        const val RAIL_MAX = 12
+
+        /** Left often enough to leave a row from its last card for the rail (Left in the rail does nothing). */
+        const val LEFT_MAX = 8
+        const val ROW_MAX = 4
     }
 }

@@ -33,7 +33,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -190,7 +189,4 @@ class SettingsTest {
             Dispatchers.resetMain()
         }
     }
-
-    @Suppress("unused")
-    private fun url(text: String): HttpUrl = text.toHttpUrl()
 }

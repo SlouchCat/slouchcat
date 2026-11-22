@@ -76,6 +76,24 @@ class RegistryTest {
     }
 
     @Test
+    fun theRailOfStage2bIsAsInTheMockup() {
+        val registry = TvRegistry(features)
+        // Start, Suche on top, Einstellungen at the bottom; «Start» is home.
+        assertEquals(listOf("start", "search", "settings"), registry.rail.map { it.key })
+        assertEquals("start", registry.home.key)
+        // «Medien»: the video libraries in the server's order (audio waits for stage 4), then the lists.
+        val libraries = listOf(
+            LibraryNav(1, "Filme", LibraryKind.VIDEO, emptyList(), 1),
+            LibraryNav(2, "Hörbücher", LibraryKind.AUDIOBOOKS, emptyList(), 1),
+            LibraryNav(3, "Serien", LibraryKind.VIDEO, emptyList(), 1),
+        )
+        assertEquals(listOf("library-1", "library-3", "watchlist", "watched", "collections"), registry.mediaEntries(libraries).map { it.key })
+        // «Profile verwalten» in the settings (order 20) and from the profile choice.
+        assertEquals(listOf("manage" to 20), registry.settings.map { it.key to it.order })
+        assertTrue(registry.manageProfiles != null)
+    }
+
+    @Test
     fun everyEntryOfTheRealFeaturesHasAPage() {
         val graph = TvGraph(
             context,

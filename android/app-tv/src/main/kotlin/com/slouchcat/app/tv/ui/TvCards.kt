@@ -42,7 +42,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -54,7 +53,6 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import coil3.compose.AsyncImage
 import com.slouchcat.app.tv.shell.LocalContentStart
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatTokens
@@ -102,6 +100,8 @@ fun TvCard(
     subcaption: String? = null,
     tag: String? = null,
     progress: Float? = null,
+    /** `null`: as wide as its cell (a grid of seven columns). */
+    width: Dp? = shape.width,
 ) {
     val c = SlouchcatTheme.colors
     val corner = RoundedCornerShape(TvDimens.radiusCard)
@@ -110,7 +110,7 @@ fun TvCard(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .width(shape.width)
+            .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
             .aspectRatio(shape.ratio)
             .semantics(mergeDescendants = true) { contentDescription = title },
         shape = ClickableSurfaceDefaults.shape(shape = corner),
@@ -122,7 +122,7 @@ fun TvCard(
     ) {
         Box(Modifier.fillMaxSize().clip(corner)) {
             if (image != null) {
-                AsyncImage(model = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                TvImage(image, Modifier.fillMaxSize())
             } else if (caption == null) {
                 Text(
                     title,
@@ -236,7 +236,9 @@ fun <T> TvCardRow(
                 state = state,
                 contentPadding = PaddingValues(start = LocalContentStart.current, end = TvDimens.safeX, top = TvDimens.Card.RowTop, bottom = TvDimens.Card.RowBottom),
                 horizontalArrangement = Arrangement.spacedBy(TvDimens.gap),
-                modifier = Modifier.fillMaxWidth().focusRestorer(first),
+                // Into the row: the card it had (also after Back, when the row is new: a request of
+                // the page's focus memory enters the row and lands here), else the first one.
+                modifier = Modifier.fillMaxWidth().focusRestorer(focusedKey?.let(focus::requester) ?: first),
             ) {
                 itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
                     val name = "$rowKey-${key(item)}"
@@ -274,16 +276,24 @@ fun <T> TvCardGrid(
     card: @Composable (item: T, modifier: Modifier) -> Unit,
 ) {
     val first = remember { FocusRequester() }
+    var focusedKey by rememberSaveable { mutableStateOf<String?>(null) }
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
         contentPadding = PaddingValues(start = LocalContentStart.current, end = TvDimens.safeX, top = TvDimens.Card.RowTop, bottom = TvDimens.safeY),
         horizontalArrangement = Arrangement.spacedBy(TvDimens.gap),
         verticalArrangement = Arrangement.spacedBy(TvDimens.gap),
-        modifier = modifier.focusRestorer(first),
+        modifier = modifier.focusRestorer(focusedKey?.let(focus::requester) ?: first),
     ) {
         itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
-            card(item, Modifier.focusKey(focus, "$gridKey-${key(item)}").then(if (index == 0) Modifier.focusRequester(first) else Modifier))
+            val name = "$gridKey-${key(item)}"
+            card(
+                item,
+                Modifier
+                    .focusKey(focus, name)
+                    .then(if (index == 0) Modifier.focusRequester(first) else Modifier)
+                    .onFocusChanged { if (it.isFocused) focusedKey = name },
+            )
         }
     }
 }

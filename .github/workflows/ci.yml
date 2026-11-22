@@ -390,10 +390,15 @@ jobs:
             cat "$log"
             exit 1
           fi
+          # The runner sets XDG_CONFIG_HOME, and avdmanager then keeps its AVDs below it instead of
+          # ~/.android; a fixed ANDROID_AVD_HOME gives avdmanager, this step and the emulator one place.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$image" >"$log" 2>&1 || { cat "$log"; exit 1; }
           # A phone of the mockup's size (412 dp wide), as sc_phone on the development machine.
           printf '%s\n' hw.lcd.width=1080 hw.lcd.height=2424 hw.lcd.density=420 hw.ramSize=4096 hw.keyboard=yes \
-            >> "$HOME/.android/avd/ci_phone.avd/config.ini"
+            >> "$ANDROID_AVD_HOME/ci_phone.avd/config.ini"
 
       - name: Gradle caches
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
