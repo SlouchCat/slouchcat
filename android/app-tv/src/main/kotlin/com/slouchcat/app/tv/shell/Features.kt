@@ -3,6 +3,7 @@ package com.slouchcat.app.tv.shell
 import com.slouchcat.app.tv.home.HomeFeature
 import com.slouchcat.app.tv.item.ItemFeature
 import com.slouchcat.app.tv.library.LibraryFeature
+import com.slouchcat.app.tv.notifications.NotificationsFeature
 import com.slouchcat.app.tv.lists.ListsFeature
 import com.slouchcat.app.tv.person.PersonFeature
 import com.slouchcat.app.tv.playback.PlaybackSettingsFeature
@@ -31,4 +32,5 @@ val features: List<TvFeature> = listOf(
     PlayerFeature(),
     PlaybackSettingsFeature(),
     WishesFeature(),
+    NotificationsFeature(),
 )

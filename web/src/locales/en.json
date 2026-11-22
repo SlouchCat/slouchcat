@@ -8269,6 +8269,9 @@
     "audio": {},
     "radio": {},
     "wishes": {},
+    "notifications": {
+      "allRead": "All read"
+    },
     "settings": {
       "title": "Settings",
       "active": "Active: {{name}}",
