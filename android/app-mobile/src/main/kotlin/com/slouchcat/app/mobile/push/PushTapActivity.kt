@@ -17,7 +17,12 @@ class PushTapActivity : Activity() {
         super.onCreate(savedInstanceState)
         val graph = (application as SlouchcatApplication).graph
         PushLinks.open(this, graph, intent?.getStringExtra(PushNotifier.EXTRA_PATH))
-        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        // This activity runs in a task of its own (taskAffinity ""): NEW_TASK sends MainActivity to
+        // the app's task, where CLEAR_TOP and SINGLE_TOP reuse the open instance instead of a second.
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        )
         finish()
     }
 }

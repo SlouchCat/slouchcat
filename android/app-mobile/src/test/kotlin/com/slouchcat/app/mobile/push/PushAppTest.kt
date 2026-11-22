@@ -49,6 +49,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -127,6 +128,19 @@ class PushAppTest {
         assertFalse(info.exported)
         val found = context.packageManager.queryIntentActivities(Intent(Intent.ACTION_VIEW).setPackage(context.packageName), 0)
         assertFalse(found.any { it.activityInfo.name == PushTapActivity::class.java.name })
+    }
+
+    @Test
+    fun theTapBringsTheOpenAppToTheFront() {
+        val tap = Intent(context, PushTapActivity::class.java).putExtra(PushNotifier.EXTRA_PATH, "/notifications")
+        val activity = org.robolectric.Robolectric.buildActivity(PushTapActivity::class.java, tap).create().get()
+        val next = shadowOf(activity).nextStartedActivity
+        assertEquals(MainActivity::class.java.name, next.component!!.className)
+        // Its own task (taskAffinity ""): without NEW_TASK a second MainActivity would open there.
+        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        assertEquals(flags, next.flags and flags)
+        assertFalse(next.hasExtra(PushNotifier.EXTRA_PATH))
+        assertTrue(activity.isFinishing)
     }
 
     @Test
