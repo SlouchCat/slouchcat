@@ -8,6 +8,7 @@ import com.slouchcat.core.api.generated.apis.AccountApi
 import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.models.MyDevice
 import com.slouchcat.core.api.generated.models.PairingVoucherRequest
+import com.slouchcat.core.api.generated.models.SessionKind
 import com.slouchcat.core.api.log.Log
 import kotlinx.coroutines.delay
 import okhttp3.Call
@@ -46,9 +47,10 @@ object ScannedCode {
         if (trimmed.isEmpty() || trimmed.length > MAX_LENGTH || trimmed.any { it.isISOControl() }) return Read.NotACode
         val code = PairingCode.parse(trimmed)
         if (code == null) {
-            // The same form with another version: the TV app is newer than this one.
-            val version = Regex("""#v=([0-9]{1,3})&""").find(trimmed)?.groupValues?.get(1)
-            val shaped = trimmed.substringBefore('#').trimEnd('/').endsWith("/" + PairingProtocol.HELP_PATH)
+            // The same form with another version (in any order of the fields): a newer TV app.
+            val fields = trimmed.substringAfter('#', "").split('&').associate { it.substringBefore('=') to it.substringAfter('=', "") }
+            val version = fields["v"]?.takeIf { v -> v.length in 1..3 && v.all { it.isDigit() } }
+            val shaped = trimmed.contains('#') && trimmed.substringBefore('#').trimEnd('/').endsWith("/" + PairingProtocol.HELP_PATH)
             return if (shaped && version != null && version != PairingProtocol.VERSION.toString()) Read.OtherVersion else Read.NotACode
         }
         return if (sameRelay(code.relay, relay)) Read.Ok(code) else Read.OtherRelay(code.relay.host)
@@ -60,10 +62,21 @@ object ScannedCode {
             a.encodedPath.trimEnd('/') == b.encodedPath.trimEnd('/')
 }
 
-/** A voucher of the own server (`createPairingVoucher`); a secret until it is sealed for the TV. */
+/**
+ * A voucher of the own server (`createPairingVoucher`); a secret until it is sealed for the TV. A
+ * voucher that is never laid down (the page was left, the relay refused) lapses at the server after
+ * two minutes; the contract has no withdrawal.
+ */
 class IssuedVoucher(internal val voucher: String, val expiresAt: Instant, val knownDevices: Set<String>) {
+    /** When the server issued it: the contract gives two minutes from the issue (`PairingVoucher.expiresAt`). */
+    val issuedAt: Instant get() = expiresAt.minus(VOUCHER_LIFE)
+
     /** Never the voucher (rule 10, K-8). */
     override fun toString(): String = "IssuedVoucher(expiresAt=$expiresAt, voucher=[redacted])"
+
+    companion object {
+        val VOUCHER_LIFE: Duration = Duration.ofMinutes(2)
+    }
 }
 
 /** The calls of the phone to its own server during a pairing; the seam tests fake. */
@@ -90,7 +103,8 @@ interface PhonePairingFlow {
 
     suspend fun deliver(code: PairingCode, voucher: IssuedVoucher, serverAddress: HttpUrl, serverKey: String): PhonePairing.Deliver
 
-    suspend fun awaitTv(voucher: IssuedVoucher): PhonePairing.Linked
+    /** Waits at most [within] (the whole two minutes by default, a short look after 409/410). */
+    suspend fun awaitTv(voucher: IssuedVoucher, within: Duration = PhonePairing.WAIT_FOR_TV): PhonePairing.Linked
 }
 
 /**
@@ -102,8 +116,6 @@ class PhonePairing(
     private val relay: RelayClient,
     private val server: PairingServer,
     private val pollInterval: Duration = PairingProtocol.POLL_INTERVAL,
-    /** How long the phone waits for the TV after the packet (section 10 step 6: 2 minutes). */
-    private val waitForTv: Duration = WAIT_FOR_TV,
     private val now: () -> Instant = Instant::now,
 ) : PhonePairingFlow {
     sealed interface Issue {
@@ -145,12 +157,24 @@ class PhonePairing(
         Failed,
     }
 
+    /**
+     * What «Meine Geräte» shows after the packet. The contract gives the phone no id of the device
+     * that redeemed (concept 27 section 10 step 6): the TV is the one device session of the type `tv`
+     * that started after the voucher and was not listed before. Two such devices at once (another
+     * phone of the account paired a TV in the same minute) are [Several], never a guess.
+     */
     sealed interface Linked {
         /** The TV redeemed: [device] is its row in «Meine Geräte». */
         data class Ok(val device: MyDevice) : Linked
 
-        /** No new TV within [waitForTv]. */
+        /** More than one new TV: the page sends the user to «Meine Geräte». */
+        data object Several : Linked
+
+        /** No new TV within the time. */
         data object TimedOut : Linked
+
+        /** 401, 403 or 426: the session may not ask any longer. */
+        data object Ended : Linked
     }
 
     /**
@@ -207,14 +231,24 @@ class PhonePairing(
 
     /**
      * Step 6: asks «Meine Geräte» every [pollInterval] until a TV appears that was not there before
-     * [voucher] was issued, at most [waitForTv]. A list that does not load counts as «not yet».
+     * [voucher] was issued (see [Linked]), at most [within]. A list that does not load counts as «not
+     * yet»; 401, 403 and 426 end the wait.
      */
-    override suspend fun awaitTv(voucher: IssuedVoucher): Linked {
-        val until = now().plus(waitForTv)
+    override suspend fun awaitTv(voucher: IssuedVoucher, within: Duration): Linked {
+        val until = now().plus(within)
+        val since = voucher.issuedAt.minus(CLOCK_SLACK)
         while (now().isBefore(until)) {
-            val devices = server.devices()
-            if (devices is ApiResult.Ok) {
-                devices.value.firstOrNull { it.id !in voucher.knownDevices && it.type == MyDevice.Type.TV }?.let { return Linked.Ok(it) }
+            when (val devices = server.devices()) {
+                is ApiResult.Ok -> {
+                    val fresh = devices.value.filter { d ->
+                        d.id !in voucher.knownDevices && d.type == MyDevice.Type.TV && d.sessionKind == SessionKind.DEVICE &&
+                            d.signedInAt?.toInstant()?.isBefore(since) == false
+                    }
+                    if (fresh.size == 1) return Linked.Ok(fresh.single())
+                    if (fresh.size > 1) return Linked.Several
+                }
+                ApiResult.SignedOut, ApiResult.AppTooOld, is ApiResult.NotAllowed -> return Linked.Ended
+                else -> Unit
             }
             delay(pollInterval.toMillis())
         }
@@ -223,6 +257,12 @@ class PhonePairing(
 
     companion object {
         val WAIT_FOR_TV: Duration = Duration.ofMinutes(2)
+
+        /** How long the phone looks for its TV after 409/410 or no answer of the relay (security review L-1). */
+        val LOOK_FOR_TV: Duration = Duration.ofSeconds(12)
+
+        /** Server time of the session against server time of the voucher: the same clock, a margin for rounding. */
+        private val CLOCK_SLACK: Duration = Duration.ofSeconds(5)
         private const val TAG = "pairing"
         private const val PRIMARY_REQUIRED = "primary_profile_required"
         private const val HTTP_TOO_MANY = 429

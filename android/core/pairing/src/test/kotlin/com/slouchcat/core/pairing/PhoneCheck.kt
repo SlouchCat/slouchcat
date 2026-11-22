@@ -24,16 +24,20 @@ import kotlin.system.exitProcess
  *
  * Arguments as `name=value`: `server` (as this program reaches it), `packetServer` (as the TV
  * reaches it), `relay` (as this program reaches it), `codeRelay` (the relay the phone app would have
- * set, the one the code names), `code`, `email`, `password`, `pin`. Prints status lines only, never
+ * set, the one the code names), `code`, `email`, `password`, `pin` (password and PIN better as `SLOUCHCAT_PAIR_PASSWORD`, `SLOUCHCAT_PAIR_PIN`). Prints status lines only, never
  * the code, the voucher or a token.
  */
 fun main(args: Array<String>) {
     val a = args.associate { it.substringBefore('=') to it.substringAfter('=') }
     fun url(name: String): HttpUrl = requireNotNull(a[name]) { "missing $name=" }.toHttpUrl()
-    val outcome = runBlocking { phone(url("server"), url("packetServer"), url("relay"), url("codeRelay"), a.getValue("code"), a.getValue("email"), a.getValue("password"), a["pin"].orEmpty()) }
+    val outcome = runBlocking { phone(url("server"), url("packetServer"), url("relay"), url("codeRelay"), a.getValue("code"), a.getValue("email"), secret(a, "password"), a["pin"] ?: System.getenv("SLOUCHCAT_PAIR_PIN").orEmpty()) }
     println("phonecheck: $outcome")
     exitProcess(if (outcome == "the TV is listed under «Meine Geräte»") 0 else 1)
 }
+
+/** Password from the arguments or, so it is not on the command line, from `SLOUCHCAT_PAIR_PASSWORD`. */
+private fun secret(a: Map<String, String>, name: String): String =
+    a[name] ?: requireNotNull(System.getenv("SLOUCHCAT_PAIR_PASSWORD")) { "missing $name= or SLOUCHCAT_PAIR_PASSWORD" }
 
 private suspend fun phone(server: HttpUrl, packetServer: HttpUrl, relay: HttpUrl, codeRelay: HttpUrl, text: String, email: String, password: String, pin: String): String {
     val code = when (val read = ScannedCode.read(text, codeRelay)) {
@@ -67,6 +71,8 @@ private suspend fun phone(server: HttpUrl, packetServer: HttpUrl, relay: HttpUrl
         return when (val linked = pairing.awaitTv(voucher)) {
             is PhonePairing.Linked.Ok -> "the TV is listed under «Meine Geräte»"
             PhonePairing.Linked.TimedOut -> "no TV within two minutes"
+            PhonePairing.Linked.Several -> "more than one new TV under «Meine Geräte»"
+            PhonePairing.Linked.Ended -> "the session may not ask «Meine Geräte»"
         }
     } finally {
         runCatching { auth.logout() }
