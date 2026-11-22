@@ -195,8 +195,8 @@ if [ -z "$code" ]; then
 fi
 if [ "${PHONE:-apicheck}" = kotlin ]; then
   # The phone app's own Kotlin (:core:pairing) as a JVM program (task android:e2e:pair).
-  ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port packetServer=http://10.0.2.2:$port \
-relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email password=$password pin=$pin" \
+  SLOUCHCAT_PAIR_PASSWORD=$password SLOUCHCAT_PAIR_PIN=$pin ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port \
+packetServer=http://10.0.2.2:$port relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email" \
     >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "the phone's Kotlin could not pair"; }
   grep '^phonecheck:' "$root/apicheck.log"
 else

@@ -117,7 +117,18 @@ tasks:
       - task: :server:build
       - task: :relay:build
       - cd ../server && go build -o bin/apicheck ./cmd/apicheck
+      - task: pair:host
       - PHONE=kotlin PORT={{.PORT | default "8697"}} RELAY_PORT={{.RELAY_PORT | default "8180"}} AVD={{.AVD | default "sc_tv"}} EMU_PORT={{.EMU_PORT | default "5584"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} ../scripts/android-tv-e2e.sh
+
+  # Kotlin seals, Go opens (concept 27 stage 9, code review m-6): the phone app's Kotlin as a JVM
+  # program against `apicheck -pair-tv` through a local relay, on the host, without an emulator.
+  pair:host:
+    desc: The phone's Kotlin pairs with apicheck as the TV through a local relay (PORT 8797, RELAY_PORT 8182), no emulator
+    cmds:
+      - task: :server:build
+      - task: :relay:build
+      - cd ../server && go build -o bin/apicheck ./cmd/apicheck
+      - PORT={{.PORT | default "8797"}} RELAY_PORT={{.RELAY_PORT | default "8182"}} ../scripts/android-pair-host.sh
 
   # The quick Android part of `task check:fast`: only when something the apps are built from
   # changed (android/, the contract, the texts, the tokens) against BASE (default HEAD, the
