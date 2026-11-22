@@ -475,3 +475,55 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
    dreimal falsch: 30 s Pause, auch nach Verstellen der Uhr und nach einem Neustart des Handys.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
+
+## Stufe 7: Ton (22. November 2026)
+
+**Emulator-Messung**, nicht auf einem Gerät: `AudioFlowTest` (`RADIO=1 task android:e2e
+CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5594`, dazu `AVD=sc_tablet`) gegen den
+Server dieses Zweigs. Die Testmedien kommen aus `scripts/android-test-video.sh`: das Hörbuch «The Quiet
+Harbour» aus zwei AAC-Dateien zu 60 s (eine HLS-Zeitachse) und der Podcast-Ordner «Night Shift
+Stories». Das Radio läuft über die Teststationen der Web-App (`web/e2e/radio-server.mjs`, Server mit
+Tag `radiotest`). Die Werte stehen in `audio-measures.txt` neben den Fotos.
+
+| Messung | `sc_phone` (API 36) | `sc_tablet` (API 36) |
+|---|---|---|
+| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 687 ms | 306 ms |
+| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 82'012 ms | 80'158 ms |
+| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'417 ms | 72'670 ms |
+
+Weitere Ergebnisse des Ablaufs:
+
+- Im Hintergrund meldet die Mediensitzung des Dienstes «spielt» (`MediaController.isPlaying`).
+- Die Mitteilung zeigt Titel, Autor, −15 s, +30 s und Pause (Foto `a04-notification`).
+- Eine Podcast-Folge spielt, nachdem das Buch mit seiner letzten Meldung beendet wurde.
+- Ein Sender spielt länger als ein Herzschlag (30 s) ohne Fehler und endet mit dem Kreuz des
+  kleinen Players (`endRadioListen`).
+
+Der Server liegt um höchstens eine Meldung (10 s Spielzeit) hinter dem Gerät. Beim Beenden geht die
+letzte Meldung mit. **Akku lässt sich im Emulator nicht messen**: Das bleibt ein Gerätepunkt (Liste
+unten, Punkt 1).
+
+**Gerätecheckliste Stufe 7 (nur Marco, auf dem echten Handy):**
+
+1. **Abnahme:** Ein Hörbuch starten und das Handy sperren. Eine Stunde nicht anfassen, Bildschirm
+   aus, nicht am Ladegerät. Danach entsperren:
+   - Der Ton lief durch.
+   - Die Position im Tonplayer und in der Web-App stimmt auf 10 s genau.
+   - Den Akkuverbrauch der App in den Einstellungen notieren.
+2. Sperrbildschirm und Mitteilung: Pause, Weiter, −15 s und +30 s wirken. Das Titelbild erscheint.
+3. Kopfhörer mit Kabel ziehen: Der Ton hält an. Bluetooth-Kopfhörer: Wiedergabe und Pause gehen
+   über die Taste.
+4. Anruf während des Hörbuchs: Der Ton hält an und geht nach dem Gespräch weiter. Eine andere App
+   mit Ton (Video) beendet die Wiedergabe der App.
+5. Webradio mit Bildschirm aus, 15 Minuten: Der Ton läuft weiter. In der Verwaltung der Web-App
+   (Streams) steht die Sitzung als aktiv.
+6. Die App aus der Liste der letzten Apps wischen:
+   - während des Spielens: Der Ton läuft weiter;
+   - in der Pause: Die Mitteilung verschwindet.
+7. Profil wechseln und abmelden: Der Ton hält an, die Mitteilung verschwindet.
+8. Die App beenden lassen (Entwickleroptionen «Hintergrundprozesse: keine», dann öffnen): Der
+   kleine Player zeigt «Zuletzt gehört», spielt aber erst nach einem Tippen und setzt beim Stand
+   des Servers fort.
+9. Ein Hörbuch herunterladen, dann den Flugmodus einschalten: Das Buch spielt aus «Downloads» im
+   Tonplayer, Kapitel und Tempo gehen.
+10. Schlaftimer «Ende des Kapitels»: Der Ton hält am Kapitelende an.
