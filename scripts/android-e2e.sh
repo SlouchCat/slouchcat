@@ -14,6 +14,9 @@
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
 # CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
+# RADIO=1     the web radio without internet (K27 stage 7, AudioFlowTest): the server built with the
+#             tag radiotest (bin/slouchcat-e2e) and the test stations of web/e2e/radio-server.mjs on
+#             PORT-9, as in the e2e suite of the web app; needs node and go
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
@@ -40,6 +43,7 @@ root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
 server_pid=""
 emulator_pid=""
+radio_pid=""
 
 cleanup() {
   status=$?
@@ -54,6 +58,7 @@ cleanup() {
     fi
   fi
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+  if [ -n "$radio_pid" ]; then kill "$radio_pid" 2>/dev/null || true; wait "$radio_pid" 2>/dev/null || true; fi
   if [ -n "$emulator_pid" ]; then
     adb_brief emu kill >/dev/null 2>&1 || true
     # Also before the emulator reached adb: the process itself (code review minor 31).
@@ -84,7 +89,20 @@ mkdir -p "$root/media"
 ../scripts/android-test-video.sh "$root/media"
 media=""
 if [ -d ../testdata/media/Movies ]; then media=$(cd ../testdata/media && pwd); fi
-SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+binary=../server/bin/slouchcat
+radio_env=()
+if [ "${RADIO:-}" = "1" ]; then
+  # The test stations (Icecast MP3, Shoutcast, AAC, one unreachable) loop tones of testdata/radio.
+  radio_port=$((port - 9))
+  (cd ../server && go build -tags radiotest -o bin/slouchcat-e2e ./cmd/slouchcat)
+  node --input-type=module -e "const m = await import('$(cd ../web/e2e && pwd)/radio-server.mjs'); await m.startRadioServer({ port: $radio_port });" \
+    >"$root/radio.log" 2>&1 &
+  radio_pid=$!
+  binary=../server/bin/slouchcat-e2e
+  radio_env=(SLOUCHCAT_TEST_RADIO_CATALOG_URL="http://127.0.0.1:$radio_port" SLOUCHCAT_TEST_RADIO_WIKIDATA_URL="http://127.0.0.1:$radio_port/sparql"
+    SLOUCHCAT_RADIO_DIR="$root/radio" SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1)
+fi
+env "${radio_env[@]}" SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= "$binary" serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -107,6 +125,7 @@ if [ -n "$media" ]; then
   flow_args=(slouchcatEmail apicheck-owner@slouchcat.test slouchcatPassword apicheck-password-0123)
   echo "android-e2e: server seeded with the test media"
 fi
+if [ "${RADIO:-}" = "1" ]; then flow_args+=(slouchcatRadio 1); fi
 
 # One emulator at a time: wait while another one runs (another agent's).
 waited=0

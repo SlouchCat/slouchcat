@@ -9,6 +9,10 @@
 #   and chapters: plays directly for the app's profile, as an HLS remux without `mkv`.
 # - «Clip Show» S01E01 and S01E02 (MKV, 70 s each): chapters «Intro» (5–22 s) and «Credits»
 #   (45–70 s), from which the server takes the intro and the end credits.
+# - Sound (K27 stage 7), in DIR/Playback/Audiobooks and DIR/Playback/Podcasts: «The Quiet Harbour»
+#   by «Mira Lindqvist», an audiobook of two AAC files of 60 s (one HLS timeline of 120 s, one
+#   chapter per file), and the podcast folder «Night Shift Stories» (metadata.json without feed)
+#   with two episodes of 40 s.
 # FFMPEG=... names another binary.
 set -euo pipefail
 dir=${1:?usage: android-test-video.sh DIR}
@@ -73,4 +77,34 @@ for ep in 1 2; do
   video 70 "$show/Clip Show S01E0$ep.mkv" -i "$work/episode.txt" -map 0:v -map 1:a -map_chapters 2 \
     -c:v libx264 -preset ultrafast -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k \
     -metadata title="Episode $ep" -metadata:s:a:0 language=deu
+done
+
+# Sound (stage 7): a tone of a few seconds per file, tagged as the scanner reads it.
+tone() { # seconds frequency out [metadata args...]
+  secs=$1
+  freq=$2
+  out=$3
+  shift 3
+  "$ff" -nostdin -loglevel error -y -f lavfi -i "sine=frequency=$freq:sample_rate=44100:duration=$secs" \
+    -c:a aac -b:a 64k -ac 1 "$@" "$out"
+}
+
+book="$dir/Playback/Audiobooks/Mira Lindqvist/The Quiet Harbour"
+mkdir -p "$book"
+for part in 1 2; do
+  tone 60 $((300 + 100 * part)) "$book/0$part - Teil $part.m4a" \
+    -metadata title="Teil $part" -metadata album="The Quiet Harbour" -metadata artist="Mira Lindqvist" \
+    -metadata composer="Jonas Brenner" -metadata track="$part/2"
+done
+
+podcast="$dir/Playback/Podcasts/Night Shift Stories"
+mkdir -p "$podcast"
+printf '%s\n' '{' '  "title": "Night Shift Stories",' '  "author": "Studio North",' \
+  '  "description": "Ein Testpodcast aus einem Ordner.",' '  "genres": ["Podcasts"],' '  "language": "de",' \
+  '  "explicit": false' '}' >"$podcast/metadata.json"
+dates=("" "Mon, 03 Nov 2025 06:00:00 +0000" "Mon, 10 Nov 2025 06:00:00 +0000")
+for ep in 1 2; do
+  tone 40 $((700 + 100 * ep)) "$podcast/Folge $ep.m4a" \
+    -metadata title="Folge $ep" -metadata album="Night Shift Stories" -metadata artist="Studio North" \
+    -metadata date="${dates[$ep]}" -metadata comment="Testfolge $ep."
 done
