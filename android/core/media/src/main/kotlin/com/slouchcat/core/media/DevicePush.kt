@@ -17,6 +17,12 @@ sealed interface DevicePushState {
     /** Switched off on this device; the server keeps no subscription of it. */
     data object Off : DevicePushState
 
+    /**
+     * Switched off, but the server has not confirmed the removal yet (no connection): the device
+     * can no longer read a message, the app removes the subscription at the next contact.
+     */
+    data object OffPending : DevicePushState
+
     /** Registering or removing the subscription. */
     data object Busy : DevicePushState
 

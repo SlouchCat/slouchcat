@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
 import java.security.GeneralSecurityException
 
 /**
@@ -28,7 +29,11 @@ class FilePushStore(private val file: File, private val box: SecretBox) : PushSt
         val vapidKey: String? = null,
         val endpoint: String? = null,
         val subscriptionId: Long? = null,
-    )
+        val pendingDelete: Long? = null,
+    ) {
+        /** No key, token or address in a log or an exception (rule 10, code review m-10). */
+        override fun toString(): String = "Stored(wanted=$wanted, subscriptionId=$subscriptionId, pendingDelete=$pendingDelete)"
+    }
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -39,6 +44,9 @@ class FilePushStore(private val file: File, private val box: SecretBox) : PushSt
         } catch (e: GeneralSecurityException) {
             // The key is gone (a restore on another device): start over, the next sync enters a new subscription.
             box.forget()
+            Stored()
+        } catch (e: IOException) {
+            // Unreadable file: start over as well (code review m-1).
             Stored()
         } catch (e: IllegalArgumentException) {
             Stored()
@@ -61,10 +69,15 @@ class FilePushStore(private val file: File, private val box: SecretBox) : PushSt
 
     override suspend fun read(): PushRecord? {
         val s = load()
+        val server = s.server ?: return null
         val keys = runCatching {
-            PushKeys(Base64Url.decode(s.privateKey ?: return null)!!, Base64Url.decode(s.publicKey ?: return null)!!, Base64Url.decode(s.auth ?: return null)!!)
-        }.getOrNull() ?: return null
-        return PushRecord(s.server ?: return null, keys, s.fcmToken, s.vapidKey, s.endpoint, s.subscriptionId)
+            val priv = Base64Url.decode(s.privateKey ?: return@runCatching null)
+            val pub = Base64Url.decode(s.publicKey ?: return@runCatching null)
+            val auth = Base64Url.decode(s.auth ?: return@runCatching null)
+            if (priv == null || pub == null || auth == null) null else PushKeys(priv, pub, auth)
+        }.getOrNull()
+        if (keys == null && s.pendingDelete == null) return null
+        return PushRecord(server, keys, s.fcmToken, s.vapidKey, s.endpoint, s.subscriptionId, s.pendingDelete)
     }
 
     override suspend fun write(record: PushRecord?) {
@@ -76,13 +89,14 @@ class FilePushStore(private val file: File, private val box: SecretBox) : PushSt
                 Stored(
                     wanted = wanted,
                     server = record.server,
-                    privateKey = Base64Url.encode(record.keys.privateKey),
-                    publicKey = Base64Url.encode(record.keys.publicKey),
-                    auth = Base64Url.encode(record.keys.auth),
+                    privateKey = record.keys?.let { Base64Url.encode(it.privateKey) },
+                    publicKey = record.keys?.let { Base64Url.encode(it.publicKey) },
+                    auth = record.keys?.let { Base64Url.encode(it.auth) },
                     fcmToken = record.fcmToken,
                     vapidKey = record.vapidKey,
                     endpoint = record.endpoint,
                     subscriptionId = record.subscriptionId,
+                    pendingDelete = record.pendingDelete,
                 )
             },
         )

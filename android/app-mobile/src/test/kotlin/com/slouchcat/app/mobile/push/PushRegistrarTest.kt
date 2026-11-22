@@ -11,6 +11,7 @@ import com.slouchcat.core.media.DevicePushState
 import com.slouchcat.core.media.PushFailure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
@@ -33,7 +34,10 @@ class MemoryPushStore(var on: Boolean = true, var record: PushRecord? = null) : 
 }
 
 class FakePlatform(var tokenValue: String? = "fcm-token-1", override val available: Boolean = true) : PushPlatform {
-    override suspend fun token() = tokenValue
+    var asked = 0
+    var stopped = 0
+    override suspend fun token() = tokenValue.also { asked++ }
+    override suspend fun stop() { stopped++ }
 }
 
 /** A relay that hands out an address per token and VAPID key, as `relay/cmd/push` does. */
@@ -74,8 +78,8 @@ class PushRegistrarTest {
         val request = channels.subscriptions.single()
         assertEquals("https://push.example.test/v1/push/1.sealed-1", request.endpoint.toString())
         val record = store.record!!
-        assertEquals(WebPush.p256dh(record.keys), request.propertyKeys.p256dh)
-        assertEquals(WebPush.auth(record.keys), request.propertyKeys.auth)
+        assertEquals(WebPush.p256dh(record.keys!!), request.propertyKeys.p256dh)
+        assertEquals(WebPush.auth(record.keys!!), request.propertyKeys.auth)
         assertEquals("Pixel 9 · Android 16", request.deviceName)
         assertEquals(HTTP_SERVER.address.toString(), record.server)
         // A second start with nothing changed asks the server only whether the subscription stands.
@@ -97,8 +101,9 @@ class PushRegistrarTest {
         push.sync()
         assertEquals("fcm-token-2", relay.calls.last().first)
         assertEquals(2, channels.subscriptions.size)
-        // The keys stay: only the address changed.
-        assertTrue(keys === store.record!!.keys)
+        // Every new subscription gets new keys and a new auth secret (security review L-3).
+        assertFalse(keys === store.record!!.keys)
+        assertFalse(keys!!.auth.contentEquals(store.record!!.keys!!.auth))
         channels.vapid = ApiResult.Ok("BNEWVAPID")
         push.sync()
         assertEquals("BNEWVAPID", relay.calls.last().second)
@@ -165,5 +170,77 @@ class PushRegistrarTest {
         push.forget()
         assertNull(store.record)
         assertTrue(store.on)
+    }
+
+    @Test
+    fun switchingOffWithoutAnAnswerKeepsTheRemovalForLater() = runTest(dispatcher) {
+        val channels = FakeChannels()
+        val store = MemoryPushStore()
+        val platform = FakePlatform()
+        val push = registrar(channels, FakeRelay(), platform, store)
+        push.sync()
+        val id = store.record!!.subscriptionId!!
+        channels.failure = ApiResult.Offline
+        push.disable()
+        // The keys are gone (no message can be read), the subscription waits to be removed (code review M-3).
+        assertEquals(DevicePushState.OffPending, push.state.value)
+        assertNull(store.record!!.keys)
+        assertEquals(id, store.record!!.pendingDelete)
+        assertEquals(1, platform.stopped)
+        channels.failure = null
+        push.sync()
+        assertEquals(DevicePushState.Off, push.state.value)
+        assertTrue("unsubscribe:$id" in channels.calls)
+        assertNull(store.record)
+    }
+
+    @Test
+    fun switchingOffDuringASyncIsNeverLost() = runTest(dispatcher) {
+        val channels = FakeChannels()
+        val store = MemoryPushStore()
+        val push = registrar(channels, FakeRelay(), FakePlatform(), store)
+        // A sync and «off» at once: the lock lets «off» win, nothing enters again (code review m-2).
+        val first = backgroundScope.launch { push.sync() }
+        val second = backgroundScope.launch { push.disable() }
+        first.join()
+        second.join()
+        push.sync()
+        assertEquals(DevicePushState.Off, push.state.value)
+        assertFalse(store.on)
+        assertNull(store.record)
+    }
+
+    @Test
+    fun aBrokenStoreNeverBringsTheAppDown() = runTest(dispatcher) {
+        val store = object : PushStore {
+            override suspend fun wanted() = true
+            override suspend fun setWanted(on: Boolean) = throw java.io.IOException("disk full")
+            override suspend fun read(): PushRecord? = throw java.security.GeneralSecurityException("keystore gone")
+            override suspend fun write(record: PushRecord?) = Unit
+        }
+        val push = registrar(FakeChannels(), FakeRelay(), FakePlatform(), MemoryPushStore())
+        val broken = PushRegistrar(session(backgroundScope), FakeChannels(), FakeRelay(), FakePlatform(), store) { "x" }
+        settle()
+        broken.enable()
+        assertEquals(DevicePushState.Failed(PushFailure.Server), broken.state.value)
+        assertNull(broken.keysFor())
+        push.sync()
+    }
+
+    @Test
+    fun googleIsAskedOnlyWhilePushIsWanted() = runTest(dispatcher) {
+        val platform = FakePlatform()
+        val push = registrar(FakeChannels(), FakeRelay(), platform, MemoryPushStore(on = false))
+        push.sync()
+        assertEquals(0, platform.asked)
+    }
+
+    @Test
+    fun theRecordNamesNoSecret() {
+        val keys = WebPush.generate()
+        val record = PushRecord("https://media.example.test/", keys, "fcm-SECRET", "BVAPID", "https://push.example.test/v1/push/1.SEALED", 4)
+        val text = record.toString()
+        for (secret in listOf("fcm-SECRET", "SEALED", "BVAPID")) assertFalse(text, secret in text)
+        assertFalse(RelayResult.Registered("https://push.example.test/v1/push/1.SEALED").toString().contains("SEALED"))
     }
 }

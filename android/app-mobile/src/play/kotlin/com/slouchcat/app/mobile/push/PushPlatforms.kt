@@ -40,13 +40,15 @@ object PushPlatforms {
                     .build()
                 FirebaseApp.initializeApp(app, options)
             }
-            FirebaseMessaging.getInstance().isAutoInitEnabled = true
         }.onFailure { Log.w(TAG, "firebase not set up", error = it) }.isSuccess
         if (!ready) return Off
         return object : PushPlatform {
             override val available = true
 
+            // Firebase fetches its installation id and token only while push is wanted: the manifest
+            // switches the automatic start off, the first wanted sync switches it on (code review m-6).
             override suspend fun token(): String? = withTimeoutOrNull(TOKEN_TIMEOUT_MS) {
+                FirebaseMessaging.getInstance().isAutoInitEnabled = true
                 suspendCancellableCoroutine { continuation ->
                     FirebaseMessaging.getInstance().token
                         .addOnSuccessListener { continuation.resume(it) }
@@ -54,6 +56,16 @@ object PushPlatforms {
                             Log.w(TAG, "no token", error = it)
                             continuation.resume(null)
                         }
+                }
+            }
+
+            override suspend fun stop() {
+                FirebaseMessaging.getInstance().isAutoInitEnabled = false
+                withTimeoutOrNull(TOKEN_TIMEOUT_MS) {
+                    suspendCancellableCoroutine { continuation ->
+                        FirebaseMessaging.getInstance().deleteToken()
+                            .addOnCompleteListener { continuation.resume(Unit) }
+                    }
                 }
             }
         }
@@ -73,6 +85,7 @@ object PushPlatforms {
  */
 class SlouchcatMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
+        // Only the relay's data messages: a «notification» message never leads anywhere (security review M-1).
         val wp = message.data["wp"] ?: return
         val graph = (application as SlouchcatApplication).graph
         runBlocking { PushReceiver.receive(this@SlouchcatMessagingService, graph, wp) }

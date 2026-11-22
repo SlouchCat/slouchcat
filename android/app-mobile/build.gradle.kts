@@ -83,6 +83,9 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    // The check of the push subscription in the background (stage 8, concept 27 7.3).
+    implementation(libs.work.runtime)
+    testImplementation(libs.work.testing)
     testImplementation(project(":core:player-testing"))
     testImplementation(libs.coroutines.test)
     androidTestImplementation(platform(libs.compose.bom))
