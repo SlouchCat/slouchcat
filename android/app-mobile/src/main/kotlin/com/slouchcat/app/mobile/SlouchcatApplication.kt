@@ -196,6 +196,8 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
         graph = AppGraph(this)
         // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
         OfflineStarter.start(this, graph)
+        // Wishes and notifications (stage 8): the push subscription follows the session.
+        com.slouchcat.app.mobile.push.PushStarter.start(this, graph)
     }
 
     /** The one offline engine for the background fetch and the sync (core/offline). */

@@ -31,6 +31,8 @@ import com.slouchcat.app.mobile.more.DevicesRoute
 import com.slouchcat.app.mobile.more.MoreRoute
 import com.slouchcat.app.mobile.playback.PlaybackSettingsRoute
 import com.slouchcat.app.mobile.wishes.WishTitleRoute
+import com.slouchcat.app.mobile.notifications.NotificationSettingsRoute
+import com.slouchcat.app.mobile.browse.NotificationsRoute
 import com.slouchcat.app.mobile.wishes.WishesRoute
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryKind
@@ -73,7 +75,7 @@ class RegistryTest {
         WatchlistRoute::class, WatchedRoute::class, CollectionsRoute::class, CollectionRoute::class, ProfilesSettingsRoute::class,
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
         DownloadsRoute::class, OfflinePlayerRoute::class,
-        WishesRoute::class, WishTitleRoute::class,
+        WishesRoute::class, WishTitleRoute::class, NotificationsRoute::class, NotificationSettingsRoute::class,
     )
 
     @Test

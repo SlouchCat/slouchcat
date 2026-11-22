@@ -12,6 +12,7 @@ import com.slouchcat.app.mobile.playback.PlaybackSettingsFeature
 import com.slouchcat.app.mobile.profilesettings.ProfileSettingsFeature
 import com.slouchcat.app.mobile.search.SearchFeature
 import com.slouchcat.app.mobile.wishes.WishesFeature
+import com.slouchcat.app.mobile.notifications.NotificationsFeature
 
 /**
  * Every feature of the phone app, one line each (concept 27, section 13: one or more per stage).
@@ -33,4 +34,5 @@ val features: List<Feature> = listOf(
     PlaybackSettingsFeature(),
     DownloadsFeature,
     WishesFeature(),
+    NotificationsFeature(),
 )

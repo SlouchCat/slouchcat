@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile.home
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +37,7 @@ import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.RootContent
 import com.slouchcat.core.browse.home.HomeMessage
 import com.slouchcat.core.browse.home.HomeViewModel
+import com.slouchcat.core.browse.notifications.badge
 import com.slouchcat.core.browse.library.LibraryViewModel
 import com.slouchcat.core.browse.lists.ListViewModel
 import com.slouchcat.core.design.SlouchcatIcon
@@ -108,9 +110,16 @@ object HomeFeature : Feature {
                     profiles = navigator::toProfiles,
                 )
             }
+            // The bell's badge (stage 8): read when the start page shows, kept current by the inbox.
+            val bell by graph.media.unreadCount.count.collectAsStateWithLifecycle()
+            if (navigator.canOpen(NotificationsRoute::class)) {
+                LaunchedEffect(graph) {
+                    graph.session.server?.let { server -> graph.media.unreadCount.refresh { graph.media.notifications.badge(server) } }
+                }
+            }
             HomeScreen(
                 state = state,
-                links = links,
+                links = links.copy(bell = bell ?: 0),
                 onRetry = vm::retry,
                 onRefresh = vm::refresh,
                 onRowEnd = vm::onRowEnd,
