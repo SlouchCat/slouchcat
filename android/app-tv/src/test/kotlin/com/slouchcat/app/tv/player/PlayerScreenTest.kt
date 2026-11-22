@@ -4,8 +4,8 @@ import android.content.Context
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityManager
 import org.robolectric.Shadows.shadowOf
-import com.slouchcat.app.tv.testing.seasonRef
-import com.slouchcat.app.tv.testing.ulid
+import com.slouchcat.core.browse.testing.seasonRef
+import com.slouchcat.core.browse.testing.ulid
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

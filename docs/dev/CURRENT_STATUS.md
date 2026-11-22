@@ -221,6 +221,8 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Attrappe, die sich wie Media3 verhält, Ablauf im TV-Emulator mit echter Wiedergabe, Code-Review mit
     Korrekturrunde (4 Major, zwei davon im gemeinsamen Player: Positionsverlust bei zwei Neustarts
     hintereinander, ungewolltes Losspielen nach einer Pause).
+  - **Offen:** Kapitelmarken auf der Zeitleiste des TV-Players (Papier 5.1 nennt Kapitel; die Daten
+    kommen an, die Leiste zeigt sie noch nicht); folgt mit Stufe 4.
   - **Nicht geprüft, weil der Emulator es nicht kann:** Dolby Digital und Dolby Digital Plus (dekodieren
     und durchreichen), Mehrkanal-PCM, HDR10, HLG, Dolby Vision, der Wechsel des Tonausgangs an echter
     Hardware. Die Abnahmeliste je Gerät und Tonanlage (28 Schritte) steht in `docs/perf/K26-android-tv.md`,

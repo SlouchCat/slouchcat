@@ -1,16 +1,16 @@
 package com.slouchcat.app.tv.player
 
 import com.slouchcat.app.tv.testing.EMULATOR_TV
-import com.slouchcat.app.tv.testing.FakeDetails
+import com.slouchcat.core.browse.testing.FakeDetails
 import com.slouchcat.core.player.testing.FakeEngine
 import com.slouchcat.core.player.testing.FakeServer
 import com.slouchcat.app.tv.testing.tvServer
-import com.slouchcat.app.tv.testing.SERIES_ID
-import com.slouchcat.app.tv.testing.film
+import com.slouchcat.core.browse.testing.SERIES_ID
+import com.slouchcat.core.browse.testing.film
 import com.slouchcat.app.tv.testing.playbackInfo
 import com.slouchcat.app.tv.testing.playerEpisode
-import com.slouchcat.app.tv.testing.series
-import com.slouchcat.app.tv.testing.ulid
+import com.slouchcat.core.browse.testing.series
+import com.slouchcat.core.browse.testing.ulid
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.PlaybackCapabilities
 import com.slouchcat.core.api.generated.models.Segment
