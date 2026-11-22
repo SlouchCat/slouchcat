@@ -507,4 +507,14 @@ oben decken je eine Seite mit der echten App ab.
 9. Ohne Internet am Handy (nur WLAN zum Server): «Die Vermittlung antwortet nicht» mit dem Hinweis auf
    «Von Hand einrichten».
 10. Bauart `foss` (von Hand installiert): Der Scanner fragt nach der Kamera; ablehnen zeigt den Hinweis und
-    «Einstellungen öffnen»; erlauben liest den Code.
+    «Einstellungen öffnen»; erlauben liest den Code. Ein anderer QR-Code im Bild (WLAN, Verpackung) beendet
+    den Scanner nicht.
+11. Bauart `foss`, Kaltstart: «Scanner öffnen» und sofort «Scanner schliessen». Das Kamera-Symbol von
+    Android erlischt sofort und bleibt aus, solange die Einleitung sichtbar ist.
+12. Erster Scan auf einem Handy, auf dem noch keine App Googles Code-Scanner benutzt hat (oder nach
+    «Daten löschen» der Play-Dienste): «Scanner wird geladen …», danach öffnet der Scanner von selbst.
+    Klappt das Laden nicht, sagt die Seite «wird noch geladen, gleich nochmals», nicht «keine Kamera».
+13. Auf «Verbunden»: «Nicht mein Fernseher – abmelden»; der Fernseher fällt zurück auf die Einrichtung.
+14. Während Googles Scanner offen ist, den Dunkelmodus umschalten oder die App vom System beenden lassen
+    (Entwickleroption «Aktivitäten nicht speichern»): Zurück in der App steht die Einleitung ohne
+    Meldung; ein neuer Scan klappt (bekannte Grenze, Code-Review L-6).

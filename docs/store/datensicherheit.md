@@ -76,8 +76,29 @@ So gebaut (K27 Abschnitt 10, 7.2, 7.6; `android/app-mobile/.../tvlink/`):
 Für das Formular heisst das: **keine neue Datenart.** Der Code des Fernsehers ist keine Angabe über
 den Nutzer; die Vermittlung bekommt Ende-zu-Ende verschlüsselten Inhalt und die Internet-Adresse nur
 für die Ratenbegrenzung (wie bei den Diensten in 1.2). Die Bauart `play` erklärt keine
-Kamera-Berechtigung; die Bauart `foss` erscheint nicht im Store. Ob der Code-Scanner von Google selbst
-Diagnosedaten sendet, bleibt unbelegt (`datenschutz.md` Abschnitt 7).
+Kamera-Berechtigung; die Bauart `foss` erscheint nicht im Store. Beides prüft der Bau selbst
+(`:app-mobile:checkFlavourSeparation` in `task android:check`: kein `CAMERA` im zusammengeführten
+Manifest von `play`, keine Bibliothek der Play-Dienste, von ML Kit oder Firebase in `foss`).
+
+**Was der Code-Scanner von Google sendet** (Googles Seite «ML Kit Android data disclosure»,
+<https://developers.google.com/ml-kit/android-data-disclosure>, Stand der Seite 14. Mai 2025, gelesen am
+22. November 2026). Für alle Funktionen von ML Kit, also auch `play-services-code-scanner`:
+
+| Art | Was | Zweck laut Google |
+|---|---|---|
+| Geräte- oder andere IDs | Kennungen je Installation, «not intended to uniquely identify a user or physical device» | Diagnose, Nutzungsanalyse |
+| App-Info und -Leistung | Gerät (Hersteller, Modell, Android-Fassung), Paketname und Fassung der App, Leistungswerte (Latenz), API-Einstellungen (Bildformat, Auflösung) | Diagnose, Nutzungsanalyse |
+
+Google nennt dazu: verschlüsselt übertragen (HTTPS), nicht an Dritte weitergegeben. Zusätzliche Daten
+(Sitzungskennung, Zoomstufen, Lage des Codes) gibt es nur mit «auto zoom»; die App schaltet ihn nicht ein
+(`GmsBarcodeScannerOptions` ohne `enableAutoZoom`). **Weiter unbelegt:** Die Seite sagt nicht ausdrücklich,
+ob Kamerabilder des Code-Scanners das Gerät verlassen; die App selbst bekommt nur den gelesenen Text.
+
+Für das Formular heisst das (Vorschlag): in der Bauart `play` zusätzlich «App-Info und -Leistung ›
+Diagnose» und «Geräte- oder andere IDs» mit Zweck «Analysen» ankreuzen, erhoben von einer Bibliothek,
+nicht geteilt, verschlüsselt. Die Angabe von Google gilt für die Bibliothek; ob Google sie im Formular
+der App sehen will, ist eine Auslegung (Hilfeseite «Datensicherheit»: Daten, die Bibliotheken erheben,
+zählen mit).
 
 ## 2. Vordergrunddienste
 
