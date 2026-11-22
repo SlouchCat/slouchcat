@@ -115,7 +115,7 @@ Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App k
 task android:check        # beide Bauarten in debug und release (R8, unsigniert), Lint, Generatoren (CI-Job «android»)
 task android:test         # alle JVM-Tests: Robolectric-Oberflächentests, ViewModels, Lint-Regeln, Generatoren
 task android:contract     # erzeugter Client gegen einen frisch gestarteten Server (Port 8597, CONTRACT_PORT)
-task android:e2e          # Ablauf im Emulator gegen einen frischen Server (PORT 8597, AVD sc_phone, CI-Job «android-e2e»)
+task android:e2e          # Ablauf im Emulator gegen einen frischen Server (PORT 8597, AVD sc_phone); vor jedem PR an den Apps lokal, der CI-Job «android-emulator» steht nicht im Gate (docs/perf/K27-android-ci.md)
 task android:e2e AVD=sc_tablet SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf, fotografiert jede Seite und jedes Blatt
 task android:e2e:tv        # TV-App im eigenen TV-Emulator (sc_tv, Port 5584): von Hand einrichten, Profil mit PIN, Einstellungen,
                           # abmelden; per Scan gegen relay/bin/pair (8180), apicheck spielt das Handy; Server auf 8697
