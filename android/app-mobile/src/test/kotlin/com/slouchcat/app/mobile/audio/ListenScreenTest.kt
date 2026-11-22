@@ -186,4 +186,17 @@ class MiniPlayerTest {
 
     @Test @Config(qualifiers = TABLET, fontScale = 2f)
     fun tabletLargeFont() = mini(TABLET)
+
+    /** Code review M-5: after an error the button says «Erneut versuchen» and hands the tap on (AudioPlayback retries). */
+    @Test @Config(qualifiers = PHONE)
+    fun anErrorOffersARetry() {
+        val calls = mutableListOf<String>()
+        compose.setContent {
+            SlouchcatTheme {
+                MiniPlayer(MiniUi("The Quiet Harbour", null, com.slouchcat.core.media.ImageSet(), playing = false, retry = true), onOpen = {}, onToggle = { calls += "toggle" }, onStop = {})
+            }
+        }
+        compose.onNodeWithContentDescription(s(R.string.radio_player_retry)).performClick()
+        assertEquals(listOf("toggle"), calls)
+    }
 }

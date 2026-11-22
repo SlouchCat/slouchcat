@@ -540,7 +540,9 @@
       "failed": "Das hat nicht geklappt. Versuch es nochmals.",
       "audiobooks": "Hörbücher",
       "podcasts": "Podcasts",
-      "noLibrary": "Dieses Profil sieht keine solche Bibliothek."
+      "noLibrary": "Dieses Profil sieht keine solche Bibliothek.",
+      "loadMore": "Weitere Folgen laden",
+      "details": "Zum Titel"
     },
     "radio": {
       "title": "Webradio",
@@ -560,7 +562,8 @@
         "ended": "Die Wiedergabe wurde beendet.",
         "network": "Keine Verbindung zum Server.",
         "failed": "Dieser Sender lässt sich gerade nicht abspielen."
-      }
+      },
+      "searchClear": "Suche leeren"
     },
     "wishes": {},
     "notifications": {},

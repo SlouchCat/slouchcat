@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Sound in the background (stage 7, concept 27 8.3): the media session service runs in the
@@ -35,15 +34,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- The sound of stage 7. Exported for the controllers of the system (notification, lock
-             screen, Bluetooth and headphone buttons); the session turns every other app away and
-             takes no media from a controller (TrustedControllers, security review L-1): no permission
-             on the service, the session decides. -->
+        <!-- The sound of stage 7. Not exported (security review L-2): the app's controller and the
+             media notification bind inside the app; the lock screen, the system's media controls and
+             the Bluetooth and headphone buttons reach the player through the platform session of
+             Media3, not through this service. Of those the session lets only play, pause, the jumps
+             and stop through (TrustedControllers, security review L-1). -->
         <service
             android:name=".audio.AudioService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback"
-            tools:ignore="ExportedService">
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>

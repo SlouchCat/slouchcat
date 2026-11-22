@@ -1,8 +1,21 @@
 package com.slouchcat.app.mobile.audio
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleStartEffect
+import com.slouchcat.app.mobile.downloads.DownloadAction
+import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.ItemDetail
+import com.slouchcat.core.design.ButtonKind
+import com.slouchcat.core.design.SlouchcatButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +61,6 @@ import com.slouchcat.core.media.ImageSource
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.player.AudioNow
-import com.slouchcat.core.player.AudioPlayback
 import com.slouchcat.core.player.AudioRules
 import com.slouchcat.core.player.ServerPaths
 import com.slouchcat.core.player.SleepChoice
@@ -102,17 +114,20 @@ object AudioFeature : Feature {
             val route = entry.toRoute<ListenRoute>()
             val audio = graph.audio
             val playback = audio.playback
-            // Starts once per page: a page restored after the death of the process does not play by itself.
+            // Plays once per page and only from a button that plays (route.play): opening the player
+            // only shows (code review M-1); a page restored after the death of the process plays nothing.
             var started by rememberSaveable { mutableStateOf(false) }
+            val askNotifications = rememberNotificationAsk(audio)
             LaunchedEffect(route) {
-                if (!started) {
+                if (!started && route.play) {
                     started = true
+                    askNotifications()
                     val source = if (route.offline) audio.offlineSource() else audio.online
                     if (source != null) playback.playTitle(route.itemId, source, route.startAtMs.takeIf { it >= 0 }, route.fromStart)
                 }
             }
             val now by playback.now.collectAsStateWithLifecycle()
-            ListenPage(app, now, playback) { navigator.back() }
+            ListenPage(app, audio, now) { navigator.back() }
         }
         composable<AudioSeriesRoute> { entry ->
             val route = entry.toRoute<AudioSeriesRoute>()
@@ -149,6 +164,7 @@ object AudioFeature : Feature {
             }
             val server = graph.session.server
             val playback = graph.audio.playback
+            val askNotifications = rememberNotificationAsk(graph.audio)
             RadioScreen(
                 ui = ui,
                 stations = stations,
@@ -165,7 +181,12 @@ object AudioFeature : Feature {
                     override fun onFavorite(station: RadioStation) = vm.onFavorite(station)
                     override fun onStation(station: RadioStation) {
                         val playing = (playback.now.value as? AudioNow.Radio)?.state
-                        if (playing?.station?.id == station.id && playing.error == null) playback.togglePlay() else playback.playRadio(station)
+                        if (playing?.station?.id == station.id && playing.error == null) {
+                            playback.togglePlay()
+                        } else {
+                            askNotifications()
+                            playback.playRadio(station)
+                        }
                     }
                 },
                 snackbar = snackbar,
@@ -182,16 +203,17 @@ object AudioFeature : Feature {
         val current = now ?: return
         val server = graph.session.server
         val cover = remember(current, server) { coverOf(current, server) }
-        DisposableEffect(playback) {
-            playback.visible = true
-            onDispose { playback.visible = false }
+        val audio = graph.audio
+        LifecycleStartEffect(audio) {
+            audio.show()
+            onStopOrDispose { audio.hide() }
         }
         MiniPlayer(
             ui = miniUi(current, cover),
             onOpen = {
                 when (current) {
-                    is AudioNow.Title -> current.state.item?.id?.let { app.navigator.navigate(ListenRoute(it, offline = current.offline)) }
-                    is AudioNow.Restored -> app.navigator.navigate(ListenRoute(current.last.itemId))
+                    is AudioNow.Title -> current.state.item?.id?.let { app.navigator.navigate(ListenRoute(it, offline = current.offline, play = false)) }
+                    is AudioNow.Restored -> app.navigator.navigate(ListenRoute(current.last.itemId, offline = current.last.offline, play = false))
                     is AudioNow.Radio -> app.navigator.navigate(RadioRoute)
                 }
             },
@@ -213,19 +235,44 @@ private fun KindLibrary(app: AppScope, kind: LibraryKind) {
     }
 }
 
-/** The audio player page over [now]; [leave]: «Tonplayer schliessen» (the sound plays on). */
+/**
+ * The audio player page over [now]; [leave]: «Tonplayer schliessen» (the sound plays on). The info
+ * button opens the title's page, «Laden» the download dialog of stage 6 (online only; the dialog
+ * says when the title is already on the device).
+ */
 @Composable
-private fun ListenPage(app: AppScope, now: AudioNow?, playback: AudioPlayback, leave: () -> Unit) {
-    val server = app.graph.session.server
+private fun ListenPage(app: AppScope, audio: AudioData, now: AudioNow?, leave: () -> Unit) {
+    val graph = app.graph
+    val playback = audio.playback
+    val server = graph.session.server
     val title = now as? AudioNow.Title
     val restored = now as? AudioNow.Restored
-    val cover = remember(now?.let { coverKey(it) }, server) { now?.let { coverOf(it, server) } ?: ImageSet() }
-    DisposableEffect(playback) {
-        playback.visible = true
-        onDispose { playback.visible = false }
+    val offline = title?.offline ?: restored?.last?.offline ?: false
+    val itemId = title?.state?.item?.id ?: restored?.last?.itemId
+    // The cover of a download comes from the device (code review m-11), else from the server.
+    val stored by produceState<java.io.File?>(null, itemId, offline) { value = if (offline && itemId != null) offlinePoster(graph, itemId) else null }
+    val cover = remember(now?.let { coverKey(it) }, server, stored) {
+        stored?.let { ImageSet(listOf(ImageSource("file://" + it.absolutePath, LOGO_WIDTH))) } ?: now?.let { coverOf(it, server) } ?: ImageSet()
     }
+    LifecycleStartEffect(audio) {
+        audio.show()
+        onStopOrDispose { audio.hide() }
+    }
+    val detail by produceState<ItemDetail?>(null, itemId, server, offline) {
+        value = if (!offline && itemId != null && server != null) (graph.media.detail.item(server, itemId) as? ApiResult.Ok)?.value else null
+    }
+    val snackbar = remember { SnackbarHostState() }
+    val navigator = app.navigator
     ListenScreen(
         ui = ListenUi(state = title?.state, sleep = title?.sleep, offline = title?.offline == true, restored = restored?.last, cover = cover),
+        onDetails = itemId?.takeIf { !offline && navigator.canOpen(ItemRoute::class) }?.let { id -> { navigator.navigate(ItemRoute(id)) } },
+        download = detail?.let { item ->
+            {
+                DownloadAction(graph, item, snackbar, look = { icon, label, onClick ->
+                    SlouchcatButton(label, onClick = onClick, kind = ButtonKind.Ghost, leadingIcon = icon)
+                })
+            }
+        },
         events = object : ListenEvents {
             override fun onClose() = leave()
             override fun onTogglePlay() = playback.togglePlay()
@@ -258,6 +305,27 @@ private fun ListenPage(app: AppScope, now: AudioNow?, playback: AudioPlayback, l
             }
         },
     )
+}
+
+/**
+ * Asks for the notifications once per run of the app, at the first start of a sound (security review
+ * L-7): without them Android 13 and later show no controls in the notification. A refusal changes
+ * nothing; the sound plays all the same.
+ */
+@Composable
+private fun rememberNotificationAsk(audio: AudioData): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    return remember(launcher, audio) {
+        {
+            val missing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            if (missing && !audio.notificationsAsked) {
+                audio.notificationsAsked = true
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 }
 
 private fun coverKey(now: AudioNow): Any? = when (now) {

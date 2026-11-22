@@ -86,7 +86,8 @@ class AppGraph(
     /** The sound of stage 7 (audiobooks, podcasts, radio); tests bring fake players. `null`: the real one. */
     private val audioData: ((AppGraph) -> com.slouchcat.app.mobile.audio.AudioData)? = null,
 ) {
-    private val appContext = context.applicationContext
+    /** The context of the application (the sound loads its covers and texts with it). */
+    val appContext: Context = context.applicationContext
 
     /** Lives as long as the process; for work that outlasts a page (the session follows the server address). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -161,7 +162,16 @@ class AppGraph(
     val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
 
     /** The sound across the pages (concept 27 8.3): built on first use, the same way for the app and its tests. */
-    val audio: com.slouchcat.app.mobile.audio.AudioData by lazy { audioData?.invoke(this) ?: com.slouchcat.app.mobile.audio.AudioData.create(appContext, this) }
+    private val audioLazy = lazy { audioData?.invoke(this) ?: com.slouchcat.app.mobile.audio.AudioData.create(appContext, this) }
+    val audio: com.slouchcat.app.mobile.audio.AudioData by audioLazy
+
+    /**
+     * Ends the sound when there is any (code review M-3): the video player plays one thing at a time,
+     * like the web app; nothing is built for a graph that never played sound.
+     */
+    fun stopSound() {
+        if (audioLazy.isInitialized()) audio.playback.stop(forget = false)
+    }
 
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
@@ -218,7 +228,6 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
     /** The sound of the process for the media session service (stage 7). */
     override val audioPlayback get() = graph.audio.playback
 
-    override val audioHttp get() = graph.http
 }
 
 /**

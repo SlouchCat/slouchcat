@@ -40,6 +40,17 @@ class SessionHooks {
     private val cleaners = CopyOnWriteArrayList<suspend () -> Unit>()
     private val accountChanged = CopyOnWriteArrayList<suspend () -> Unit>()
     private val pinAccepted = CopyOnWriteArrayList<suspend (Long, CharArray) -> Unit>()
+    private val beforeProfileChange = CopyOnWriteArrayList<suspend () -> Unit>()
+
+    /**
+     * Runs before the app asks the server for another profile, while the old one still counts (stage 7:
+     * the last progress of the sound goes to the profile that listened).
+     */
+    fun onBeforeProfileChange(hook: suspend () -> Unit) {
+        beforeProfileChange += hook
+    }
+
+    suspend fun beforeProfileChange() = runAll(beforeProfileChange, "profile change hook")
 
     fun addSignOutStep(step: SignOutStep) {
         steps += step
@@ -199,6 +210,11 @@ class SessionActions(
         if (toSetup) entry.requestSetupNext()
         notices.show(if (confirmed) R.string.app_signOut_done else R.string.app_signOut_doneOffline)
         session.signedOut()
+    }
+
+    /** Before `selectProfile` (another profile than the one now): the hooks of [SessionHooks.onBeforeProfileChange]. */
+    suspend fun beforeProfileChange() {
+        if (session.state.value is com.slouchcat.core.session.SessionState.Ready) hooks.beforeProfileChange()
     }
 
     /** The server ended the session (401 anywhere): forget it here as well. */

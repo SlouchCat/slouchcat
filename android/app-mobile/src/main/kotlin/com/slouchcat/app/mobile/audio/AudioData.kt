@@ -1,6 +1,20 @@
 package com.slouchcat.app.mobile.audio
 
 import android.content.ComponentName
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.flow.runningFold
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import com.slouchcat.core.strings.R
+import com.slouchcat.core.player.ServerPaths
+import com.slouchcat.core.media.ServerImages
+import coil3.toBitmap
+import coil3.request.allowHardware
+import coil3.request.SuccessResult
+import coil3.request.ImageRequest
+import android.graphics.Bitmap
 import android.content.Context
 import android.os.SystemClock
 import androidx.annotation.OptIn
@@ -53,6 +67,25 @@ class AudioData(
     /** The source of a downloaded title for the profile opened now, `null` without one. */
     fun offlineSource(): AudioSource? = offline?.invoke()
 
+    private var shown = 0
+
+    /** The notifications were asked for in this run of the app (security review L-7). */
+    var notificationsAsked = false
+
+    /**
+     * A page or the mini player is on screen (started): «Jetzt läuft» of the radio is asked only then
+     * (code review m-7). Each [show] has its [hide]; the count stays right when two overlap.
+     */
+    fun show() {
+        shown++
+        playback.visible = true
+    }
+
+    fun hide() {
+        shown = (shown - 1).coerceAtLeast(0)
+        playback.visible = shown > 0
+    }
+
     companion object {
         /** The real one: Media3 players, the server of the session, the service, the file of the last title. */
         @OptIn(UnstableApi::class)
@@ -73,7 +106,7 @@ class AudioData(
                 metered = MeteredNetwork.of(app),
                 clock = SystemClock::elapsedRealtime,
                 memory = FileAudioMemory(File(app.noBackupFilesDir, LAST_FILE)),
-                owner = { owner(graph.session) },
+                owner = { owner(graph.session, graph.offline.viewer.value) },
             )
             val online = AudioSource("online") { ApiPlaybackServer(graph.api, graph.http) { graph.session.server } }
             val data = AudioData(playback, online) {
@@ -93,11 +126,12 @@ class AudioData(
          * Who listens: the server's key, the account (only a hash of the address) and the profile. The last
          * title of the next process shows only to the same one.
          */
-        fun owner(session: SessionManager): String? {
+        fun owner(session: SessionManager, viewer: Long? = null): String? {
             val ready = session.state.value as? SessionState.Ready ?: return null
             val server = session.serverKey ?: ready.server.address.toString()
             val account = MessageDigest.getInstance("SHA-256").digest(ready.email.lowercase().toByteArray()).joinToString("") { "%02x".format(it) }.take(16)
-            return "$server|$account|#${ready.profile.id}"
+            // The profile that listens: the one opened offline with its PIN, else the session's (security review L-3).
+            return "$server|$account|#${viewer ?: ready.profile.id}"
         }
 
         private const val TABLET_DP = 600
@@ -105,35 +139,87 @@ class AudioData(
     }
 
     /**
-     * The hooks of the graph: the sound ends before the sign-out (its last progress still has the
-     * token), at every profile change and when the session is lost (8.4); after the death of the
-     * process the last title shows paused once the session is ready.
+     * The hooks of the graph (8.4): before the sign-out and before another profile the sound ends and
+     * its last progress, `stopPlayback` and `endRadioListen` are waited for, while the token still
+     * counts (code review M-2). Every change of the listener ends it too: another profile, another
+     * account or server, the sign-out, a lost session (401) even without a page, and a change of the
+     * profile opened offline (security review M-1, L-5). After the death of the process the last title
+     * of the listener shows paused once the session is ready.
      */
     fun attach(graph: AppGraph) {
         graph.hooks.addSignOutStep(
             object : SignOutStep {
-                override suspend fun beforeSignOut(answer: Boolean) = playback.stop()
+                override suspend fun beforeSignOut(answer: Boolean) = playback.stopAndFlush()
             },
         )
+        graph.hooks.onBeforeProfileChange { playback.stopAndFlush() }
         graph.hooks.onProfileOrSessionEnd { playback.stop() }
         playback.restoredSource = online
+        playback.restoredOfflineSource = { offlineSource() }
         graph.scope.launch {
             if (graph.session.ready() is SessionState.Ready) playback.restore()
         }
+        graph.scope.launch {
+            combine(graph.session.state, graph.offline.viewer) { _, viewer -> owner(graph.session, viewer) }
+                .distinctUntilChanged()
+                .runningFold(null as String? to null as String?) { (_, before), now -> before to now }
+                .collect { (before, now) -> if (before != null && before != now) playback.stop() }
+        }
         // The station's current title in the notification and on the lock screen.
+        val app = graph.appContext
         graph.scope.launch {
             playback.now.collect { now ->
                 val radio = (now as? AudioNow.Radio)?.state ?: return@collect
                 val station = radio.station ?: return@collect
                 val entry = radio.now
-                val line = when {
-                    entry?.artist != null && entry.title != null -> "${entry.artist} – ${entry.title}"
-                    else -> entry?.text
-                }
+                val artist = entry?.artist
+                val title = entry?.title
+                val line = if (artist != null && title != null) app.getString(R.string.radio_player_artistTitle, artist, title) else entry?.text
                 (playback.engine.value as? Media3Engine)?.updateMetadata(station.name, line)
             }
         }
+        // The cover as a picture (no address in the metadata, security review L-1).
+        graph.scope.launch {
+            playback.now.map { coverOf(graph, it) }.distinctUntilChanged().collectLatest { cover ->
+                val bytes = cover?.let { loadCover(graph, it) }
+                (playback.engine.value as? Media3Engine)?.updateArtwork(bytes)
+            }
+        }
     }
+
+    /** Where the cover of [now] comes from: a file of a download, else an address of the server. */
+    private suspend fun coverOf(graph: AppGraph, now: AudioNow?): Any? {
+        val server = graph.session.server
+        return when (now) {
+            is AudioNow.Title -> {
+                val item = now.state.item ?: return null
+                if (now.offline) offlinePoster(graph, item.id) else server?.let { ServerImages(it).posters(item.images).pick(COVER_PX) }
+            }
+            is AudioNow.Radio -> {
+                val path = now.state.now?.cover?.url ?: now.state.station?.logo?.url ?: return null
+                server?.let { ServerPaths.absolute(it, path) }
+            }
+            else -> null
+        }
+    }
+
+    private suspend fun loadCover(graph: AppGraph, data: Any): ByteArray? {
+        val request = ImageRequest.Builder(graph.appContext).data(data).allowHardware(false).size(COVER_PX).build()
+        val bitmap = (graph.imageLoader.execute(request) as? SuccessResult)?.image?.toBitmap() ?: return null
+        return withContext(Dispatchers.Default) {
+            ByteArrayOutputStream().use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, COVER_QUALITY, out)
+                out.toByteArray()
+            }
+        }
+    }
+
+}
+
+/** The stored cover of the download of [itemId] for the profile now (m-11), `null` without one. */
+suspend fun offlinePoster(graph: AppGraph, itemId: String): File? = withContext(Dispatchers.IO) {
+    val engine = graph.offline.engine
+    engine.allDownloads().firstOrNull { it.item?.id == itemId && it.posterStored }?.let { engine.files.poster(it.id) }?.takeIf { it.exists() }
 }
 
 /**
@@ -182,3 +268,6 @@ class FileAudioMemory(private val file: File) : AudioMemory {
         Unit
     }
 }
+
+private const val COVER_PX = 512
+private const val COVER_QUALITY = 85

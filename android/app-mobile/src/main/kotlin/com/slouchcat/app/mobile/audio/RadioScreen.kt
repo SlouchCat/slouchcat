@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -75,6 +74,7 @@ import com.slouchcat.core.media.Paged
 import com.slouchcat.core.player.RadioState
 import com.slouchcat.core.strings.R
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /** What the radio page can be asked to do. */
 interface RadioEvents {
@@ -94,8 +94,9 @@ interface RadioEvents {
 /**
  * «Webradio» (concept 16, concept 19 part B; mockup `/radio`, photo handy 39; web `RadioPage`): the
  * search, the country (the profile's own when the offer has it) and «Meine Sender» as chips; while
- * nothing filters, «Meine Sender» as a row above the list; then the stations as tiles with logo,
- * «Live» or «Läuft», heart, name, country and genres. What plays comes from [playing] (the app's
+ * nothing filters, «Meine Sender» as a grid with its count above the list (mockup `md-stgrid`);
+ * then the stations as tiles with logo, «Live» or «Läuft», heart, name, country and genres. The
+ * mockup's «Zuletzt gespielt» is not there: the contract keeps no history of the stations. What plays comes from [playing] (the app's
  * radio); the title it plays shows in the small player and in the notification.
  */
 @Composable
@@ -123,7 +124,14 @@ fun RadioScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) { Filters(ui, events) }
             if (!ui.filter.favorites && ui.filter.text.isBlank()) {
-                item(span = { GridItemSpan(maxLineSpan) }) { Favorites(ui, playing, logo, events) }
+                val favorites = ui.favorites
+                item(span = { GridItemSpan(maxLineSpan) }) { FavoritesHeading(favorites, events) }
+                if (favorites is Loadable.Ready) {
+                    // Keys of their own: a station of «Meine Sender» is also in the list below.
+                    items(favorites.value, key = { "favorite-${it.id}" }) { station ->
+                        StationTile(station, playing, logo(station), events)
+                    }
+                }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 val heading = stringResource(if (ui.filter.unfiltered) R.string.radio_page_allStations else R.string.radio_page_results)
@@ -157,6 +165,13 @@ fun RadioScreen(
 @Composable
 private fun Filters(ui: RadioUiState, events: RadioEvents) {
     var text by rememberSaveable { mutableStateOf(ui.filter.text) }
+    // The search follows the typing after a short pause; an empty field shows every station at once
+    // (code review m-12). The search key searches without waiting.
+    LaunchedEffect(text) {
+        if (text.trim() == ui.filter.text.trim()) return@LaunchedEffect
+        if (text.isNotBlank()) delay(SEARCH_PAUSE_MS)
+        events.onSearch(text)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SlouchcatTextField(
             value = text,
@@ -165,6 +180,11 @@ private fun Filters(ui: RadioUiState, events: RadioEvents) {
             placeholder = stringResource(R.string.radio_page_searchPlaceholder),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { events.onSearch(text) }),
+            trailing = if (text.isEmpty()) {
+                null
+            } else {
+                { SlouchcatIconButton(SlouchcatIcon.Close, stringResource(R.string.app_radio_searchClear), onClick = { text = "" }) }
+            },
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
@@ -195,17 +215,17 @@ private fun Filters(ui: RadioUiState, events: RadioEvents) {
     }
 }
 
-/** «Meine Sender» as a row (web `rows.favorites`), or the hint how a station gets there. */
+/** The heading of «Meine Sender» with its count, or the hint how a station gets there. */
 @Composable
-private fun Favorites(ui: RadioUiState, playing: RadioState?, logo: (RadioStation) -> ImageSet, events: RadioEvents) {
+private fun FavoritesHeading(favorites: Loadable<List<RadioStation>>, events: RadioEvents) {
+    val c = SlouchcatTheme.colors
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionTitle(stringResource(R.string.radio_page_rows_favorites), inset = false)
-        when (val favorites = ui.favorites) {
-            is Loadable.Ready -> LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(favorites.value, key = { it.id }) { station ->
-                    StationTile(station, playing, logo(station), events, Modifier.width(150.dp))
-                }
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(stringResource(R.string.radio_page_rows_favorites), inset = false, modifier = Modifier.weight(1f))
+            if (favorites is Loadable.Ready) Text(pluralCount(R.plurals.radio_page_rows_stations, favorites.value.size), style = SlouchcatType.caption, color = c.tx3)
+        }
+        when (favorites) {
+            is Loadable.Ready -> Unit
             Loadable.Empty -> Note(stringResource(R.string.radio_page_rows_noFavorites))
             else -> LoadableContent(favorites, onRetry = events::onRetry) {}
         }
@@ -283,3 +303,6 @@ fun countryName(code: String): String {
     val locale = LocalConfiguration.current.locales[0]
     return runCatching { Locale.Builder().setRegion(code).build().getDisplayCountry(locale) }.getOrNull()?.ifBlank { null } ?: code
 }
+
+/** The pause after the last key before the search runs. */
+private const val SEARCH_PAUSE_MS = 300L

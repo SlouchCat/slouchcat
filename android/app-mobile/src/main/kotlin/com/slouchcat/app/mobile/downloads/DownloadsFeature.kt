@@ -101,7 +101,14 @@ object DownloadsFeature : Feature {
  * the dialog. Only video titles (audiobooks and podcast episodes come with stage 7).
  */
 @Composable
-fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostState, modifier: Modifier = Modifier) {
+fun DownloadAction(
+    graph: AppGraph,
+    item: ItemDetail,
+    snackbar: SnackbarHostState,
+    modifier: Modifier = Modifier,
+    /** Another button than the round action (stage 7: «Laden» of the audio player). */
+    look: (@Composable (icon: com.slouchcat.core.design.SlouchcatIcon, label: String, onClick: () -> Unit) -> Unit)? = null,
+) {
     if (!downloadable(item.kind)) return
     val data = graph.offline
     val vm = viewModel(key = "download-${item.id}") {
@@ -118,7 +125,7 @@ fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostStat
             scope.launch { snackbar.showSnackbar(text) }
         }
     }
-    ActionButton(icon, label, null, { vm.open(item) }, isWideLayout(), modifier)
+    if (look != null) look(icon, label) { vm.open(item) } else ActionButton(icon, label, null, { vm.open(item) }, isWideLayout(), modifier)
     // Mockup photos 45 and 46: «2026 · Film», or the series with «S1 · F1 · Titel» of the episode.
     val episode = state.episode
     val subtitle = when {
