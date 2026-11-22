@@ -16,6 +16,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -486,6 +487,15 @@ class TvFlowTest {
         focused(bar)
         waitForFirstPictures(1)
         shot("62-player-controls")
+        // Home and back (TV-NP): the session ends, the film comes back paused at its place.
+        scenario.moveToState(Lifecycle.State.CREATED)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        waitForFirstPictures(2)
+        controls()
+        waitForText(s(R.string.tv_player_paused))
+        shot("62b-back-from-home")
+        // OK plays on (the next steps pause it again).
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
         controls()
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         waitForText(s(R.string.tv_player_paused))
@@ -518,17 +528,13 @@ class TvFlowTest {
         waitForText("English")
         shot("67-info")
         key(KeyEvent.KEYCODE_BACK)
-        along(s(R.string.tv_player_speed))
-        key(KeyEvent.KEYCODE_DPAD_CENTER)
-        shot("68-menu-speed")
-        key(KeyEvent.KEYCODE_BACK)
         // A quality below the file: the server converts it, HLS.
         along(s(R.string.player_settings_quality))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         shot("69-menu-quality")
         down(QUALITY)
         key(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitForFirstPictures(2)
+        waitForFirstPictures(3)
         // Zurück hides the controls, then leaves; the title resumes where it stood.
         controls()
         key(KeyEvent.KEYCODE_BACK)
@@ -539,7 +545,7 @@ class TvFlowTest {
         shot("71-item-resume")
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(bar)
-        waitForFirstPictures(3)
+        waitForFirstPictures(4)
         leavePlayer()
         focused(s(R.string.app_item_resume))
         key(KeyEvent.KEYCODE_BACK)
@@ -552,7 +558,7 @@ class TvFlowTest {
         waitFor(hasContentDescription(s(R.string.tv_item_more)))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(bar)
-        waitForFirstPictures(4)
+        waitForFirstPictures(5)
         controls()
         key(KeyEvent.KEYCODE_DPAD_DOWN)
         along(s(R.string.app_player_episodes))
@@ -566,7 +572,7 @@ class TvFlowTest {
         focused(s(R.string.app_player_playNow))
         shot("73-countdown")
         // The countdown runs out: episode 2 plays.
-        waitForFirstPictures(5)
+        waitForFirstPictures(6)
         shot("74-next-episode")
         leavePlayer()
         key(KeyEvent.KEYCODE_BACK)

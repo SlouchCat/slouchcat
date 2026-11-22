@@ -491,9 +491,20 @@ im Software-Encoder des Rechners.
   HDR-Strom auf der `SurfaceView` selbst. Kein Wechsel der Bildfrequenz (F-8, Empfehlung).
 - **Qualität:** Der Fernseher fragt ohne Grenze («Automatisch»), bis man eine wählt; die Wahl gilt für jedes
   Netz. «Original» als Vorgabe fehlt (das Tonmodell `QualityChoice` hat sie nicht), im Player gibt es sie.
+- **Kein Tempo am Fernseher:** Papier 5.1 und das Mockup nennen keine Geschwindigkeit; Knopf und Menü sind
+  nach dem Review entfallen.
+- **«Formate von Hand»** bietet die vier Durchreich-Formate (Dolby Digital, Dolby Digital Plus, DTS, Dolby
+  TrueHD) und die Kanalzahl; was der Fernseher selbst dekodiert (AAC, FLAC, Opus), bleibt immer gemeldet.
+  Vorbelegt mit dem, was «Automatisch» meldet. Mit Kopfhörer gilt «von Hand» weiter (bewusste Wahl des
+  Benutzers; Review L-7).
+- **Info-Panel** bleibt stehen, wenn die Bedienebene ausblendet (Mockup: `.br-info` liegt neben der
+  Bedienebene); Zurück schliesst es zuerst.
+- **Vor-/Rückspultasten** der Fernbedienung: jeder Druck ein Schritt, Halten beschleunigt nicht (die
+  Tasten kommen ohne Wiederholung, Review L-9); auf dem Steuerkreuz beschleunigt Halten.
 - **Untertitel:** Kontur statt Kasten, ASS-Stile und -Grössen und PGS-Bilder aus der Datei
   (`setApplyEmbeddedStyles`, `setApplyEmbeddedFontSizes`). Eine eigene Grössen- und Stilwahl sieht das Papier
-  nicht vor.
+  nicht vor; hat jemand die Untertitel der Bedienungshilfen des Systems eingestellt, gelten deren Grösse und
+  Stil.
 
 **Abnahmeliste je Gerät und Tonanlage.** Für jedes Gerät (Chromecast oder Google TV Streamer, Nvidia Shield,
 Fernseher mit Google TV) einmal mit den Lautsprechern des Fernsehers, einmal über eine Soundbar an ARC und, wo
@@ -509,8 +520,8 @@ Vision Profil 8.1.
 | 4 | Film mit DTS 5.1 über Soundbar ohne DTS | kein stummer Film: der Server wandelt den Ton (AC-3 5.1 oder AAC 5.1), Info zeigt Remux oder Transcode |
 | 5 | Film mit TrueHD 7.1 über Receiver an eARC | Direktwiedergabe, durchgereicht, Receiver zeigt TrueHD; über Soundbar: neu kodiert, Ton hörbar |
 | 6 | Film mit AAC 5.1 über Receiver ohne Dolby (nur PCM 5.1) | «Ausgang mit 5.1 erkannt», Ton auf allen Kanälen |
-| 7 | Während der Wiedergabe: Anlage ausschalten, dann wieder ein; Bluetooth-Kopfhörer verbinden | nach etwa 1 s ein Neustart an derselben Stelle; Info zeigt Stereo bzw. wieder Mehrkanal; mit Kopfhörer nichts durchgereicht |
-| 8 | Einstellungen: «Immer Stereo», Film aus Nr. 2 | Stereo, «Ton wird im Fernseher dekodiert», die Anlage zeigt PCM 2.0 |
+| 7 | Während der Wiedergabe: Anlage ausschalten, dann wieder ein; Bluetooth-Kopfhörer verbinden und trennen | nach etwa 1 s ein Neustart an derselben Stelle; Info zeigt Stereo bzw. wieder Mehrkanal; mit Kopfhörer nichts durchgereicht. Media3 pausiert beim Wegfall des Ausgangs selbst («becoming noisy»): dann pausiert an derselben Stelle, Weiter mit OK |
+| 8 | Einstellungen: «Immer Stereo», Film aus Nr. 2; im Menü «Ton» eine Dolby- oder DTS-Spur wählen | Stereo, «Ton wird im Fernseher dekodiert», die Anlage zeigt PCM 2.0; die gewählte Spur kommt über einen Neustart als Stereo, nie als Dolby an die Anlage |
 | 9 | Einstellungen: «Formate von Hand», nur Dolby Digital, 5.1; DTS-Film | der Server wandelt DTS; mit DTS angekreuzt geht DTS durch (falls die Anlage es kann) |
 | 10 | HDR10-Datei auf HDR-Fernseher | der Fernseher wechselt in HDR, Info «HDR10», Direktwiedergabe oder Remux; auf SDR-Gerät: «auf SDR umgewandelt» |
 | 11 | Dolby-Vision-Profil-8.1-Datei auf Gerät ohne DV | Bild in HDR10 (Grundschicht), keine Fehlfarben (F-8) |
@@ -521,3 +532,13 @@ Vision Profil 8.1.
 | 16 | Folge bis zum Abspann | Karte «Nächste Folge in 10», danach die nächste Folge; «Abbrechen» bleibt in der Folge |
 | 17 | Film starten, mit Zurück verlassen, sofort Einstellungen › Profil wechseln; ebenso «Diesen Fernseher abmelden» | die Sitzung ist am Server beendet (die Streamübersicht der Verwaltung zeigt keinen Stream mehr), das neue Profil sieht keine Bilder des alten |
 | 18 | Tempo (Shield, schwächstes Gerät) | Bedienebene erscheint ohne Ruckeln, Spulen flüssig |
+| 19 | Film mit AC-3 5.1: an den Lautsprechern, dann an der Soundbar über ARC | Lautsprecher: dekodiert, Ton hörbar; Soundbar: «durchgereicht», die Soundbar zeigt Dolby Digital |
+| 20 | AAC 7.1 oder FLAC 7.1 an einem Receiver an eARC, der kein TrueHD kann | «Ausgang mit 7.1 erkannt», gemeldet 8 Kanäle, alle acht Kanäle hörbar |
+| 21 | HLG-Datei auf HDR-Fernseher und auf SDR-Gerät | HDR: der Fernseher zeigt HLG, Info «HLG»; SDR: «auf SDR umgewandelt» |
+| 22 | Dolby Vision Profil 5 auf einem HDR10-Gerät ohne Dolby Vision | der Server wandelt um (Info: Transcode, Grund Dolby Vision), Farben richtig, kein Grün/Violett |
+| 23 | Datei mit PGS und ASS, «Qualität» unter der Datei (HLS) | PGS eingebrannt, ASS als einfacher Text (WebVTT), beides zur richtigen Zeit |
+| 24 | Pausieren, dann Anlage aus und wieder an; ebenso direkt nach dem Start, solange noch «Wird geladen» steht | bleibt pausiert an derselben Stelle (kein Losspielen, kein Sprung an den Anfang); beim Start kommt das neue Profil an |
+| 25 | Während der Wiedergabe am Fernseher den HDMI-Eingang wechseln und nach 10 min zurück | je nach Gerät: die Box schläft per CEC (dann pausiert zurück) oder der Film lief weiter; Ergebnis je Gerät notieren (Review O-3) |
+| 26 | System-Untertitel (Bedienungshilfen) auf «sehr gross» stellen, Film mit Textuntertiteln aus 3 m | die Grösse des Systems gilt, lesbar aus 3 m; ohne Systemwahl Kontur in der Standardgrösse |
+| 27 | Mit «Dynamikbereich/Bildfrequenz anpassen» des Systems: HDR-Datei starten (Shield, Google TV) | der Film läuft weiter; baut das System die App beim Moduswechsel neu, steht er pausiert an derselben Stelle (Review O-2) |
+| 28 | HDR in den Systemeinstellungen abschalten, HDR10-Datei | das Bild kommt umgewandelt (SDR) oder vom System richtig abgebildet, nicht flau (Review O-4) |

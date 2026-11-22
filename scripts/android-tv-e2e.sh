@@ -17,6 +17,7 @@
 # AVD         emulator to start (default sc_tv); EMU_PORT its console port (default 5584)
 # SHOTS=DIR   or --shots DIR: photograph every page and menu and copy the photos to DIR
 # LOCALE      language of the app (de-CH, en …; default: the device's)
+# EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
@@ -36,6 +37,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
 adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
+adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-tv-e2e-XXXXXX)
 logs=app-tv/build/e2e-logs
@@ -56,13 +59,13 @@ cleanup() {
     for f in server.log relay.log emulator.log instrument.txt apicheck.log; do
       [ -f "$root/$f" ] && cp "$root/$f" "$logs/"
     done
-    if [ -n "$emulator_pid" ]; then adb logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
+    if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
   for pid in "$server_pid" "$relay_pid"; do
     if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
   done
   if [ -n "$emulator_pid" ]; then
-    adb emu kill >/dev/null 2>&1 || true
+    adb_brief emu kill >/dev/null 2>&1 || true
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
@@ -116,7 +119,7 @@ done
 
 boot() {
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect >"$root/emulator.log" 2>&1 &
+    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 300); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1
@@ -127,7 +130,7 @@ boot() {
 }
 if ! boot; then
   echo "android-tv-e2e: the emulator did not boot, trying once more"
-  adb emu kill >/dev/null 2>&1 || true
+  adb_brief emu kill >/dev/null 2>&1 || true
   kill "$emulator_pid" 2>/dev/null || true
   wait "$emulator_pid" 2>/dev/null || true
   boot || fail "the emulator did not boot"
