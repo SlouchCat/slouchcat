@@ -93,6 +93,12 @@ testing {
                     val media = providers.gradleProperty("slouchcat.contract.media")
                     inputs.property("media", media.orElse(""))
                     systemProperty("slouchcat.contract.media", media.getOrElse(""))
+                    // Stage 8: the Seerr mock, the push relay and the fake of Google's push service.
+                    for (name in listOf("seerr", "relay", "fcmfake")) {
+                        val value = providers.gradleProperty("slouchcat.contract.$name")
+                        inputs.property(name, value.orElse(""))
+                        systemProperty("slouchcat.contract.$name", value.getOrElse(""))
+                    }
                     // The capability profile of the phone app (core/player's rules for the emulator).
                     val fixtures = rootProject.layout.projectDirectory.dir("../testdata/android")
                     inputs.dir(fixtures).withPathSensitivity(PathSensitivity.RELATIVE)
