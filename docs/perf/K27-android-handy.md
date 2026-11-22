@@ -479,7 +479,7 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 ## Stufe 7: Ton (22. November 2026)
 
 **Emulator-Messung**, nicht auf einem Gerät: `AudioFlowTest` (`RADIO=1 task android:e2e
-CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5594`, dazu `AVD=sc_tablet`) gegen den
+CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5574`, dazu `AVD=sc_tablet`) gegen den
 Server dieses Zweigs. Die Testmedien kommen aus `scripts/android-test-video.sh`: das Hörbuch «The Quiet
 Harbour» aus zwei AAC-Dateien zu 60 s (eine HLS-Zeitachse) und der Podcast-Ordner «Night Shift
 Stories». Das Radio läuft über die Teststationen der Web-App (`web/e2e/radio-server.mjs`, Server mit
@@ -497,7 +497,8 @@ Weitere Ergebnisse des Ablaufs:
 - Die Mitteilung zeigt Titel, Autor, −15 s, +30 s und Pause (Foto `a04-notification`).
 - Eine Podcast-Folge spielt, nachdem das Buch mit seiner letzten Meldung beendet wurde.
 - Ein Sender spielt länger als ein Herzschlag (30 s) ohne Fehler und endet mit dem Kreuz des
-  kleinen Players (`endRadioListen`).
+  kleinen Players (`endRadioListen`). Das Skript prüft danach im Log des Servers, dass mindestens ein
+  Herzschlag mit 200 ankam; ohne ihn schlägt der Lauf fehl.
 
 Der Server liegt um höchstens eine Meldung (10 s Spielzeit) hinter dem Gerät. Beim Beenden geht die
 letzte Meldung mit. **Akku lässt sich im Emulator nicht messen**: Das bleibt ein Gerätepunkt (Liste
@@ -527,3 +528,8 @@ unten, Punkt 1).
 9. Ein Hörbuch herunterladen, dann den Flugmodus einschalten: Das Buch spielt aus «Downloads» im
    Tonplayer, Kapitel und Tempo gehen.
 10. Schlaftimer «Ende des Kapitels»: Der Ton hält am Kapitelende an.
+11. «Abspielen» tippen und das Handy sofort sperren, auch bei einem Titel, der erst umgewandelt wird:
+    Der Ton beginnt, die Mitteilung erscheint. Erscheint sie nicht, steht im Log
+    «foreground service not allowed» (Android verweigert den Vordergrunddienst nach dem Verlassen
+    der App); dann diesen Fall melden.
+12. Beim ersten Ton fragt Android 13 und neuer nach Mitteilungen. Abgelehnt: Der Ton spielt trotzdem.

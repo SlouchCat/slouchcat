@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.scale
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -62,7 +63,7 @@ object CpuBlur {
 
     fun blur(source: Bitmap): Bitmap {
         val height = maxOf(1, source.height * WIDTH / maxOf(1, source.width))
-        val small = Bitmap.createScaledBitmap(source, WIDTH, height, true)
+        val small = source.scale(WIDTH, height)
         val pixels = IntArray(WIDTH * height)
         small.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, height)
         repeat(PASSES) {

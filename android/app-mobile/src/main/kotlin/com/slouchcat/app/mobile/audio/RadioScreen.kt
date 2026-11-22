@@ -238,7 +238,7 @@ private fun StationTile(station: RadioStation, playing: RadioState?, logo: Image
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(16.dp)
     val chosen = playing?.station?.id == station.id && playing.error == null
-    val running = chosen && playing!!.wantsToPlay
+    val running = chosen && playing.wantsToPlay
     val action = when {
         running -> stringResource(R.string.radio_page_pause, station.name)
         chosen -> stringResource(R.string.radio_page_resume, station.name)
