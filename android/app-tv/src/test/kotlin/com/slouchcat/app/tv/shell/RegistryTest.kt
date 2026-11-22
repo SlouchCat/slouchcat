@@ -88,9 +88,11 @@ class RegistryTest {
             LibraryNav(3, "Serien", LibraryKind.VIDEO, emptyList(), 1),
         )
         assertEquals(listOf("library-1", "library-3", "watchlist", "watched", "collections"), registry.mediaEntries(libraries).map { it.key })
-        // «Profile verwalten» in the settings (order 20) and from the profile choice.
-        assertEquals(listOf("manage" to 20), registry.settings.map { it.key to it.order })
+        // «Profile verwalten» in the settings (order 20) and from the profile choice; «Wiedergabe» (30, stage 3).
+        assertEquals(listOf("manage" to 20, "playback" to 30), registry.settings.map { it.key to it.order })
         assertTrue(registry.manageProfiles != null)
+        // The player of stage 3 draws without rail and clock.
+        assertEquals(setOf(com.slouchcat.app.tv.browse.PlayerRoute::class), registry.fullScreen)
     }
 
     @Test

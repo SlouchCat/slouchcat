@@ -136,6 +136,21 @@ class HomeViewModel(
 
     fun retry() = load()
 
+    private var shown = false
+
+    /**
+     * The page is seen again (ON_RESUME): back from the player (stage 3) or another page, the rows
+     * read again quietly (progress, «Weiterschauen»), the rows already shown stay meanwhile. Not
+     * the first time: the page just loaded.
+     */
+    fun onShown() {
+        if (!shown) {
+            shown = true
+            return
+        }
+        if (_state.value.rows is Loadable.Ready) refresh()
+    }
+
     /** Pull to refresh: the rows stay while the new ones load, and when that fails. */
     fun refresh() = load(refresh = true)
 

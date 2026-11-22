@@ -6,6 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
@@ -48,6 +50,8 @@ object HomeFeature : TvFeature {
         composable<HomeRoute> {
             val vm = viewModel { HomeViewModel(graph.session, graph.media.home, graph.media.items, graph.media.watchlistCount) }
             val state by vm.state.collectAsStateWithLifecycle()
+            // Back from the player (stage 3): the rows again, quietly (progress, «Weiterschauen»).
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onShown() }
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
                     when (message) {

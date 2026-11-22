@@ -62,7 +62,7 @@ class HomeScreenTest {
 
     private fun show(player: TestPlayerFeature? = null) = pages.show(
         { it.copy(home = home, detail = details, items = details) },
-        features = com.slouchcat.app.tv.shell.features + listOfNotNull(player),
+        features = com.slouchcat.app.tv.testing.withoutPlayer + listOfNotNull(player),
     )
 
     @Test

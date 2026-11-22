@@ -59,7 +59,7 @@ class ItemScreenTest {
     private fun open(vararg titles: Pair<Int, String>, player: TestPlayerFeature? = null, kind: ItemKind = ItemKind.MOVIE) {
         val row = titles.map { (n, title) -> itemRef(n, title = title, kind = kind, images = posters(ulid(n))).let { if (n == 200) it.copy(id = SERIES_ID) else it } }
         val home = FakeHome(ApiResult.Ok(HomePage(listOf(homeRow(HomeRowKey.RECENT, row)))))
-        pages.show({ it.copy(home = home, detail = details, items = details, person = FakePeople()) }, features = com.slouchcat.app.tv.shell.features + listOfNotNull(player))
+        pages.show({ it.copy(home = home, detail = details, items = details, person = FakePeople()) }, features = com.slouchcat.app.tv.testing.withoutPlayer + listOfNotNull(player))
         pages.waitFor(titles.first().second)
         remote.ok()
         pages.waitFor(pages.s(R.string.tv_item_more))
