@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +38,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -136,7 +138,6 @@ private fun Hero(icon: SlouchcatIcon, tone: HeroTone = HeroTone.Plain) {
     val tint = when (tone) {
         HeroTone.Plain -> c.tx
         HeroTone.Warn -> c.warn
-        HeroTone.Bad -> c.danger
         HeroTone.Ok -> c.ok
     }
     Box(
@@ -152,7 +153,7 @@ private fun Hero(icon: SlouchcatIcon, tone: HeroTone = HeroTone.Plain) {
     }
 }
 
-private enum class HeroTone { Plain, Warn, Bad, Ok }
+private enum class HeroTone { Plain, Warn, Ok }
 
 @Composable
 private fun Title(text: String) {
@@ -321,11 +322,12 @@ private fun Confirm(step: TvLinkStep.Confirm, actions: TvLinkActions) {
             .clip(shape)
             .background(c.s1)
             .border(BorderStroke(1.dp, c.frame), shape)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         Fact(stringResource(R.string.app_tv_confirm_account), step.account)
+        HorizontalDivider(color = c.line)
         Fact(stringResource(R.string.app_tv_confirm_server), step.server)
+        HorizontalDivider(color = c.line)
         Fact(
             stringResource(R.string.app_tv_confirm_by),
             stringResource(if (step.primary) R.string.app_tv_confirm_primary else R.string.app_tv_confirm_profile, step.profile),
@@ -339,13 +341,17 @@ private fun Confirm(step: TvLinkStep.Confirm, actions: TvLinkActions) {
     }
 }
 
-/** `.su-dl div`: a term and its value, read as one. */
+/** `.su-dl div`: the term at the start, its value at the end, read as one. */
 @Composable
 private fun Fact(term: String, value: String) {
     val c = SlouchcatTheme.colors
-    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
-        Text(term, style = SlouchcatType.caption, color = c.tx3)
-        Text(value, style = SlouchcatType.rowTitle, color = c.tx)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(term, style = SlouchcatType.bodySmall, color = c.tx2)
+        Text(value, style = SlouchcatType.bodySmall.copy(fontWeight = FontWeight.Bold), color = c.tx, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
     }
 }
 
@@ -355,13 +361,21 @@ private val RUN_LINES = listOf(R.string.app_tv_run_voucher, R.string.app_tv_run_
 @Composable
 private fun Run(done: Int, failedAt: Int?) {
     val c = SlouchcatTheme.colors
-    Hero(if (failedAt != null) SlouchcatIcon.Alert else SlouchcatIcon.Link, if (failedAt != null) HeroTone.Bad else HeroTone.Plain)
+    Hero(if (failedAt != null) SlouchcatIcon.Alert else SlouchcatIcon.Link, if (failedAt != null) HeroTone.Warn else HeroTone.Plain)
     Title(stringResource(if (failedAt != null) R.string.app_tv_run_failedTitle else R.string.app_tv_run_title))
+    val shape = RoundedCornerShape(16.dp)
     Column(
-        Modifier.fillMaxWidth().padding(top = 20.dp).semantics { liveRegion = LiveRegionMode.Polite },
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp)
+            .clip(shape)
+            .background(c.s1)
+            .border(BorderStroke(1.dp, c.frame), shape)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
         RUN_LINES.forEachIndexed { index, line ->
+            if (index > 0) HorizontalDivider(color = c.line)
             val status = when {
                 index == failedAt -> LineStatus.Failed
                 index < done -> LineStatus.Done
@@ -378,19 +392,30 @@ private fun Run(done: Int, failedAt: Int?) {
                 },
             )
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 32.dp).semantics(mergeDescendants = true) { contentDescription = "$text: $said" },
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 8.dp).semantics(mergeDescendants = true) { contentDescription = "$text: $said" },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                    when (status) {
-                        LineStatus.Done -> SlouchcatIconImage(SlouchcatIcon.Check, contentDescription = null, size = 18.dp, tint = c.ok)
-                        LineStatus.Failed -> SlouchcatIconImage(SlouchcatIcon.Close, contentDescription = null, size = 18.dp, tint = c.danger)
-                        LineStatus.Busy -> CircularProgressIndicator(Modifier.size(18.dp), color = c.tx2, strokeWidth = 2.dp)
-                        LineStatus.Pending -> Unit
+                // `.su-ri`: a filled circle when done or failed, a spinner while busy, a ring while waiting.
+                val circle = Modifier.size(26.dp).clip(CircleShape)
+                when (status) {
+                    LineStatus.Done -> Box(circle.background(c.ok), contentAlignment = Alignment.Center) {
+                        SlouchcatIconImage(SlouchcatIcon.Check, contentDescription = null, size = 16.dp, tint = c.bg)
                     }
+                    LineStatus.Failed -> Box(circle.background(c.warn), contentAlignment = Alignment.Center) {
+                        SlouchcatIconImage(SlouchcatIcon.Close, contentDescription = null, size = 16.dp, tint = c.bg)
+                    }
+                    LineStatus.Busy -> Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = c.tx2, strokeWidth = 2.dp)
+                    }
+                    LineStatus.Pending -> Box(circle.border(BorderStroke(2.dp, c.ctl), CircleShape))
                 }
-                Text(text, style = SlouchcatType.body, color = if (status == LineStatus.Pending) c.tx3 else c.tx)
+                Text(
+                    text,
+                    style = if (status == LineStatus.Failed) SlouchcatType.body.copy(fontWeight = FontWeight.Bold) else SlouchcatType.body,
+                    color = if (status == LineStatus.Pending) c.tx3 else c.tx,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -426,7 +451,7 @@ private fun Failure(step: TvLinkStep.Failed, actions: TvLinkActions) {
             SlouchcatButton(stringResource(R.string.app_tv_fail_again), onClick = actions.onScan, leadingIcon = SlouchcatIcon.Qr, modifier = Modifier.weight(1f))
         }
     } else {
-        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.Start) {
             if (failure == TvLinkFailure.Left(delivered = true)) {
                 SlouchcatButton(stringResource(R.string.nav_devices), onClick = actions.onDevices, kind = ButtonKind.Ghost, modifier = Modifier.padding(end = 10.dp))
             }
