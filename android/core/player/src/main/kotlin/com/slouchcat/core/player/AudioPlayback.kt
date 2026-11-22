@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.joinAll
 
 /** Where a title plays from: the server (`online`) or a download (stage 6), each with its own [PlaybackServer]. */
 data class AudioSource(val key: String, val server: () -> PlaybackServer) {
@@ -26,6 +28,8 @@ data class LastAudio(
     val byline: String?,
     /** The account and profile it belongs to (the app shows it only to that profile). */
     val owner: String,
+    /** It played from a download: it plays again from the device (m-11). */
+    val offline: Boolean = false,
 )
 
 /** Remembers [LastAudio] across the death of the process (the app keeps it in a file; tests in memory). */
@@ -101,8 +105,10 @@ class AudioPlayback(
         }
 
     /**
-     * Plays [itemId] from [source]: at [startAtMs], from the start with [fromStart], else where the
-     * server resumes. The title that plays already stays as it is (the page of the player opened again).
+     * «Abspielen» of [itemId] from [source]: at [startAtMs], from the start with [fromStart], else where
+     * the server resumes. The title already loaded from the same source plays on from where it stands
+     * (or jumps to [startAtMs]) without a new start, so its session, the time played and the speed stay
+     * (m-1). Only a button that plays calls this; opening the audio player only shows (M-1).
      */
     fun playTitle(itemId: String, source: AudioSource, startAtMs: Long? = null, fromStart: Boolean = false) {
         val current = active
@@ -119,7 +125,9 @@ class AudioPlayback(
             made
         }
         val state = controller.state.value
-        if (state.item?.id == itemId && state.error == null && startAtMs == null && !fromStart) {
+        if (state.item?.id == itemId && state.error == null && !state.loading) {
+            val at = if (fromStart) 0L else startAtMs
+            if (at != null) controller.seekTo(at)
             controller.play()
         } else {
             sleepTimer.cancel()
@@ -140,6 +148,8 @@ class AudioPlayback(
             made.nowWanted = visible
             active = Active(child, engine, null, made, null)
             engineFlow.value = engine
+            // At once, not one frame later with the title that ended (L-8).
+            mutable.value = AudioNow.Radio(RadioState(station = station, starting = true, wantsToPlay = true))
             child.launch { made.state.collect { mutable.value = if (it.active) AudioNow.Radio(it) else null } }
             made
         }
@@ -147,15 +157,19 @@ class AudioPlayback(
         controller.start(station)
     }
 
-    /** Play or pause what is loaded; a restored title starts again. */
+    /**
+     * Play or pause what is loaded; a restored title starts again (from the download when it played
+     * from one); a title that failed tries again (M-5).
+     */
     fun togglePlay() {
         when (val now = mutable.value) {
             is AudioNow.Restored -> {
-                val source = restoredSource ?: return
+                val source = (if (now.last.offline) restoredOfflineSource?.invoke() else restoredSource) ?: return
                 playTitle(now.last.itemId, source)
             }
             else -> {
-                active?.title?.togglePlay()
+                val title = active?.title
+                if (title != null && title.state.value.error != null) title.retry() else title?.togglePlay()
                 active?.radio?.togglePlay()
             }
         }
@@ -163,6 +177,9 @@ class AudioPlayback(
 
     /** Where a restored title plays from (the app sets the server's source). */
     var restoredSource: AudioSource? = null
+
+    /** Where a restored title of a download plays from (`null`: none for the profile now). */
+    var restoredOfflineSource: (() -> AudioSource?)? = null
 
     /** «Schlaftimer» of the audio player. */
     fun setSleep(choice: SleepChoice) {
@@ -186,12 +203,33 @@ class AudioPlayback(
         AudioRules.nextChapterStart(s.chapters, s.positionMs)?.let(controller::seekTo)
     }
 
-    /** Ends everything that plays (the cross of the mini player, a profile change, the sign-out). */
-    fun stop() {
-        retire()
+    /**
+     * Ends everything that plays (the cross of the mini player, a video, a change of the listener) and
+     * forgets the last title, also one restored after the death of the process (L-4). The last
+     * progress and the end of the session go out in the app's scope; [stopAndFlush] waits for them.
+     * [forget] `false` (a video, the swipe of the paused app) keeps «Zuletzt gehört» for the next start.
+     */
+    fun stop(forget: Boolean = true) {
+        finish(forget)
+    }
+
+    /**
+     * [stop], then waits up to [timeoutMs] for the last progress, `stopPlayback` and `endRadioListen`
+     * (stage 7 M-2): before the sign-out and before a profile change, while the token still counts.
+     */
+    suspend fun stopAndFlush(timeoutMs: Long = FLUSH_MS) {
+        val jobs = finish()
+        withTimeoutOrNull(timeoutMs) { jobs.joinAll() }
+    }
+
+    /** Ends what plays; [forget]: «Zuletzt gehört» goes too (the cross, a change of the listener). */
+    private fun finish(forget: Boolean = true): List<Job> {
+        val jobs = retire()
         sleepTimer.cancel()
         mutable.value = null
-        remember(null)
+        remembered = null
+        if (forget) memory?.let { store -> scope.launch { store.write(null) } }
+        return jobs
     }
 
     /** After the death of the process: shows [last] paused when it belongs to the listener now and nothing plays. */
@@ -199,6 +237,7 @@ class AudioPlayback(
         if (active != null || mutable.value != null) return
         val last = memory?.read() ?: return
         if (last.owner != owner()) return
+        remembered = "${last.owner}|${last.itemId}"
         mutable.value = AudioNow.Restored(last)
     }
 
@@ -208,7 +247,7 @@ class AudioPlayback(
         child.launch {
             controller.state.collect { s ->
                 publishTitle(s, source)
-                s.item?.let { item -> remember(LastAudio(item.id, item.title, item.author ?: item.seriesTitle, owner() ?: return@let)) }
+                s.item?.let { item -> remember(LastAudio(item.id, item.title, item.author ?: item.seriesTitle, owner() ?: return@let, offline = source.key.startsWith(OFFLINE))) }
             }
         }
         child.launch {
@@ -237,21 +276,27 @@ class AudioPlayback(
         scope.launch { store.write(last) }
     }
 
-    /** Closes what plays: the last progress or `endRadioListen` in the app's scope, then its loops end. */
-    private fun retire(clearEngine: Boolean = true) {
-        val old = active ?: return
+    /**
+     * Closes what plays: the last progress or `endRadioListen` in the app's scope, then its loops end.
+     * Returns the jobs of those last requests.
+     */
+    private fun retire(clearEngine: Boolean = true): List<Job> {
+        val old = active ?: return emptyList()
         active = null
         // A change between two players keeps the flow on the old one until the new one is there (no
         // `null` in between: the media session would end and start again).
         if (clearEngine) engineFlow.value = null
-        old.title?.close()
-        old.radio?.close()
+        val jobs = listOfNotNull(old.title?.close(), old.radio?.close())
         old.scope.cancel()
+        return jobs
     }
 
     companion object {
         /** The key of a download's source starts with it (`offline:<account>`). */
         const val OFFLINE = "offline"
         const val SLEEP_TICK_MS = 1_000L
+
+        /** The longest wait for the last requests before a sign-out or a profile change. */
+        const val FLUSH_MS = 3_000L
     }
 }

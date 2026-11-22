@@ -13,6 +13,8 @@ import com.slouchcat.core.api.generated.models.RadioStation
 import com.slouchcat.core.api.log.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,8 +123,16 @@ class RadioController(
     private val finalScope: CoroutineScope,
     private val server: RadioServer,
     private val engine: PlayerEngine,
+    /**
+     * Wall clock in milliseconds (also through deep sleep): a pause longer than a heartbeat starts a
+     * new listen instead of resuming behind the live window or on an ended listen (m-2).
+     */
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val mutable = MutableStateFlow(RadioState())
+
+    /** When the player was paused; `null` while it plays. */
+    private var pausedAt: Long? = null
     val state: StateFlow<RadioState> = mutable.asStateFlow()
 
     /** Whether «Jetzt läuft» is worth asking (a page or the mini player shows it). */
@@ -151,9 +161,11 @@ class RadioController(
         endListen()
         val mine = ++attempt
         mutable.value = RadioState(station = station, starting = true, wantsToPlay = true)
+        pausedAt = null
         startJob = scope.launch {
-            val result = server.start(station.id)
-            if (mine != attempt) {
+            // To its end even when the controller goes: the late answer ends its listen (below).
+            val result = withContext(NonCancellable) { server.start(station.id) }
+            if (mine != attempt || !isActive) {
                 // A newer start or a stop came first: this listen ends at once.
                 (result as? ApiResult.Ok)?.value?.let { late -> finalScope.launch { server.end(late.listenId) } }
                 return@launch
@@ -166,8 +178,17 @@ class RadioController(
     }
 
     fun play() {
-        if (listen == null) {
-            mutable.value.station?.takeIf { mutable.value.error != null }?.let(::start)
+        val current = listen
+        val station = mutable.value.station
+        if (current == null) {
+            station?.takeIf { mutable.value.error != null }?.let(::start)
+            return
+        }
+        val paused = pausedAt
+        if (station != null && paused != null && clock() - paused > current.heartbeatSeconds * 1000L) {
+            // A long pause: the heartbeats stood (deep sleep), the live window moved on.
+            endListen()
+            start(station)
             return
         }
         engine.play()
@@ -184,10 +205,16 @@ class RadioController(
         mutable.value = RadioState()
     }
 
-    /** The controller is gone: stop and release the player. */
-    fun close() {
-        stop()
+    /**
+     * The controller is gone: stop and release the player. Returns the job of `endRadioListen`
+     * (`null` without a listen), so a sign-out can wait for it (stage 7 M-2).
+     */
+    fun close(): Job? {
+        attempt++
+        val end = endListen()
+        mutable.value = RadioState()
         engine.release()
+        return end
     }
 
     private fun onStarted(started: RadioListen) {
@@ -250,6 +277,7 @@ class RadioController(
             is EngineEvent.WantsToPlay -> {
                 val changed = mutable.value.wantsToPlay != event.play
                 mutable.update { it.copy(wantsToPlay = event.play) }
+                pausedAt = if (event.play) null else pausedAt ?: clock()
                 // A play or a pause tells the server at once (web: one beat on every change).
                 if (changed && listen != null) scope.launch { beat() }
             }
@@ -295,14 +323,16 @@ class RadioController(
      * Ends the current listen (if any) after its loops; the player stops. A start on its way is not
      * cancelled: the server may have opened the listen already, its answer ends it (see [start]).
      */
-    private fun endListen() {
+    private fun endListen(): Job? {
         startJob = null
         loops.forEach { it.cancel() }
         loops = emptyList()
-        listen?.let { old -> finalScope.launch { server.end(old.listenId) } }
+        val end = listen?.let { old -> finalScope.launch { server.end(old.listenId) } }
         listen = null
+        pausedAt = null
         engine.stop()
         loadId = NO_LOAD
+        return end
     }
 
     companion object {

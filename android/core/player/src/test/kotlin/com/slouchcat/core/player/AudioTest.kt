@@ -345,4 +345,110 @@ class AudioTest {
         assertEquals(1, p.titles.starts.size)
         assertEquals(1, p.engines.size)
     }
+
+    // ---- the correction round (review of stage 7) ---------------------------------------------
+
+    @Test
+    fun aChapterOfThePlayingTitleKeepsItsSessionAndSpeed() = runTest {
+        val p = playback()
+        p.playback.playTitle("book", p.online())
+        runCurrent()
+        val book = p.engines.single().second
+        book.ready()
+        runCurrent()
+        p.playback.title!!.setSpeed(1.5f)
+        p.playback.playTitle("book", p.online(), startAtMs = 120_000)
+        runCurrent()
+        // No new start, no lost time: the same session jumps and plays on at its speed (m-1).
+        assertEquals(1, p.titles.starts.size)
+        assertEquals(120_000L, book.positionMs)
+        assertEquals(1.5f, p.playback.title!!.state.value.speed)
+    }
+
+    @Test
+    fun theRetryOfAFailedTitleStartsAgain() = runTest {
+        val p = playback()
+        p.titles.answer = { _, _ -> ApiResult.Offline }
+        p.playback.playTitle("book", p.online())
+        runCurrent()
+        assertTrue(p.playback.title!!.state.value.error is PlayerError.Network)
+        p.titles.answer = { id, _ -> ApiResult.Ok(audioInfo(id)) }
+        // «Erneut versuchen» of the mini player (M-5).
+        p.playback.togglePlay()
+        runCurrent()
+        assertEquals(2, p.titles.starts.size)
+    }
+
+    @Test
+    fun theSignOutWaitsForTheLastProgressAndTheStop() = runTest {
+        val p = playback()
+        p.playback.playTitle("book", p.online())
+        runCurrent()
+        p.engines.single().second.ready()
+        advanceTimeBy(5_000)
+        // Like `beforeSignOut`: when it returns, both requests reached the server (M-2).
+        p.playback.stopAndFlush()
+        assertEquals(listOf("progress:session-book", "stop:session-book"), p.titles.calls)
+    }
+
+    @Test
+    fun aStartCutOffByAStationEndsItsSessionWhenTheAnswerComes() = runTest {
+        val p = playback()
+        p.titles.startGate = CompletableDeferred()
+        p.playback.playTitle("book", p.online())
+        runCurrent()
+        p.playback.playRadio(station(7))
+        runCurrent()
+        p.titles.startGate!!.complete(Unit)
+        runCurrent()
+        // The session the server opened for the book ends at once (m-4).
+        assertEquals(listOf("stop:session-book"), p.titles.calls)
+    }
+
+    @Test
+    fun theCrossForgetsARestoredTitle() = runTest {
+        val memory = MemoryAudio(LastAudio("book", "Silo", null, owner = "server|#1"))
+        val p = playback(memory)
+        p.playback.restore()
+        runCurrent()
+        p.playback.stop()
+        runCurrent()
+        // The file of the last title goes too (L-4), so nothing shows at the next start.
+        assertNull(memory.last)
+    }
+
+    @Test
+    fun aRestoredDownloadPlaysFromTheDevice() = runTest {
+        val memory = MemoryAudio(LastAudio("book", "Silo", null, owner = "server|#1", offline = true))
+        val p = playback(memory)
+        val local = FakeServer().apply { answer = { id, _ -> ApiResult.Ok(audioInfo(id)) } }
+        p.playback.restoredSource = p.online()
+        p.playback.restoredOfflineSource = { AudioSource("offline:1") { local } }
+        p.playback.restore()
+        p.playback.togglePlay()
+        runCurrent()
+        // m-11: from the download, not from the server.
+        assertTrue(p.titles.starts.isEmpty())
+        assertEquals("book", local.starts.single().first)
+    }
+
+    @Test
+    fun aLongPauseOfTheRadioStartsANewListen() = runTest {
+        var now = 0L
+        val server = FakeRadioServer().apply { heartbeatSeconds = 30 }
+        val engine = FakeEngine { testScheduler.currentTime }
+        val radio = RadioController(backgroundScope, backgroundScope, server, engine) { now }
+        radio.start(station(7))
+        runCurrent()
+        engine.ready()
+        runCurrent()
+        radio.pause()
+        runCurrent()
+        now += 10 * 60_000L
+        radio.play()
+        runCurrent()
+        // m-2: behind the live window and past the server's patience, a new listen.
+        assertEquals(2, server.calls.count { it.startsWith("start") })
+        assertTrue("end:listen-1" in server.calls)
+    }
 }
