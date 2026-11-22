@@ -212,6 +212,8 @@ private fun Grid(items: List<MediaItem>, state: LibraryUiState, actions: Library
         gridKey = GRID,
         columns = columns,
         modifier = Modifier.fillMaxWidth().heightIn(min = TvDimens.Browse.HeadHeight).onFocusChanged { if (!it.hasFocus) onFocused(null) },
+        // The next page failed: «Erneut versuchen» below the tiles (code review m-5).
+        footer = if (state.items.more == MoreState.Failed) ({ MoreRetry(actions.nearEnd, focus) }) else null,
     ) { item, modifier ->
         MediaCard(
             item,
@@ -226,11 +228,18 @@ private fun Grid(items: List<MediaItem>, state: LibraryUiState, actions: Library
             width = null,
         )
     }
-    if (state.items.more == MoreState.Failed) {
-        // The next page failed: OK on the last card asks again (the grid has no room for a button).
-        Text(stringResource(R.string.library_page_pageFailed), modifier = Modifier.padding(start = LocalContentStart.current))
+}
+
+/** The line below a grid whose next page failed: what happened and «Erneut versuchen». */
+@Composable
+fun MoreRetry(onRetry: () -> Unit, focus: FocusMemory) {
+    Row(Modifier.padding(top = TvDimens.l), horizontalArrangement = Arrangement.spacedBy(TvDimens.l), verticalAlignment = Alignment.CenterVertically) {
+        com.slouchcat.app.tv.ui.TvButton(stringResource(R.string.app_state_retry), onClick = onRetry, icon = SlouchcatIcon.Refresh.vector, modifier = Modifier.focusKey(focus, MORE_RETRY))
+        Text(stringResource(R.string.library_page_pageFailed), color = com.slouchcat.core.design.SlouchcatTheme.colors.tx2)
     }
 }
+
+private const val MORE_RETRY = "more-retry"
 
 /** The side menus of the chips (mockup `brLibMenu`): one list, the current choice checked and focused. */
 @Composable
@@ -248,6 +257,16 @@ private fun LibraryMenu(sheet: LibrarySheet, state: LibraryUiState, actions: Lib
         LibrarySheet.Year -> stringResource(R.string.app_browse_yearTitle)
         LibrarySheet.Rating -> stringResource(R.string.library_filters_rating)
     }
+    // Without a current choice in the list (a genre the facets no longer name), the first one
+    // takes the focus, so it never stays behind the scrim (code review m-9).
+    val hasCurrent = when (sheet) {
+        LibrarySheet.Show -> true
+        LibrarySheet.Sort -> filters.sort in state.sorts
+        LibrarySheet.Genre -> filters.genre == null || state.genres.any { it.name == filters.genre }
+        LibrarySheet.Year -> filters.decade == null || filters.decade in state.decades
+        LibrarySheet.Rating -> false
+    }
+    var placed = 0
     TvSideMenu(title, onDismiss = close, initialFocus = first) {
         @Composable
         fun option(text: String, current: Boolean, subtitle: String? = null, onClick: () -> Unit) = TvMenuItem(
@@ -258,7 +277,7 @@ private fun LibraryMenu(sheet: LibrarySheet, state: LibraryUiState, actions: Lib
             },
             subtitle = subtitle,
             selected = current,
-            modifier = if (current) Modifier.focusRequester(first) else Modifier,
+            modifier = if (current || (!hasCurrent && placed++ == 0)) Modifier.focusRequester(first) else Modifier,
         )
         when (sheet) {
             LibrarySheet.Show -> {

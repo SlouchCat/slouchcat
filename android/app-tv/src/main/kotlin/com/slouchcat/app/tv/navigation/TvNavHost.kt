@@ -11,7 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -20,6 +22,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,6 +45,10 @@ import com.slouchcat.app.tv.setup.RelayMenu
 import com.slouchcat.app.tv.setup.SetupScreen
 import com.slouchcat.app.tv.shell.ENTRY_ROUTES
 import com.slouchcat.app.tv.shell.HandSetupRoute
+import com.slouchcat.app.tv.shell.LIBRARIES_MENU
+import com.slouchcat.app.tv.shell.LibrariesMenu
+import com.slouchcat.app.tv.shell.librariesMenuEntry
+import com.slouchcat.app.tv.shell.railLibraryCapacity
 import com.slouchcat.app.tv.shell.PairRoute
 import com.slouchcat.app.tv.shell.ProfilesRoute
 import com.slouchcat.app.tv.shell.SetupRoute
@@ -108,13 +116,18 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                 val start = remember { startOf(state, graph) }
                 val selected = rememberSaveable { mutableStateOf<String?>(null) }
                 val libraries by graph.librariesSource.libraries.collectAsStateWithLifecycle()
-                val media = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
-                val currentMedia by rememberUpdatedState(media)
-                val navigator = remember(nav) { TvNavigator(nav, graph.registry, selected) { currentMedia } }
+                val all = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
+                // As many libraries as fit (code review M-3), then «Alle Bibliotheken …» with the menu.
+                val capacity = railLibraryCapacity(with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() })
+                val media = if (profile == null || (all.isEmpty() && graph.registry.lists.isEmpty())) emptyList() else all.take(capacity) + librariesMenuEntry()
+                val currentMedia by rememberUpdatedState(all)
+                var librariesMenu by rememberSaveable { mutableStateOf(false) }
+                var menuClosed by remember { mutableIntStateOf(0) }
+                val navigator = remember(nav) { TvNavigator(nav, graph.registry, selected, { currentMedia }, openLibraries = { librariesMenu = true }) }
                 val app = remember(navigator) { TvScope(graph, navigator) }
                 val current by nav.currentBackStackEntryAsState()
                 // Libraries count as well (review M-3): a library opened from Start is marked.
-                val here = graph.registry.entryOf(current, media)?.key
+                val here = graph.registry.entryOf(current, all)?.key
                 LaunchedEffect(here) { if (here != null) selected.value = here }
                 val page = current
                 val fullScreen = page == null || (ENTRY_ROUTES + graph.registry.fullScreen).any { page.isRoute(it) }
@@ -136,13 +149,35 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                         }
                     }
                 }
+                // The menu «Bibliotheken» (mockup `ACT.libs`): from «Alle Bibliotheken …» and the empty start page.
+                if (librariesMenu && profile != null) {
+                    LibrariesMenu(
+                        libraries = all,
+                        lists = graph.registry.lists,
+                        onOpen = { entry ->
+                            librariesMenu = false
+                            navigator.openRail(entry)
+                        },
+                        onDismiss = {
+                            librariesMenu = false
+                            menuClosed++
+                        },
+                    )
+                }
+                // Back from the menu: the focus goes to the rail (code review M-4: never nowhere).
+                LaunchedEffect(menuClosed) {
+                    if (menuClosed == 0) return@LaunchedEffect
+                    withFrameNanos { }
+                    runCatching { railFocus.requestFocus() }
+                }
                 TvShell(
                     showRail = showRail,
                     rail = graph.registry.rail,
                     media = media,
-                    selected = selected.value,
+                    // A library beyond the rail and «Meine Listen» mark «Alle Bibliotheken …».
+                    selected = selected.value?.takeIf { key -> (graph.registry.rail + media).any { it.key == key } } ?: LIBRARIES_MENU.takeIf { selected.value != null },
                     profile = profile,
-                    onEntry = navigator::openRail,
+                    onEntry = { entry -> if (entry.key == LIBRARIES_MENU) librariesMenu = true else navigator.openRail(entry) },
                     onProfile = navigator::toProfiles,
                     railFocus = railFocus,
                     railOpen = railOpen,
@@ -273,7 +308,9 @@ private fun NavGraphBuilder.profilesDestination(graph: TvGraph, navigator: TvNav
             onCancelPin = vm::onCancelPin,
             onRetry = vm::retry,
             onSignOut = vm::onSignOut,
-            onManage = manage?.let { route -> { navigator.navigate(route) } },
+            // Only with a profile in use (code review m-2): before the first choice the page could
+            // only read, and «Profil wechseln» there stacked a second choice.
+            onManage = manage?.takeIf { graph.session.state.collectAsStateWithLifecycle().value is SessionState.Ready }?.let { route -> { navigator.navigate(route) } },
         )
     }
 }

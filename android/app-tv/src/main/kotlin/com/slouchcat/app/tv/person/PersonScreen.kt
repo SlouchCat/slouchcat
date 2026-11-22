@@ -75,13 +75,13 @@ fun PersonScreen(state: PersonUiState, images: ServerImages, onItem: ((String) -
                 Column(Modifier.weight(1f)) {
                     KindLine(stringResource(R.string.tv_person_kind))
                     Text(page.person.name, style = TvType.xl, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TvDimens.s).semantics { heading() })
-                    val jobs = page.titles.flatMap { t -> t.roles.map { jobOf(it) } }.distinct().joinToString(" · ")
+                    val jobs = page.titles.flatMap { t -> t.roles.map { jobOf(it) } }.distinct().joinToString(stringResource(R.string.format_separator))
                     if (jobs.isNotEmpty()) Text(jobs, style = TvType.large, color = c.tx2, modifier = Modifier.padding(vertical = TvDimens.m))
                     TvBadge(pluralCount(R.plurals.app_person_inLibrary, page.titles.size))
                     Text(stringResource(R.string.app_person_knownFrom), style = TvType.h2, modifier = Modifier.padding(top = TvDimens.xl).semantics { heading() })
                     CompositionLocalProvider(LocalContentStart provides 0.dp) {
                         val roles = titles.associate { (item, credits) -> item.id to roleLine(credits) }
-                        val infos = titles.associate { (item, _) -> item.id to item.info().let { i -> roles[item.id]?.let { r -> i.copy(meta = listOfNotNull(r, i.meta).joinToString(" · ")) } ?: i } }
+                        val infos = titles.associate { (item, _) -> item.id to item.info().let { i -> roles[item.id]?.let { r -> i.copy(meta = listOfNotNull(r, i.meta).joinToString(stringResource(R.string.format_separator))) } ?: i } }
                         TvCardRow(
                             title = null,
                             items = titles.map { it.first },

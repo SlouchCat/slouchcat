@@ -39,6 +39,7 @@ object LibraryFeature : TvFeature {
                     icon = libraryIcon(library),
                     route = LibraryRoute(library.id),
                     isCurrent = { entry -> entry.isRoute(LibraryRoute::class) && entry.toRoute<LibraryRoute>().id == library.id },
+                    count = library.itemCount,
                 )
             }
         },
@@ -76,6 +77,6 @@ object LibraryFeature : TvFeature {
         }
     }
 
-    /** Libraries first in «Medien», the lists of [com.slouchcat.app.tv.lists.ListsFeature] after them. */
+    /** Libraries first in «Medien» (the radio of stage 4 after them). */
     const val ORDER = 10
 }

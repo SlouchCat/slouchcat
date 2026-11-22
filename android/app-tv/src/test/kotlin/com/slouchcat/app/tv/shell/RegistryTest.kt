@@ -32,6 +32,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.ui.unit.dp
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -81,16 +82,26 @@ class RegistryTest {
         // Start, Suche on top, Einstellungen at the bottom; «Start» is home.
         assertEquals(listOf("start", "search", "settings"), registry.rail.map { it.key })
         assertEquals("start", registry.home.key)
-        // «Medien»: the video libraries in the server's order (audio waits for stage 4), then the lists.
+        // «Medien»: the video libraries in the server's order (audio waits for stage 4); the lists
+        // are no entries of the rail (code review M-3) but «Meine Listen» of the menu.
         val libraries = listOf(
             LibraryNav(1, "Filme", LibraryKind.VIDEO, emptyList(), 1),
             LibraryNav(2, "Hörbücher", LibraryKind.AUDIOBOOKS, emptyList(), 1),
             LibraryNav(3, "Serien", LibraryKind.VIDEO, emptyList(), 1),
         )
-        assertEquals(listOf("library-1", "library-3", "watchlist", "watched", "collections"), registry.mediaEntries(libraries).map { it.key })
+        assertEquals(listOf("library-1", "library-3"), registry.mediaEntries(libraries).map { it.key })
+        assertEquals(listOf("watchlist", "watched", "collections"), registry.lists.map { it.key })
         // «Profile verwalten» in the settings (order 20) and from the profile choice.
         assertEquals(listOf("manage" to 20), registry.settings.map { it.key to it.order })
         assertTrue(registry.manageProfiles != null)
+    }
+
+    @Test
+    fun theRailHoldsAsManyLibrariesAsFitOn1080p() {
+        // 540 dp − 2 × safe-y − brand − profile, minus Start, Suche, Wünsche, Einstellungen and two
+        // gaps, in steps of a media entry, minus the radio and «Alle Bibliotheken …».
+        assertEquals(5, railLibraryCapacity(540.dp))
+        assertTrue(railLibraryCapacity(300.dp) >= 1)
     }
 
     @Test

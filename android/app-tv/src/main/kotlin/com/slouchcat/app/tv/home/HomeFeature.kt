@@ -75,8 +75,8 @@ object HomeFeature : TvFeature {
                     },
                     collection = if (navigator.canOpen(CollectionRoute::class)) ({ navigator.navigate(CollectionRoute(it.id)) }) else null,
                     collections = navigator.opener(CollectionsRoute),
-                    genre = if (navigator.canOpen(SearchRoute::class)) ({ navigator.navigate(SearchRoute(genre = it)) }) else null,
-                    libraries = navigator.openerOf("search"),
+                    genre = if (navigator.canOpen(SearchRoute::class)) ({ navigator.openTarget("search", SearchRoute(genre = it)) }) else null,
+                    libraries = navigator.openLibraries,
                 )
             }
             HomeScreen(
@@ -93,5 +93,8 @@ object HomeFeature : TvFeature {
 }
 
 /** Whether the stage may move on by itself: not when the system turned animations off. */
-private fun motionAllowed(context: Context): Boolean =
-    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+private fun motionAllowed(context: Context): Boolean {
+    // With a screen reader the content under the focus must not change by itself (code review L-6).
+    val reader = (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager)?.isTouchExplorationEnabled == true
+    return !reader && Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+}

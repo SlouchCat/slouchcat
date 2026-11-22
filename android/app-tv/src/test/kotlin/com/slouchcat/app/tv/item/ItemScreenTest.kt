@@ -47,6 +47,11 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = TV)
 class ItemScreenTest {
+    private companion object {
+        /** The round actions of a title at most. */
+        const val ACTIONS = 6
+    }
+
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
     private val pages = Pages(compose)
@@ -139,6 +144,43 @@ class ItemScreenTest {
         remote.down()
         remote.assertFocused("1.")
         assertTrue(details.asked.contains(SEASON_1))
+    }
+
+    @Test
+    fun titlePersonTitleGoesBackToTheTitleOfBefore() {
+        open(1 to "Night Train")
+        remote.down()
+        remote.ok()
+        pages.waitFor(pages.s(R.string.app_person_knownFrom))
+        remote.assertFocused("Night Train")
+        remote.ok()
+        pages.waitFor(pages.s(R.string.tv_item_more))
+        // The same title again is the page below, not a third one (code review m-8): one Back to Start.
+        remote.back()
+        remote.assertFocused("Night Train")
+        pages.waitFor(pages.s(R.string.home_rows_recent))
+    }
+
+    @Test
+    fun anEpisodeHasItsOwnPageWithTheWayToItsSeries() {
+        val episode = com.slouchcat.core.browse.testing.episodeDetail()
+        details.details[episode.id] = ApiResult.Ok(episode)
+        open(1102 to episode.title, kind = ItemKind.EPISODE)
+        remote.assertEveryControlReachable(pages.page)
+        repeat(ACTIONS) { if (!remote.focusedLabel().contains(pages.s(R.string.item_seriesLink))) remote.right() }
+        remote.assertFocused(pages.s(R.string.item_seriesLink))
+        remote.ok()
+        pages.waitFor(pages.s(R.string.item_episodes_title))
+        remote.back()
+        remote.assertFocused(pages.s(R.string.item_seriesLink))
+    }
+
+    @Test
+    fun aSeasonHasItsOwnPageWithItsEpisodes() {
+        open(201 to "Season 1", kind = ItemKind.SEASON)
+        pages.waitFor(pages.s(R.string.item_episodes_title))
+        remote.down()
+        remote.assertFocused("1.")
     }
 
     @Test
