@@ -24,7 +24,6 @@ import com.slouchcat.core.browse.testing.FakeTokens
 import com.slouchcat.core.browse.testing.HTTP_SERVER
 import com.slouchcat.core.browse.testing.PRIMARY
 import com.slouchcat.core.media.data.ItemRepository
-import com.slouchcat.core.offline.OfflineAccount
 import com.slouchcat.core.offline.OfflineEngine
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
 import com.slouchcat.core.session.SessionManager
@@ -55,9 +54,9 @@ class DownloadsViewModelTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val server = FakeOfflineServer()
-    private val account = OfflineData.accountKey(HTTP_SERVER.address.toString(), EMAIL)
+    private val account = com.slouchcat.app.mobile.testing.OFFLINE_ACCOUNT
     private var profile = 1L
-    private val engine: OfflineEngine by lazy { testEngine(context, temp.newFolder("offline"), server, scope, { OfflineAccount(account, profile) }) }
+    private val engine: OfflineEngine by lazy { testEngine(context, temp.newFolder("offline"), server, scope, { com.slouchcat.app.mobile.testing.offlineIdentity(profile) }) }
     private val session = SessionManager(FakeServers(HTTP_SERVER), FakeTokens(StoredCredentials("token", "device-1")), FakeAccounts(EMAIL, PRIMARY))
 
     @After

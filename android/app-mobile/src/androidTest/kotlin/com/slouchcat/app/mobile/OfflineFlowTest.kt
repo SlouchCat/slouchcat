@@ -25,7 +25,6 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.slouchcat.app.mobile.downloads.offline
 import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SessionCredentials
 import com.slouchcat.core.api.SlouchcatApi

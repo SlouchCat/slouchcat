@@ -15,9 +15,9 @@ import com.slouchcat.core.offline.ApiOfflineServer
 import com.slouchcat.core.offline.Contact
 import com.slouchcat.core.offline.FileFetcher
 import com.slouchcat.core.offline.NetworkKind
-import com.slouchcat.core.offline.OfflineAccount
 import com.slouchcat.core.offline.OfflineEngine
 import com.slouchcat.core.offline.OfflineFiles
+import com.slouchcat.core.offline.OfflineIdentity
 import com.slouchcat.core.offline.OfflineSession
 import com.slouchcat.core.offline.OfflineStore
 import com.slouchcat.core.offline.background.AndroidFetchScheduler
@@ -34,12 +34,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
-import java.util.WeakHashMap
 
 /**
- * Downloads and offline of this graph (concept 27 section 9): the engine of `:core:offline`, the
- * device settings («nur im WLAN»), the profile chosen offline in the offline library, and how the
- * app reaches the network. Tests put their own in place ([install]).
+ * Downloads and offline of a graph (concept 27 section 9): the engine of `:core:offline`, the device
+ * settings («nur im WLAN»), the profile opened offline with its PIN, whether the app is in front, and
+ * how the app reaches the network. The graph builds it once (`AppGraph.offline`); tests hand their
+ * own to the graph's constructor (code review m-3).
  */
 class OfflineData(
     val engine: OfflineEngine,
@@ -50,32 +50,37 @@ class OfflineData(
     /** The profile opened in the offline library with its offline PIN; `null`: the session's profile. */
     val viewer = MutableStateFlow<Long?>(null)
 
-    /** The app opened the downloads by itself because the server did not answer (9.1 «Start ohne Netz»). */
+    /** An activity of the app is started (the system lets a transfer start only then). */
+    @Volatile var visible: Boolean = false
+
+    /** The app opened «Downloads» by itself at the start because the server did not answer. */
     @Volatile var jumpedOffline: Boolean = false
 
+    /** The epoch whose start already decided about the offline library (once per epoch, code review M-3). */
+    @Volatile private var decidedEpoch: Long = -1
+
     companion object {
-        private val installed = WeakHashMap<AppGraph, OfflineData>()
+        /** The folder of the downloads' files: `noBackupFilesDir`, outside every backup and transfer (9.4). */
+        fun filesRoot(context: Context) = File(context.noBackupFilesDir, "offline")
 
-        fun of(graph: AppGraph, create: () -> OfflineData): OfflineData = synchronized(installed) { installed.getOrPut(graph, create) }
-
-        fun install(graph: AppGraph, data: OfflineData) = synchronized(installed) { installed[graph] = data }
-
-        /** The account key of the downloads: the server's address and the e-mail address. */
-        fun accountKey(server: String, email: String) = "$server|${email.lowercase()}"
-
+        /**
+         * The session for the engine: waits until the stores are read (a cold process woken by the
+         * system, code review B-2), then the server's key (its address without one), the e-mail address
+         * and the active profile.
+         */
         fun session(manager: SessionManager) = OfflineSession {
-            when (val s = manager.state.value) {
-                is SessionState.Ready -> OfflineAccount(accountKey(s.server.address.toString(), s.email), s.profile.id)
-                is SessionState.ChooseProfile -> OfflineAccount(accountKey(s.server.address.toString(), s.email), null)
+            val state = manager.ready()
+            val server = manager.serverKey ?: manager.server?.toString()
+            when {
+                server == null -> null
+                state is SessionState.Ready -> OfflineIdentity(server, state.email, state.profile.id)
+                state is SessionState.ChooseProfile -> OfflineIdentity(server, state.email, null)
                 else -> null
             }
         }
 
-        /** The folder of the downloads' files: `noBackupFilesDir`, outside every backup and transfer (9.4). */
-        fun filesRoot(context: Context) = File(context.noBackupFilesDir, "offline")
-
         /** The real one: the database and the files in `noBackupFilesDir` (no backup, no device transfer; 9.4). */
-        fun create(context: Context, graph: AppGraph, visible: () -> Boolean): OfflineData {
+        fun create(context: Context, graph: AppGraph): OfflineData {
             val app = context.applicationContext
             val settings = DataStoreDeviceSettingsStore(app)
             val network = AndroidNetwork(app)
@@ -92,24 +97,38 @@ class OfflineData(
                 elapsed = SystemClock::elapsedRealtime,
                 boot = { Settings.Global.getInt(app.contentResolver, Settings.Global.BOOT_COUNT, -1) },
             )
-            engine.scheduler = AndroidFetchScheduler(app, visible)
-            return OfflineData(engine, settings, network::kind).also { data ->
-                network.watch { kind ->
-                    if (kind == NetworkKind.None) {
-                        engine.reportOffline()
-                        graph.scope.launch { engine.stopFetching() }
-                    } else {
-                        graph.scope.launch { data.syncAndFetch(graph, visible()) }
+            val data = OfflineData(engine, settings, network::kind)
+            engine.scheduler = AndroidFetchScheduler(app) { data.visible }
+            var pending: Job? = null
+            network.watch { kind ->
+                pending?.cancel()
+                if (kind == NetworkKind.None) {
+                    engine.reportOffline()
+                    graph.scope.launch { engine.stopFetching() }
+                } else {
+                    // Settle first: a network that comes and goes in a lift syncs once (code review M-6).
+                    pending = graph.scope.launch {
+                        delay(NETWORK_SETTLE_MS)
+                        runCatching { data.syncAndFetch(graph) }.onFailure { Log.w("offline", "sync failed", error = it) }
                     }
                 }
             }
+            return data
         }
+
+        private const val NETWORK_SETTLE_MS = 2_000L
+        private const val RETRY_AT_START_MS = 3_000L
     }
 
-    /** A sync, then the fetch where Android lets it run; the app follows the contact (offline library and back). */
-    suspend fun syncAndFetch(graph: AppGraph, visible: Boolean) {
-        val contact = engine.sync()
-        follow(graph, contact)
+    /** A sync, then the fetch where Android lets it run; at the start of an epoch the offline library when the server is away. */
+    suspend fun syncAndFetch(graph: AppGraph, atStart: Boolean = false) {
+        var contact = engine.sync()
+        // Offline counts after two failures (the engine); at the start the second comes soon.
+        if (atStart && contact == Contact.Offline && engine.contact.value != Contact.Offline) {
+            delay(RETRY_AT_START_MS)
+            contact = engine.sync()
+        }
+        follow(graph, atStart)
         val pending = engine.pendingFetches()
         when {
             pending.isNotEmpty() && visible -> engine.scheduler.startTransfer()
@@ -119,32 +138,31 @@ class OfflineData(
     }
 
     /**
-     * No answer at the start with downloads of the profile on the device: the app opens «Downloads»
-     * by itself (the offline library); once the server answers again it returns to the start (9.1).
+     * Without the server at the start of an epoch, with a download of the profile on the device: the
+     * app opens «Downloads» by itself (9.1, ADR 0043 point 8). Only then, never later in the middle of
+     * what the user does; when the server answers again the user stays where they are and the shell
+     * says so (code review M-3).
      */
-    private suspend fun follow(graph: AppGraph, contact: Contact) {
+    private suspend fun follow(graph: AppGraph, atStart: Boolean) {
         val ready = graph.session.state.value as? SessionState.Ready ?: return
-        if (contact == Contact.Offline && !jumpedOffline) {
-            val account = accountKey(ready.server.address.toString(), ready.email)
-            val playable = engine.allDownloads().any { it.account == account && it.complete && ready.profile.id in it.allowedProfileIds }
-            if (playable) {
-                jumpedOffline = true
-                graph.links.request(AppLink(DownloadsFeature.TARGET, listOf(DownloadsRoute)))
+        val epoch = graph.session.epoch.value
+        val contact = engine.contact.value
+        if (atStart && decidedEpoch != epoch && contact != Contact.Unknown) {
+            decidedEpoch = epoch
+            if (contact == Contact.Offline) {
+                val account = engine.account()?.key ?: return
+                val playable = engine.allDownloads().any { it.account == account && it.complete && ready.profile.id in it.allowedProfileIds }
+                if (playable) {
+                    jumpedOffline = true
+                    graph.links.request(AppLink(DownloadsFeature.TARGET, listOf(DownloadsRoute)))
+                }
             }
         } else if (contact == Contact.Online && jumpedOffline) {
             jumpedOffline = false
-            val home = graph.registry.home
-            graph.links.request(AppLink(home.key, listOf(home.route)))
+            graph.notices.show(R.string.app_downloads_backOnline)
         }
     }
 }
-
-/** The data of this graph; the first use builds the real one. */
-val AppGraph.offline: OfflineData
-    get() = OfflineData.of(this) { OfflineData.create(appContextForOffline ?: error("offline not started"), this) { OfflineStarter.visible } }
-
-/** The application context, set by [OfflineStarter.start] (the graph keeps its own private). */
-private var appContextForOffline: Context? = null
 
 /**
  * Starts downloads and offline with the app (concept 27 9.1, 9.6): the sign-out step (9.7), the
@@ -152,31 +170,38 @@ private var appContextForOffline: Context? = null
  * front, every 60 s while it is in front, the network comes back; the periodic background sync
  * runs through WorkManager (about every 6 hours, F-34).
  */
-object OfflineStarter {
-    private const val TAG = "offline"
-    private const val INTERVAL_MS = 60_000L
-
-    @Volatile var visible: Boolean = false
-        private set
-
+class OfflineStarter(private val application: Application, private val graph: AppGraph) {
     private var started = 0
     private var ticker: Job? = null
+    private var lastEpoch = -1L
 
-    fun start(application: Application, graph: AppGraph) {
-        appContextForOffline = application.applicationContext
-        graph.hooks.addSignOutStep(DownloadsSignOutStep(graph))
+    fun start() {
+        graph.hooks.addSignOutStep(DownloadsSignOutStep(graph, application))
         graph.hooks.onProfileOrSessionEnd { graph.offline.viewer.value = null }
-        graph.hooks.onPinAccepted { profile, pin -> graph.offline.engine.pinEntered(profile, pin) }
+        // The verifier of the normal PIN in the background: the profile choice does not wait for PBKDF2 (code review m-7).
+        graph.hooks.onPinAccepted { profile, pin ->
+            val copy = pin.copyOf()
+            graph.scope.launch {
+                try {
+                    graph.offline.engine.pinEntered(profile, copy)
+                } finally {
+                    copy.fill('0')
+                }
+            }
+        }
         application.registerActivityLifecycleCallbacks(
             object : Application.ActivityLifecycleCallbacks {
                 override fun onActivityStarted(activity: Activity) {
                     started++
                     if (started != 1) return
-                    visible = true
+                    graph.offline.visible = true
                     ticker?.cancel()
                     ticker = graph.scope.launch {
                         while (isActive) {
-                            runCatching { graph.offline.syncAndFetch(graph, visible) }.onFailure { Log.w(TAG, "sync failed", error = it) }
+                            val epoch = graph.session.epoch.value
+                            val atStart = epoch != lastEpoch
+                            lastEpoch = epoch
+                            runCatching { graph.offline.syncAndFetch(graph, atStart) }.onFailure { Log.w(TAG, "sync failed", error = it) }
                             delay(INTERVAL_MS)
                         }
                     }
@@ -185,7 +210,7 @@ object OfflineStarter {
                 override fun onActivityStopped(activity: Activity) {
                     started = (started - 1).coerceAtLeast(0)
                     if (started == 0) {
-                        visible = false
+                        graph.offline.visible = false
                         ticker?.cancel()
                     }
                 }
@@ -202,19 +227,25 @@ object OfflineStarter {
             },
         )
     }
+
+    private companion object {
+        const val TAG = "offline"
+        const val INTERVAL_MS = 60_000L
+    }
 }
 
 /**
  * «Abmelden?» asks whether the downloads of the account on this device go (9.7, F-25: yes by
- * default). Yes: they are deleted in the server before the session ends, then on the device.
+ * default). Yes: they are deleted on the device and in the server; what the server does not
+ * confirm goes out at the next sign-in of the account.
  */
-class DownloadsSignOutStep(private val graph: AppGraph) : SignOutStep {
+class DownloadsSignOutStep(private val graph: AppGraph, private val context: Context) : SignOutStep {
     override suspend fun question(): SignOutQuestion? {
         val downloads = graph.offline.engine.accountDownloads()
         if (downloads.isEmpty()) return null
         val bytes = downloads.sumOf { it.bytesWritten }
-        val resources = (appContextForOffline ?: return null).resources
-        val size = android.text.format.Formatter.formatShortFileSize(appContextForOffline, bytes)
+        val resources = context.resources
+        val size = formatBytes(bytes, resources.configuration.locales[0])
         return SignOutQuestion(R.string.app_downloads_signOutQuestion, resources.getQuantityString(R.plurals.app_downloads_signOutSize, downloads.size, downloads.size, size), default = true)
     }
 

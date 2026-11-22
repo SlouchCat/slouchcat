@@ -33,7 +33,11 @@ import java.math.RoundingMode
  */
 class OfflinePlaybackServer(
     private val engine: OfflineEngine,
-    private val account: String,
+    /**
+     * The owner of the downloads now and whether [profileId] may play now (the session's profile or
+     * the one opened offline with its PIN, security review L-6); `null`: nothing plays.
+     */
+    private val owner: suspend () -> String?,
     private val profileId: Long,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : PlaybackServer {
@@ -41,6 +45,8 @@ class OfflinePlaybackServer(
 
     /** The playing download per playback session (the controller's `playbackSessionId`). */
     private val sessions = mutableMapOf<String, String>()
+
+    private var account: String = ""
 
     private suspend fun playable(itemId: String): StoredDownload? = engine.allDownloads().firstOrNull {
         it.account == account && !it.pendingDelete && it.complete && profileId in it.allowedProfileIds && (it.item?.id ?: it.manifest?.itemId) == itemId
@@ -52,6 +58,7 @@ class OfflinePlaybackServer(
         profile?.watch?.let { WatchTime.remainingMs(it, clock() + offset) }
 
     override suspend fun start(itemId: String, request: PlaybackRequest): ApiResult<PlaybackInfo> {
+        account = owner() ?: return ApiResult.NotFound
         val download = playable(itemId) ?: return ApiResult.NotFound
         val manifest = download.manifest ?: return ApiResult.NotFound
         val item = download.item ?: return ApiResult.NotFound
@@ -112,6 +119,7 @@ class OfflinePlaybackServer(
     }
 
     override suspend fun progress(itemId: String, event: ProgressEvent): ApiResult<Progress> {
+        if (account.isEmpty()) account = owner() ?: return ApiResult.NotFound
         val downloadId = lock.withLock { event.playbackSessionId?.let(sessions::get) } ?: playable(itemId)?.id ?: return ApiResult.NotFound
         val now = clock()
         val state = when (event.state) {
@@ -157,8 +165,15 @@ class OfflinePlaybackServer(
         )
     }
 
-    /** Offline nobody else stops the playback; only the watch time of the profile does (AN-18). */
+    /**
+     * Offline nobody else stops the playback; the watch time of the profile does (AN-18), and so does a
+     * download that went meanwhile (revoked, deleted: code review m-14).
+     */
     override suspend fun state(sessionId: String): ApiResult<PlaybackSessionState> {
+        val downloadId = lock.withLock { sessions[sessionId] }
+        if (downloadId != null && engine.download(downloadId).let { it == null || it.pendingDelete }) {
+            return ApiResult.Ok(PlaybackSessionState(state = PlaybackSessionState.State.PlaybackStateStopped, stoppedBy = PlaybackSessionState.StoppedBy.PlaybackStoppedByAdmin))
+        }
         val left = remainingMs(profile(), engine.serverOffsetMs())
         return ApiResult.Ok(
             if (left == 0L) {
@@ -180,7 +195,7 @@ class OfflinePlaybackServer(
 
     /** The episodes of a season that lie on the device for this profile. */
     override suspend fun episodes(seasonId: String): ApiResult<List<ItemRef>> = ApiResult.Ok(
-        engine.allDownloads()
+        engine.allDownloads().takeIf { account.isNotEmpty() || owner()?.also { account = it } != null }.orEmpty()
             .filter { it.account == account && it.complete && !it.pendingDelete && profileId in it.allowedProfileIds && it.item?.parentId == seasonId }
             .mapNotNull { it.item }
             .sortedBy { it.episodeNumber ?: 0 },

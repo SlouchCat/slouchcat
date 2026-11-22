@@ -462,7 +462,8 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 3. 20 GB über Nacht im WLAN, Handy gesperrt und am Ladegerät: am Morgen alles «Fertig».
 4. Flugmodus an: Die App öffnet beim Start von selbst «Downloads» mit «Kein Kontakt zum Server»;
    ein Film spielt, spulen geht, Untertitel und Tonspur wie heruntergeladen.
-5. Flugmodus aus: Die App kehrt zum Start zurück; die Position steht in der Web-App.
+5. Flugmodus aus: Die App bleibt, wo sie ist, und meldet «Wieder mit dem Server verbunden»; die
+   Position steht in der Web-App.
 6. «Nur im WLAN» an, WLAN aus, Mobilfunk an: Ein neuer Download wartet («Wartet auf WLAN»), mit
    WLAN läuft er weiter.
 7. Automatische Downloads einschalten (nächste Folgen), eine Folge einer Serie fertig schauen, die
@@ -471,6 +472,6 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 8. Unter «Meine Geräte» in der Web-App dieses Handy abmelden: Beim nächsten Öffnen mit Netz sind die
    Downloads weg.
 9. Ein Profil mit PIN offline öffnen: einmal online mit PIN gewählt, dann offline mit derselben PIN;
-   dreimal falsch: 30 s Pause, auch nach Verstellen der Uhr.
+   dreimal falsch: 30 s Pause, auch nach Verstellen der Uhr und nach einem Neustart des Handys.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
