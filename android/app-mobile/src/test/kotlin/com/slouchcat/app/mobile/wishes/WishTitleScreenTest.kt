@@ -18,6 +18,7 @@ import com.slouchcat.core.api.generated.models.WishSeasonOffer
 import com.slouchcat.core.api.generated.models.WishState
 import com.slouchcat.core.browse.testing.SERVER_IMAGES
 import com.slouchcat.core.browse.testing.externalTitle
+import com.slouchcat.core.browse.testing.wish
 import com.slouchcat.core.browse.wishes.WishSheet
 import com.slouchcat.core.browse.wishes.WishTitleUiState
 import com.slouchcat.core.design.SlouchcatTheme
@@ -25,6 +26,7 @@ import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,7 +80,7 @@ class WishTitleScreenTest {
     fun requestPageTabletLargeFont() = requestPage()
 
     private fun wishPage() {
-        show(WishTitleUiState(Loadable.Ready(externalTitle(79, "1984", wish = WishState.PENDING))))
+        show(WishTitleUiState(Loadable.Ready(externalTitle(79, "1984", wish = WishState.PENDING)), ownWish = wish(79, "1984")))
         compose.onNodeWithContentDescription(s(R.string.app_wishes_steps_current, s(R.string.app_wishes_steps_requested))).assertIsDisplayed()
         compose.onNodeWithText(s(R.string.wishes_state_pending)).performScrollTo().assertIsDisplayed()
         compose.assertEveryControlLabelledAndTappableWhenScrolled()
@@ -119,6 +121,14 @@ class WishTitleScreenTest {
 
     @Test @Config(qualifiers = PHONE, fontScale = 2f)
     fun seasonSheetPhoneLargeFont() = seasonSheet()
+
+    @Test @Config(qualifiers = PHONE)
+    fun aWishSeerrApprovedHasNoWithdraw() {
+        // Approved in Seerr: the server says it cannot go any more (code review M-1).
+        show(WishTitleUiState(Loadable.Ready(externalTitle(79, "1984", wish = WishState.PROCESSING)), ownWish = wish(79, "1984", WishState.PROCESSING)))
+        compose.onNodeWithText(s(R.string.wishes_state_processing)).performScrollTo().assertIsDisplayed()
+        assertTrue(compose.onAllNodes(hasText(s(R.string.wishes_withdraw_action)) and hasClickAction()).fetchSemanticsNodes().isEmpty())
+    }
 
     @Test @Config(qualifiers = PHONE)
     fun aRefusedRequestSaysWhy() {

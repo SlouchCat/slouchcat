@@ -101,7 +101,7 @@ fun WishTitleScreen(state: WishTitleUiState, images: ServerImages, events: WishT
         if (title == null) {
             DetailState(state.title, stringResource(R.string.titles_notFound_title), stringResource(R.string.titles_notFound_body), SlouchcatIcon.Wish, events::onRetry)
         } else {
-            Page(title, images, events)
+            Page(title, state, images, events)
         }
         RoundIcon(SlouchcatIcon.Back, stringResource(R.string.common_back), onClick = events::onBack, modifier = Modifier.padding(start = 8.dp, top = 8.dp))
         SlouchcatSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -117,7 +117,7 @@ fun WishTitleScreen(state: WishTitleUiState, images: ServerImages, events: WishT
 }
 
 @Composable
-private fun Page(title: ExternalTitle, images: ServerImages, events: WishTitleEvents) {
+private fun Page(title: ExternalTitle, state: WishTitleUiState, images: ServerImages, events: WishTitleEvents) {
     val c = SlouchcatTheme.colors
     val wide = isWideLayout()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -150,7 +150,11 @@ private fun Page(title: ExternalTitle, images: ServerImages, events: WishTitleEv
                 StateTag(wishStateText(wish.state, wish.stateDetail), strong = true)
                 wish.progress?.let { progress -> progressText(progress)?.let { Text(it, style = SlouchcatType.caption, color = c.tx2) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SlouchcatButton(stringResource(R.string.wishes_withdraw_action), onClick = events::onWithdraw, kind = ButtonKind.Secondary)
+                    // Only when the server says it can go (approved in Seerr: no more, code review M-1).
+                    if (state.canWithdraw) {
+                        val joined = state.ownWish?.role == com.slouchcat.core.api.generated.models.Wish.Role.JOINED
+                        SlouchcatButton(stringResource(if (joined) R.string.wishes_withdraw_actionJoined else R.string.wishes_withdraw_action), onClick = events::onWithdraw, kind = ButtonKind.Secondary)
+                    }
                     events.onMine?.let { SlouchcatButton(stringResource(R.string.app_wishes_toMine), onClick = it, kind = ButtonKind.Secondary) }
                 }
             } else if (title.canRequest) {
@@ -353,13 +357,14 @@ private fun InfoLine(icon: SlouchcatIcon, text: String) {
 /** «Wunsch zurückziehen?» (mockup handy 64): «Behalten» and «Zurückziehen». */
 @Composable
 private fun WithdrawSheet(title: ExternalTitle, state: WishTitleUiState, events: WishTitleEvents) {
-    val heading = stringResource(R.string.wishes_withdraw_title)
+    val joined = state.ownWish?.role == com.slouchcat.core.api.generated.models.Wish.Role.JOINED
+    val heading = stringResource(if (joined) R.string.wishes_withdraw_titleJoined else R.string.wishes_withdraw_title)
     SlouchcatSheet(heading, onDismiss = events::onDismiss) {
         SheetTitle(heading)
-        SheetText(stringResource(R.string.app_wishes_withdrawBody, title.title))
+        SheetText(if (joined) stringResource(R.string.wishes_withdraw_bodyJoined, title.title) else stringResource(R.string.app_wishes_withdrawBody, title.title))
         SheetActions {
             SlouchcatButton(stringResource(R.string.app_wishes_keep), onClick = events::onDismiss, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f), enabled = !state.sending)
-            SlouchcatButton(stringResource(R.string.wishes_withdraw_confirm), onClick = events::onConfirmWithdraw, kind = ButtonKind.Danger, busy = state.sending, modifier = Modifier.weight(1f))
+            SlouchcatButton(stringResource(if (joined) R.string.wishes_withdraw_confirmJoined else R.string.wishes_withdraw_confirm), onClick = events::onConfirmWithdraw, kind = ButtonKind.Danger, busy = state.sending, modifier = Modifier.weight(1f))
         }
     }
 }

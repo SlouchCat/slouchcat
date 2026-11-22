@@ -44,7 +44,13 @@ sealed interface ApiResult<out T> {
      * unreadable body; also 401 `invalid_credentials` (a wrong password, not a lost session).
      * [retryAfterSeconds]: the pause a 429 names (`too_many_attempts`, `pin_locked`).
      */
-    data class Failed(val status: Int?, val code: String?, val retryAfterSeconds: Long? = null) : ApiResult<Nothing>
+    data class Failed(val status: Int?, val code: String?, val retryAfterSeconds: Long? = null) : ApiResult<Nothing> {
+        /**
+         * The whole RFC 9457 problem of a 4xx when the server sent one: its extensions (`item` of
+         * `already_available`, `quota` of `quota_exceeded`). Not part of equality.
+         */
+        var problem: JsonObject? = null
+    }
 }
 
 /** The value of [ApiResult.Ok] turned into something else; every other case stays as it is. */
@@ -105,7 +111,7 @@ class ApiCaller(private val events: SessionEvents, private val epoch: () -> Long
         val code = (problem?.get("code") as? JsonPrimitive)?.takeIf { it.isString }?.content
         val retryAfter = (problem?.get("retryAfterSeconds") as? JsonPrimitive)?.longOrNull
             ?: response?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }?.value?.firstOrNull()?.trim()?.toLongOrNull()
-        val result = fromStatus(e.statusCode, code, retryAfter, started)
+        val result = fromStatus(e.statusCode, code, retryAfter, started).also { if (it is ApiResult.Failed) it.problem = problem }
         Log.i(tag, "call refused", "status" to e.statusCode, "code" to code)
         result
     } catch (e: ServerException) {

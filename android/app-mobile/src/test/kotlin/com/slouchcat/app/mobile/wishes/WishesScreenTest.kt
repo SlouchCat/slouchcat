@@ -141,6 +141,9 @@ class WishesScreenTest {
     @Test @Config(qualifiers = PHONE, fontScale = 2f)
     fun minePhoneLargeFont() = mine()
 
+    @Test @Config(qualifiers = TABLET, fontScale = 2f)
+    fun mineTabletLargeFont() = mine()
+
     @Test @Config(qualifiers = PHONE)
     fun withdrawAsksFirst() {
         val state = mineState()

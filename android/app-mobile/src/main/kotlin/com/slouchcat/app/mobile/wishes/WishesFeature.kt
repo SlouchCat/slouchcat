@@ -137,6 +137,13 @@ class WishesFeature(
             }
             val state by vm.state.collectAsStateWithLifecycle()
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onResume() }
+            // In the library meanwhile (409 already_available): its page instead (code review m-8).
+            state.inLibrary?.let { item ->
+                LaunchedEffect(item) {
+                    navigator.back()
+                    navigator.opener(ItemRoute(item))?.invoke()
+                }
+            }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
             val snackbar = remember { SnackbarHostState() }
@@ -223,16 +230,41 @@ fun MissingTitles(app: AppScope, query: String, repository: (AppGraph) -> Wishes
     val vm = viewModel(key = "missing-titles") { MissingTitlesViewModel(graph.session, repository(graph)) }
     LaunchedEffect(query) { vm.onQuery(query) }
     val state by vm.state.collectAsStateWithLifecycle()
+    MissingTitlesSection(
+        state,
+        query,
+        onOpen = { card -> openCard(navigator, card, fromSearch = true) },
+        onSearch = { navigator.openTarget(WishesFeature.TARGET, WishesRoute(query = query.trim())) },
+        onRetry = vm::retry,
+    )
+}
+
+/** The drawing of [MissingTitles]: the hits, a failure with «Erneut versuchen», the card to the wishes' search. */
+@Composable
+internal fun MissingTitlesSection(
+    state: com.slouchcat.core.browse.wishes.MissingTitlesUiState,
+    query: String,
+    onOpen: (ExternalCard) -> Unit,
+    onSearch: () -> Unit,
+    onRetry: () -> Unit,
+) {
     if (!state.canRequest || query.trim().length < WishesViewModel.MIN_QUERY) return
+    val hits = state.hits
+    // Nothing to show: no heading either (code review m-7), unless the wishes' own search is there.
+    if (!state.discover && (hits == null || hits is Loadable.Empty || hits is Loadable.Loading)) return
     val c = SlouchcatTheme.colors
     Column(Modifier.fillMaxWidth().padding(horizontal = gutter(), vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.app_wishes_missingTitle), style = SlouchcatType.rowTitle, color = c.tx, modifier = Modifier.semantics { heading() })
-        (state.hits as? Loadable.Ready)?.value?.forEach { card ->
-            ExternalRow(card, onClick = { openCard(navigator, card, fromSearch = true) })
+        when (hits) {
+            is Loadable.Ready -> hits.value.forEach { card -> ExternalRow(card, onClick = { onOpen(card) }) }
+            // Seerr or TMDB out of reach: said here, the library's hits stay (web SearchMissing).
+            is Loadable.Failed -> {
+                com.slouchcat.core.design.Note(wishErrorText(if (hits.error == com.slouchcat.core.media.LoadError.Offline) "offline" else null), warning = true)
+                com.slouchcat.core.design.SlouchcatButton(stringResource(R.string.app_state_retry), onClick = onRetry, kind = com.slouchcat.core.design.ButtonKind.Secondary)
+            }
+            else -> Unit
         }
-        if (state.discover) {
-            WishSearchCard(query.trim()) { navigator.openTarget(WishesFeature.TARGET, WishesRoute(query = query.trim())) }
-        }
+        if (state.discover) WishSearchCard(query.trim(), onSearch)
     }
 }
 

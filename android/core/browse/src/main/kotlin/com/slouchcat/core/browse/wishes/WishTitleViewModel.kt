@@ -11,6 +11,7 @@ import com.slouchcat.core.api.generated.models.WishSeasonOffer
 import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.data.WishFilter
 import com.slouchcat.core.media.data.WishesRepository
 import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
@@ -22,6 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 /** The sheets of the wish page. */
 enum class WishSheet { Request, Withdraw }
@@ -40,7 +44,17 @@ data class WishTitleUiState(
     val sending: Boolean = false,
     /** Why the last request failed (a problem code), shown in the sheet. */
     val error: String? = null,
+    /**
+     * The profile's own open wish on the title in full (`listWishes(open)`, as the web app's
+     * `TitlePage`): only it says whether «Zurückziehen» is possible (`canWithdraw`) and whether the
+     * profile only joined (`role`). `null` while unknown or without an open wish.
+     */
+    val ownWish: Wish? = null,
+    /** The title is in the library meanwhile (409 `already_available` with its `item`): the page leads there. */
+    val inLibrary: String? = null,
 ) {
+    /** «Zurückziehen» shows only when the server says the wish can be withdrawn (code review M-1). */
+    val canWithdraw: Boolean get() = ownWish?.canWithdraw == true
     /** The seasons the sheet offers to tick: missing or requested by another profile, never available ones. */
     val choosable: List<WishSeasonOffer>
         get() = (seasons as? Loadable.Ready)?.value.orEmpty().filter { it.state != WishSeasonOffer.State.AVAILABLE }
@@ -95,9 +109,28 @@ class WishTitleViewModel(
         if (!keep || _state.value.title !is Loadable.Ready) _state.update { it.copy(title = Loadable.Loading) }
         viewModelScope.launch {
             val result = repository.title(server, media, tmdbId)
+            val item = (result as? ApiResult.Failed)?.takeIf { it.status == 409 && it.code == ALREADY_AVAILABLE }?.problem
+                ?.let { (it["item"] as? JsonObject)?.get("id") as? JsonPrimitive }?.contentOrNull
+            if (item != null) {
+                _state.update { it.copy(inLibrary = item) }
+                return@launch
+            }
             if (keep && result !is ApiResult.Ok && _state.value.title is Loadable.Ready) return@launch
-            _state.update { it.copy(title = result.toLoadable()) }
+            val own = (result as? ApiResult.Ok)?.value?.wish?.let { mark -> findOwn(server, mark.id) }
+            _state.update { it.copy(title = result.toLoadable(), ownWish = own) }
         }
+    }
+
+    /** The open wish [id] of the profile, page by page through «Meine Wünsche» (open ones). */
+    private suspend fun findOwn(server: okhttp3.HttpUrl, id: Long): Wish? {
+        var offset = 0
+        repeat(MAX_PAGES) {
+            val page = (repository.wishes(server, WishFilter.Open, offset, PAGE) as? ApiResult.Ok)?.value ?: return null
+            page.items.firstOrNull { it.id == id }?.let { return it }
+            offset += page.items.size
+            if (page.items.isEmpty() || offset >= page.total) return null
+        }
+        return null
     }
 
     fun retry() = load()
@@ -140,7 +173,7 @@ class WishTitleViewModel(
         it.copy(chosen = if (it.all) emptySet() else it.choosable.map { s -> s.number }.toSet(), error = null)
     }
 
-    fun onWithdraw() = _state.update { it.copy(sheet = WishSheet.Withdraw, error = null) }
+    fun onWithdraw() = _state.update { if (it.canWithdraw) it.copy(sheet = WishSheet.Withdraw, error = null) else it }
 
     fun onDismiss() = _state.update { if (it.sending) it else it.copy(sheet = null, error = null) }
 
@@ -184,7 +217,7 @@ class WishTitleViewModel(
             _state.update { it.copy(sending = false, sheet = null) }
             when (result) {
                 is ApiResult.Ok -> {
-                    openCount.adjust(-1)
+                    if (_state.value.ownWish?.role == Wish.Role.OWNER) openCount.adjust(-1)
                     _messages.send(WishTitleMessage.Withdrawn)
                 }
                 ApiResult.NotFound -> Unit
@@ -207,5 +240,8 @@ class WishTitleViewModel(
         const val OFFLINE = "offline"
         const val NOT_FOUND = "not_found"
         const val FAILED = "failed"
+        private const val ALREADY_AVAILABLE = "already_available"
+        private const val PAGE = 50
+        private const val MAX_PAGES = 10
     }
 }
