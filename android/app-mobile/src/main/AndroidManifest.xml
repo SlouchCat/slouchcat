@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Sound in the background (stage 7, concept 27 8.3): the media session service runs in the
@@ -36,11 +37,13 @@
         </activity>
         <!-- The sound of stage 7. Exported for the controllers of the system (notification, lock
              screen, Bluetooth and headphone buttons); the session turns every other app away and
-             takes no media from a controller (TrustedControllers, security review L-1). -->
+             takes no media from a controller (TrustedControllers, security review L-1): no permission
+             on the service, the session decides. -->
         <service
             android:name=".audio.AudioService"
             android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>

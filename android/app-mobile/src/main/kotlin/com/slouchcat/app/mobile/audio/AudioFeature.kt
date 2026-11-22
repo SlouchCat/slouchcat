@@ -83,8 +83,8 @@ object AudioFeature : Feature {
     )
 
     override val more = listOf(
-        MoreEntry("audiobooks", MoreSection.Library, 40, R.string.app_audio_audiobooks, SlouchcatIcon.Headphones, AudiobooksRoute, subtitle = { libraryCount(it.librariesSource.libraries.value, LibraryKind.AUDIOBOOKS) }),
-        MoreEntry("podcasts", MoreSection.Library, 50, R.string.app_audio_podcasts, SlouchcatIcon.Mic, PodcastsRoute, subtitle = { libraryCount(it.librariesSource.libraries.value, LibraryKind.PODCASTS) }),
+        MoreEntry("audiobooks", MoreSection.Library, 40, R.string.app_audio_audiobooks, SlouchcatIcon.Headphones, AudiobooksRoute, subtitle = { libraryCount(it, LibraryKind.AUDIOBOOKS) }),
+        MoreEntry("podcasts", MoreSection.Library, 50, R.string.app_audio_podcasts, SlouchcatIcon.Mic, PodcastsRoute, subtitle = { libraryCount(it, LibraryKind.PODCASTS) }),
         MoreEntry("radio", MoreSection.Library, 60, R.string.app_radio_title, SlouchcatIcon.Radio, RadioRoute, subtitle = { androidx.compose.ui.res.stringResource(R.string.app_radio_moreSubtitle) }),
     )
 
@@ -286,7 +286,8 @@ private fun stationLogo(server: HttpUrl?, station: RadioStation): ImageSet {
 }
 
 @Composable
-private fun libraryCount(libraries: Loadable<List<com.slouchcat.core.api.generated.models.LibraryNav>>, kind: LibraryKind): String? {
+private fun libraryCount(graph: com.slouchcat.app.mobile.AppGraph, kind: LibraryKind): String? {
+    val libraries by graph.librariesSource.libraries.collectAsStateWithLifecycle()
     val library = (libraries as? Loadable.Ready)?.value?.firstOrNull { it.kind == kind } ?: return null
     return com.slouchcat.app.mobile.media.titleCount(library.itemCount)
 }
