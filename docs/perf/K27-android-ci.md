@@ -20,7 +20,9 @@ und `sc_tablet` (API 36, Pixel Tablet), Start ohne Fenster mit Schnellstart aus 
 
 ## Schätzung für GitHub
 
-Der neue Job `android-e2e` (Vertragstest und Ablauf im Emulator) läuft neben `android`:
+Die Schätzung galt dem Job `android-e2e` (Vertragstest und Ablauf im Emulator in einem Job). Seit dem 22. November 2026 sind es zwei Jobs, siehe «Emulator auf dem Runner» unten.
+
+Geschätzt für beide zusammen, neben `android`:
 
 | Schritt                                                 | geschätzt        |
 | ------------------------------------------------------- | ---------------- |
@@ -57,10 +59,10 @@ Gründe:
 Wann neu entscheiden: Wenn die Runner-Minuten knapp werden oder ein Android-Job länger als der
 Server-Weg dauert. Dann eine Ausgabe `android_relevant` im Job `changes` (Pfade: `android/`,
 `api/openapi.yaml`, `web/src/locales/`, `packages/design-tokens/`, `server/`, die Workflows) und im
-Gate «übersprungen» für `android` und `android-e2e` nur bei `android_relevant == false` gelten lassen.
+Gate «übersprungen» für `android` und `android-contract` nur bei `android_relevant == false` gelten lassen.
 Für `relay/` gilt dasselbe mit den Pfaden `relay/`, `testdata/crypto/` und den Workflows.
 
-## Stufe 4: Testmedien im Job `android-e2e` (21.11.2026)
+## Stufe 4: Testmedien im Emulator-Job (21.11.2026)
 
 Der Emulator-Ablauf stöbert seit Stufe 4 durch eine echte Bibliothek. Dafür braucht der Server die
 synthetischen Testmedien (`task testdata:media`, ffmpeg) und `apicheck -devices`, das ihn einrichtet.
@@ -88,10 +90,10 @@ Gerät.
 In der CI kämen dazu: ein zweites Systemabbild (Google TV API 34, rund 1,5 GB, ohne Cache 2 bis 4 min),
 der Kaltstart ohne gespeicherten Zustand (1 bis 2 min), Test-APK der TV-App (1 bis 2 min) und die
 Vermittlung (unter 1 min). Zusammen 5 bis 9 min zusätzlich zu den geschätzten 8 bis 13 min von
-`android-e2e`, also fast die doppelte Laufzeit des Jobs.
+`android-emulator`, also fast die doppelte Laufzeit des Jobs.
 
 **Entscheid: kein TV-Emulator in der CI.** Die Vorgabe lautet «nur, wenn er die Laufzeit von
-`android-e2e` nicht verdoppelt»; das ist nicht gesichert. Die CI prüft die TV-App stattdessen so:
+`android-emulator` nicht verdoppelt»; das ist nicht gesichert. Die CI prüft die TV-App stattdessen so:
 
 - Job `android`: `ciCheck`/`ciTest` enthalten `:app-tv` und `:core:pairing` (Lint, R8-Release-Bau,
   JVM-Tests mit dem Steuerkreuz unter Robolectric für jede Seite, Kopplung gegen
@@ -99,4 +101,45 @@ Vermittlung (unter 1 min). Zusammen 5 bis 9 min zusätzlich zu den geschätzten 
 - Job `relay`: der Dienst, gegen den die Kopplung läuft.
 
 Der Emulatorlauf bleibt lokal vor jedem PR, der die TV-App anfasst (`docs/dev/SETUP.md`). Neu
-entscheiden, wenn `android-e2e` gemessen unter 8 min liegt oder ein Fehler nur im Emulator auffiel.
+entscheiden, wenn `android-emulator` auf dem Runner hält, gemessen unter 8 min liegt oder ein Fehler nur im Emulator auffiel.
+
+## Emulator auf dem Runner (22.11.2026): gemessen, nicht im Gate
+
+Konzept 27 Abschnitt 5.7 lässt offen, ob die Oberflächentests im Emulator auf den Runnern von GitHub
+laufen: «misst Stufe 3 und schreibt es nach `docs/perf/`». Gemessen am Pull Request der Stufen 3 bis 5:
+
+| Lauf        | Stand                                  | Ergebnis                                                                                                     |
+| ----------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 45032477885 | erster Lauf                            | AVD am falschen Ort angelegt (`XDG_CONFIG_HOME`), Job bricht vor dem Start ab. Behoben (`ANDROID_AVD_HOME`). |
+| 45032862694 | AVD an festem Ort                      | Emulator bereit nach 89 s, **Segmentation fault** rund 50 s im Ablauf. Aufräumen hing an `adb`. Behoben.     |
+| 45036212674 | `adb` der Aufräumroutine mit Zeitlimit | bereit nach 68 s, **Segmentation fault** nach rund 60 s, Logs als Artefakt.                                  |
+| 45041798200 | Gast ohne Vulkan (`-feature -Vulkan`)  | bereit nach 70 s, **Segmentation fault** nach rund 80 s.                                                     |
+
+Was die Logs zeigen:
+
+- Der Emulator ist dieselbe Fassung wie auf der Entwicklungsmaschine (37.3.10.0, Systemabbild API 36
+  `google_apis` x86_64, `-gpu swiftshader_indirect`, KVM). Dort läuft derselbe Ablauf durch
+  (7 Tests, 0 Fehler, auch ohne Vulkan, Server mit Testmedien wie in der CI).
+- Der Absturz kommt in allen drei Läufen an derselben Stelle des Ablaufs: Detailseite eines Titels,
+  Tipp auf «Merken». Der Gast läuft bis dahin normal; im Log der App steht kein Fehler.
+- Unmittelbar davor meldet der Gast auf dem Runner bei jedem Ton einen Schreibfehler seines
+  Tongeräts (`pcm_writei failed with 'cannot read/write stream data: I/O error'`); lokal steht diese
+  Zeile nie im Log. Vulkan scheidet als Ursache aus (vierter Lauf).
+- `swiftshader_indirect` gilt laut Googles Fehlerdatenbank als veraltet und nicht mehr gepflegt;
+  Abstürze mit Emulatoren ab 35 auf Ubuntu 24 sind dort gemeldet.
+
+**Entscheid:** Der Ablauf im Emulator gehört nicht ins Gate, solange der Emulator auf dem Runner nicht
+hält. Der frühere Job ist geteilt:
+
+- `android-contract` (im Gate): der Vertragstest des Kotlin-Clients gegen einen echten Server. Er
+  braucht keinen Emulator und lief in jedem der vier Läufe grün.
+- `android-emulator` (nicht im Gate, darf rot sein): der Ablauf wie bisher, mit Testmedien. Er zeigt,
+  wann der Emulator auf dem Runner hält; die Logs bleiben als Artefakt.
+
+Der Ablauf läuft dafür auf der Entwicklungsmaschine vor jedem Pull Request, der die Apps anfasst
+(`task android:e2e`, bei Änderungen an der TV-App auch `task android:e2e:tv`; `docs/dev/SETUP.md`).
+
+Was als Nächstes zu versuchen ist, ohne dass ein Pull Request daran hängt: Töne im Gast abstellen
+(seit diesem Stand schaltet das Skript die Tastentöne aus), eine andere Darstellung (`-gpu swangle`
+oder `lavapipe`), ein Systemabbild ohne Google-Apps (`aosp_atd`) oder eine ältere API-Stufe. Hält der
+Job über mehrere Pull Requests, kommt er zurück ins Gate.

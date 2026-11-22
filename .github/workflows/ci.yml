@@ -340,14 +340,12 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
-  # Android against a real server (concept 27 section 12, «Vertrag» and «Gerät»): the contract test
-  # of the Kotlin client and the flow of the phone app in an emulator (address, sign-in, profile
-  # with PIN, «Mehr», «Meine Geräte», sign-out), both against bin/slouchcat with fresh data. A job
-  # of its own: it needs Go and an emulator with KVM, and runs beside the job "android". The AVD is
-  # made here from the SDK's system image; no third-party action. Times: docs/perf/K27-android-ci.md.
+  # Android against a real server (concept 27 section 12, «Vertrag»): the contract test of the
+  # Kotlin client against bin/slouchcat with fresh data. A job of its own: it needs Go and ffmpeg,
+  # and runs beside the job "android". Times: docs/perf/K27-android-ci.md.
   # ---------------------------------------------------------------------------------------------
-  android-e2e:
-    name: android-e2e (contract, emulator)
+  android-contract:
+    name: android-contract (client against a real server)
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
@@ -367,8 +365,81 @@ jobs:
       - name: Check the Gradle wrapper
         run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
 
-      # ffmpeg: the player's contract test and flow need real video (scripts/android-test-video.sh)
-      # and a server that probes it (K27 stage 5).
+      # ffmpeg: the player's contract test needs real video (scripts/android-test-video.sh) and a
+      # server that probes it (K27 stage 5).
+      - uses: ./.github/actions/system-packages
+        with:
+          group: android-e2e
+
+      - name: JDK 21 and the Android SDK packages
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          log=$(mktemp)
+          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
+
+      - name: Gradle caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-e2e-${{ runner.os }}-
+
+      - run: task android:contract
+
+      - name: Keep the contract test report on failure
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-contract-reports
+          path: android/core/api/build/reports/tests/contractTest/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
+  # The flow of the phone app in an emulator (concept 27 section 12, «Gerät»): address, sign-in,
+  # profile with PIN, browsing, the player, sign-out, against bin/slouchcat with the test media.
+  #
+  # NOT part of the gate "ci", and it may fail (continue-on-error): on the hosted runner the
+  # emulator (37.3.10, the version that runs the same flow on the development machine) died with a
+  # segmentation fault in each of three runs, about 80 s into the flow, with and without Vulkan in
+  # the guest (docs/perf/K27-android-ci.md, «Emulator auf dem Runner»). Concept 27 section 5.7
+  # leaves it to this measurement whether the flow runs here. Until the emulator holds, the flow
+  # is run on the development machine before every pull request that touches the apps
+  # (docs/dev/SETUP.md); this job stays to show when the runner's emulator holds. The AVD is made
+  # here from the SDK's system image; no third-party action.
+  # ---------------------------------------------------------------------------------------------
+  android-emulator:
+    name: android-emulator (flow, informational)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - name: Check the Gradle wrapper
+        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
+      # ffmpeg: the flow plays real video (scripts/android-test-video.sh), and the server probes
+      # the test media when it scans.
       - uses: ./.github/actions/system-packages
         with:
           group: android-e2e
@@ -409,20 +480,11 @@ jobs:
           key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
           restore-keys: gradle-e2e-${{ runner.os }}-
 
-      - run: task android:contract
-
       # The test media (cached under the same key as the server tests, generated on a miss): with
-      # them the emulator flow browses a real library (docs/perf/K27-android-ci.md). The ffmpeg of
-      # the step above also probes them when the server scans.
+      # them the emulator flow browses a real library (docs/perf/K27-android-ci.md).
       - uses: ./.github/actions/test-media
 
-      # Without Vulkan in the guest: on the hosted runner the emulator (37.3.10) died with a
-      # segmentation fault right after the first Vulkan instance of a guest app (SwiftShader), twice,
-      # at different points of the flow; the GLES path had drawn the boot and the first pages. The
-      # same emulator version runs the flow with Vulkan on the development machine.
       - run: task android:e2e AVD=ci_phone
-        env:
-          EMU_OPTS: -feature -Vulkan
 
       # Also when the job was cancelled: a flow that hangs ends at the job's time limit, and its
       # logs (server, emulator, logcat) are what explains it.
@@ -430,12 +492,11 @@ jobs:
         if: failure() || cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-e2e-reports
+          name: android-emulator-reports
           path: |
             android/app-mobile/build/reports/androidTests/
             android/app-mobile/build/outputs/androidTest-results/
             android/app-mobile/build/e2e-logs/
-            android/core/api/build/reports/tests/contractTest/
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
@@ -723,7 +784,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [changes, server-lint, server-groups, server-test, relay, android, android-e2e, web, storybook, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, relay, android, android-contract, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -807,7 +868,7 @@ jobs:
           check server-test   '${{ needs.server-test.result }}'
           check relay         '${{ needs.relay.result }}'
           check android       '${{ needs.android.result }}'
-          check android-e2e   '${{ needs.android-e2e.result }}'
+          check android-contract '${{ needs.android-contract.result }}'
           check web           '${{ needs.web.result }}'
           check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'

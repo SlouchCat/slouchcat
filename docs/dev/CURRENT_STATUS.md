@@ -137,8 +137,11 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
   - **Serverschlüssel im Heimnetz:** Die App merkt sich beim Einrichten den Schlüssel des Servers und
     verlangt vor jeder Anfrage mit Zugang den Nachweis (`proveServer`); ein fremder Schlüssel unter
     derselben Adresse bekommt weder Passwort noch Zugang. Gilt auch für Bilder und Medien.
-  - CI-Job `android-e2e` im Gate: Vertragstest des Kotlin-Clients gegen einen echten Server und der
-    Ablauf im Emulator (Handy). Laufzeiten in `docs/perf/K27-android-ci.md`.
+  - CI-Job `android-contract` im Gate: Vertragstest des Kotlin-Clients gegen einen echten Server. Der
+    Ablauf im Emulator (`task android:e2e`) läuft lokal vor jedem PR an den Apps; der CI-Job
+    `android-emulator` steht **nicht** im Gate, weil der Emulator auf den Runnern von GitHub in drei
+    Läufen mit einem Speicherzugriffsfehler abstürzte (dieselbe Fassung läuft lokal). Messung und
+    Entscheid in `docs/perf/K27-android-ci.md`.
   - **Geprüft:** Code-Review und Sicherheits-Review mit Korrekturrunde (2 High behoben: Nachanmeldung
     und erneutes Einrichten übernahmen einen fremden Schlüssel), Ablauf im Emulator an Handy und Tablet.
 - **Konzept 27, Stufe 4 «Stöbern»:** Start (Bühne, Reihen), Medienauswahl, Bibliothek (Raster und Liste,
