@@ -150,7 +150,20 @@ class FakeItems(var detail: ApiResult<ItemDetail> = ApiResult.NotFound) : ItemRe
     /** Holds every watchlist change until a test completes it. */
     var gate: CompletableDeferred<Unit>? = null
 
-    override suspend fun item(server: HttpUrl, id: String) = detail
+    /** The ids asked with `getItem`, in order. */
+    val asked = mutableListOf<String>()
+
+    /** The answer per id; [detail] for the others. */
+    var answers: Map<String, ApiResult<ItemDetail>> = emptyMap()
+
+    /** Holds every `getItem` until a test completes it. */
+    var itemGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun item(server: HttpUrl, id: String): ApiResult<ItemDetail> {
+        asked += id
+        itemGate?.await()
+        return answers[id] ?: detail
+    }
 
     override suspend fun setWatchlist(server: HttpUrl, id: String, on: Boolean): ApiResult<Unit> {
         watchlistCalls += id to on

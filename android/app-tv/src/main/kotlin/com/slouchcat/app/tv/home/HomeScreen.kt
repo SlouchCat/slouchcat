@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -75,6 +77,7 @@ import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.browse.home.HomeSection
 import com.slouchcat.core.browse.home.HomeUiState
+import com.slouchcat.core.browse.home.StageDetails
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable
@@ -128,6 +131,27 @@ fun HomeScreen(
     onRowEnd: (String) -> Unit,
     onWatchlist: (MediaItem) -> Unit,
     rotate: Boolean = true,
+    /** The stage shows a title: its genres and summary are read once (`HomeViewModel.onStage`). */
+    onStage: (String) -> Unit = {},
+) {
+    CompositionLocalProvider(LocalStage provides StageInfo(state.stage, onStage)) {
+        HomeContent(state, links, onRetry, onRowEnd, onWatchlist, rotate)
+    }
+}
+
+/** The details of the titles on the stage and the call that asks for them, for the stage deep in the rows. */
+private class StageInfo(val details: Map<String, StageDetails>, val onStage: (String) -> Unit)
+
+private val LocalStage = staticCompositionLocalOf { StageInfo(emptyMap()) {} }
+
+@Composable
+private fun HomeContent(
+    state: HomeUiState,
+    links: HomeLinks,
+    onRetry: () -> Unit,
+    onRowEnd: (String) -> Unit,
+    onWatchlist: (MediaItem) -> Unit,
+    rotate: Boolean,
 ) {
     val focus = rememberFocusMemory()
     var art by remember { mutableStateOf<Pair<MediaItem?, BackdropMode>>(null to BackdropMode.Hero) }
@@ -341,6 +365,9 @@ private fun Stage(
     var onButtons by remember { mutableStateOf(false) }
     var inside by remember { mutableStateOf(false) }
     LaunchedEffect(inside, item.id) { if (inside) onArt(item) }
+    val stage = LocalStage.current
+    LaunchedEffect(item.id) { stage.onStage(item.id) }
+    val details = stage.details[item.id]
     LaunchedEffect(index, onButtons, rotate) {
         if (!rotate || !onButtons || row.items.size < 2) return@LaunchedEffect
         delay(row.intervalSeconds * MS_PER_SECOND)
@@ -360,8 +387,9 @@ private fun Stage(
         Column(Modifier.widthIn(max = TvDimens.Browse.HeroInfo).heightIn(min = TvDimens.Browse.HeroInfoMin), verticalArrangement = Arrangement.Bottom) {
             kindName(item.kind)?.let { KindLine(it, Modifier.padding(bottom = TvDimens.Browse.KindGap)) }
             TitleOrLogo(item, TvDimens.Browse.LogoHeight, TvDimens.Browse.LogoWidth)
-            MetaLine(heroFacts(item), Modifier.padding(top = TvDimens.Browse.MetaTop), rating = item.rating)
-            row.overviews.getOrNull(index)?.takeIf { it.isNotBlank() }?.let {
+            // Year, rating, length and the genres (mockup `hero`); the genres and the summary once `getItem` has them.
+            MetaLine(heroFacts(item) + listOfNotNull(details?.genres?.take(3)?.takeIf { it.isNotEmpty() }?.joinToString(stringResource(R.string.format_separator))), Modifier.padding(top = TvDimens.Browse.MetaTop), rating = item.rating)
+            details?.overview?.let {
                 Text(it, style = TvType.body, color = c.tx2, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TvDimens.m).widthIn(max = TvDimens.Browse.Overview))
             }
         }

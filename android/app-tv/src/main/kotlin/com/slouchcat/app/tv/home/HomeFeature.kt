@@ -86,6 +86,7 @@ object HomeFeature : TvFeature {
                 onRowEnd = vm::onRowEnd,
                 onWatchlist = vm::onWatchlist,
                 rotate = motionAllowed(LocalContext.current),
+                onStage = vm::onStage,
             )
         }
     }

@@ -31,6 +31,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -80,6 +82,7 @@ import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.browse.home.HomeSection
 import com.slouchcat.core.browse.home.HomeUiState
+import com.slouchcat.core.browse.home.StageDetails
 import com.slouchcat.core.browse.home.LibraryChip
 import com.slouchcat.core.design.Avatar
 import com.slouchcat.core.design.ButtonKind
@@ -137,6 +140,31 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     snackbar: SnackbarHostState? = null,
     rotate: Boolean = true,
+    /** The stage shows a title: its genres are read once (`HomeViewModel.onStage`). */
+    onStage: (String) -> Unit = {},
+) {
+    CompositionLocalProvider(LocalStage provides StageInfo(state.stage, onStage)) {
+        HomeContent(state, links, onRetry, onRefresh, onRowEnd, onWatchlist, modifier, snackbar, rotate)
+    }
+}
+
+/** The details of the titles on the stage and the call that asks for them, for the stage deep in the rows. */
+private class StageInfo(val details: Map<String, StageDetails>, val onStage: (String) -> Unit)
+
+private val LocalStage = staticCompositionLocalOf { StageInfo(emptyMap()) {} }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeContent(
+    state: HomeUiState,
+    links: HomeLinks,
+    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
+    onRowEnd: (String) -> Unit,
+    onWatchlist: (MediaItem) -> Unit,
+    modifier: Modifier,
+    snackbar: SnackbarHostState?,
+    rotate: Boolean,
 ) {
     Box(modifier.fillMaxSize().background(SlouchcatTheme.colors.bg)) {
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
@@ -353,6 +381,8 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     // The stage holds still while a screen reader explores, while it has the focus and while a finger
     // rests on it (WCAG 2.2.2, code review m-5 of part a); after each change of title the time starts again.
     val exploring = touchExploration()
+    val stage = LocalStage.current
+    LaunchedEffect(pager.currentPage, section.items) { section.items.getOrNull(pager.currentPage)?.let { stage.onStage(it.id) } }
     var focused by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     if (rotate && section.items.size > 1 && !exploring && !focused && !pressed) {
@@ -435,6 +465,10 @@ private fun Slide(item: MediaItem, links: HomeLinks, onWatchlist: (MediaItem) ->
                 item.rating?.let { FskBadge(it) }
                 val length = if (item.kind == ItemKind.SERIES) kindName(item.kind) else item.runtimeMinutes?.let { runtimeText(it) }
                 length?.let { Text(it, style = meta, color = c.tx2) }
+                // The genres after year, rating and length (mockup `hero()`), once `getItem` has them.
+                LocalStage.current.details[item.id]?.genres?.takeIf { it.isNotEmpty() }?.let {
+                    Text(it.take(2).joinToString(stringResource(R.string.format_separator)), style = meta, color = c.tx2)
+                }
             }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp, if (wide) Alignment.Start else Alignment.CenterHorizontally),

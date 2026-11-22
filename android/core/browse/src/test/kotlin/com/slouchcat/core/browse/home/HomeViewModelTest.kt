@@ -12,7 +12,9 @@ import com.slouchcat.core.browse.testing.FakeItems
 import com.slouchcat.core.browse.testing.FakeServers
 import com.slouchcat.core.browse.testing.FakeTokens
 import com.slouchcat.core.browse.testing.HTTP_SERVER
+import com.slouchcat.core.browse.testing.LONG_OVERVIEW
 import com.slouchcat.core.browse.testing.PRIMARY
+import com.slouchcat.core.browse.testing.film
 import com.slouchcat.core.browse.testing.homeRow
 import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.browse.testing.session
@@ -28,6 +30,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -189,6 +193,52 @@ class HomeViewModelTest {
         settle()
         assertEquals(listOf(first.id to true, first.id to false), items.watchlistCalls)
         assertEquals(3, count.count.value)
+    }
+
+    /** The stage reads genres and summary of its title once (getHome sends neither). */
+    @Test
+    fun theStageReadsGenresAndSummaryOncePerTitle() = runTest(dispatcher) {
+        items.answers = mapOf(spot[0].id to ApiResult.Ok(film(1, title = "Spot 1")))
+        val vm = HomeViewModel(session(backgroundScope), home, items)
+        settle()
+        vm.onStage(spot[0].id)
+        settle()
+        assertEquals(StageDetails(listOf("Action", "Drama"), LONG_OVERVIEW), vm.state.value.stage[spot[0].id])
+        vm.onStage(spot[0].id)
+        settle()
+        assertEquals(listOf(spot[0].id), items.asked)
+    }
+
+    /** Moving on cancels the request of the title left; one request at a time. */
+    @Test
+    fun movingOnCancelsTheRequestOfTheTitleLeft() = runTest(dispatcher) {
+        items.answers = mapOf(spot[0].id to ApiResult.Ok(film(1)), spot[1].id to ApiResult.Ok(film(2, overview = "Second")))
+        val vm = HomeViewModel(session(backgroundScope), home, items)
+        settle()
+        val gate = CompletableDeferred<Unit>()
+        items.itemGate = gate
+        vm.onStage(spot[0].id)
+        settle()
+        vm.onStage(spot[1].id)
+        settle()
+        gate.complete(Unit)
+        settle()
+        assertEquals(setOf(spot[1].id), vm.state.value.stage.keys)
+        assertEquals("Second", vm.state.value.stage[spot[1].id]?.overview)
+    }
+
+    /** A failure stays silent: the stage shows what the row has, no message. */
+    @Test
+    fun aFailureLeavesTheStageAsItIs() = runTest(dispatcher) {
+        items.detail = ApiResult.Offline
+        val vm = HomeViewModel(session(backgroundScope), home, items)
+        settle()
+        val messages = mutableListOf<HomeMessage>()
+        backgroundScope.launch { vm.messages.toList(messages) }
+        vm.onStage(spot[0].id)
+        settle()
+        assertTrue(vm.state.value.stage.isEmpty())
+        assertTrue(messages.isEmpty())
     }
 
     @Test

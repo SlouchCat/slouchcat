@@ -117,6 +117,7 @@ object HomeFeature : Feature {
                 onWatchlist = vm::onWatchlist,
                 snackbar = snackbar,
                 rotate = motionAllowed(LocalContext.current),
+                onStage = vm::onStage,
             )
         }
         composable<LibraryRoute> { entry ->

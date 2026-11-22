@@ -50,8 +50,6 @@ sealed interface HomeSection {
         val items: List<MediaItem>,
         val start: Int,
         val intervalSeconds: Int,
-        /** The summary of each title (`ItemRef.overview`, when the server sends it); the TV stage shows two lines of it. */
-        val overviews: List<String?> = emptyList(),
     ) : HomeSection
 
     /**
@@ -84,7 +82,12 @@ data class HomeUiState(
     val rows: Loadable<List<HomeSection>> = Loadable.Loading,
     val refreshing: Boolean = false,
     val profile: ActiveProfile? = null,
+    /** What the stage shows beyond the list entry, per title id, once read ([HomeViewModel.onStage]). */
+    val stage: Map<String, StageDetails> = emptyMap(),
 )
+
+/** The genres and the summary of a title on the stage (`getItem`; `getHome` sends neither). */
+data class StageDetails(val genres: List<String>, val overview: String?)
 
 /** What the start page says once (a snackbar). */
 sealed interface HomeMessage {
@@ -112,6 +115,8 @@ class HomeViewModel(
     val messages: Flow<HomeMessage> = _messages.receiveAsFlow()
     private var loading: Job? = null
     private val growing = mutableMapOf<String, Job>()
+    private var stageJob: Job? = null
+    private var stageId: String? = null
 
     init {
         viewModelScope.launch {
@@ -123,6 +128,7 @@ class HomeViewModel(
                     return@collect
                 }
                 shown = profile?.id
+                stageJob?.cancel()
                 _state.update { HomeUiState(profile = profile) }
                 if (profile != null) load()
             }
@@ -181,6 +187,23 @@ class HomeViewModel(
     }
 
     /** «Merken» of a title of the stage; the stage shows the new state at once and returns on a failure. */
+    /**
+     * The stage shows the title [id]: its genres and summary come from `getItem` (the list entry of
+     * `getHome` has neither), remembered per title, one request at a time; moving on cancels it. A
+     * failure stays silent: the stage shows what it has.
+     */
+    fun onStage(id: String) {
+        if (id in _state.value.stage || (id == stageId && stageJob?.isActive == true)) return
+        val server = session.server ?: return
+        stageJob?.cancel()
+        stageId = id
+        stageJob = viewModelScope.launch {
+            val detail = (items.item(server, id) as? ApiResult.Ok)?.value ?: return@launch
+            val details = StageDetails(detail.genres, detail.overview?.takeIf { it.isNotBlank() })
+            _state.update { it.copy(stage = it.stage + (id to details)) }
+        }
+    }
+
     fun onWatchlist(item: MediaItem) {
         val server = session.server ?: return
         // One request per title at a time; the state from the page, not from the card's last drawing (code review m-4 of part a).
@@ -251,7 +274,7 @@ class HomeViewModel(
         fun section(row: HomeRow, page: HomePage, images: ServerImages): HomeSection? {
             val cards = row.items.map { MediaItem.from(it, images) }
             if (row.key == page.heroRow && cards.isNotEmpty()) {
-                return HomeSection.Spotlight(row.id, cards, (page.heroStart ?: 0).coerceIn(0, cards.lastIndex), page.heroIntervalSeconds ?: DEFAULT_INTERVAL, row.items.map { it.overview })
+                return HomeSection.Spotlight(row.id, cards, (page.heroStart ?: 0).coerceIn(0, cards.lastIndex), page.heroIntervalSeconds ?: DEFAULT_INTERVAL)
             }
             return when (row.key) {
                 HomeRowKey.COLLECTIONS -> row.collections.orEmpty().takeIf { it.isNotEmpty() }?.let { list ->
