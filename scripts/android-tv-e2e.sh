@@ -17,6 +17,8 @@
 # LOCALE      language of the app (de-CH, en …; default: the device's)
 # EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
+# PHONE       who plays the phone: apicheck (default, Go) or kotlin (the phone app's own Kotlin of
+#             :core:pairing as a JVM program, :core:pairing:phoneCheck; task android:e2e:pair)
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
 # emulator-EMU_PORT), waits while another emulator runs, and on exit stops that emulator, the
@@ -149,6 +151,8 @@ for _ in $(seq 1 60); do
 done
 
 ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-tv:assembleDebug :app-tv:assembleDebugAndroidTest
+# PHONE=kotlin: the phone's program compiled before the TV shows its code (the code lives 5 minutes).
+if [ "${PHONE:-apicheck}" = kotlin ]; then ./gradlew --console=plain -q :core:pairing:testClasses; fi
 adb install -r -t app-tv/build/outputs/apk/debug/app-tv-debug.apk >/dev/null
 adb install -r -t app-tv/build/outputs/apk/androidTest/debug/app-tv-debug-androidTest.apk >/dev/null
 if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
@@ -185,10 +189,18 @@ if [ -z "$code" ]; then
   photos
   fail "the TV showed no code"
 fi
-../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
-  -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
-  -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
-grep '^apicheck:' "$root/apicheck.log"
+if [ "${PHONE:-apicheck}" = kotlin ]; then
+  # The phone app's own Kotlin (:core:pairing) as a JVM program (task android:e2e:pair).
+  ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port packetServer=http://10.0.2.2:$port \
+relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email password=$password pin=$pin" \
+    >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "the phone's Kotlin could not pair"; }
+  grep '^phonecheck:' "$root/apicheck.log"
+else
+  ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
+    -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
+    -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
+  grep '^apicheck:' "$root/apicheck.log"
+fi
 
 wait "$instrument_pid" || true
 instrument_pid=""
