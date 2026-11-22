@@ -55,6 +55,8 @@ class Media3Engine(
     context: Context,
     http: Call.Factory,
     withSession: Boolean = true,
+    /** What it plays: video (stage 5), spoken audio or music (stage 7: audio focus, wake lock, jumps). */
+    kind: EngineKind = EngineKind.Video,
 ) : PlayerEngine {
     private val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
     override val events: Flow<EngineSignal> = signals.asSharedFlow()
@@ -72,10 +74,19 @@ class Media3Engine(
         // source; everything over the network through the shared OkHttp client.
         .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context.applicationContext, OkHttpDataSource.Factory(http))))
         .setAudioAttributes(
-            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
+            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(kind.contentType).build(),
             /* handleAudioFocus = */ true,
         )
         .setHandleAudioBecomingNoisy(true)
+        .apply {
+            if (kind != EngineKind.Video) {
+                // Sound with the screen off (stage 7): the CPU and the Wi-Fi stay awake while it plays;
+                // the jumps of the notification and the headphones are those of the audio player.
+                setWakeMode(C.WAKE_MODE_NETWORK)
+                setSeekBackIncrementMs(AudioRules.BACK_MS)
+                setSeekForwardIncrementMs(AudioRules.FORWARD_MS)
+            }
+        }
         .build()
 
     private val session: MediaSession? = if (withSession) {
@@ -139,7 +150,14 @@ class Media3Engine(
         val item = MediaItem.Builder()
             .setUri(media.url)
             .setMimeType(if (media.hls) MimeTypes.APPLICATION_M3U8 else null)
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(media.title).setSubtitle(media.subtitle).build())
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(media.title)
+                    .setSubtitle(media.subtitle)
+                    .setArtist(media.subtitle)
+                    .setArtworkUri(media.artworkUrl?.let(Uri::parse))
+                    .build(),
+            )
             .setSubtitleConfigurations(
                 listOfNotNull(
                     media.subtitleUrl?.let {
@@ -157,7 +175,7 @@ class Media3Engine(
             .clearOverrides()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
             .build()
-        player.setMediaItem(item, startMs.coerceAtLeast(0))
+        if (startMs == PlayerEngine.LIVE_EDGE) player.setMediaItem(item, /* resetPosition = */ true) else player.setMediaItem(item, startMs.coerceAtLeast(0))
         player.playWhenReady = play
         player.prepare()
     }
@@ -247,10 +265,32 @@ class Media3Engine(
         return EngineEvent.Failed(failure, status)
     }
 
+    /**
+     * The title and subtitle of the media session while it plays (the station's current song of
+     * the web radio), without loading again.
+     */
+    fun updateMetadata(title: String?, subtitle: String?) {
+        val item = player.currentMediaItem ?: return
+        val metadata = item.mediaMetadata.buildUpon().setTitle(title).setSubtitle(subtitle).setArtist(subtitle).build()
+        if (metadata == item.mediaMetadata) return
+        player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+    }
+
     private companion object {
         const val SIDELOADED = "slouchcat-subtitle"
         val SESSIONS = AtomicInteger()
     }
+}
+
+/** What a [Media3Engine] plays: the audio attributes and the wake lock follow from it. */
+enum class EngineKind(val contentType: Int) {
+    Video(C.AUDIO_CONTENT_TYPE_MOVIE),
+
+    /** Audiobooks and podcasts: a transient loss of the audio focus pauses instead of ducking. */
+    Speech(C.AUDIO_CONTENT_TYPE_SPEECH),
+
+    /** The web radio. */
+    Music(C.AUDIO_CONTENT_TYPE_MUSIC),
 }
 
 /**
@@ -260,7 +300,7 @@ class Media3Engine(
  * setting or changing the media: the stream addresses come only from the controller of the app.
  */
 @OptIn(UnstableApi::class)
-internal class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
+class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
         if (!accepts(ownPackage, controller.packageName, session.isMediaNotificationController(controller), controller.isTrusted)) {
             return MediaSession.ConnectionResult.reject()

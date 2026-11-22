@@ -117,7 +117,12 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
         since = clock()
     }
 
-    override fun setSpeed(speed: Float) = Unit
+    /** Every speed the controller set, in order. */
+    val speeds = mutableListOf<Float>()
+
+    override fun setSpeed(speed: Float) {
+        speeds += speed
+    }
 
     override fun selectAudio(index: Int) {
         audioSelections += index

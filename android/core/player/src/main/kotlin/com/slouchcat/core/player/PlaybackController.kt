@@ -426,7 +426,7 @@ class PlaybackController(
                 val request = request(caps, positionMs)
                 when (val result = server.start(id, request)) {
                     is ApiResult.Ok -> {
-                        onStarted(result.value, caps, play)
+                        onStarted(result.value, caps, play, switching)
                         return@launch
                     }
                     is ApiResult.Failed -> if (result.code == TRANSCODE_BUSY && attempts < BUSY_ATTEMPTS) {
@@ -476,7 +476,7 @@ class PlaybackController(
         else -> PlayerError.Failed
     }
 
-    private fun onStarted(started: PlaybackInfo, caps: PlaybackCapabilities, play: Boolean) {
+    private fun onStarted(started: PlaybackInfo, caps: PlaybackCapabilities, play: Boolean, switching: Boolean) {
         if (inBackground) {
             // A start that answered after the app left: its session ends at once, it never plays.
             endSession(started.playbackSessionId, null)
@@ -496,7 +496,8 @@ class PlaybackController(
                 switching = false,
                 error = null,
                 ended = false,
-                durationMs = started.mediaFile.durationMs ?: it.durationMs,
+                // An audiobook of several files is one timeline: the title's length, not its first file's.
+                durationMs = (if (started.mediaKind == PlaybackInfo.MediaKind.AUDIO) started.item.durationMs else null) ?: started.mediaFile.durationMs ?: it.durationMs,
                 positionMs = started.resumePositionMs,
                 audio = started.tracks.audio.map { t -> TrackChoice(t, t.index == selection.audioTrack) },
                 subtitles = started.tracks.subtitles.map { t -> TrackChoice(t, t.id == selection.subtitleTrack) },
@@ -517,13 +518,17 @@ class PlaybackController(
             return
         }
         val subtitleLanguage = started.tracks.subtitles.firstOrNull { it.id == selection.subtitleTrack }?.language
+        val audio = started.mediaKind == PlaybackInfo.MediaKind.AUDIO
+        val images = started.item.images
         val next = EngineMedia(
             url = url,
             hls = started.mode == PlaybackInfo.Mode.HLS,
             subtitleUrl = started.subtitleUrl?.let(server::absolute),
             subtitleLanguage = subtitleLanguage,
             title = started.item.title,
-            subtitle = started.item.seriesTitle,
+            subtitle = if (audio) started.item.author ?: started.item.seriesTitle else started.item.seriesTitle,
+            // The cover of the notification and the lock screen (stage 7).
+            artworkUrl = if (audio) (images.posterLarge ?: images.poster ?: images.posterSmall)?.url?.let(server::absolute) else null,
         )
         media = next
         seq = 1
@@ -531,6 +536,12 @@ class PlaybackController(
         playingSince = null
         loadId = ++loads
         engine.load(next, started.resumePositionMs, play, loadId)
+        if (audio) {
+            // An audiobook or episode plays at the speed last used for it (web: stored per profile and title).
+            val rate = if (switching) mutable.value.speed else started.item.progress?.playbackRate?.toFloat()?.let(AudioRules::clampSpeed) ?: 1f
+            engine.setSpeed(rate)
+            mutable.update { it.copy(speed = rate) }
+        }
         startLoops(started)
     }
 
@@ -835,6 +846,8 @@ class PlaybackController(
         val s = mutable.value
         val next = s.next ?: return
         if (inBackground || countdownCancelled || s.countdown != null || s.error != null) return
+        // Audio has no card: the audio player offers the next episode as a button (web).
+        if (s.isAudio) return
         val outro = s.outro
         if (!atEnd && (outro == null || s.positionMs < outro.startMs)) return
         countdownEnd = if (device.autoplayNext && wantsToPlay) clock() + AUTO_NEXT_MS else null
@@ -844,7 +857,10 @@ class PlaybackController(
 
     // ---- progress and the end of a session -----------------------------------------------------
 
-    private fun duration(): Long = engine.durationMs.takeIf { it > 0 } ?: info?.mediaFile?.durationMs ?: mutable.value.durationMs
+    private fun duration(): Long = engine.durationMs.takeIf { it > 0 }
+        ?: info?.takeIf { it.mediaKind == PlaybackInfo.MediaKind.AUDIO }?.item?.durationMs
+        ?: info?.mediaFile?.durationMs
+        ?: mutable.value.durationMs
 
     private fun stopClock() {
         playingSince?.let { playedMs += clock() - it }
@@ -873,7 +889,8 @@ class PlaybackController(
             clientTime = now(),
             mediaFileId = playing.mediaFile.id,
             playbackSessionId = playing.playbackSessionId,
-            playbackRate = mutable.value.speed.takeIf { it != 1f }?.let { BigDecimal(it.toString()) },
+            // Audio reports its speed always (web `reportRate`): back to 1.0 is stored as well.
+            playbackRate = mutable.value.speed.takeIf { it != 1f || playing.mediaKind == PlaybackInfo.MediaKind.AUDIO }?.let { BigDecimal(it.toString()) },
         )
         playedMs = 0
         if (running) playingSince = clock()

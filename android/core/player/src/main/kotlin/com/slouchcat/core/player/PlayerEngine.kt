@@ -28,6 +28,9 @@ interface PlayerEngine {
     companion object {
         /** The number of the events of [stop] and of no load at all. */
         const val NO_LOAD = 0L
+
+        /** The start position of a live stream (the web radio): its live edge, not its oldest point. */
+        const val LIVE_EDGE = Long.MIN_VALUE
     }
 
     fun play()
@@ -59,6 +62,8 @@ data class EngineMedia(
     /** The title for the media session (headphone controls, lock screen in stage 7). */
     val title: String? = null,
     val subtitle: String? = null,
+    /** The cover for the media session's notification and lock screen (stage 7), an address of the server. */
+    val artworkUrl: String? = null,
 ) {
     /** Without the addresses: they carry the stream token `st` (rule 10). */
     override fun toString() = "EngineMedia(hls=$hls, subtitles=${subtitleUrl != null}, title=$title)"

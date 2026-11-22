@@ -37,6 +37,8 @@ openApiGenerate {
     generateApiDocumentation.set(false)
     generateModelDocumentation.set(false)
     validateSpec.set(false)
+    // Own templates over the generator's (K27 stage 7): BigDecimal as a JSON number, not a string.
+    templateDir.set(layout.projectDirectory.dir("openapi-templates").asFile.path)
     configOptions.set(
         mapOf(
             "serializationLibrary" to "kotlinx_serialization",
@@ -54,6 +56,7 @@ openApiGenerate {
 tasks.named<GenerateTask>("openApiGenerate") {
     dependsOn(trimOpenApi)
     inputs.file(trimmed).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir("openapi-templates").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 sourceSets["main"].kotlin.srcDir(generated.map { it.dir("src/main/kotlin") })
 tasks.named("compileKotlin") { dependsOn("openApiGenerate") }

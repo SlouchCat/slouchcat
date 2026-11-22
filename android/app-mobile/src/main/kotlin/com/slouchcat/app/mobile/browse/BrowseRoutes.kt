@@ -1,5 +1,7 @@
 package com.slouchcat.app.mobile.browse
 
+import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.media.isAudio
 import kotlinx.serialization.Serializable
 
 /*
@@ -86,3 +88,32 @@ data class PlayerRoute(val itemId: String, val startAtMs: Long = NO_POSITION, va
 /** «Benachrichtigungen» of stage 8 (mockup `/notifications`); the bell of the start page shows only once it is registered. */
 @Serializable
 data object NotificationsRoute
+
+/**
+ * The audio player of stage 7 (mockup `/listen/:i`): an audiobook or a podcast episode, played by
+ * the app's `AudioPlayback` (it plays on when the page goes). [startAtMs]: a chapter's start
+ * ([PlayerRoute.NO_POSITION]: where the server resumes); [fromStart]: «Von vorn»; [offline]: from a
+ * download of stage 6.
+ */
+@Serializable
+data class ListenRoute(val itemId: String, val startAtMs: Long = PlayerRoute.NO_POSITION, val fromStart: Boolean = false, val offline: Boolean = false)
+
+/** The series of an audiobook (web `/libraries/$libraryId/series/$seriesId`). */
+@Serializable
+data class AudioSeriesRoute(val libraryId: Long, val seriesId: String)
+
+/** «Hörbücher» of «Mehr»: the first audiobook library the profile sees. */
+@Serializable
+data object AudiobooksRoute
+
+/** «Podcasts» of «Mehr»: the first podcast library the profile sees. */
+@Serializable
+data object PodcastsRoute
+
+/** «Webradio» (mockup `/radio`). */
+@Serializable
+data object RadioRoute
+
+/** The route that plays [itemId]: the audio player for audiobooks and podcast episodes, the video player else. */
+fun playRoute(itemId: String, kind: ItemKind?, startAtMs: Long = PlayerRoute.NO_POSITION, fromStart: Boolean = false): Any =
+    if (kind != null && isAudio(kind)) ListenRoute(itemId, startAtMs, fromStart) else PlayerRoute(itemId, startAtMs, fromStart)

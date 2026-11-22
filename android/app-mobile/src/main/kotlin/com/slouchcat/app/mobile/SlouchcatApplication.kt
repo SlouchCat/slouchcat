@@ -83,6 +83,8 @@ class AppGraph(
     private val mediaData: ((AppGraph) -> MediaData)? = null,
     /** Downloads and offline (stage 6); tests bring an engine over a database in memory. `null`: the real one. */
     private val offlineData: ((AppGraph) -> OfflineData)? = null,
+    /** The sound of stage 7 (audiobooks, podcasts, radio); tests bring fake players. `null`: the real one. */
+    private val audioData: ((AppGraph) -> com.slouchcat.app.mobile.audio.AudioData)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -158,6 +160,9 @@ class AppGraph(
     /** Downloads and offline (concept 27 section 9): built on first use, the same way for the app and its tests. */
     val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
 
+    /** The sound across the pages (concept 27 8.3): built on first use, the same way for the app and its tests. */
+    val audio: com.slouchcat.app.mobile.audio.AudioData by lazy { audioData?.invoke(this) ?: com.slouchcat.app.mobile.audio.AudioData.create(appContext, this) }
+
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
@@ -191,7 +196,7 @@ fun describeDevice(context: Context): DeviceDescription {
 
 private const val TABLET_DP = 600
 
-class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost {
+class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost, com.slouchcat.app.mobile.audio.AudioHost {
     lateinit var graph: AppGraph
         private set
 
@@ -201,12 +206,19 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
         graph = AppGraph(this)
         // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
         OfflineStarter(this, graph).start()
+        // The sound (stage 7): its hooks, and the last title of a process that died, shown paused.
+        graph.audio
     }
 
     /** The one offline engine for the background fetch and the sync (core/offline). */
     override val offlineEngine get() = graph.offline.engine
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = graph.imageLoader
+
+    /** The sound of the process for the media session service (stage 7). */
+    override val audioPlayback get() = graph.audio.playback
+
+    override val audioHttp get() = graph.http
 }
 
 /**

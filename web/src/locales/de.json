@@ -514,8 +514,54 @@
       "signOutSize_other": "{{count}} Downloads · {{size}}",
       "signOutKeep": "Behältst du sie, öffnen sie sich erst wieder, wenn sich dasselbe Konto anmeldet."
     },
-    "audio": {},
-    "radio": {},
+    "audio": {
+      "chapterOf": "Kapitel {{n}} von {{total}}",
+      "leftTotal": "noch {{left}} insgesamt · {{percent}} %",
+      "resumeChapter": "Kapitel {{n}} · {{position}} von {{length}}",
+      "close": "Tonplayer schliessen",
+      "open": "Tonplayer öffnen: {{title}}",
+      "stop": "Wiedergabe beenden",
+      "speedTitle": "Tempo",
+      "sleepTitle": "Schlaftimer",
+      "sleepLeft": "noch {{left}}",
+      "download": "Laden",
+      "allParts": "Ein Download über alle Teile des Hörbuchs.",
+      "newest": "Neueste Folge",
+      "newestFirst": "neueste zuerst",
+      "episodeMeta": "{{date}} · {{length}}",
+      "chaptersMeta": "{{count}} · {{length}}",
+      "previousEpisode": "Vorherige Folge",
+      "nextEpisode": "Nächste Folge",
+      "restored": "Zuletzt gehört",
+      "offline": "Vom Gerät",
+      "channel": "Wiedergabe",
+      "episodeHeard": "{{title}} als gehört markieren",
+      "episodeUnheard": "{{title}} als ungehört markieren",
+      "failed": "Das hat nicht geklappt. Versuch es nochmals.",
+      "audiobooks": "Hörbücher",
+      "podcasts": "Podcasts",
+      "noLibrary": "Dieses Profil sieht keine solche Bibliothek."
+    },
+    "radio": {
+      "title": "Webradio",
+      "moreSubtitle": "Live-Sender",
+      "allCountries": "Alle Länder",
+      "countryTitle": "Land",
+      "added": "{{name}} ist jetzt in «Meine Sender».",
+      "removed": "{{name}} ist nicht mehr in «Meine Sender».",
+      "failed": "Das hat nicht geklappt. Versuch es nochmals.",
+      "favoriteOn": "{{name}} aus «Meine Sender» entfernen",
+      "favoriteOff": "{{name}} zu «Meine Sender» hinzufügen",
+      "error": {
+        "watchLimit": "Die Schauzeit für heute ist aufgebraucht.",
+        "capacity": "Der Server spielt gerade so viele Sender, wie er darf. Versuch es später nochmals.",
+        "unreachable": "Der Sender antwortet gerade nicht.",
+        "notAudio": "Dieser Sender sendet keinen Ton.",
+        "ended": "Die Wiedergabe wurde beendet.",
+        "network": "Keine Verbindung zum Server.",
+        "failed": "Dieser Sender lässt sich gerade nicht abspielen."
+      }
+    },
     "wishes": {},
     "notifications": {},
     "tv": {}
@@ -1632,7 +1678,13 @@
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
-      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Grösse",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Hintergrund",
         "none": "Keiner",
@@ -1640,8 +1692,16 @@
         "translucent": "Halbtransparent",
         "box": "Box"
       },
-      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
-      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
+      "color": {
+        "title": "Farbe",
+        "white": "Weiss",
+        "yellow": "Gelb"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Unten",
+        "raised": "Etwas höher"
+      },
       "offset": {
         "title": "Versatz",
         "earlier": "0.1 s früher",
@@ -1704,8 +1764,16 @@
       "cardSeason": "Staffel {{season}} · {{name}}",
       "notOnDevice": "Nicht auf diesem Gerät"
     },
-    "tabs": { "label": "Mehr zum Titel", "next": "Als Nächstes", "info": "Info" },
-    "pauseView": { "label": "Pause", "paused": "Pausiert", "chapter": "Kapitel: {{chapter}}" },
+    "tabs": {
+      "label": "Mehr zum Titel",
+      "next": "Als Nächstes",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Pause",
+      "paused": "Pausiert",
+      "chapter": "Kapitel: {{chapter}}"
+    },
     "slow": {
       "label": "Langsame Verbindung",
       "text": "Verbindung langsam – auf {{quality}} wechseln?",

@@ -87,6 +87,25 @@ am fertigen Bau prüfen (`android/app-mobile/src/main/AndroidManifest.xml`); die
 **Folge, wenn der Dienst fehlt oder aufgeschoben wird:** Ein Hörbuch bricht ab, sobald der
 Bildschirm ausgeht. / *Impact if deferred: an audiobook stops as soon as the screen turns off.*
 
+**So gebaut (K27 Stufe 7):**
+
+- Der Dienst `AudioService` (Media3, `MediaSessionService`) trägt im Manifest
+  `foregroundServiceType="mediaPlayback"`. Erklärt sind dazu `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_MEDIA_PLAYBACK` und `WAKE_LOCK`: Der Player hält beim Spielen CPU und WLAN wach.
+- Der Dienst ist exportiert, weil die Steuerungen des Systems ihn erreichen müssen (Mitteilung,
+  Sperrbildschirm, Bluetooth). Die Sitzung nimmt nur die eigene App, die Mitteilung und die
+  vertrauenswürdigen Steuerungen des Systems an, und keine davon darf Medien setzen.
+- Die App verbindet sich mit dem Dienst erst, wenn der Nutzer in der App etwas abspielt. Media3
+  macht ihn nur während des Spielens zum Vordergrunddienst; bei Pause bleibt die Mitteilung ohne
+  Vordergrund.
+- Stopp, Profilwechsel und Abmelden beenden den Dienst. Nach dem Tod des Prozesses startet nichts
+  von selbst.
+- Der Videoplayer nutzt den Dienst nicht und hält im Hintergrund an.
+- Die Mitteilung zeigt Titel, Autor oder Sender und das Titelbild. Das Titelbild kommt über den
+  eigenen HTTP-Client vom eigenen Server.
+- Neue Datenarten entstehen nicht: Fortschritt, Tempo und Herzschlag des Radios gehen wie bisher
+  an den eigenen Server («Interaktionen mit der App»).
+
 ### 2.2 `dataSync`
 
 **Beschreibung (Deutsch):**
