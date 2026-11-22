@@ -102,6 +102,11 @@ class WishTitleViewModel(
 
     fun retry() = load()
 
+    /** Back on the page: the wish may have changed elsewhere («Meine Wünsche», another profile). */
+    fun onResume() {
+        if (_state.value.title is Loadable.Ready && !_state.value.sending) load(keep = true)
+    }
+
     /** «Anfordern»: a series opens the sheet with its seasons, a film the sheet to confirm. */
     fun onRequest() {
         val title = (_state.value.title as? Loadable.Ready)?.value ?: return

@@ -136,6 +136,7 @@ class WishesFeature(
                 )
             }
             val state by vm.state.collectAsStateWithLifecycle()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onResume() }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
             val snackbar = remember { SnackbarHostState() }

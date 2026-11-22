@@ -77,7 +77,7 @@ class MessagesShowcaseTest {
         val show = start(data)
 
         // The start with the bell and its badge (unread entries and the announcement).
-        show.waitFor(hasContentDescription(s(R.string.nav_notifications), substring = true) and hasClickAction())
+        show.waitFor(hasContentDescription(context.resources.getQuantityString(R.plurals.app_notifications_bell, 3, 3)))
         show.shot("w10-start-bell")
 
         // «Wünsche»: «Entdecken» filled, «Meine Wünsche», a wish, a series with its sheet.
@@ -88,10 +88,10 @@ class MessagesShowcaseTest {
         show.waitFor(hasText("Nebelhafen", substring = true))
         show.shot("w12-wishes-mine")
         show.open(WishesFeature.TARGET, WishesRoute(), WishTitleRoute("movie", data.requestedId))
-        show.waitFor(hasText(s(R.string.wishes_withdraw_action)) and hasClickAction())
+        show.waitFor(hasText(s(R.string.wishes_withdraw_action)))
         show.shot("w13-wish")
         show.open(WishesFeature.TARGET, WishesRoute(), WishTitleRoute("show", data.seriesId))
-        show.waitFor(hasText(s(R.string.app_wishes_request)) and hasClickAction())
+        show.waitFor(hasText(s(R.string.app_wishes_request)))
         show.shot("w14-wish-series")
         compose.onAllNodes(hasText(s(R.string.app_wishes_request)) and hasClickAction()).onFirst().performClick()
         show.waitFor(hasText(s(R.string.app_wishes_allSeasons)))

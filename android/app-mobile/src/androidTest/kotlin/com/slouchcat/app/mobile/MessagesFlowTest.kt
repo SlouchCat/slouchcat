@@ -216,7 +216,8 @@ class MessagesFlowTest {
 
     /** A wish from the search: the title outside the library ([query]), its page, «Anfordern». */
     private fun wishFromSearch(query: String, titles: List<String>): String {
-        tap(hasText(s(R.string.nav_search)) or hasContentDescription(s(R.string.nav_search), substring = true))
+        // A fresh search page (the target keeps the page opened last).
+        open("search", com.slouchcat.app.mobile.browse.SearchRoute())
         waitFor(hasContentDescription(s(R.string.search_label)))
         compose.onNode(hasSetTextAction()).performTextInput(query)
         waitForText(s(R.string.app_wishes_missingTitle))
@@ -226,19 +227,18 @@ class MessagesFlowTest {
         waitFor(hasText(title) and isHeading())
         shot("w02-wish-request")
         button(s(R.string.app_wishes_request)).performScrollTo().performClick()
-        waitFor(hasText(s(R.string.wishes_dialog_submit)) and hasClickAction())
+        waitFor(hasText(s(R.string.app_wishes_requestNote)))
         shot("w03-wish-sheet")
-        button(s(R.string.wishes_dialog_submit)).performClick()
-        waitFor(hasText(s(R.string.wishes_withdraw_action)) and hasClickAction())
+        button(s(R.string.app_wishes_request)).performClick()
+        waitFor(hasText(s(R.string.wishes_withdraw_action)))
         return title
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeTestRule.waitUntilFound(candidates: List<String>): String {
         var found: String? = null
-        waitUntil(20_000) {
-            found = candidates.firstOrNull { shown(hasText(it, substring = true) and hasClickAction()) }
-            found != null
-        }
+        // The waits look at the unmerged tree (the title's text node); the tap then goes to the merged row.
+        waitForNode(candidates.map { hasText(it, substring = true) }.reduce { a, b -> a or b }, 20_000)
+        found = candidates.first { shown(hasText(it, substring = true)) }
         return found!!
     }
 
@@ -338,10 +338,10 @@ class MessagesFlowTest {
         assertTrue("the notification shows", id != null)
         val manager = context.getSystemService(NotificationManager::class.java)
         assertTrue(manager.activeNotifications.any { it.id == id })
-        shot("w08-notification-shade")
+        shot("w08-settings-push-on")
         // A tap opens the app at the message's path (the test message links to the start).
         manager.activeNotifications.single { it.id == id }.notification.contentIntent.send()
-        waitFor(hasContentDescription(s(R.string.nav_notifications), substring = true) and hasClickAction())
+        waitFor(hasContentDescription(s(R.string.nav_notifications), substring = true))
         runBlocking { push.disable() }
         assertTrue(notify.getMyChannels()!!.channels.single { it.channel == Channel.PUSH }.push!!.subscriptions.none { it.thisDevice })
         scenario.close()

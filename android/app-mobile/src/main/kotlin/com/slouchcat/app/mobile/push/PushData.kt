@@ -92,14 +92,15 @@ object PushLinks {
         val clean = path?.takeIf { it.startsWith("/") } ?: return
         val bare = clean.substringBefore('?').trimEnd('/')
         when {
-            bare.isEmpty() -> Unit
+            bare.isEmpty() -> graph.registry.home.let { home -> graph.links.request(AppLink(home.key, listOf(home.route))) }
             bare == "/admin" || bare.startsWith("/admin/") -> graph.session.server?.let { server ->
                 val url = server.resolve(clean.removePrefix("/")) ?: return
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url.toString())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             bare.startsWith("/items/") -> graph.links.request("item/" + bare.removePrefix("/items/"))
             bare == "/settings/devices" -> graph.links.request(AppLink("more", listOf(MoreRoute, DevicesRoute)))
-            else -> graph.links.request(clean.removePrefix("/"))
+            // An address no page of the app knows opens the start.
+            else -> if (!graph.links.request(clean.removePrefix("/"))) open(context, graph, "/")
         }
     }
 }

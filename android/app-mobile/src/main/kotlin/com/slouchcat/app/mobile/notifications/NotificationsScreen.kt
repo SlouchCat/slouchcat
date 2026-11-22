@@ -186,7 +186,9 @@ private fun Entry(entry: Notification, unread: Boolean, images: ServerImages?, o
     val c = SlouchcatTheme.colors
     val title = entryTitle(entry)
     val context = entryContext(entry)
-    val time = DateUtils.getRelativeTimeSpanString(entry.createdAt.toInstant().toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    // A clock a little behind the server's never reads «in 0 minutes»: the future counts as now.
+    val now = System.currentTimeMillis()
+    val time = DateUtils.getRelativeTimeSpanString(minOf(entry.createdAt.toInstant().toEpochMilli(), now), now, DateUtils.MINUTE_IN_MILLIS).toString()
     val label = if (unread) {
         stringResource(R.string.notifications_entryLabelUnread, title, context, time)
     } else {
