@@ -162,12 +162,13 @@ private suspend fun fetchWithNotification(context: Context, engine: OfflineEngin
  * job. It survives swiping the app away and a restart (persisted), shows its progress and has no
  * 6-hour limit; the system wants it scheduled while the app is visible, which holds right after a tap.
  */
-@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 class DownloadJobService : JobService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var running: Job? = null
 
     override fun onStartJob(params: JobParameters): Boolean {
+        // Only scheduled from Android 14 on (AndroidFetchScheduler); the manifest names it for every level.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
         val engine = engine ?: return false
         setNotification(params, DownloadNotifications.ID, DownloadNotifications.build(this, null, null), JOB_END_NOTIFICATION_POLICY_REMOVE)
         running = scope.launch {
@@ -187,7 +188,7 @@ class DownloadJobService : JobService() {
     }
 
     override fun onStopJob(params: JobParameters): Boolean {
-        Log.i(TAG, "transfer stopped by the system", "reason" to params.stopReason)
+        Log.i(TAG, "transfer stopped by the system", "reason" to if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) params.stopReason else -1)
         running?.cancel()
         // Again later; the next run resumes at the durable length.
         return true
