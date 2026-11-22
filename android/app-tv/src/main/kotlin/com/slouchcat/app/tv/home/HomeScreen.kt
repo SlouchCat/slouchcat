@@ -181,7 +181,7 @@ private fun Rows(
 ) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = TvDimens.Browse.DetailTop)) {
+    LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = if (rows.first() is HomeSection.Spotlight) TvDimens.xs else TvDimens.safeY, bottom = TvDimens.Browse.DetailTop)) {
         items(rows, key = { it.id }) { row ->
             when (row) {
                 is HomeSection.Spotlight -> Stage(
@@ -450,6 +450,8 @@ fun TitleOrLogo(item: MediaItem, height: androidx.compose.ui.unit.Dp, width: and
                 .height(height)
                 .semantics { contentDescription = item.title },
             contentScale = ContentScale.Fit,
+            // `.sp-logo`: object-position left bottom.
+            alignment = Alignment.BottomStart,
         )
     } else {
         Text(item.title, style = TvType.xl, maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -138,7 +138,7 @@ class TvShowcaseTest {
 
     /** An entry of the rail: Left into it, to its top, down to [label], OK. */
     private fun rail(label: String) {
-        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
         key(KeyEvent.KEYCODE_DPAD_UP, RAIL_MAX)
         repeat(RAIL_MAX) {
             if (focusedLabel().contains(label)) {
@@ -169,10 +169,6 @@ class TvShowcaseTest {
         waitFor(film)
         focused(s(R.string.item_details))
         shot("c01-start-stage")
-        key(KeyEvent.KEYCODE_DPAD_DOWN, 2)
-        shot("c02-start-row")
-        key(KeyEvent.KEYCODE_DPAD_UP, 2)
-        focused(s(R.string.item_details))
 
         // A film with its actions, then a person of the cast.
         key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -187,6 +183,10 @@ class TvShowcaseTest {
         shot("c06-person")
         key(KeyEvent.KEYCODE_BACK)
         key(KeyEvent.KEYCODE_BACK)
+        // Down from the stage: the strip of titles, then the first row (the art layer follows).
+        focused(s(R.string.item_details))
+        key(KeyEvent.KEYCODE_DPAD_DOWN, 2)
+        shot("c02-start-row")
 
         // The library of films with the genre menu.
         rail(BrowseShowcaseData.libraries[0].name)
@@ -230,7 +230,7 @@ class TvShowcaseTest {
         shot("c09-collection")
 
         // The profile at the foot of the rail: the choice.
-        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
         key(KeyEvent.KEYCODE_DPAD_DOWN, RAIL_MAX)
         focused(s(R.string.tv_shell_switchProfile))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -243,6 +243,7 @@ class TvShowcaseTest {
         const val TIMEOUT = 20_000L
         const val SETTLE_MS = 700L
         const val RAIL_MAX = 14
+        const val LEFT_MAX = 8
     }
 }
 

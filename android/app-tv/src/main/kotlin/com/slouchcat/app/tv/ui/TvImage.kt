@@ -2,6 +2,7 @@ package com.slouchcat.app.tv.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import coil3.ImageLoader
@@ -18,7 +19,7 @@ val LocalTvImageLoader = staticCompositionLocalOf<ImageLoader?> { null }
 
 /** An image of the server ([model]: an address or anything Coil loads), cropped to its box, read by nobody. */
 @Composable
-fun TvImage(model: Any?, modifier: Modifier = Modifier, contentScale: ContentScale = ContentScale.Crop) {
+fun TvImage(model: Any?, modifier: Modifier = Modifier, contentScale: ContentScale = ContentScale.Crop, alignment: Alignment = Alignment.Center) {
     val loader = LocalTvImageLoader.current ?: SingletonImageLoader.get(LocalPlatformContext.current)
-    AsyncImage(model = model, contentDescription = null, imageLoader = loader, contentScale = contentScale, modifier = modifier)
+    AsyncImage(model = model, contentDescription = null, imageLoader = loader, alignment = alignment, contentScale = contentScale, modifier = modifier)
 }

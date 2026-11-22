@@ -157,6 +157,16 @@ adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slou
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!
 
+# The photos of the run, also after a failure: they show where it stopped. They lie in the app's
+# own files (debug build: run-as reads them).
+photos() {
+  [ -n "$shots" ] || return 0
+  rm -f "$shots"/*.png
+  mkdir -p "$shots"
+  adb exec-out run-as "$app" tar -cf - -C files shots | tar -xf - -C "$shots" --strip-components=1 || true
+  echo "android-tv-e2e: photos in $shots"
+}
+
 # The phone: as soon as the TV shows its code, apicheck lays the packet down at the relay.
 code=""
 for _ in $(seq 1 600); do
@@ -165,7 +175,13 @@ for _ in $(seq 1 600); do
   kill -0 "$instrument_pid" 2>/dev/null || break
   sleep 0.5
 done
-[ -n "$code" ] || { grep -E "^(OK|FAILURES|Tests run)|Exception|Error" "$root/instrument.txt" | head -n 12 >&2; fail "the TV showed no code"; }
+if [ -z "$code" ]; then
+  wait "$instrument_pid" || true
+  instrument_pid=""
+  grep -E "^(OK|FAILURES|Tests run)|Exception|Error|at com\.slouchcat" "$root/instrument.txt" | head -n 40 >&2
+  photos
+  fail "the TV showed no code"
+fi
 ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
   -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
   -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
@@ -173,14 +189,7 @@ grep '^apicheck:' "$root/apicheck.log"
 
 wait "$instrument_pid" || true
 instrument_pid=""
-grep -E "^(OK|FAILURES|Tests run)|Exception|Error" "$root/instrument.txt" | head -n 12
-if [ -n "$shots" ]; then
-  # Also after a failure: the photos show where it stopped. They lie in the app's own files
-  # (debug build: run-as reads them).
-  rm -f "$shots"/*.png
-  mkdir -p "$shots"
-  adb exec-out run-as "$app" tar -cf - -C files shots | tar -xf - -C "$shots" --strip-components=1 || true
-  echo "android-tv-e2e: photos in $shots"
-fi
+grep -E "^(OK|FAILURES|Tests run)|Exception|Error|at com\.slouchcat" "$root/instrument.txt" | head -n 40
+photos
 grep -q '^OK (' "$root/instrument.txt" || fail "the flow failed"
 echo "android-tv-e2e: done after $(($(date +%s) - started)) s ($(($(date +%s) - booted)) s with the device)"

@@ -107,7 +107,7 @@ class TvFlowTest {
 
     /** An entry of the rail from any page: Left into the rail, to its top, down to [label], OK. */
     private fun rail(label: String) {
-        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
         key(KeyEvent.KEYCODE_DPAD_UP, RAIL_MAX)
         repeat(RAIL_MAX) {
             if (isFocusedOn(label)) {
@@ -116,6 +116,7 @@ class TvFlowTest {
             }
             key(KeyEvent.KEYCODE_DPAD_DOWN)
         }
+        shot("zz-rail-without-$label")
         throw AssertionError("no entry «$label» in the rail")
     }
 
@@ -234,17 +235,17 @@ class TvFlowTest {
         shot("09-pin-typed")
         submitPin()
 
-        // «Start» (stage 2b): the rows of the server; the first card has the focus.
+        // «Start» (stage 2b): the rows of the server; the first card has the focus, the film is in its row.
         waitForText(TITLE)
-        focused(TITLE)
         shot("30-start")
         key(KeyEvent.KEYCODE_DPAD_LEFT)
         shot("11-rail-open")
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        repeat(ROW_MAX) { if (!isFocusedOn(TITLE)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
         focused(TITLE)
         // A title: «Merken» to the server, Back to the same card.
         key(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitForText(s(R.string.tv_item_more))
+        waitFor(hasContentDescription(s(R.string.tv_item_more)))
         focused(s(R.string.item_watchlist_add))
         shot("31-item")
         key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -254,7 +255,7 @@ class TvFlowTest {
         // The library from the rail.
         rail(LIBRARY)
         waitForText(s(R.string.library_filters_genre))
-        focused(TITLE)
+        waitForText(TITLE)
         shot("32-library")
         // The search: a keyboard of the TV types into the field.
         rail(s(R.string.nav_search))
@@ -362,5 +363,9 @@ class TvFlowTest {
         const val TITLE = "Night Train"
         const val LIBRARY = "Testmedien"
         const val RAIL_MAX = 12
+
+        /** Left often enough to leave a row from its last card for the rail (Left in the rail does nothing). */
+        const val LEFT_MAX = 8
+        const val ROW_MAX = 4
     }
 }

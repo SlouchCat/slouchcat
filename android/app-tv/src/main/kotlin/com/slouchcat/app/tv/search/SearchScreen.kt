@@ -252,7 +252,7 @@ private fun Results(state: SearchUiState, images: ServerImages, links: SearchLin
                 val found = hits.value
                 item(key = "count") {
                     val count = pluralCount(R.plurals.app_search_hits, found.count)
-                    Text(if (found.query.isNotEmpty()) stringResource(R.string.tv_search_hitsFor, count, found.query) else count, style = TvType.h2)
+                    Text(if (found.query.isNotEmpty()) stringResource(R.string.tv_search_hitsFor, count, found.query) else count, style = TvType.h2, modifier = Modifier.padding(bottom = TvDimens.l))
                 }
                 for ((kind, label) in GROUPS) {
                     val group = found.items.filter { it.kind == kind }
