@@ -1,23 +1,29 @@
 package com.slouchcat.core.media
 
 import com.slouchcat.core.api.ApiCaller
+import com.slouchcat.core.media.data.ApiChannelsRepository
 import com.slouchcat.core.media.data.ApiCollectionsRepository
 import com.slouchcat.core.media.data.ApiDetailRepository
 import com.slouchcat.core.media.data.ApiHomeRepository
 import com.slouchcat.core.media.data.ApiLibraryRepository
 import com.slouchcat.core.media.data.ApiMyListsRepository
+import com.slouchcat.core.media.data.ApiNotificationsRepository
 import com.slouchcat.core.media.data.ApiPersonRepository
 import com.slouchcat.core.media.data.ApiProfileSettingsRepository
 import com.slouchcat.core.media.data.ApiSearchRepository
+import com.slouchcat.core.media.data.ApiWishesRepository
+import com.slouchcat.core.media.data.ChannelsRepository
 import com.slouchcat.core.media.data.CollectionsRepository
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.media.data.HomeRepository
 import com.slouchcat.core.media.data.ItemRepository
 import com.slouchcat.core.media.data.LibraryRepository
 import com.slouchcat.core.media.data.MyListsRepository
+import com.slouchcat.core.media.data.NotificationsRepository
 import com.slouchcat.core.media.data.PersonRepository
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.media.data.SearchRepository
+import com.slouchcat.core.media.data.WishesRepository
 import okhttp3.Call
 
 /**
@@ -43,18 +49,30 @@ data class MediaData(
     val myLists: MyListsRepository,
     val collections: CollectionsRepository,
     val profiles: ProfileSettingsRepository,
+    /** «Wünsche» through Seerr (stage 8): rights, «Entdecken», a title outside the library, «Meine Wünsche». */
+    val wishes: WishesRepository,
+    /** The inbox and the announcements of the profile (stage 8). */
+    val notifications: NotificationsRepository,
+    /** The channels of the account and the push subscription of this device (stage 8). */
+    val channels: ChannelsRepository,
     /** «Merkliste» in the media choice and «Mehr»: every page that changes the list adjusts it. */
     val watchlistCount: LiveCount = LiveCount(),
     /** «Sammlungen» in the media choice. */
     val collectionsCount: LiveCount = LiveCount(),
     /** «Profile verwalten» in «Mehr». */
     val profilesCount: LiveCount = LiveCount(),
+    /** The unread entries of the inbox: the badge of the bell on «Start» (stage 8). */
+    val unreadCount: LiveCount = LiveCount(),
+    /** The open wishes of the profile: the number at «Meine Wünsche» (stage 8). */
+    val openWishesCount: LiveCount = LiveCount(),
 ) {
     /** Forgets the counts (another profile, signed out): the shell reads them again for the next one. */
     fun clearCounts() {
         watchlistCount.set(null)
         collectionsCount.set(null)
         profilesCount.set(null)
+        unreadCount.set(null)
+        openWishesCount.set(null)
     }
 
     companion object {
@@ -71,6 +89,9 @@ data class MediaData(
                 myLists = ApiMyListsRepository(api, http),
                 collections = ApiCollectionsRepository(api, http),
                 profiles = ApiProfileSettingsRepository(api, http),
+                wishes = ApiWishesRepository(api, http),
+                notifications = ApiNotificationsRepository(api, http),
+                channels = ApiChannelsRepository(api, http),
             )
         }
     }

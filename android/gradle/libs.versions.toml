@@ -42,6 +42,9 @@ zxing = "3.5.3"
 room = "2.8.5"
 ksp = "2.3.14"
 work = "2.12.0"
+# Push of the bundle `play` (concept 27, 7.3, stage 8): Firebase Cloud Messaging, set up by hand from
+# Gradle properties (no google-services.json, no Google services plugin). Apache-2.0.
+firebaseMessaging = "26.0.2"
 
 [libraries]
 # Build logic (compile-only in build-logic; the plugins themselves come in through the root build).
@@ -102,6 +105,7 @@ room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

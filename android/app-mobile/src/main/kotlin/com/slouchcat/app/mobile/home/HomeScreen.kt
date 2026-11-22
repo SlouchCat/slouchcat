@@ -52,6 +52,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -120,6 +121,8 @@ data class HomeLinks(
     val library: ((LibraryChip) -> Unit)? = null,
     val notifications: (() -> Unit)? = null,
     val profiles: () -> Unit = {},
+    /** Unread entries and open announcements: the badge of the bell (stage 8); 0 draws none. */
+    val bell: Int = 0,
 )
 
 /**
@@ -217,7 +220,12 @@ private fun HomeBar(profile: ActiveProfile?, links: HomeLinks, overlay: Boolean,
             modifier = Modifier.weight(1f).padding(start = if (menu != null) 2.dp else 12.dp).semantics { heading() },
         )
         if (links.notifications != null) {
-            SlouchcatIconButton(SlouchcatIcon.Bell, contentDescription = stringResource(R.string.nav_notifications), onClick = links.notifications)
+            val label = if (links.bell > 0) pluralStringResource(R.plurals.app_notifications_bell, links.bell, links.bell) else stringResource(R.string.nav_notifications)
+            Box {
+                SlouchcatIconButton(SlouchcatIcon.Bell, contentDescription = label, onClick = links.notifications)
+                // The mockup's dot on the bell (handy 01): something new, the number for the screen reader.
+                if (links.bell > 0) Box(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(9.dp).clip(CircleShape).background(c.accent))
+            }
         }
         if (profile != null) {
             val label = stringResource(R.string.nav_switchProfile, profile.name)

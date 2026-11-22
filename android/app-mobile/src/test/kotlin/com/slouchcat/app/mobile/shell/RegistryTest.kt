@@ -30,6 +30,10 @@ import com.slouchcat.app.mobile.more.AccountRoute
 import com.slouchcat.app.mobile.more.DevicesRoute
 import com.slouchcat.app.mobile.more.MoreRoute
 import com.slouchcat.app.mobile.playback.PlaybackSettingsRoute
+import com.slouchcat.app.mobile.wishes.WishTitleRoute
+import com.slouchcat.app.mobile.notifications.NotificationSettingsRoute
+import com.slouchcat.app.mobile.browse.NotificationsRoute
+import com.slouchcat.app.mobile.wishes.WishesRoute
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
@@ -71,13 +75,14 @@ class RegistryTest {
         WatchlistRoute::class, WatchedRoute::class, CollectionsRoute::class, CollectionRoute::class, ProfilesSettingsRoute::class,
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
         DownloadsRoute::class, OfflinePlayerRoute::class,
+        WishesRoute::class, WishTitleRoute::class, NotificationsRoute::class, NotificationSettingsRoute::class,
     )
 
     @Test
     fun theRealFeaturesMakeARegisterWithoutClashes() {
         // The checks of ShellRegistry.init: keys, places and routes of the targets, rows of «Mehr».
         val registry = ShellRegistry(features)
-        assertEquals(listOf("start", "search", "downloads", "more"), registry.destinations.map { it.key })
+        assertEquals(listOf("start", "search", "downloads", "wishes", "more"), registry.destinations.map { it.key })
         assertEquals(registry.more.size, registry.more.map { it.route::class }.toSet().size)
         // Media entries of every feature, for a few libraries, also pass their checks.
         val entries = registry.mediaEntries(libraries)

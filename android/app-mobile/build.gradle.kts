@@ -20,12 +20,27 @@ android {
     // Google's libraries. Today both are the same; only `play` is ever published.
     flavorDimensions += "distribution"
     productFlavors {
-        create("play") { dimension = "distribution" }
+        // Push (stage 8, concept 27 7.3): Firebase from four Gradle properties or environment
+        // variables, never from a checked-in google-services.json. Empty values build `play`
+        // without push; the app says so in «Einstellungen › Benachrichtigungen». The hand-over of
+        // stage 8 names the values; nothing real is ever checked in.
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(setting("slouchcat.firebase.projectId", "SLOUCHCAT_FIREBASE_PROJECT_ID")))
+            buildConfigField("String", "FIREBASE_APP_ID", quoted(setting("slouchcat.firebase.appId", "SLOUCHCAT_FIREBASE_APP_ID")))
+            buildConfigField("String", "FIREBASE_API_KEY", quoted(setting("slouchcat.firebase.apiKey", "SLOUCHCAT_FIREBASE_API_KEY")))
+            buildConfigField("String", "FIREBASE_SENDER_ID", quoted(setting("slouchcat.firebase.senderId", "SLOUCHCAT_FIREBASE_SENDER_ID")))
+        }
         // Its own id, so both builds can sit side by side on one device.
         create("foss") {
             dimension = "distribution"
             applicationIdSuffix = ".foss"
         }
+    }
+    defaultConfig {
+        // The push relay of this build (concept 27, 7.3): fixed in the app (F-21: not changeable
+        // in the app); a build with its own Firebase project names its own relay here.
+        buildConfigField("String", "PUSH_RELAY", quoted(setting("slouchcat.pushRelay", "SLOUCHCAT_PUSH_RELAY").ifEmpty { "https://push.slouchcat.com" }))
     }
     // R8 from the start, so a page that needs a keep rule shows it in `task android:apk` and
     // not first in the store build. Unsigned here; signing comes with the release (11.2).
@@ -39,6 +54,8 @@ android {
 }
 
 dependencies {
+    // Google's push only in `play` (F-33): `foss` has no Firebase on its class path.
+    "playImplementation"(libs.firebase.messaging)
     implementation(project(":core:api"))
     implementation(project(":core:session"))
     implementation(project(":core:design"))
@@ -66,3 +83,9 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.core)
 }
+
+/** A Gradle property, else an environment variable, else empty (the Firebase values of stage 8). */
+fun setting(property: String, environment: String): String =
+    (providers.gradleProperty(property).orNull ?: providers.environmentVariable(environment).orNull).orEmpty().trim()
+
+fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

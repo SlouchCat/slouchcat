@@ -81,3 +81,8 @@ offline.rules
 offline.dialog
 offline.player
 offline.state
+wishes
+titles
+notifications
+announcements
+settings.notifications

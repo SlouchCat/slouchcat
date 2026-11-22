@@ -41,8 +41,10 @@ The operator of a Slouchcat server is responsible for the data on that server.
 The app stores on your device: the address of your server and, for unencrypted connections, the
 public key your server identifies itself with; the sign-in token and a device ID issued by your
 server; saved films, episodes and audiobooks with their subtitles and images, the list of
-downloads, offline playback events still to be sent, and a check value for an offline PIN; your
-settings.
+downloads, offline playback events still to be sent, and a check value for an offline PIN; for
+push notifications a key of its own with which only this device decrypts them, the Google push
+token and the push address, encrypted with a key of the Android keystore and never in a backup;
+your settings.
 
 Only the server address goes into the device backup and a transfer to a new device; sign-in,
 downloads and everything else stay on the device. Uninstalling the app deletes everything it
@@ -54,8 +56,11 @@ The app sends to the server whose address you enter, and to no server of the dev
 e-mail address and password when you sign in, then the sign-in token with every request; the
 device ID, the kind and name of the device (for example maker, model and Android version) and the
 app version; what the device can play, so the server picks the right playback; what you do:
-chosen profiles, searches, watchlist, playback progress, downloads and settings; and your
-device's internet address, as with any connection.
+chosen profiles, searches, watchlist, playback progress, downloads and settings; your wishes
+(which film or season you request or withdraw; your server hands them to your household's Seerr,
+not to the developer); for push notifications the push address of the forwarder and the public
+part of this device's key, with which your server encrypts every notification so that only this
+device can read it; and your device's internet address, as with any connection.
 
 If the app connects to the server without HTTPS, this information travels unencrypted. The app
 warns about it. We recommend HTTPS.
@@ -79,13 +84,16 @@ notification encrypted to that address, and the service passes it on to Google's
 The service sees: when registering, your device's internet address and the push token; with every
 notification, your server's internet address, the time, the frequency and the encrypted
 notification. It does not see the title or text of a notification or your account. It stores none
-of it.
+of it. The app registers again at every start with a session, after a new push token and after a
+password change; switching push off on this device deletes the subscription at your server.
 
 ## 7. Google
 
 - **Push (Firebase Cloud Messaging):** Google delivers the notifications. Google sees the push
   token, the time and the encrypted notification, not its content and not your server's address.
-  Google's library on the device exchanges data with Google for this. Google's privacy policy
+  Google's library on the device exchanges data with Google for this: for the push token it
+  registers a Firebase installation ID and the app's ID with Google. The app switches Firebase's
+  analytics off and includes no other Firebase library. Google's privacy policy
   (<https://policies.google.com/privacy>) and the Firebase information
   (<https://firebase.google.com/support/privacy>) apply. Google may process data in the United
   States. The build without Google libraries (`foss`, not in the Play Store) does not use this.
