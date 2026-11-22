@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -100,6 +101,52 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
             check(state != "failed" && state != "aborted") { "the scan of the test library $state" }
             if (state == "done") return
             check(System.nanoTime() < deadline) { "the scan of the test library did not finish" }
+            Thread.sleep(POLL_MS)
+        }
+    }
+
+    /**
+     * Stage 4: an audio library [name] of [kind] (`audiobooks`, `podcasts`) over [folder] with
+     * [content] (`audiobook`, `podcast`), local metadata only, scanned.
+     */
+    fun ensureAudio(name: String, kind: String, folder: String, content: String) {
+        signIn()
+        if (library(name) == null) {
+            call(
+                "POST",
+                "admin/libraries",
+                """{"name":${Json.encodeToString(name)},"kind":"$kind","roots":[{"path":${Json.encodeToString(folder)},"content":"$content","providers":["local"]}]}""",
+            )
+        }
+        waitForScan(name)
+    }
+
+    /** Stage 4 with `RADIO=1`: the test stations (first catalog sync) and an offer of every country, as the phone's AudioFlowTest. */
+    fun ensureRadio() {
+        signIn()
+        if (call("GET", "admin/radio/catalog")!!.jsonObject["stationsTotal"]!!.jsonPrimitive.int == 0) {
+            call("POST", "admin/radio/catalog/sync")
+            val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+            while (call("GET", "admin/radio/catalog")!!.jsonObject["stationsTotal"]!!.jsonPrimitive.int == 0) {
+                check(System.nanoTime() < deadline) { "the radio catalog did not arrive" }
+                Thread.sleep(POLL_MS)
+            }
+        }
+        val offer = call("GET", "admin/radio/offer")!!.jsonObject
+        val steps = offer["countries"]!!.jsonArray.map { it.jsonObject }.filter { it["total"]!!.jsonPrimitive.int > 0 }.flatMap {
+            val code = it["code"]!!.jsonPrimitive.content
+            listOf("""{"op":"chooseCountry","country":"$code"}""", """{"op":"markAll","country":"$code"}""")
+        }
+        call("POST", "admin/radio/offer/apply", """{"version":${offer["version"]},"steps":[${steps.joinToString(",")}]}""")
+    }
+
+    private fun waitForScan(name: String) {
+        val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+        while (true) {
+            val state = (library(name)!!["scan"] as JsonObject)["state"]!!.jsonPrimitive.content
+            check(state != "failed" && state != "aborted") { "the scan of $name $state" }
+            if (state == "done") return
+            check(System.nanoTime() < deadline) { "the scan of $name did not finish" }
             Thread.sleep(POLL_MS)
         }
     }
