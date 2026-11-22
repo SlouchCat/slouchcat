@@ -503,3 +503,35 @@ Ohne Firebase-Projekt gibt es kein echtes FCM: Der Weg Google → Gerät ist nic
 3. Token-Wechsel: App-Daten von Google-Play-Diensten löschen oder App neu installieren, App öffnen:
    der Server listet genau ein Abo dieses Geräts.
 
+## Stufe 9: Fernseher verbinden (22. November 2026)
+
+**Im Emulator und auf dem Host geprüft**, nicht mit echten Geräten:
+
+| Prüfung | Handy | Fernseher | Ergebnis |
+|---|---|---|---|
+| `TvLinkFlowTest` (`task android:e2e CLASS=…TvLinkFlowTest`) | Handy-App in `sc_phone` und `sc_tablet`, Scan über eine Test-Naht | `TvPairing` aus `:core:pairing` (dieselbe Logik wie die TV-App) | koppelt über `relay/bin/pair` in rund 2 s nach «Verbinden»; 410, 404 und «Vermittlung weg» mit echten Antworten; Handy und Tablet grün |
+| `task android:e2e:pair` | Kotlin der Handy-App als JVM-Programm (`:core:pairing:phoneCheck`) | TV-App in `sc_tv` | koppelt (`TvFlowTest` 3 Tests grün, `phonecheck: the TV is listed under «Meine Geräte»`) |
+| Host | `phoneCheck` (Kotlin) | `apicheck -pair-tv` (Go) | koppelt; Go öffnet das Paket aus Kotlin |
+
+Zwei Emulatoren zugleich (echte TV-App und echte Handy-App) passen nicht auf die Maschine; die zwei Hälften
+oben decken je eine Seite mit der echten App ab.
+
+**Gerätecheckliste Stufe 9 (nur Marco, echtes Handy, echter Fernseher, echte Vermittlung):**
+
+1. Fernseher: «Mit dem Handy einrichten». Handy (Hauptprofil): «Mehr › Fernseher verbinden › Scanner
+   öffnen». Der Scanner von Google öffnet sich ohne Frage nach der Kamera und liest den Code auch bei
+   Spiegelung am Bildschirm.
+2. Die Frage zeigt Konto, Server und «(Hauptprofil)»; bei einem Server über HTTP die Warnung.
+3. «Verbinden»: drei Zeilen, dann «Verbunden» mit dem Namen des Fernsehers innerhalb weniger Sekunden. Der
+   Fernseher zeigt Server und Konto, dann die Profilwahl. Die Meldung «Neues Gerät verbunden» kommt per
+   E-Mail/Telegram und (Stufe 8) als Push.
+4. Unter «Meine Geräte» steht der Fernseher; dort abmelden: Der Fernseher kehrt zur Einrichtung zurück.
+5. Denselben Code ein zweites Mal scannen: Warnung «Am Treffpunkt liegt schon ein Paket».
+6. Ein Kinderprofil: Die Seite zeigt den Hinweis «nur das Hauptprofil» und «Profil wechseln», keinen Scanner.
+7. Während «Fernseher meldet sich an …» die App verlassen: Zurück in der App steht «Du hast die Seite
+   verlassen …» mit dem Weg zu «Meine Geräte».
+8. Den Code eines Fernsehers mit einer anderen Vermittlung scannen: Ablehnung mit dem Namen der Vermittlung.
+9. Ohne Internet am Handy (nur WLAN zum Server): «Die Vermittlung antwortet nicht» mit dem Hinweis auf
+   «Von Hand einrichten».
+10. Bauart `foss` (von Hand installiert): Der Scanner fragt nach der Kamera; ablehnen zeigt den Hinweis und
+    «Einstellungen öffnen»; erlauben liest den Code.

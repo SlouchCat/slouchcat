@@ -66,6 +66,24 @@ Einordnung ist unbelegt; eine Ablehnung bei der Prüfung kostet eine Runde.
   Ende-zu-Ende verschlüsselt und zählt nach Google nicht als erhoben (Stufe 8 gebaut: Entschlüsselung
   auf dem Gerät, privater Schlüssel nur auf dem Gerät, nicht in der Sicherung).
 
+### 1.3 Fernseher verbinden: Kamera und Vermittlung (Stufe 9)
+
+So gebaut (K27 Abschnitt 10, 7.2, 7.6; `android/app-mobile/.../tvlink/`):
+
+| Teil | Was die App tut | Was sie nicht tut |
+|---|---|---|
+| Kamera, Bauart `play` (Store) | Der «Google code scanner» der Google-Play-Dienste zeigt seinen eigenen Bildschirm und gibt der App nur den gelesenen Text des QR-Codes. Nur QR-Codes | keine Kamera-Berechtigung im Manifest; die App sieht kein Kamerabild |
+| Kamera, Bauart `foss` (nicht im Store) | Eigene Kameraseite (CameraX) und ZXing auf dem Gerät; die Berechtigung `CAMERA` wird erst beim Öffnen des Scanners erfragt, eine Ablehnung zeigt den Weg in die Einstellungen | kein Bild verlässt das Gerät, keins wird gespeichert |
+| Gelesener Code | Nur ein Code der TV-App für die eingestellte Vermittlung wird angenommen (Fassung, Kennung, Schlüssel, Adresse der Vermittlung). Er lebt im Arbeitsspeicher der Seite und endet mit der Kopplung | nie als Link geöffnet, nie gespeichert, nie gesichert, nie im Log |
+| Vermittlung (`pair.slouchcat.com`) | Bekommt vom Handy ein Paket (`PUT /v1/pair/{Kennung}`), das nur der Fernseher öffnen kann (HPKE). Sie sieht die Internet-Adresse des Handys, den Zeitpunkt, die Kennung des Treffpunkts und Geheimtext | sieht weder Serveradresse noch Gutschein, Konto oder Schlüssel des Servers; spricht nie mit dem Server |
+| Eigener Server | Stellt den Gutschein aus (`createPairingVoucher`) und listet danach den Fernseher unter «Meine Geräte» | – |
+
+Für das Formular heisst das: **keine neue Datenart.** Der Code des Fernsehers ist keine Angabe über
+den Nutzer; die Vermittlung bekommt Ende-zu-Ende verschlüsselten Inhalt und die Internet-Adresse nur
+für die Ratenbegrenzung (wie bei den Diensten in 1.2). Die Bauart `play` erklärt keine
+Kamera-Berechtigung; die Bauart `foss` erscheint nicht im Store. Ob der Code-Scanner von Google selbst
+Diagnosedaten sendet, bleibt unbelegt (`datenschutz.md` Abschnitt 7).
+
 ## 2. Vordergrunddienste
 
 Für Ziel-API 34 und höher verlangt Google je Art des Vordergrunddienstes eine Beschreibung und ein
@@ -226,7 +244,7 @@ nachtragen (`deploy/demo/README.md`, «Was das Einrichten tut»).
 | Gesundheits-, Finanz-, Behörden-App | Nein |
 | COVID-19 | Nicht zutreffend |
 | Datenschutzerklärung | `<Adresse der Datenschutzerklärung>` |
-| Berechtigungen mit eigener Erklärung | voraussichtlich keine: Benachrichtigungen, Internet und Vordergrunddienste brauchen keine eigene Erklärung ausser den Vordergrunddiensten (Abschnitt 2); der QR-Scanner braucht keine Kamera-Berechtigung (K27 2.7). Am Manifest des fertigen Baus prüfen |
+| Berechtigungen mit eigener Erklärung | voraussichtlich keine: Benachrichtigungen, Internet und Vordergrunddienste brauchen keine eigene Erklärung ausser den Vordergrunddiensten (Abschnitt 2); der QR-Scanner der Bauart `play` braucht keine Kamera-Berechtigung (K27 2.7; Stufe 9: das Manifest der Bauart `play` erklärt keine, nur `foss` erklärt `CAMERA`, Abschnitt 1.3). Am Manifest des fertigen Baus prüfen |
 | Ziel-API | Handy 36, TV 34 (Festlegungen des Baus) |
 
 ## Noch einzutragen

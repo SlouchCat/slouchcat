@@ -14,7 +14,9 @@
 // With -devices it runs only the device check, which plays a phone and a TV (concept 27, stage 1;
 // `task devicecheck`); -relay names a running pairing relay for the hand-over of the packet. With
 // -pair-phone it plays only the phone for a TV app that shows the given QR code (concept 26 stage
-// 2a, scripts/android-tv-e2e.sh); -pair-server is the server address the packet carries.
+// 2a, scripts/android-tv-e2e.sh); -pair-server is the server address the packet carries. With
+// -pair-tv it plays only the TV for a phone app (concept 27 stage 9): it writes the QR code's content
+// to the named file and redeems the phone's voucher.
 //
 // The output is the evidence of the acceptance: one line per viewer function with "ok" or
 // "fehlgeschlagen", the operations it used and what the server answered. The exit code is 0 only
@@ -62,7 +64,20 @@ func main() {
 	pairEmail := flag.String("pair-email", ownerEmail, "with -pair-phone: the account the phone signs in with")
 	pairPassword := flag.String("pair-password", ownerPassword, "with -pair-phone: its password")
 	pairPin := flag.String("pair-pin", ownerPin, "with -pair-phone: the PIN of its primary profile")
+	pairTV := flag.String("pair-tv", "", "play only the TV for a phone app: open a meeting point at -relay, write the QR code content to this file, wait for the packet and redeem it at -base")
+	pairCodeRelay := flag.String("pair-code-relay", "", "with -pair-tv: the relay address the code names, the one the phone reaches (default: -relay)")
+	pairWantServer := flag.String("pair-want-server", "", "with -pair-tv: the server address the packet must carry (default: any)")
+	pairWantEmail := flag.String("pair-want-email", "", "with -pair-tv: the account the sealed answer must name (default: any)")
+	pairWithin := flag.Duration("pair-within", 5*time.Minute, "with -pair-tv: how long to wait for the phone's packet")
 	flag.Parse()
+	if *pairTV != "" {
+		options := pairTVOptions{codeFile: *pairTV, relay: strings.TrimRight(*relay, "/"), codeRelay: *pairCodeRelay, wantServer: *pairWantServer, wantEmail: *pairWantEmail, expiry: *pairWithin}
+		if err := runTVOnly(*base, *spec, options, *wait, *timeout); err != nil {
+			fmt.Fprintf(os.Stderr, "apicheck: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *pairPhone != "" {
 		account := phoneAccount{email: *pairEmail, password: *pairPassword, pin: *pairPin}
 		if err := runPhoneOnly(*base, *spec, *pairPhone, strings.TrimRight(*relay, "/"), *pairServer, account, *wait, *timeout); err != nil {
@@ -94,6 +109,25 @@ func runPhoneOnly(base, spec, code, relay, packetServer string, account phoneAcc
 		packetServer = strings.TrimRight(base, "/")
 	}
 	return runPairPhone(ctx, &state{c: c}, code, relay, packetServer, account, wait)
+}
+
+// runTVOnly plays the TV for a phone app (-pair-tv): no fixtures, no other check.
+func runTVOnly(base, spec string, options pairTVOptions, wait, timeout time.Duration) error {
+	contract, err := loadContract(spec)
+	if err != nil {
+		return err
+	}
+	c, err := newClient(base, contract, timeout)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	s := &state{c: c}
+	if err := s.waitForServer(ctx, wait); err != nil {
+		return err
+	}
+	return runPairTV(ctx, s, options)
 }
 
 // run builds the client, prepares the data and walks the checks. It returns an error only when

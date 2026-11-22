@@ -83,6 +83,8 @@ testing {
             useJUnit(libs.versions.junit.get())
             dependencies {
                 implementation(project())
+                // An X25519 key of a TV for the pairing's contract test (stage 9).
+                implementation(libs.tink.android)
             }
             targets.all {
                 testTask.configure {
