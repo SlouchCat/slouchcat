@@ -18,13 +18,11 @@ import com.slouchcat.app.tv.browse.WatchlistRoute
 import com.slouchcat.app.tv.collections.CollectionMessage
 import com.slouchcat.app.tv.collections.CollectionViewModel
 import com.slouchcat.app.tv.collections.CollectionsViewModel
-import com.slouchcat.app.tv.library.LibraryFeature
 import com.slouchcat.app.tv.mylists.ListMessage
 import com.slouchcat.app.tv.mylists.WatchedViewModel
 import com.slouchcat.app.tv.mylists.WatchlistViewModel
 import com.slouchcat.app.tv.shell.Label
 import com.slouchcat.app.tv.shell.RailEntry
-import com.slouchcat.app.tv.shell.RailMedia
 import com.slouchcat.app.tv.shell.RailSection
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
@@ -35,28 +33,21 @@ import com.slouchcat.core.strings.R
 
 /**
  * The lists of stage 2b (concept 26, 3.3): «Alle anzeigen» of a start page row, «Merkliste»,
- * «Gesehen», «Sammlungen» and one collection. «Merkliste», «Gesehen» and «Sammlungen» are entries of
- * the section «Medien» of the rail after the libraries: the mockup reaches them only from the start
- * page, but «Gesehen» has no row there (deviation, stage 2b report).
+ * «Gesehen», «Sammlungen» and one collection. As in the mockup they are no entries of the rail:
+ * Merkliste and Sammlungen open from «Alle» of their rows on Start, all three from «Meine Listen»
+ * in the menu «Bibliotheken» (code review M-3, decision of the coordinator).
  */
 object ListsFeature : TvFeature {
-    override val media = listOf(
-        RailMedia { _ ->
-            listOf(
-                entry("watchlist", 0, R.string.watchlist_title, SlouchcatIcon.Bookmark, WatchlistRoute),
-                entry("watched", 1, R.string.watched_page_title, SlouchcatIcon.Eye, WatchedRoute),
-                RailEntry("collections", RailSection.Media, ORDER + 2, Label.Res(R.string.collection_all_title), SlouchcatIcon.Grid.vector, CollectionsRoute) { entry ->
-                    entry.isRoute(CollectionsRoute::class) || entry.isRoute(CollectionRoute::class)
-                },
-            )
-        },
+    override val lists = listOf(
+        entry("watchlist", 0, R.string.watchlist_title, SlouchcatIcon.Bookmark, WatchlistRoute),
+        entry("watched", 1, R.string.watched_page_title, SlouchcatIcon.Eye, WatchedRoute),
+        RailEntry("collections", RailSection.Media, 2, Label.Res(R.string.collection_all_title), SlouchcatIcon.Grid.vector, CollectionsRoute, isCurrent = { entry ->
+            entry.isRoute(CollectionsRoute::class) || entry.isRoute(CollectionRoute::class)
+        }),
     )
 
     private fun entry(key: String, at: Int, label: Int, icon: SlouchcatIcon, route: Any) =
-        RailEntry(key, RailSection.Media, ORDER + at, Label.Res(label), icon.vector, route) { it.isRoute(route::class) }
-
-    /** After any number of libraries (LibraryFeature counts up from its own order). */
-    private const val ORDER = LibraryFeature.ORDER + 1000
+        RailEntry(key, RailSection.Media, at, Label.Res(label), icon.vector, route, isCurrent = { it.isRoute(route::class) })
 
     override fun NavGraphBuilder.register(app: TvScope) {
         val graph = app.graph

@@ -7,6 +7,12 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import com.slouchcat.app.tv.testing.FakeDetails
 import com.slouchcat.app.tv.testing.FakeHome
+import com.slouchcat.app.tv.testing.FakeSearch
+import com.slouchcat.app.tv.shell.ShellTags
+import com.slouchcat.core.api.generated.models.GenreRef
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasTestTag
 import com.slouchcat.app.tv.testing.Pages
 import com.slouchcat.app.tv.testing.TV
 import com.slouchcat.app.tv.testing.TestPlayerFeature
@@ -119,6 +125,40 @@ class HomeScreenTest {
         remote.assertFocused(pages.s(R.string.item_play))
         remote.ok()
         assertEquals(ulid(1), player.played.single().itemId)
+    }
+
+    @Test
+    fun aGenreOfStartIsTheFirstPageOfSearchAndSearchLaterOpensPlain() {
+        home.page = ApiResult.Ok(HomePage(listOf(homeRow(HomeRowKey.GENRES, emptyList(), genres = listOf(GenreRef("Drama", 3))))))
+        pages.show({ it.copy(home = home, detail = details, items = details, search = FakeSearch()) })
+        pages.waitFor("Drama")
+        remote.assertFocused("Drama")
+        remote.ok()
+        pages.waitFor(pages.s(R.string.app_search_genreFilter, "Drama"))
+        // The rail marks «Suche»: the genre search is its page now (code review M-2).
+        val search = hasTestTag(ShellTags.entry("search")) and SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+        assertTrue(compose.onAllNodes(search).fetchSemanticsNodes().isNotEmpty())
+        // «Start», then «Suche»: a plain search, not the genre again.
+        pages.openRail(pages.s(R.string.nav_home))
+        pages.waitFor("Drama")
+        pages.openRail(pages.s(R.string.nav_search))
+        pages.waitFor(pages.s(R.string.tv_search_space))
+        assertTrue(compose.onAllNodes(hasText(pages.s(R.string.app_search_genreFilter, "Drama"), substring = true)).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun aDoubleOkOpensTheTitleOnce() {
+        show()
+        pages.waitFor("Night Train")
+        remote.down(3)
+        remote.right()
+        remote.assertFocused("Recent 11")
+        remote.ok()
+        remote.ok()
+        pages.waitFor(pages.s(R.string.tv_item_more))
+        // One page, not two: one Back returns to the card.
+        remote.back()
+        remote.assertFocused("Recent 11")
     }
 
     @Test
