@@ -408,7 +408,8 @@ private fun Body(state: DownloadDialogState, vm: DownloadDialogViewModel) {
     Heading(stringResource(R.string.offline_dialog_quality))
     Column(Modifier.selectableGroup()) {
         for (q in options.qualities.sortedBy { it.quality.ordinal }) {
-            val audio = options.mediaFileId == null && q.height == 0
+            // Sound (stage 7): no picture, the bitrate of the sound (mockup photos 47, 48: «Hoch · 128 kbit/s»).
+            val audio = q.height == 0
             val label = if (audio) {
                 stringResource(R.string.app_downloads_qualityAudio, qualityName(q.quality), q.audioBitrate.toString())
             } else {
@@ -426,7 +427,8 @@ private fun Body(state: DownloadDialogState, vm: DownloadDialogViewModel) {
         }
     }
     val subtitles = options.subtitles.mapNotNull { it.language ?: it.title }.distinct()
-    Info(SlouchcatIcon.Subs, if (subtitles.isEmpty()) stringResource(R.string.offline_dialog_noSubtitles) else stringResource(R.string.offline_dialog_subtitles, subtitles.joinToString(", ")))
+    // Sound has no subtitles to name.
+    if (options.qualities.any { it.height > 0 }) Info(SlouchcatIcon.Subs, if (subtitles.isEmpty()) stringResource(R.string.offline_dialog_noSubtitles) else stringResource(R.string.offline_dialog_subtitles, subtitles.joinToString(", ")))
     val free = fileSize(state.free)
     when {
         state.already -> Info(SlouchcatIcon.Check, stringResource(R.string.app_downloads_already))

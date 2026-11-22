@@ -4,10 +4,12 @@ import android.os.SystemClock
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.mobile.AppGraph
@@ -64,8 +66,10 @@ class AudioShowcaseTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private val book = audiobook(progress = progress(38, minutes = 360))
-    private val show = podcast()
+    // Without covers: the blurred cover behind an audio detail page crashes the emulator's software GPU
+    // («Failed to bind to texture»); the flow against the server shows the page with its field.
+    private val book = audiobook(progress = progress(38, minutes = 360)).copy(images = com.slouchcat.core.api.generated.models.ItemImages())
+    private val show = podcast().copy(images = com.slouchcat.core.api.generated.models.ItemImages())
     private val details = mapOf<String, ItemDetail>(book.id to book, show.id to show)
     private val engines = mutableListOf<FakeEngine>()
 
@@ -123,7 +127,12 @@ class AudioShowcaseTest {
     private fun open(target: String, vararg routes: Any) =
         InstrumentationRegistry.getInstrumentation().runOnMainSync { showcase.graph.links.request(AppLink(target, routes.toList())) }
 
-    private fun click(text: String) = compose.onAllNodes((hasText(text) or hasContentDescription(text)) and hasClickAction()).onFirst().performClick()
+    /** The node's own click once it is there and enabled (the player's buttons wait for the start). */
+    private fun click(text: String) {
+        val matcher = (hasText(text) or hasContentDescription(text)) and hasClickAction() and isEnabled()
+        compose.waitUntil(20_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(matcher).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+    }
 
     /** The fake player of what plays starts (it buffers until told). */
     private fun playing() {
@@ -157,11 +166,13 @@ class AudioShowcaseTest {
         click(s(R.string.app_audio_sleepTitle))
         showcase.waitFor(hasText(s(R.string.player_audio_sleep_off)))
         showcase.shot("s05-listen-sleep")
-        showcase.back()
+        click(s(R.string.player_audio_sleep_off))
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText(s(R.string.player_audio_sleep_off))).fetchSemanticsNodes().isEmpty() }
         click(s(R.string.player_chapters_button))
         showcase.waitFor(hasText("Kapitel 12"))
         showcase.shot("s06-listen-chapters")
-        showcase.back()
+        click("Kapitel 1")
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText("Kapitel 12")).fetchSemanticsNodes().isEmpty() }
 
         // The small player over the start page.
         showcase.back()
