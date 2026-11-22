@@ -65,7 +65,7 @@ class OfflineContractTest {
     fun aFilmIsOrderedPreparedFetchedSyncedRevokedAndDeleted() {
         val signed = signIn()
         val http = signed.http
-        DetailContractTest.Admin(base).ensureLibrary(media, LIBRARY, "Offline")
+        DetailContractTest.Admin(base).ensureLibrary(media, LIBRARY, "Playback")
         val items = SlouchcatApi.create(::ItemsApi, base, http)
         val library = items.listVisibleLibraries()!!.single { it.name == LIBRARY }
         val film = items.listLibraryItems(library.id)!!.items.single { it.title == "Two Voices" }
