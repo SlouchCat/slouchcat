@@ -75,7 +75,8 @@ object DownloadsFeature : Feature {
                 state = state,
                 events = vm,
                 links = DownloadsLinks(
-                    play = { row -> navigator.navigate(OfflinePlayerRoute(row.itemId)) },
+                    // Stage 7: audiobooks and episodes play in the audio player, from the download.
+                    play = { row -> navigator.navigate(if (row.audio) com.slouchcat.app.mobile.browse.ListenRoute(row.itemId, offline = true) else OfflinePlayerRoute(row.itemId)) },
                     item = if (navigator.canOpen(ItemRoute::class)) ({ id: String -> navigator.navigate(ItemRoute(id)) }) else null,
                     start = { navigator.openTop(graph.registry.home) },
                 ),
@@ -125,8 +126,28 @@ fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostStat
             androidx.compose.ui.res.stringResource(R.string.app_downloads_episodeLine, (episode.seasonNumber ?: 1).toString(), (episode.episodeNumber ?: 1).toString(), episode.title)
         else -> listOfNotNull(item.year?.toString(), com.slouchcat.app.mobile.media.kindName(item.kind)).joinToString(" · ").ifEmpty { null }
     }
-    val title = if (item.kind == com.slouchcat.core.api.generated.models.ItemKind.MOVIE) item.title else item.seriesTitle ?: item.seriesRef?.title ?: item.series?.title ?: item.title
+    val audio = com.slouchcat.core.media.isAudio(item.kind)
+    val title = when {
+        // Stage 7 (mockup photos 47, 48): the audiobook or episode with its author or podcast.
+        item.kind == com.slouchcat.core.api.generated.models.ItemKind.PODCAST -> state.episode?.title ?: item.title
+        audio || item.kind == com.slouchcat.core.api.generated.models.ItemKind.MOVIE -> item.title
+        else -> item.seriesTitle ?: item.seriesRef?.title ?: item.series?.title ?: item.title
+    }
+    val audioLine = when (item.kind) {
+        com.slouchcat.core.api.generated.models.ItemKind.PODCAST -> item.title
+        com.slouchcat.core.api.generated.models.ItemKind.PODCAST_EPISODE -> item.podcast?.title ?: item.author
+        else -> item.author
+    }
     val server = graph.session.server
     val poster = remember(server, item.id) { server?.let { ServerImages(it).posters(item.images) } ?: com.slouchcat.core.media.ImageSet(emptyList()) }
-    DownloadDialog(state, title, subtitle, vm, poster) { graph.links.request("downloads") }
+    DownloadDialog(
+        state,
+        title,
+        if (audio) audioLine else subtitle,
+        vm,
+        poster,
+        onOpenDownloads = { graph.links.request("downloads") },
+        note = if (item.kind == com.slouchcat.core.api.generated.models.ItemKind.AUDIOBOOK && item.mediaFiles.size > 1) androidx.compose.ui.res.stringResource(R.string.app_audio_allParts) else null,
+        square = audio,
+    )
 }

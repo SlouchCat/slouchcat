@@ -73,8 +73,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
 
-/** The kinds the video download offers (audiobooks and podcast episodes come with stage 7). */
-fun downloadable(kind: ItemKind) = kind == ItemKind.MOVIE || kind == ItemKind.EPISODE || kind == ItemKind.SEASON || kind == ItemKind.SERIES
+/** The kinds a download offers: video, and since stage 7 audiobooks, podcast episodes and a podcast (its newest episode). */
+fun downloadable(kind: ItemKind) = kind == ItemKind.MOVIE || kind == ItemKind.EPISODE || kind == ItemKind.SEASON || kind == ItemKind.SERIES ||
+    kind == ItemKind.AUDIOBOOK || kind == ItemKind.PODCAST_EPISODE || kind == ItemKind.PODCAST
+
+/** A title the dialog offers as one file, without episodes around it (a film, an audiobook, a podcast episode). */
+private fun single(kind: ItemKind) = kind == ItemKind.MOVIE || kind == ItemKind.AUDIOBOOK || kind == ItemKind.PODCAST_EPISODE
 
 /** «Diese Folge», «Nächste 3 Folgen», «Ganze Staffel» (mockup `ACT.dlAsk`). */
 enum class DownloadScope { One, Next, Season }
@@ -190,6 +194,8 @@ class DownloadDialogViewModel(
                     if (episode == null) episode = siblings.firstOrNull()
                     count = parent?.episodes?.size ?: 0
                 }
+                // Stage 7: a podcast offers its newest episode (mockup photo handy 47).
+                ItemKind.PODCAST -> episode = item.episodes?.firstOrNull()
                 ItemKind.SEASON -> {
                     season = item.toRef()
                     count = item.episodes?.size ?: item.episodeCount ?: 0
@@ -198,12 +204,12 @@ class DownloadDialogViewModel(
             }
             val next = episode?.let { e -> siblings.dropWhile { it.id != e.id }.take(NEXT) }.orEmpty()
             val scopes = buildList {
-                if (item.kind == ItemKind.MOVIE || episode != null) add(DownloadScope.One)
+                if (single(item.kind) || episode != null) add(DownloadScope.One)
                 if (next.size > 1) add(DownloadScope.Next)
                 if (season != null) add(DownloadScope.Season)
             }
             val options = mutableMapOf<DownloadScope, DownloadOptions>()
-            val one = if (item.kind == ItemKind.MOVIE) item.id else episode?.id
+            val one = if (single(item.kind)) item.id else episode?.id
             var refused = false
             fun keep(result: ApiResult<DownloadOptions>): DownloadOptions? {
                 if (result is ApiResult.NotAllowed) refused = true
@@ -308,6 +314,10 @@ fun DownloadDialog(
     vm: DownloadDialogViewModel,
     poster: ImageSet = ImageSet(emptyList()),
     onOpenDownloads: (() -> Unit)? = null,
+    /** A line under the sizes (stage 7: «Ein Download über alle Teile des Hörbuchs.»). */
+    note: String? = null,
+    /** A square cover (audio) instead of a poster 2:3. */
+    square: Boolean = false,
 ) {
     if (!state.open) return
     val c = SlouchcatTheme.colors
@@ -318,7 +328,7 @@ fun DownloadDialog(
         SheetTitle(heading)
         // `md-dlhead`: the poster, the title and its line (mockup photos 45 and 46).
         Row(Modifier.padding(horizontal = gutter(), vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            MediaImage(poster, title, Modifier.size(48.dp, 72.dp).clip(RoundedCornerShape(6.dp)))
+            MediaImage(poster, title, Modifier.size(if (square) 56.dp else 48.dp, if (square) 56.dp else 72.dp).clip(RoundedCornerShape(6.dp)))
             Column(Modifier.weight(1f)) {
                 Text(title, style = SlouchcatType.strong, color = c.tx)
                 if (subtitle != null) Text(subtitle, style = SlouchcatType.caption, color = c.tx2)
@@ -329,6 +339,12 @@ fun DownloadDialog(
             state.deviceRequired -> Note(stringResource(R.string.app_downloads_deviceRequired), warning = true, modifier = Modifier.padding(gutter()))
             state.scopes.isEmpty() -> Note(stringResource(R.string.app_downloads_optionsFailed), warning = true, modifier = Modifier.padding(gutter()))
             else -> Body(state, vm)
+        }
+        if (note != null && !state.loading && state.scopes.isNotEmpty()) {
+            Row(Modifier.padding(horizontal = gutter(), vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                com.slouchcat.core.design.SlouchcatIconImage(SlouchcatIcon.Headphones, contentDescription = null, size = 18.dp, tint = c.tx3)
+                Text(note, style = SlouchcatType.caption, color = c.tx2)
+            }
         }
         if (state.failed && state.scopes.isNotEmpty()) Note(stringResource(R.string.app_downloads_failed), warning = true, modifier = Modifier.padding(gutter()))
         SheetActions {

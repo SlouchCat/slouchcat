@@ -83,6 +83,8 @@ data class DownloadRowUi(
     val poster: File?,
     val season: Int?,
     val episode: Int?,
+    /** An audiobook or a podcast episode: it plays in the audio player (stage 7). */
+    val audio: Boolean = false,
 ) {
     val section: Section get() = when (state) {
         RowState.Done -> Section.Done
@@ -277,6 +279,7 @@ class DownloadsViewModel(
             poster = engine.files.poster(d.id).takeIf { d.posterStored && it.exists() },
             season = item?.seasonNumber,
             episode = episode,
+            audio = item?.kind?.let { com.slouchcat.core.media.isAudio(it) } == true,
         )
     }
 
