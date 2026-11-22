@@ -273,7 +273,7 @@ class DownloadDialogViewModel(
 
 /** The sheet itself (mockup `mdDlSheet`). */
 @Composable
-fun DownloadDialog(state: DownloadDialogState, title: String, subtitle: String?, vm: DownloadDialogViewModel) {
+fun DownloadDialog(state: DownloadDialogState, title: String, subtitle: String?, vm: DownloadDialogViewModel, onOpenDownloads: (() -> Unit)? = null) {
     if (!state.open) return
     val c = SlouchcatTheme.colors
     val heading = stringResource(R.string.app_downloads_dialogTitle)
@@ -306,6 +306,15 @@ fun DownloadDialog(state: DownloadDialogState, title: String, subtitle: String?,
                     leadingIcon = SlouchcatIcon.Download,
                     busy = state.starting,
                     enabled = !state.tooLittle && !state.loading,
+                    modifier = Modifier.weight(1f),
+                )
+            } else if (state.already && onOpenDownloads != null) {
+                SlouchcatButton(
+                    stringResource(R.string.app_downloads_toDownloads),
+                    onClick = {
+                        vm.onDismiss()
+                        onOpenDownloads()
+                    },
                     modifier = Modifier.weight(1f),
                 )
             }

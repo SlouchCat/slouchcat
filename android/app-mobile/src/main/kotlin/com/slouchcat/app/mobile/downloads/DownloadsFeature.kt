@@ -116,5 +116,5 @@ fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostStat
         state.episode != null && item.kind != com.slouchcat.core.api.generated.models.ItemKind.MOVIE -> state.episode?.title
         else -> item.year?.toString()
     }
-    DownloadDialog(state, item.seriesTitle ?: item.title, subtitle, vm)
+    DownloadDialog(state, item.seriesTitle ?: item.title, subtitle, vm) { graph.links.request("downloads") }
 }
