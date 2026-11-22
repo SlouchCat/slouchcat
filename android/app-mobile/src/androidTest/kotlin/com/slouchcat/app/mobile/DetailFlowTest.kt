@@ -11,21 +11,19 @@ import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.core.api.ClientIdentity
-import com.slouchcat.core.api.SessionCredentials
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
-import com.slouchcat.core.api.generated.apis.AuthApi
+import com.slouchcat.core.api.generated.apis.DiscoverApi
 import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.SetupApi
-import com.slouchcat.core.api.generated.models.AppLoginRequest
-import com.slouchcat.core.api.generated.models.SelectProfileRequest
+import com.slouchcat.core.api.generated.models.ItemWatchedRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
@@ -79,9 +77,7 @@ class DetailFlowTest {
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
-    }
+    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNode(matcher, timeout)
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
@@ -110,33 +106,31 @@ class DetailFlowTest {
 
     private fun jump(address: String) = InstrumentationRegistry.getInstrumentation().runOnMainSync { assertTrue(graph.links.request(address)) }
 
-    /** The ids the flow opens, read as the app (Bearer of a tablet session). */
+    /** The ids the flow opens, read as the primary profile. */
     private class Titles(val film: String, val series: String, val seasons: List<String>)
 
     private fun prepareServer(): Titles {
         val setup = SlouchcatApi.create(::SetupApi, server, SlouchcatHttp.client(identity))
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
-        Admin(server, email, password, pin).ensureLibrary(requireNotNull(media) { "run through scripts/android-e2e.sh, which writes the media" })
-        val login = SlouchcatApi.create(::AuthApi, server, SlouchcatHttp.client(identity))
-            .appLogin(AppLoginRequest(email, password, "E2E detail check", AppLoginRequest.Kind.TABLET))!!
-        val http = SlouchcatHttp.client(
-            identity,
-            object : SessionCredentials {
-                override val server = this@DetailFlowTest.server
-                override val bearerToken = login.token
-                override val deviceId: String? = null
-            },
-        )
-        val auth = SlouchcatApi.create(::AuthApi, server, http)
-        val primary = auth.listMyProfiles()!!.single { it.isPrimary }
-        auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
+        val admin = Admin(server, email, password, pin)
+        admin.ensureLibrary(requireNotNull(media) { "run through scripts/android-e2e.sh, which writes the media" })
+        // Read and reset through the shared web session of the primary profile: no further sign-in
+        // (the server allows 10 a minute and address, and the app's own sign-ins of the flows count too).
+        val http = admin.http
         val items = SlouchcatApi.create(::ItemsApi, server, http)
         val library = items.listVisibleLibraries()!!.single { it.name == LIBRARY }
         val titles = items.listLibraryItems(library.id)!!.items
         val series = titles.single { it.title == "Quiet Ring" }.id
         val seasons = items.getItem(series)!!.seasons!!.map { it.title }
-        auth.logout()
-        return Titles(titles.single { it.title == "Night Train" }.id, series, seasons)
+        val film = titles.single { it.title == "Night Train" }.id
+        // The titles as a fresh library has them, whichever flow ran before on this server: not on the
+        // watchlist, nothing watched, no pick of the profile (the flow sets each of them).
+        val discover = SlouchcatApi.create(::DiscoverApi, server, http)
+        runCatching { discover.removeFromWatchlist(film) }
+        runCatching { discover.unrecommendItem(film) }
+        items.setItemWatched(film, ItemWatchedRequest(false))
+        items.setItemWatched(series, ItemWatchedRequest(false))
+        return Titles(film, series, seasons)
     }
 
     /** From wherever the app stands (address, sign-in, profile choice) to a chosen profile. */
@@ -243,17 +237,36 @@ class DetailFlowTest {
 
     /** The administration as a browser uses it, only to add the test library. */
     internal class Admin(private val base: HttpUrl, private val email: String, private val password: String, private val pin: String) {
-        private val cookies = mutableListOf<Cookie>()
-        private val http = OkHttpClient.Builder()
+        /**
+         * The web session of the account, shared by every flow of one run (one process): each sign-in
+         * and profile choice counts against the server's limit of 10 attempts a minute per address,
+         * which the app's own sign-ins of the flows need.
+         */
+        private val cookies: MutableList<Cookie> = synchronized(SESSIONS) { SESSIONS.getOrPut("$base|$email") { mutableListOf() } }
+
+        /** The client of that web session, also for the generated API (the header the server asks of a browser). */
+        val http: OkHttpClient = OkHttpClient.Builder()
             .cookieJar(object : CookieJar {
                 override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                    this@Admin.cookies.removeAll { old -> cookies.any { it.name == old.name } }
-                    this@Admin.cookies += cookies
+                    synchronized(this@Admin.cookies) {
+                        this@Admin.cookies.removeAll { old -> cookies.any { it.name == old.name } }
+                        this@Admin.cookies += cookies
+                    }
                 }
 
-                override fun loadForRequest(url: HttpUrl) = cookies.toList()
+                override fun loadForRequest(url: HttpUrl) = synchronized(cookies) { cookies.toList() }
             })
+            .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("X-Requested-With", "Slouchcat").build()) }
             .build()
+
+        /** Signs in with the primary profile, unless the shared web session still has one. */
+        fun signIn() {
+            if (cookies.isNotEmpty() && runCatching { call("GET", "admin/libraries") }.isSuccess) return
+            call("POST", "auth/login", """{"email":${Json.encodeToString(email)},"password":${Json.encodeToString(password)}}""")
+            val primary = call("GET", "auth/profiles")!!.jsonArray.map { it.jsonObject }.single { it["isPrimary"]!!.jsonPrimitive.boolean }
+            val withPin = primary["hasPin"]?.jsonPrimitive?.boolean == true
+            call("POST", "auth/profiles/${primary["id"]!!.jsonPrimitive.long}/select", if (withPin) """{"pin":"$pin"}""" else null)
+        }
 
         private fun call(method: String, path: String, body: String? = null): JsonElement? {
             val request = Request.Builder()
@@ -274,10 +287,7 @@ class DetailFlowTest {
             call("GET", "admin/libraries")!!.jsonArray.map { it.jsonObject }.firstOrNull { it["name"]?.jsonPrimitive?.content == current }
 
         fun ensureLibrary(media: String, name: String = LIBRARY, folder: String = "") {
-            call("POST", "auth/login", """{"email":${Json.encodeToString(email)},"password":${Json.encodeToString(password)}}""")
-            val primary = call("GET", "auth/profiles")!!.jsonArray.map { it.jsonObject }.single { it["isPrimary"]!!.jsonPrimitive.boolean }
-            val withPin = primary["hasPin"]?.jsonPrimitive?.boolean == true
-            call("POST", "auth/profiles/${primary["id"]!!.jsonPrimitive.long}/select", if (withPin) """{"pin":"$pin"}""" else null)
+            signIn()
             current = name
             if (library() == null) {
                 val movies = Json.encodeToString("$media$folder/Movies")
@@ -300,6 +310,9 @@ class DetailFlowTest {
     }
 
     private companion object {
+        /** The cookies of the web session per server and account (see [Admin]). */
+        val SESSIONS = mutableMapOf<String, MutableList<Cookie>>()
+
         const val LIBRARY = "Android test media"
         const val FRAME_MS = 500L
         const val SCAN_TIMEOUT_NS = 120_000_000_000L

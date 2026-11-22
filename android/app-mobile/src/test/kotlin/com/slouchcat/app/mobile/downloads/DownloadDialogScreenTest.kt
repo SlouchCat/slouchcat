@@ -13,7 +13,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.testing.FakeOfflineServer
-import com.slouchcat.core.browse.testing.HTTP_SERVER
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
 import com.slouchcat.app.mobile.testing.offlineIdentity
 import com.slouchcat.app.mobile.testing.options
@@ -23,6 +22,7 @@ import com.slouchcat.core.api.generated.models.DownloadQuality
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemImages
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.testing.HTTP_SERVER
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.data.ItemRepository
 import com.slouchcat.core.player.MemoryDeviceSettingsStore

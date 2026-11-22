@@ -141,7 +141,6 @@
     "more": {
       "title": "More",
       "switchProfile": "Switch profile",
-      "profileLine": "{{role}} · {{email}}",
       "insecureTitle": "Unencrypted connection.",
       "insecureBody": "Password and access travel openly over the network. In other networks someone can read along. Set up HTTPS for the server.",
       "section": {

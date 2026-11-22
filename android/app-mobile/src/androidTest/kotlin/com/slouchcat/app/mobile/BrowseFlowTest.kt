@@ -26,8 +26,10 @@ import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
+import com.slouchcat.core.api.generated.apis.DiscoverApi
 import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
+import com.slouchcat.core.api.generated.models.PinRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
@@ -66,15 +68,11 @@ class BrowseFlowTest {
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
-    }
+    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNode(matcher, timeout)
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
-    private fun gone(matcher: SemanticsMatcher, timeout: Long = 20_000) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher).fetchSemanticsNodes().isEmpty() }
-    }
+    private fun gone(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNoNode(matcher, timeout)
 
     private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
 
@@ -113,9 +111,22 @@ class BrowseFlowTest {
         DetailFlowTest.Admin(server, email, password, pin).ensureLibrary(requireNotNull(media) { "run through scripts/android-e2e.sh, which writes the media" })
     }
 
+    /**
+     * The watchlist the account had before (apicheck seeds a podcast on it for the notifications):
+     * this flow needs an empty one to reach the empty page, and puts the titles back at its end.
+     */
+    private var watchlistBefore: List<String> = emptyList()
+
+    /** Whether the primary profile had its PIN before this flow took it away (put back at the end). */
+    private var primaryHadPin = false
+
     private fun prepareProfiles() {
+        val discover = SlouchcatApi.create(::DiscoverApi, server, graph.http)
+        watchlistBefore = discover.listWatchlist(0, 200)!!.items.map { it.id }
+        watchlistBefore.forEach { discover.removeFromWatchlist(it) }
         val profiles = SlouchcatApi.create(::ProfilesApi, server, graph.http)
         val primary = profiles.listProfiles()!!.single { it.isPrimary }
+        primaryHadPin = primary.hasPin
         profiles.removeProfilePin(primary.id)
         profiles.listProfiles()!!.filter { it.name == KID }.forEach { profiles.deleteProfile(it.id) }
     }
@@ -169,7 +180,18 @@ class BrowseFlowTest {
 
     @After
     fun forgetTheServer() = runBlocking {
-        if (graph.session.state.value is SessionState.Ready) graph.sessionActions.signOut()
+        if (graph.session.state.value is SessionState.Ready) {
+            // The account as it was: the watchlist of before, whatever the flow left on it.
+            runCatching {
+                val discover = SlouchcatApi.create(::DiscoverApi, server, graph.http)
+                discover.listWatchlist(0, 200)!!.items.map { it.id }.filterNot { it in watchlistBefore }.forEach { discover.removeFromWatchlist(it) }
+                watchlistBefore.forEach { discover.addToWatchlist(it) }
+                val profiles = SlouchcatApi.create(::ProfilesApi, server, graph.http)
+                profiles.listProfiles()!!.filter { it.name == KID }.forEach { profiles.deleteProfile(it.id) }
+                if (primaryHadPin) profiles.setProfilePin(profiles.listProfiles()!!.single { it.isPrimary }.id, PinRequest(pin))
+            }
+            graph.sessionActions.signOut()
+        }
         graph.serverStore.clear()
     }
 
