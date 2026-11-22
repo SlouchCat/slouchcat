@@ -8,6 +8,7 @@
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580)
+# EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
@@ -32,6 +33,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
 adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
+adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
@@ -44,11 +47,15 @@ cleanup() {
     mkdir -p "$logs"
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
-    if [ -n "$emulator_pid" ]; then adb logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
+    if [ -n "$emulator_pid" ]; then
+      adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true
+      # The photos of a failed wait (FlowWaits.kt: semantics tree in the message, photo here).
+      adb_brief pull "/sdcard/Android/data/$app/files/failures" "$logs/" >/dev/null 2>&1 || true
+    fi
   fi
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
   if [ -n "$emulator_pid" ]; then
-    adb emu kill >/dev/null 2>&1 || true
+    adb_brief emu kill >/dev/null 2>&1 || true
     # Also before the emulator reached adb: the process itself (code review minor 31).
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
@@ -111,8 +118,10 @@ while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
 done
 
 boot() {
+  # EMU_OPTS: more options for the emulator, split at spaces (CI: -feature -Vulkan).
+  # shellcheck disable=SC2086
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect >"$root/emulator.log" 2>&1 &
+    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 240); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1

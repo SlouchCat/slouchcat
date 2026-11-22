@@ -82,7 +82,7 @@ class SignInFlowTest {
         val http = signedIn(TV_NAME, password)
         val auth = SlouchcatApi.create(::AuthApi, server, http)
         val primary = auth.listMyProfiles()!!.single { it.isPrimary }
-        auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
+        withinTheLimit { auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null) }
         SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
         // What stage 4 browses, read before the wrong PIN of the flow (it slows the profile down).
         val items = SlouchcatApi.create(::ItemsApi, server, http)
@@ -93,21 +93,26 @@ class SignInFlowTest {
     private var libraries: List<LibraryNav> = emptyList()
     private var filmGenre: String? = null
 
+    /**
+     * [call] against the server's pot of sign-in and PIN attempts, which the flows of one run share
+     * (10 per minute and address): on a 429 once the pause the server names in Retry-After, then the
+     * same call again.
+     */
+    private fun <T> withinTheLimit(call: () -> T): T = try {
+        call()
+    } catch (e: ClientException) {
+        if (e.statusCode != 429) throw e
+        val pause = (e.response as? ClientError<*>)?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }
+            ?.value?.firstOrNull()?.trim()?.toLongOrNull() ?: DEFAULT_PAUSE_S
+        Thread.sleep(pause * 1000)
+        call()
+    }
+
     /** A client of another device (a TV) signed in to the account. */
     private fun signedIn(name: String, secret: String, kind: AppLoginRequest.Kind = AppLoginRequest.Kind.TV): okhttp3.OkHttpClient {
         val auth = SlouchcatApi.create(::AuthApi, server, SlouchcatHttp.client(identity))
         val request = AppLoginRequest(email, secret, name, kind)
-        val login = try {
-            auth.appLogin(request)!!
-        } catch (e: ClientException) {
-            if (e.statusCode != 429) throw e
-            // The flows of one run share the server's pot of sign-in and PIN attempts (10 per minute and
-            // address): once, the pause the server names in Retry-After, then the same sign-in again.
-            val pause = (e.response as? ClientError<*>)?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }
-                ?.value?.firstOrNull()?.trim()?.toLongOrNull() ?: DEFAULT_PAUSE_S
-            Thread.sleep(pause * 1000)
-            auth.appLogin(request)!!
-        }
+        val login = withinTheLimit { auth.appLogin(request)!! }
         val credentials = object : SessionCredentials {
             override val server = this@SignInFlowTest.server
             override val bearerToken = login.token
@@ -116,9 +121,7 @@ class SignInFlowTest {
         return SlouchcatHttp.client(identity, credentials)
     }
 
-    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
-    }
+    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNode(matcher, timeout)
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
