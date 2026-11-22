@@ -26,7 +26,6 @@ import com.slouchcat.app.mobile.browse.MORE_TARGET
 import com.slouchcat.app.mobile.browse.NotificationsRoute
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.push.PushNotifier
-import com.slouchcat.app.mobile.push.push
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature

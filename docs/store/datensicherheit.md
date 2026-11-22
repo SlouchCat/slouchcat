@@ -45,7 +45,8 @@ Einordnung ist unbelegt; eine Ablehnung bei der Prüfung kostet eine Runde.
 | Persönliche Angaben › Nutzer-IDs | ja | nein | nein | Pflicht | App-Funktionen | Kennungen von Konto und Profil, die der Server vergibt und zurückbekommt |
 | App-Aktivitäten › Interaktionen mit der App | ja | nein | nein | Pflicht | App-Funktionen | Wiedergabe-Fortschritt, Merkliste, Gesehen, Downloads, an den eigenen Server |
 | App-Aktivitäten › Suchverlauf in der App | ja | nein | nein | Pflicht | App-Funktionen | Suchbegriffe gehen an den eigenen Server; gespeichert werden sie dort nicht (unbelegt, am Server prüfen) |
-| Geräte- oder andere IDs | ja | nein | nein | Pflicht | App-Funktionen | Gerätekennung des Servers; Push-Token von Google (bei den Diensten nur kurz, beim eigenen Server in der Push-Adresse versiegelt) |
+| Geräte- oder andere IDs | ja | nein | nein | Pflicht | App-Funktionen | Gerätekennung des Servers; Push-Token von Google (bei den Diensten nur kurz, beim eigenen Server in der Push-Adresse versiegelt); Installationskennung von Firebase (an Google, für das Push-Token) |
+| App-Aktivitäten › Sonstige nutzergenerierte Inhalte | ja | nein | nein | Freiwillig | App-Funktionen | Wünsche (angeforderte Titel und Staffeln) an den eigenen Server, der sie an das Seerr des Haushalts gibt (Stufe 8) |
 
 **Nicht angekreuzt**, mit Grund:
 
@@ -60,6 +61,10 @@ Einordnung ist unbelegt; eine Ablehnung bei der Prüfung kostet eine Runde.
   vorsichtig wäre, sie dort mit Zweck «App-Funktionen» anzukreuzen.
 - Geteilt: nichts. Google (Push) und die zwei Dienste sind Dienstleister im Auftrag; der eigene
   Server ist eine Übertragung, die der Nutzer selbst anstösst.
+- Inhalt der Push-Meldungen: Titel und Text verschlüsselt der eigene Server für den Schlüssel des
+  Geräts (Web-Push, RFC 8291); Push-Weiterleitung und Google sehen nur Geheimtext. Das ist
+  Ende-zu-Ende verschlüsselt und zählt nach Google nicht als erhoben (Stufe 8 gebaut: Entschlüsselung
+  auf dem Gerät, privater Schlüssel nur auf dem Gerät, nicht in der Sicherung).
 
 ## 2. Vordergrunddienste
 

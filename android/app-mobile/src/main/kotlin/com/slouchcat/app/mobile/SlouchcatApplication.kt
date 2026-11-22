@@ -83,6 +83,8 @@ class AppGraph(
     private val mediaData: ((AppGraph) -> MediaData)? = null,
     /** Downloads and offline (stage 6); tests bring an engine over a database in memory. `null`: the real one. */
     private val offlineData: ((AppGraph) -> OfflineData)? = null,
+    /** Push of this device (stage 8); tests bring a registrar over fakes. `null`: the real one. */
+    private val pushRegistrar: ((AppGraph) -> com.slouchcat.app.mobile.push.PushRegistrar)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -157,6 +159,11 @@ class AppGraph(
 
     /** Downloads and offline (concept 27 section 9): built on first use, the same way for the app and its tests. */
     val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
+
+    /** Push of this device (concept 27, 7.3): built on first use, the same way for the app and its tests. */
+    val push: com.slouchcat.app.mobile.push.PushRegistrar by lazy {
+        pushRegistrar?.invoke(this) ?: com.slouchcat.app.mobile.push.PushData.create(appContext, this)
+    }
 
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())

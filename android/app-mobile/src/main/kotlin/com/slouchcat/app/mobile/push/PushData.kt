@@ -18,49 +18,40 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
 import java.io.File
-import java.util.WeakHashMap
+import java.time.Duration
 
 /**
- * Push of this graph (stage 8): the registrar over the push relay, its store and Google's token.
- * Tests put their own in place ([install]).
+ * Push of a graph (stage 8): the registrar over the push relay, its store and Google's token.
+ * The graph holds it (`graph.push`); tests give the graph's constructor their own.
  */
 object PushData {
-    private val installed = WeakHashMap<AppGraph, PushRegistrar>()
-
-    fun install(graph: AppGraph, registrar: PushRegistrar) = synchronized(installed) { installed[graph] = registrar }
-
-    fun of(graph: AppGraph, context: Context): PushRegistrar = synchronized(installed) {
-        installed.getOrPut(graph) { create(context.applicationContext, graph) }
-    }
-
     /** The address of the push relay of this build (`slouchcat.pushRelay`, default `https://push.slouchcat.com`). */
     val relayAddress: String get() = BuildConfig.PUSH_RELAY
 
-    private fun create(context: Context, graph: AppGraph): PushRegistrar {
-        val relay = PushRelay(relayAddress.toHttpUrl(), graph.httpForRelay)
+    /** A client without the session's credentials: the relay never sees the server's token. */
+    private val relayHttp: OkHttpClient by lazy { OkHttpClient.Builder().callTimeout(Duration.ofSeconds(RELAY_TIMEOUT_S)).build() }
+
+    /** The real registrar of [graph]: the relay of this build, Google's token, the store sealed by the Keystore. */
+    fun create(context: Context, graph: AppGraph): PushRegistrar {
+        val relay = PushRelay(relayAddress.toHttpUrl(), relayHttp)
         return PushRegistrar(
             session = graph.session,
             channels = graph.media.channels,
             relay = { token, vapid -> relay.register(token, vapid) },
             platform = PushPlatforms.create(context),
-            store = FilePushStore(File(context.noBackupFilesDir, "push.bin"), KeystoreSecretBox(STORE_KEY)),
+            store = store(context),
             deviceName = { graph.device.name },
         )
     }
 
+    /** The device's push record (the emulator flow registers through it with a fake Google token). */
+    fun store(context: Context): PushStore = FilePushStore(File(context.noBackupFilesDir, "push.bin"), KeystoreSecretBox(STORE_KEY))
+
     private const val STORE_KEY = "slouchcat-push"
+    private const val RELAY_TIMEOUT_S = 20L
 }
-
-/** A client without the session's credentials: the relay never sees the token of the server. */
-private val AppGraph.httpForRelay: okhttp3.OkHttpClient get() = relayClient
-
-private val relayClient: okhttp3.OkHttpClient by lazy { okhttp3.OkHttpClient.Builder().callTimeout(java.time.Duration.ofSeconds(20)).build() }
-
-/** The push of this graph; the first use builds the real one. */
-val AppGraph.push: PushRegistrar get() = PushData.of(this, appContextForPush ?: error("push not started"))
-
-private var appContextForPush: Context? = null
 
 /**
  * Starts push with the app (concept 27, 7.3): the system's channels, a sync whenever a session is
@@ -70,7 +61,6 @@ private var appContextForPush: Context? = null
  */
 object PushStarter {
     fun start(application: Application, graph: AppGraph) {
-        appContextForPush = application.applicationContext
         PushNotifier.ensureChannels(application)
         graph.hooks.addSignOutStep(
             object : SignOutStep {
