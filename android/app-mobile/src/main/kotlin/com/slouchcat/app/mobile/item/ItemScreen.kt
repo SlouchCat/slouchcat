@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -261,7 +260,7 @@ private fun Hero(item: ItemDetail, media: MediaItem, modifier: Modifier, wide: B
         if (backdrop) {
             MediaImage(media.backdrop, item.title, Modifier.fillMaxSize(), placeholder = false)
         } else if (!media.poster.isEmpty) {
-            MediaImage(media.poster, item.title, Modifier.fillMaxSize().blur(30.dp), placeholder = false)
+            com.slouchcat.app.mobile.media.BlurredImage(media.poster, Modifier.fillMaxSize())
         }
         val bg = c.bg
         Box(
