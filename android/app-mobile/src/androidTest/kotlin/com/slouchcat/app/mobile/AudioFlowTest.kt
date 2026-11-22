@@ -108,7 +108,8 @@ class AudioFlowTest {
         compose.waitForIdle()
         instrumentation.waitForIdleSync()
         // A sheet is a window of its own: the screenshot waits until the screen holds still.
-        instrumentation.uiAutomation.waitForIdle(IDLE_MS, NOTIFICATION_SETTLE_MS)
+        // (A playing timeline never holds still: then after the longest wait.)
+        runCatching { instrumentation.uiAutomation.waitForIdle(IDLE_MS, NOTIFICATION_SETTLE_MS) }
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         val dir = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -297,7 +298,6 @@ class AudioFlowTest {
         assertTrue("the media session plays in the background", sessionPlaying())
         if (shots) {
             instrumentation.uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-            instrumentation.uiAutomation.waitForIdle(IDLE_MS, NOTIFICATION_SETTLE_MS)
             shot("a04-notification")
             instrumentation.uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         }
