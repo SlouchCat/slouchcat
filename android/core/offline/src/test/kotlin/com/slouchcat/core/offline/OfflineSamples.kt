@@ -27,7 +27,11 @@ import java.time.ZoneOffset
 
 // Made-up downloads, profiles and a server in memory for the tests of :core:offline.
 
-const val ACCOUNT = "http://192.0.2.10:8096/|mara@example.test"
+const val SERVER_KEY = "server-key"
+const val ACCOUNT = "$SERVER_KEY|#7"
+
+/** The session of the tests: the server's key, the e-mail address, the active profile. */
+fun identity(profile: Long? = 1) = OfflineIdentity(SERVER_KEY, "mara@example.test", profile)
 const val D1 = "01HZY0000000000000000000A1"
 const val D2 = "01HZY0000000000000000000B2"
 const val D3 = "01HZY0000000000000000000C3"
@@ -121,7 +125,9 @@ class FakeOfflineServer(var base: HttpUrl = "http://192.0.2.10:8096/".toHttpUrl(
 
     override suspend fun delete(downloadId: String): ApiResult<Unit> = deleteAnswer.also { deletes += downloadId }
 
-    override suspend fun manifest(downloadId: String): ApiResult<DownloadManifest> = manifests[downloadId]?.let { ApiResult.Ok(it) } ?: ApiResult.NotFound
+    var manifestCalls = 0
+
+    override suspend fun manifest(downloadId: String): ApiResult<DownloadManifest> = manifests[downloadId].also { manifestCalls++ }?.let { ApiResult.Ok(it) } ?: ApiResult.NotFound
 
     override suspend fun sync(request: OfflineSyncRequest): ApiResult<OfflineSync> = syncAnswer.also { syncs += request }
 
@@ -135,6 +141,10 @@ class FakeOfflineServer(var base: HttpUrl = "http://192.0.2.10:8096/".toHttpUrl(
         uploads += batch
         return ApiResult.Ok(OfflineEventResult(accepted = batch.events.size, duplicates = 0, rejected = 0, results = emptyList()))
     }
+
+    var accountAnswer: ApiResult<Long> = ApiResult.Ok(7)
+
+    override suspend fun accountId(): ApiResult<Long> = accountAnswer
 
     override fun absolute(path: String): HttpUrl? = base.resolve(path)
 }

@@ -21,7 +21,6 @@ import com.slouchcat.app.mobile.testing.HTTPS_SERVER
 import com.slouchcat.app.mobile.testing.PRIMARY
 import com.slouchcat.app.mobile.testing.testEngine
 import com.slouchcat.app.mobile.testing.testOfflineData
-import com.slouchcat.core.offline.OfflineAccount
 import com.slouchcat.core.session.StoredCredentials
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.CoroutineScope
@@ -49,13 +48,16 @@ class DownloadsBackTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val graph = AppGraph(
-        context,
-        features = listOf(MoreFeature, DownloadsFeature),
-        serverStore = FakeServers(HTTPS_SERVER),
-        tokenStore = FakeTokens(StoredCredentials("token", "device-1")),
-        accountStore = FakeAccounts(EMAIL, PRIMARY),
-    )
+    private val graph by lazy {
+        AppGraph(
+            context,
+            features = listOf(MoreFeature, DownloadsFeature),
+            serverStore = FakeServers(HTTPS_SERVER),
+            tokenStore = FakeTokens(StoredCredentials("token", "device-1")),
+            accountStore = FakeAccounts(EMAIL, PRIMARY),
+            offlineData = { testOfflineData(testEngine(context, temp.newFolder("offline"), FakeOfflineServer(), scope, { com.slouchcat.app.mobile.testing.offlineIdentity(PRIMARY.id) })) },
+        )
+    }
 
     @After
     fun tearDown() = scope.cancel()
@@ -65,8 +67,6 @@ class DownloadsBackTest {
     }
 
     private fun backLeadsOut() {
-        val engine = testEngine(context, temp.newFolder("offline"), FakeOfflineServer(), scope, { OfflineAccount("a", PRIMARY.id) })
-        OfflineData.install(graph, testOfflineData(engine))
         compose.setContent { SlouchcatNavHost(graph) }
         // «Downloads» comes before «Mehr»: the first target, where the app lands after the profile.
         waitFor(hasText(context.getString(R.string.app_downloads_emptyTitle)))

@@ -398,6 +398,11 @@
       "failed": "Not saved. Try again."
     },
     "downloads": {
+      "legendOtherApps": "Other apps",
+      "storageBarApps": "Downloads {{used}}, other apps {{other}}, free {{free}}",
+      "backOnline": "Connected to the server again",
+      "pinWeakCopy": "Offline, a PIN of a few digits only guards against curious eyes: whoever holds the device can try them all. The check value of the normal PIN lies on this device for that; whoever copies it can also find the PIN that applies online. A separate, longer offline PIN under “Manage profiles” is kept apart from it.",
+      "notificationsPaused": "Downloads paused",
       "episodeShort": "E{{episode}} · {{title}}",
       "toDownloads": "Go to downloads",
       "episodeLine": "S{{season}} · E{{episode}} · {{title}}",

@@ -398,6 +398,11 @@
       "failed": "Nicht gespeichert. Versuche es noch einmal."
     },
     "downloads": {
+      "legendOtherApps": "Andere Apps",
+      "storageBarApps": "Downloads {{used}}, andere Apps {{other}}, frei {{free}}",
+      "backOnline": "Wieder mit dem Server verbunden",
+      "pinWeakCopy": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Der Prüfwert der normalen PIN liegt dafür auf diesem Gerät; wer ihn kopiert, findet damit auch die PIN, die online gilt. Eine eigene, längere Offline-PIN unter «Profile verwalten» ist davon getrennt.",
+      "notificationsPaused": "Downloads angehalten",
       "episodeShort": "F{{episode}} · {{title}}",
       "toDownloads": "Zu den Downloads",
       "episodeLine": "S{{season}} · F{{episode}} · {{title}}",

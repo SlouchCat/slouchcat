@@ -37,6 +37,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.offline.FetchProgress
+import com.slouchcat.core.offline.FetchRun
 import com.slouchcat.core.offline.FetchScheduler
 import com.slouchcat.core.offline.NetworkKind
 import com.slouchcat.core.offline.OfflineEngine
@@ -70,15 +71,24 @@ class AndroidNetwork(context: Context) {
         }
     }
 
-    /** Calls [onChange] when the default network comes, goes or changes its kind. */
+    /**
+     * Calls [onChange] when the kind of the default network changes (none, Wi-Fi, cellular); the
+     * frequent capability updates of a cellular network without another kind call nothing (code review M-6).
+     */
     fun watch(onChange: (NetworkKind) -> Unit) {
+        var last: NetworkKind? = null
+        fun report(kind: NetworkKind) = synchronized(this) {
+            if (kind == last) return
+            last = kind
+            onChange(kind)
+        }
         manager?.registerDefaultNetworkCallback(
             object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) = onChange(kind())
+                override fun onAvailable(network: Network) = report(kind())
 
-                override fun onLost(network: Network) = onChange(NetworkKind.None)
+                override fun onLost(network: Network) = report(NetworkKind.None)
 
-                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = onChange(kind())
+                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = report(kind())
             },
         )
     }
@@ -94,7 +104,7 @@ object DownloadNotifications {
         manager.createNotificationChannel(NotificationChannel(CHANNEL, context.getString(R.string.app_downloads_channel), NotificationManager.IMPORTANCE_LOW))
     }
 
-    fun build(context: Context, progress: FetchProgress?, title: String?): Notification {
+    fun build(context: Context, progress: FetchProgress?): Notification {
         channel(context)
         val percent = progress?.takeIf { it.total > 0 }?.let { (it.bytes * 100 / it.total).toInt() }
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
@@ -105,35 +115,41 @@ object DownloadNotifications {
             Intent(context, PauseReceiver::class.java).setPackage(context.packageName),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Builder(context, CHANNEL)
+        val neutral = context.getString(R.string.app_downloads_notificationTitle)
+        val text = percent?.let { context.getString(R.string.app_downloads_notificationProgress, it.toString()) } ?: context.getString(R.string.app_downloads_notificationWaiting)
+        fun base() = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(title ?: context.getString(R.string.app_downloads_notificationTitle))
-            .setContentText(percent?.let { context.getString(R.string.app_downloads_notificationProgress, it.toString()) } ?: context.getString(R.string.app_downloads_notificationWaiting))
+            .setContentText(text)
             .setProgress(100, percent ?: 0, percent == null)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
+        // The lock screen shows no title (security review L-4); the title only for a profile that may see it.
+        return base()
+            .setContentTitle(progress?.title ?: neutral)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(base().setContentTitle(neutral).build())
             .setContentIntent(open)
             .addAction(0, context.getString(R.string.app_downloads_pause), pause)
             .build()
     }
 
-    fun update(context: Context, progress: FetchProgress?, title: String?) {
+    fun update(context: Context, progress: FetchProgress?) {
         val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         if (!allowed) return
-        context.getSystemService(NotificationManager::class.java)?.notify(ID, build(context, progress, title))
+        context.getSystemService(NotificationManager::class.java)?.notify(ID, build(context, progress))
     }
 }
 
-/** «Anhalten» in the notification: pauses the download coming in now. */
+/** «Anhalten» in the notification: every download the transfer would fetch waits until «Fortsetzen» (code review m-8). */
 class PauseReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val engine = context.engine ?: return
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                engine.progress.value?.id?.let { engine.pause(it) }
+                engine.pauseAll()
             } finally {
                 pending.finish()
             }
@@ -141,13 +157,14 @@ class PauseReceiver : BroadcastReceiver() {
     }
 }
 
-/** Runs the fetch with the notification while [scope] lives; returns whether work is left. */
-private suspend fun fetchWithNotification(context: Context, engine: OfflineEngine, scope: CoroutineScope): Boolean {
+/**
+ * Runs the fetch with the notification while [scope] lives: a sync, then the files. The fetch is a
+ * child of this coroutine: a stopped job or service stops it and waits until its file is closed.
+ * The notification follows the progress (at most twice a second, no database read per step).
+ */
+private suspend fun fetchWithNotification(context: Context, engine: OfflineEngine, scope: CoroutineScope): FetchRun {
     val updates = scope.launch {
-        engine.progress.collectLatest { progress ->
-            val title = progress?.let { engine.download(it.id)?.item?.title }
-            DownloadNotifications.update(context, progress, title)
-        }
+        engine.progress.collectLatest { progress -> DownloadNotifications.update(context, progress) }
     }
     try {
         engine.sync()
@@ -155,6 +172,28 @@ private suspend fun fetchWithNotification(context: Context, engine: OfflineEngin
     } finally {
         updates.cancel()
     }
+}
+
+/** After a run: what is left goes to WorkManager, a device error again after its pause (code review m-11, m-12). */
+private suspend fun afterRun(engine: OfflineEngine, run: FetchRun) {
+    when (run) {
+        FetchRun.Left -> engine.scheduler.scheduleBackground(unmetered = engine.waitsForWifiOnly())
+        is FetchRun.RetryAt -> engine.scheduler.scheduleBackground(unmetered = false, delayMs = (run.at - System.currentTimeMillis()).coerceAtLeast(0))
+        // A download ordered while the run ended: one more look (code review m-12).
+        FetchRun.Done -> if (engine.pendingFetches().isNotEmpty()) engine.scheduler.scheduleBackground(unmetered = false)
+    }
+}
+
+private suspend fun safeRun(tag: String, block: suspend () -> FetchRun): FetchRun = try {
+    block()
+} catch (e: kotlinx.coroutines.CancellationException) {
+    throw e
+} catch (e: RuntimeException) {
+    Log.w(tag, "transfer broke", error = e)
+    FetchRun.Done
+} catch (e: java.io.IOException) {
+    Log.w(tag, "transfer broke", error = e)
+    FetchRun.Done
 }
 
 /**
@@ -170,19 +209,12 @@ class DownloadJobService : JobService() {
         // Only scheduled from Android 14 on (AndroidFetchScheduler); the manifest names it for every level.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
         val engine = engine ?: return false
-        setNotification(params, DownloadNotifications.ID, DownloadNotifications.build(this, null, null), JOB_END_NOTIFICATION_POLICY_REMOVE)
+        setNotification(params, DownloadNotifications.ID, DownloadNotifications.build(this, null), JOB_END_NOTIFICATION_POLICY_REMOVE)
         running = scope.launch {
-            val left = try {
-                fetchWithNotification(this@DownloadJobService, engine, this)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: RuntimeException) {
-                Log.w(TAG, "transfer broke", error = e)
-                false
-            }
+            // A cold process (after a restart of the phone): the engine waits for the stored session (code review B-2).
+            val run = safeRun(TAG) { fetchWithNotification(this@DownloadJobService, engine, this) }
             jobFinished(params, false)
-            // What waits for Wi-Fi or a later moment goes to WorkManager.
-            if (left) engine.scheduler.scheduleBackground(unmetered = engine.waitsForWifiOnly())
+            afterRun(engine, run)
         }
         return true
     }
@@ -213,7 +245,7 @@ class DownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
-        ServiceCompat.startForeground(this, DownloadNotifications.ID, DownloadNotifications.build(this, null, null), type)
+        ServiceCompat.startForeground(this, DownloadNotifications.ID, DownloadNotifications.build(this, null), type)
         val engine = engine
         if (engine == null) {
             stopSelf()
@@ -221,15 +253,8 @@ class DownloadService : Service() {
         }
         if (running?.isActive == true) return START_NOT_STICKY
         running = scope.launch {
-            val left = try {
-                fetchWithNotification(this@DownloadService, engine, this)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: RuntimeException) {
-                Log.w(TAG, "transfer broke", error = e)
-                false
-            }
-            if (left) engine.scheduler.scheduleBackground(unmetered = engine.waitsForWifiOnly())
+            val run = safeRun(TAG) { fetchWithNotification(this@DownloadService, engine, this) }
+            afterRun(engine, run)
             ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -253,11 +278,26 @@ class DownloadService : Service() {
  * after a run that left work (with Wi-Fi only when a rule or the device says so).
  */
 class OfflineWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    /**
+     * A sync, then the files until shortly before WorkManager's limit; the fetch stops at the
+     * deadline inside a file with its bytes durable. A worker stopped by the system cancels its fetch
+     * (it is a child of this coroutine). The engine waits for the stored session of a cold process.
+     */
     override suspend fun doWork(): Result {
         val engine = applicationContext.engine ?: return Result.success()
-        engine.sync()
-        val left = engine.runFetches(deadline = System.currentTimeMillis() + RUN_MS)
-        return if (left && runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+        val run = safeRun("offline-worker") {
+            engine.sync()
+            engine.runFetches(deadline = System.currentTimeMillis() + RUN_MS)
+        }
+        return when (run) {
+            // Only what can go on at once comes back soon; a device error waits for its own run (m-11).
+            FetchRun.Left -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+            is FetchRun.RetryAt -> {
+                engine.scheduler.scheduleBackground(unmetered = false, delayMs = (run.at - System.currentTimeMillis()).coerceAtLeast(0))
+                Result.success()
+            }
+            FetchRun.Done -> Result.success()
+        }
     }
 
     companion object {
@@ -296,14 +336,16 @@ class AndroidFetchScheduler(private val context: Context, private val visible: (
         scheduler.schedule(job)
     }
 
-    override fun scheduleBackground(unmetered: Boolean) {
+    override fun scheduleBackground(unmetered: Boolean, delayMs: Long) {
         val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return
         val network = if (unmetered) NetworkType.UNMETERED else NetworkType.CONNECTED
+        // One work per condition: a run for any network does not wait behind one for Wi-Fi (code review m-13).
         work.enqueueUniqueWork(
-            FETCH_WORK,
+            if (unmetered) FETCH_WORK_WIFI else FETCH_WORK,
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<OfflineWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(network).build())
+                .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, BACKOFF_S, TimeUnit.SECONDS)
                 .build(),
         )
@@ -319,6 +361,7 @@ class AndroidFetchScheduler(private val context: Context, private val visible: (
     override fun cancelAll() {
         runCatching { WorkManager.getInstance(context) }.getOrNull()?.let {
             it.cancelUniqueWork(FETCH_WORK)
+            it.cancelUniqueWork(FETCH_WORK_WIFI)
             it.cancelUniqueWork(SYNC_WORK)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) context.getSystemService(JobScheduler::class.java)?.cancel(JOB_ID)
@@ -329,6 +372,7 @@ class AndroidFetchScheduler(private val context: Context, private val visible: (
         private const val TAG = "offline-schedule"
         const val JOB_ID = 4207
         const val FETCH_WORK = "offline-fetch"
+        const val FETCH_WORK_WIFI = "offline-fetch-wifi"
         const val SYNC_WORK = "offline-sync"
 
         /** About every 6 hours with a network (F-34, the paper's recommendation). */

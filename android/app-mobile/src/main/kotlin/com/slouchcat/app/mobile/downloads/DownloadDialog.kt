@@ -10,6 +10,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.slouchcat.app.mobile.media.MediaImage
+import com.slouchcat.core.media.ImageSet
+import com.slouchcat.core.offline.FileFetcher
+import com.slouchcat.core.offline.OfflineAccount
+import com.slouchcat.core.offline.downloadsForProfile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +33,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
@@ -120,10 +132,20 @@ class DownloadDialogViewModel(
     val messages: StateFlow<DialogMessage?> = _messages.asStateFlow()
 
     /** The title's state on the device, from the stored downloads. */
-    val onDevice: StateFlow<OnDevice> = engine.downloads.map { list -> status(list) }.stateIn(viewModelScope, SharingStarted.Eagerly, OnDevice.None)
+    /**
+     * Only what the server allowed for this account and profile on this device counts (rule 12; code
+     * review m-4, security review L-5): a download of another profile or of an earlier account says nothing here.
+     */
+    val onDevice: StateFlow<OnDevice> = combine(engine.downloads, engine.lastAccount) { list, who -> status(list, who) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, OnDevice.None)
 
-    private fun status(list: List<StoredDownload>): OnDevice {
-        val mine = list.filter { d -> !d.pendingDelete && d.item.let { it?.id == itemId || it?.parentId == itemId || it?.seriesRef?.id == itemId } }
+    init {
+        viewModelScope.launch { engine.account() }
+    }
+
+    private fun status(list: List<StoredDownload>, who: OfflineAccount?): OnDevice {
+        val profile = who?.profileId ?: return OnDevice.None
+        val mine = downloadsForProfile(list, who.key, profile).filter { d -> d.item.let { it?.id == itemId || it?.parentId == itemId || it?.seriesRef?.id == itemId } }
         return when {
             mine.isEmpty() -> OnDevice.None
             mine.all { it.complete } -> OnDevice.Complete
@@ -140,7 +162,13 @@ class DownloadDialogViewModel(
         viewModelScope.launch {
             val base = server() ?: return@launch _state.update { it.copy(loading = false, failed = true) }
             val device = settings.settings.first()
-            val free = engine.files.freeBytes()
+            // Free space less the reserve the fetch keeps and what ordered downloads still need (code review m-5).
+            val free = withContext(Dispatchers.IO) {
+                val owner = engine.account()?.key
+                val owed = engine.allDownloads().filter { it.account == owner && !it.complete && !it.pendingDelete }
+                    .sumOf { ((it.manifest?.sizeBytes ?: it.sizeBytes ?: it.estimatedBytes) - it.bytesWritten).coerceAtLeast(0) }
+                (engine.files.freeBytes() - FileFetcher.RESERVE - owed).coerceAtLeast(0)
+            }
             var episode: ItemRef? = null
             var siblings: List<ItemRef> = emptyList()
             var season: ItemRef? = null
@@ -273,7 +301,14 @@ class DownloadDialogViewModel(
 
 /** The sheet itself (mockup `mdDlSheet`). */
 @Composable
-fun DownloadDialog(state: DownloadDialogState, title: String, subtitle: String?, vm: DownloadDialogViewModel, onOpenDownloads: (() -> Unit)? = null) {
+fun DownloadDialog(
+    state: DownloadDialogState,
+    title: String,
+    subtitle: String?,
+    vm: DownloadDialogViewModel,
+    poster: ImageSet = ImageSet(emptyList()),
+    onOpenDownloads: (() -> Unit)? = null,
+) {
     if (!state.open) return
     val c = SlouchcatTheme.colors
     val heading = stringResource(R.string.app_downloads_dialogTitle)
@@ -281,9 +316,13 @@ fun DownloadDialog(state: DownloadDialogState, title: String, subtitle: String?,
     val context = LocalContext.current
     SlouchcatSheet(heading, onDismiss = vm::onDismiss) {
         SheetTitle(heading)
-        Column(Modifier.padding(horizontal = gutter(), vertical = 4.dp)) {
-            Text(title, style = SlouchcatType.strong, color = c.tx)
-            if (subtitle != null) Text(subtitle, style = SlouchcatType.caption, color = c.tx2)
+        // `md-dlhead`: the poster, the title and its line (mockup photos 45 and 46).
+        Row(Modifier.padding(horizontal = gutter(), vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            MediaImage(poster, title, Modifier.size(48.dp, 72.dp).clip(RoundedCornerShape(6.dp)))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = SlouchcatType.strong, color = c.tx)
+                if (subtitle != null) Text(subtitle, style = SlouchcatType.caption, color = c.tx2)
+            }
         }
         when {
             state.loading -> Text(stringResource(R.string.common_loading), style = SlouchcatType.body, color = c.tx2, modifier = Modifier.padding(gutter()))
@@ -384,7 +423,7 @@ private fun Body(state: DownloadDialogState, vm: DownloadDialogViewModel) {
 @Composable
 private fun Heading(text: String) {
     Text(
-        text.uppercase(),
+        text.toUpperCase(androidx.compose.ui.text.intl.Locale.current),
         style = SlouchcatType.section,
         color = SlouchcatTheme.colors.tx3,
         modifier = Modifier.padding(start = gutter(), end = gutter(), top = 14.dp, bottom = 6.dp).semantics { heading() },

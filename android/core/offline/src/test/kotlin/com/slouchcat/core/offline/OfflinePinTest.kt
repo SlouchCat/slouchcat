@@ -72,15 +72,17 @@ class OfflinePinTest {
     }
 
     @Test
-    fun `moving the wall clock forward does not end a pause within the same boot`() {
+    fun `a pause runs on the clock since boot and a restart starts its rest again`() {
         var lock = PinLock()
-        repeat(3) { lock = OfflinePin.registerFailure(lock, now = 1_000, elapsed = 500, boot = 7) }
-        assertEquals(30_000, OfflinePin.remainingMs(lock, now = 1_000, elapsed = 500, boot = 7))
-        // Date set a day ahead, clock since boot 1 s later: still locked.
-        assertEquals(29_000, OfflinePin.remainingMs(lock, now = 1_000 + 86_400_000, elapsed = 1_500, boot = 7))
-        // A date set back does not stretch the pause beyond its length.
-        assertEquals(30_000, OfflinePin.remainingMs(lock, now = -1_000_000, elapsed = 500, boot = 9))
-        assertEquals(0, OfflinePin.remainingMs(lock, now = 40_000, elapsed = 40_000, boot = 7))
+        repeat(3) { lock = OfflinePin.registerFailure(lock, elapsed = 500, boot = 7) }
+        assertEquals(30_000, OfflinePin.remainingMs(lock, elapsed = 500, boot = 7))
+        assertEquals(20_000, OfflinePin.remainingMs(lock, elapsed = 10_500, boot = 7))
+        // The engine stores the rest at each check; a restart (another boot, the date set forward) starts it again.
+        lock = lock.copy(remaining = 20_000)
+        val after = OfflinePin.anchored(lock, elapsed = 100, boot = 8)
+        assertEquals(20_000, OfflinePin.remainingMs(after, elapsed = 100, boot = 8))
+        assertEquals(0, OfflinePin.remainingMs(after, elapsed = 20_100, boot = 8))
+        assertEquals(0, OfflinePin.remainingMs(PinLock(), elapsed = 0, boot = 1))
     }
 
     @Test

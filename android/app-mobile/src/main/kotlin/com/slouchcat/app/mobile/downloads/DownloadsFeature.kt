@@ -23,6 +23,7 @@ import com.slouchcat.app.mobile.shell.TopDestination
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.offline.OfflinePlaybackServer
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.launch
@@ -32,9 +33,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object DownloadsRoute
 
-/** The offline player of a title on the device, for a profile (9.1, `/offline/play/$downloadId` of the PWA). */
+/**
+ * The offline player of a title on the device (9.1, `/offline/play/$downloadId` of the PWA). No
+ * profile in the route: it plays for the profile opened now (the one chosen offline with its PIN, or
+ * the session's), also after the process was restored (security review L-6).
+ */
 @Serializable
-data class OfflinePlayerRoute(val itemId: String, val profileId: Long)
+data class OfflinePlayerRoute(val itemId: String)
 
 /**
  * Stage 6 (concept 27 section 9): the target «Downloads» with the offline library, the offline
@@ -66,12 +71,11 @@ object DownloadsFeature : Feature {
                     DownloadsMessage.RuleSaved -> getString(R.string.offline_rules_saved)
                 }
             }
-            val profile = { data.viewer.value ?: (graph.session.state.value as? com.slouchcat.core.session.SessionState.Ready)?.profile?.id }
             DownloadsScreen(
                 state = state,
                 events = vm,
                 links = DownloadsLinks(
-                    play = { row -> profile()?.let { navigator.navigate(OfflinePlayerRoute(row.itemId, it)) } },
+                    play = { row -> navigator.navigate(OfflinePlayerRoute(row.itemId)) },
                     item = if (navigator.canOpen(ItemRoute::class)) ({ id: String -> navigator.navigate(ItemRoute(id)) }) else null,
                     start = { navigator.openTop(graph.registry.home) },
                 ),
@@ -80,10 +84,12 @@ object DownloadsFeature : Feature {
         }
         composable<OfflinePlayerRoute> { entry ->
             val route = entry.toRoute<OfflinePlayerRoute>()
-            val account = graph.offline.engine.account()?.key ?: return@composable
+            val data = graph.offline
+            val profile = data.viewer.value ?: (graph.session.state.value as? com.slouchcat.core.session.SessionState.Ready)?.profile?.id ?: return@composable
             val player = graph.registry.features.filterIsInstance<PlayerFeature>().firstOrNull() ?: return@composable
             player.PlayerPage(app, itemId = route.itemId, startAtMs = null, fromStart = false, key = "offline-${route.itemId}") {
-                OfflinePlaybackServer(graph.offline.engine, account, route.profileId)
+                // Plays only while this profile is still the one opened (a changed viewer plays nothing).
+                OfflinePlaybackServer(data.engine, { data.engine.account()?.key?.takeIf { (data.viewer.value ?: data.engine.lastAccount.value?.profileId) == profile } }, profile)
             }
         }
     }
@@ -120,5 +126,7 @@ fun DownloadAction(graph: AppGraph, item: ItemDetail, snackbar: SnackbarHostStat
         else -> listOfNotNull(item.year?.toString(), com.slouchcat.app.mobile.media.kindName(item.kind)).joinToString(" · ").ifEmpty { null }
     }
     val title = if (item.kind == com.slouchcat.core.api.generated.models.ItemKind.MOVIE) item.title else item.seriesTitle ?: item.seriesRef?.title ?: item.series?.title ?: item.title
-    DownloadDialog(state, title, subtitle, vm) { graph.links.request("downloads") }
+    val server = graph.session.server
+    val poster = remember(server, item.id) { server?.let { ServerImages(it).posters(item.images) } ?: com.slouchcat.core.media.ImageSet(emptyList()) }
+    DownloadDialog(state, title, subtitle, vm, poster) { graph.links.request("downloads") }
 }

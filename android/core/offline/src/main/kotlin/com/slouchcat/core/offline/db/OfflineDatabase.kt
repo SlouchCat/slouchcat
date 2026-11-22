@@ -16,8 +16,9 @@ import java.io.File
 
 /**
  * A download as the device keeps it ([com.slouchcat.core.offline.StoredDownload] as JSON in [data]):
- * the server's last state, the title, the manifest, how far the files are, the positions per profile.
- * [account] and [createdAt] are columns for the queries; everything else changes together.
+ * the server's last state, the title, how far the files are, the positions per profile. The manifest
+ * with its fragment index has a column of its own and so do the durable bytes and the ETag: the fetch
+ * writes those every 8 MiB without writing the fragment index again (code review M-5).
  */
 @Entity(tableName = "downloads")
 data class DownloadRow(
@@ -25,6 +26,9 @@ data class DownloadRow(
     val account: String,
     val createdAt: String,
     val data: String,
+    val manifest: String? = null,
+    val bytes: Long = 0,
+    val etag: String? = null,
 )
 
 /** A profile as the offline library needs it ([com.slouchcat.core.offline.StoredProfile] as JSON): snapshot, verifier, brake, watch time, rule. */
@@ -63,6 +67,9 @@ interface OfflineDao {
 
     @Upsert
     suspend fun putDownload(row: DownloadRow)
+
+    @Query("UPDATE downloads SET bytes = :bytes, etag = :etag WHERE id = :id")
+    suspend fun setBytes(id: String, bytes: Long, etag: String?): Int
 
     @Query("DELETE FROM downloads WHERE id IN (:ids)")
     suspend fun deleteDownloads(ids: List<String>)
