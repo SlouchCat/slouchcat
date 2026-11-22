@@ -69,8 +69,8 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * Stage 8 in the emulator (scripts/android-e2e-messages.sh starts the Seerr and TMDB mocks of
- * web/e2e eleven and twelve below the server's port, the push relay 83 and `fcmfake` 84 above it):
+ * Stage 8 in the emulator (scripts/android-helpers.sh starts the Seerr and TMDB mocks of web/e2e
+ * eleven and twelve below the server's port, the push relay 83 and `fcmfake` 84 above it):
  * a wish from the search's «Noch nicht in der Bibliothek?», its state, «Zurückziehen»; a second
  * wish Seerr declines lands in the inbox, the bell shows it, opening it marks it read and leads to
  * «Meine Wünsche»; the account's push channel on, this device's subscription through the local
