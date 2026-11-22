@@ -89,7 +89,8 @@ class TvShowcaseTest {
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun start() {
+    /** The app over the made-up data; [wishes] brings the wishes and the inbox of stage 5. */
+    private fun start(wishes: WishesShowcaseData? = null) {
         val libraries = BrowseShowcaseData.libraries
         val repository = object : LibrariesRepository {
             override suspend fun libraries(server: HttpUrl): ApiResult<List<LibraryNav>> = ApiResult.Ok(libraries)
@@ -107,10 +108,14 @@ class TvShowcaseTest {
                 },
                 auth = PagesShowcaseData.auth,
                 librariesRepository = repository,
-                mediaData = { g -> PagesShowcaseData.data(com.slouchcat.core.media.MediaData.api(g.api, g.http)) },
+                mediaData = { g ->
+                    val base = com.slouchcat.core.media.MediaData.api(g.api, g.http)
+                    wishes?.data(base) ?: PagesShowcaseData.data(base)
+                },
             )
         }
-        val loader = ShowcaseImages(BrowseShowcaseData.names + PagesShowcaseData.names).also { it.squareIds = BrowseShowcaseData.squareIds }.loader(context)
+        val names = BrowseShowcaseData.names + PagesShowcaseData.names + wishes?.names.orEmpty()
+        val loader = ShowcaseImages(names).also { it.squareIds = BrowseShowcaseData.squareIds }.loader(context)
         scenario = ActivityScenario.launch(MainActivity::class.java)
         scenario.onActivity { activity ->
             activity.setContent { CompositionLocalProvider(LocalTvImageLoader provides loader) { TvNavHost(graph, onExit = {}) } }
@@ -259,6 +264,131 @@ class TvShowcaseTest {
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         waitFor(s(R.string.profiles_picker_title))
         shot("c10-profiles")
+        scenario.close()
+    }
+
+    /** Up to the tabs of «Wünsche», then along them to [tab]. */
+    private fun toTab(tab: String) {
+        val tabs = listOf(R.string.wishes_area_discover, R.string.wishes_area_search, R.string.wishes_area_mine).map(::s)
+        repeat(RAIL_MAX) { if (tabs.none { focusedLabel().contains(it) }) key(KeyEvent.KEYCODE_DPAD_UP) }
+        repeat(tabs.size) { if (!focusedLabel().contains(tab)) key(KeyEvent.KEYCODE_DPAD_LEFT) }
+        repeat(tabs.size) { if (!focusedLabel().contains(tab)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        focused(tab)
+    }
+
+    /** Down a list or menu until [text] has the focus. */
+    private fun down(text: String) {
+        repeat(RAIL_MAX) { if (!focusedLabel().contains(text)) key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        focused(text)
+    }
+
+    /**
+     * Stage 5 (mockups tv 32 to 35, 60, 61): «Wünsche» with «Entdecken», «Suche» and «Meine
+     * Wünsche», a film with its wish and the question «Zurückziehen», a series with the seasons in
+     * the side menu, «Benachrichtigungen» with the announcement, the rail open with the number on
+     * «Einstellungen». Photos `c2x`.
+     */
+    @Test
+    fun pagesOfStage5() {
+        start(WishesShowcaseData())
+        waitFor(BrowseShowcaseData.films[0].title)
+        // The rail open: the number of the unread entries and the announcement on «Einstellungen».
+        waitFor(context.resources.getQuantityString(R.plurals.notifications_unreadLabel, 3, 3))
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
+        shot("c29-rail-badge")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+
+        rail(s(R.string.nav_wishes))
+        waitFor("Gläserne Stadt")
+        focused(s(R.string.wishes_area_discover))
+        shot("c20-wishes-discover")
+
+        // «Meine Wünsche»: the limit, the filter, three wishes.
+        key(KeyEvent.KEYCODE_DPAD_RIGHT, 2)
+        focused(s(R.string.wishes_area_mine))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor("Signalfeuer")
+        key(KeyEvent.KEYCODE_DPAD_DOWN, 2)
+        focused("Gläserne Stadt")
+        shot("c21-wishes-mine")
+
+        // The film with its wish (mockup 33), the question «Zurückziehen» (mockup 60).
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(s(R.string.titles_missing).uppercase())
+        focused(s(R.string.app_wishes_toMine))
+        shot("c22-wish-film")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.app_wishes_keep))
+        shot("c23-wish-withdraw")
+        key(KeyEvent.KEYCODE_BACK)
+        key(KeyEvent.KEYCODE_BACK)
+
+        // A series without a wish (mockup 34), «Anfordern» with its seasons (mockup 61).
+        toTab(s(R.string.wishes_area_discover))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        key(KeyEvent.KEYCODE_DPAD_DOWN, 2)
+        focused("Hafenlichter")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(s(R.string.titles_missing).uppercase())
+        focused(s(R.string.app_wishes_request))
+        shot("c24-wish-series")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(s(R.string.app_wishes_requestNote))
+        shot("c25-wish-request-seasons")
+        key(KeyEvent.KEYCODE_BACK)
+        key(KeyEvent.KEYCODE_BACK)
+
+        // «Suche» with the keyboard of the TV.
+        toTab(s(R.string.wishes_area_search))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused("q")
+        "licht".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+        waitFor("Hafenlichter")
+        shot("c26-wishes-search")
+
+        // «Benachrichtigungen» from «Einstellungen» (mockup 35): the announcement first.
+        rail(s(R.string.tv_settings_title))
+        waitFor(s(R.string.tv_settings_switchPane))
+        down(s(R.string.notifications_title))
+        shot("c27-settings-notifications")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor("Wartung am Sonntag")
+        focused(s(R.string.announcements_acknowledge))
+        shot("c28-notifications")
+        scenario.close()
+    }
+
+    /** Stage 5, the quiet side: no wish yet, an empty inbox (photos `c3x`). */
+    @Test
+    fun emptyPagesOfStage5() {
+        start(WishesShowcaseData(empty = true))
+        waitFor(BrowseShowcaseData.films[0].title)
+        rail(s(R.string.nav_wishes))
+        waitFor("Gläserne Stadt")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT, 2)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(s(R.string.wishes_page_empty_title))
+        shot("c30-wishes-empty")
+        rail(s(R.string.tv_settings_title))
+        waitFor(s(R.string.tv_settings_switchPane))
+        down(s(R.string.notifications_title))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(s(R.string.notifications_empty_title))
+        focused(s(R.string.app_lists_toStart))
+        shot("c31-notifications-empty")
+        scenario.close()
+    }
+
+    /** Seerr not set up: the page says so, as the web app does (photo `c32`). */
+    @Test
+    fun wishesOffOfStage5() {
+        start(WishesShowcaseData(off = true))
+        waitFor(BrowseShowcaseData.films[0].title)
+        rail(s(R.string.nav_wishes))
+        waitFor(s(R.string.app_wishes_off_title))
+        focused(s(R.string.app_lists_toStart))
+        shot("c32-wishes-off")
         scenario.close()
     }
 

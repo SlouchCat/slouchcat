@@ -7,7 +7,9 @@
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
 # (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
-# resume, an episode up to the countdown, «Wiedergabe» of the settings.
+# resume, an episode up to the countdown, «Wiedergabe» of the settings; (d) «Wünsche» and
+# «Benachrichtigungen» of stage 5 through the Seerr and TMDB mocks of web/e2e, which this script
+# starts itself 11 and 12 below PORT (as task android:contract places them; needs Node).
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -36,7 +38,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
-adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# Every adb call has a limit: adb waits without end when the emulator has died (21 November 2026).
+adb() { timeout 300 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 # For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
 adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
@@ -44,6 +47,10 @@ root=$(mktemp -d -t slouchcat-tv-e2e-XXXXXX)
 logs=app-tv/build/e2e-logs
 server_pid=""
 relay_pid=""
+seerr_pid=""
+tmdb_pid=""
+seerr_port=$((port - 11))
+tmdb_port=$((port - 12))
 emulator_pid=""
 instrument_pid=""
 # The account of the test (TvFlowTest's defaults): the phone of apicheck signs in with it.
@@ -56,12 +63,12 @@ cleanup() {
   if [ -n "$instrument_pid" ]; then kill "$instrument_pid" 2>/dev/null || true; fi
   if [ "$status" -ne 0 ]; then
     mkdir -p "$logs"
-    for f in server.log relay.log emulator.log instrument.txt apicheck.log; do
+    for f in server.log relay.log emulator.log instrument.txt apicheck.log seerr.log tmdb.log; do
       [ -f "$root/$f" ] && cp "$root/$f" "$logs/"
     done
     if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
-  for pid in "$server_pid" "$relay_pid"; do
+  for pid in "$server_pid" "$relay_pid" "$seerr_pid" "$tmdb_pid"; do
     if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
   done
   if [ -n "$emulator_pid" ]; then
@@ -93,7 +100,15 @@ mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
 # Real video for the player of stage 3 (a film, a series of two episodes; needs ffmpeg).
 ../scripts/android-test-video.sh "$root/media"
-SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# Stage 5: the Seerr and TMDB mocks of web/e2e; TvFlowTest connects the server to Seerr itself
+# (d_wishesAndNotifications) and puts everything back. The server reaches the TMDB mock with --dev.
+SLOUCHCAT_E2E_SEERR_PORT=$seerr_port node ../web/e2e/seerr-server.mjs >"$root/seerr.log" 2>&1 &
+seerr_pid=$!
+SLOUCHCAT_E2E_TMDB_PORT=$tmdb_port node ../web/e2e/tmdb-server.mjs >"$root/tmdb.log" 2>&1 &
+tmdb_pid=$!
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= \
+  SLOUCHCAT_TEST_TMDB_BASE_URL="http://127.0.0.1:$tmdb_port/3" SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL="http://127.0.0.1:$tmdb_port/t/p" \
+  ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -103,6 +118,8 @@ relay_pid=$!
 for _ in $(seq 1 120); do
   kill -0 "$server_pid" 2>/dev/null || fail "the server stopped while starting (port $port taken?)"
   kill -0 "$relay_pid" 2>/dev/null || fail "the relay stopped while starting (port $relay_port taken?)"
+  kill -0 "$seerr_pid" 2>/dev/null || fail "the Seerr mock stopped while starting (port $seerr_port taken?)"
+  kill -0 "$tmdb_pid" 2>/dev/null || fail "the TMDB mock stopped while starting (port $tmdb_port taken?)"
   if grep -q 'msg=listening' "$root/server.log" && curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1; then break; fi
   sleep 0.5
 done
@@ -159,7 +176,8 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
-adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
+# The whole flow under one adb call: its own, longer limit.
+timeout 3600 "$sdk/platform-tools/adb" -s "$serial" shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
   -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" -e slouchcatMedia "$root/media" "${extra[@]}" \
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!

@@ -593,7 +593,148 @@ class TvFlowTest {
         scenario.close()
     }
 
+    /** Whether the focus is on a key of the keyboard of the search (a letter or one of its named keys). */
+    private fun onKeyboard(): Boolean {
+        val named = listOf(R.string.tv_search_delete, R.string.tv_search_space, R.string.tv_search_clear, R.string.tv_search_symbols, R.string.tv_search_letters, R.string.tv_search_deviceKeyboard, R.string.tv_search_voice).map(::s)
+        return compose.onAllNodes(isFocused()).fetchSemanticsNodes().any { node ->
+            node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().any { it.length == 1 || it in named }
+        }
+    }
+
+    /** Waits until one of [candidates] (a title in either language of the TMDB mock) shows; that one. */
+    private fun waitForAny(candidates: List<String>): String {
+        waitFor(candidates.map { hasText(it, substring = true) or hasContentDescription(it, substring = true) }.reduce { a, b -> a or b })
+        return candidates.first(::present)
+    }
+
+    /** A title of the search's hits: right from the keyboard until it has the focus, OK, its page. */
+    private fun openHit(title: String) {
+        repeat(KEYS_MAX) { if (!isFocusedOn(title)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        focused(title)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.titles_missing).uppercase())
+    }
+
+    /** «Anfordern» on the page of a title, «Anfordern» in its side menu: the page shows the wish. */
+    private fun request(shotPage: String? = null, shotMenu: String? = null) {
+        focused(s(R.string.app_wishes_request))
+        shotPage?.let(::shot)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.app_wishes_requestNote))
+        focused(s(R.string.app_wishes_request))
+        shotMenu?.let(::shot)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.app_wishes_toMine))
+    }
+
+    /**
+     * (d) Stage 5 through the Seerr and TMDB mocks of web/e2e (the script starts them 11 and 12 below
+     * the server's port): «Entdecken», the search with the keyboard of the TV, a film requested and
+     * withdrawn after the question on its page, a second wish Seerr declines; the number on
+     * «Einstellungen» when the app comes back to the front (the TV has no push), «Benachrichtigungen»
+     * with an announcement («Verstanden») and the entry that leads to «Meine Wünsche». Everything it
+     * changes on the server it puts back, also after a failure.
+     */
+    @Test
+    fun d_wishesAndNotifications() {
+        prepareServer()
+        val library = TestLibrary(server, email, password, pin)
+        val seerrHere = server.newBuilder().port(server.port - SEERR_BELOW).encodedPath("/").build()
+        var announcement: Long? = null
+        try {
+            library.wishesOn("http://127.0.0.1:${server.port - SEERR_BELOW}")
+            announcement = library.announce(ANNOUNCEMENT, "The test server goes down for a moment.")
+            val scenario = launch()
+            toStart()
+            waitForText(TITLE)
+
+            // «Entdecken»: Seerr's rows, the focus on the open tab.
+            rail(s(R.string.nav_wishes))
+            waitForText(s(R.string.app_wishes_discoverIntro))
+            focused(s(R.string.wishes_area_discover))
+            waitForText(s(R.string.wishes_discover_rows_popular_movies))
+            shot("80-wishes-discover")
+
+            // «Suche»: the keyboard of the TV types, Seerr finds the film; its page, «Anfordern».
+            key(KeyEvent.KEYCODE_DPAD_RIGHT)
+            focused(s(R.string.wishes_area_search))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            focused("q")
+            "glas".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+            val first = waitForAny(GLASS)
+            shot("81-wishes-search")
+            openHit(first)
+            request(shotPage = "82-wish", shotMenu = "83-wish-request")
+            waitForText(s(R.string.wishes_state_pending))
+            shot("84-wish-requested")
+
+            // «Zurückziehen» asks, «Behalten» first; withdrawn, the page offers «Anfordern» again.
+            key(KeyEvent.KEYCODE_DPAD_RIGHT)
+            focused(s(R.string.wishes_withdraw_action))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            focused(s(R.string.app_wishes_keep))
+            shot("85-wish-withdraw")
+            key(KeyEvent.KEYCODE_DPAD_LEFT)
+            focused(s(R.string.wishes_withdraw_confirm))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            focused(s(R.string.app_wishes_request))
+
+            // A second wish from the search, which Seerr declines.
+            key(KeyEvent.KEYCODE_BACK)
+            focused(first)
+            repeat(KEYS_MAX) { if (!onKeyboard()) key(KeyEvent.KEYCODE_DPAD_LEFT) }
+            key(KeyEvent.KEYCODE_DEL, "glas".length)
+            "kupfer".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+            val second = waitForAny(COPPER)
+            openHit(second)
+            request()
+            library.declineOpen(seerrHere)
+
+            // The number on «Einstellungen» comes when the app is in front again.
+            scenario.moveToState(Lifecycle.State.CREATED)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            val badge = SemanticsMatcher("a number on «Einstellungen»") { node ->
+                node.config.getOrNull(SemanticsProperties.TestTag) == com.slouchcat.app.tv.shell.ShellTags.entry("settings") &&
+                    node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().any { text -> text.any(Char::isDigit) }
+            }
+            waitFor(badge, timeout = PLAY_MS)
+            key(KeyEvent.KEYCODE_BACK)
+            shot("86-rail-badge")
+
+            // «Einstellungen › Benachrichtigungen»: the announcement first, then the declined wish.
+            rail(s(R.string.tv_settings_title))
+            waitForText(s(R.string.tv_settings_switchPane))
+            down(s(R.string.notifications_title))
+            shot("87-settings-notifications")
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitForText(ANNOUNCEMENT)
+            focused(s(R.string.announcements_acknowledge))
+            waitForText(s(R.string.notifications_wish_declined).uppercase())
+            shot("88-notifications")
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            focused(s(R.string.notifications_markAllRead))
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+            focused(s(R.string.notifications_wish_declined))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitForText(s(R.string.wishes_state_declined))
+            focused(s(R.string.wishes_area_mine))
+            shot("89-wishes-mine")
+            scenario.close()
+        } finally {
+            library.wishesOff(seerrHere, announcement)
+        }
+    }
+
     private companion object {
+        /** The Seerr mock of web/e2e lies eleven ports below the server (the TMDB mock twelve), as in task android:contract. */
+        const val SEERR_BELOW = 11
+        const val KEYS_MAX = 14
+        const val ANNOUNCEMENT = "Maintenance tonight"
+
+        /** Films of the TMDB mock (web/e2e/tmdb-server.mjs), German or English. */
+        val GLASS = listOf("Glasvogel", "Glass Bird")
+        val COPPER = listOf("Kupfermond", "Copper Moon")
+
         /** The server of this run is set up and has its libraries. */
         var prepared = false
         const val FRAME_MS = 500L
