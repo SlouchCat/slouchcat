@@ -22,15 +22,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.common.DataStoreRelaySettings
 import com.slouchcat.app.tv.ui.QrContent
 import com.slouchcat.core.api.ClientIdentity
-import com.slouchcat.core.api.SessionCredentials
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
-import com.slouchcat.core.api.generated.apis.AuthApi
-import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
-import com.slouchcat.core.api.generated.models.AppLoginRequest
-import com.slouchcat.core.api.generated.models.PinRequest
-import com.slouchcat.core.api.generated.models.SelectProfileRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.runBlocking
@@ -86,19 +80,11 @@ class TvFlowTest {
         val plain = SlouchcatHttp.client(identity)
         val setup = SlouchcatApi.create(::SetupApi, server, plain)
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
-        val login = SlouchcatApi.create(::AuthApi, server, plain).appLogin(AppLoginRequest(email, password, "E2E preparation", AppLoginRequest.Kind.TABLET))!!
-        val credentials = object : SessionCredentials {
-            override val server = this@TvFlowTest.server
-            override val bearerToken = login.token
-            override val deviceId: String? = null
-        }
-        val http = SlouchcatHttp.client(identity, credentials)
-        val auth = SlouchcatApi.create(::AuthApi, server, http)
-        val primary = auth.listMyProfiles()!!.single { it.isPrimary }
-        auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
-        SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
-        auth.logout()
-        TestLibrary(server, email, password, pin).ensure(requireNotNull(media) { "run through scripts/android-tv-e2e.sh, which writes the media" }, LIBRARY)
+        // One web session for both tests (TestLibrary): the server allows 10 sign-ins and PIN attempts a
+        // minute and address, which the TV's own sign-in and the phone of the script need.
+        val library = TestLibrary(server, email, password, pin)
+        library.primaryWithPin()
+        library.ensure(requireNotNull(media) { "run through scripts/android-tv-e2e.sh, which writes the media" }, LIBRARY)
     }
 
     /** Whether the focus is on an element with [text] now. */
