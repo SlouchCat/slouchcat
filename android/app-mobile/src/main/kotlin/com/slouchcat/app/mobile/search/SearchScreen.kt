@@ -68,6 +68,8 @@ import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.PersonRef
 import com.slouchcat.core.api.generated.models.RootContent
+import com.slouchcat.core.browse.search.SearchHits
+import com.slouchcat.core.browse.search.SearchUiState
 import com.slouchcat.core.design.SlouchcatChip
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatIconButton

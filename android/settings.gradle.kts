@@ -30,6 +30,8 @@ include(
     ":core:design",
     ":core:player",
     ":core:media",
+    ":core:browse",
+    ":core:browse-testing",
     ":core:offline",
     ":core:strings",
     ":core:pairing",

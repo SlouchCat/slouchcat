@@ -45,6 +45,8 @@ dependencies {
     implementation(project(":core:strings"))
     implementation(project(":core:player"))
     implementation(project(":core:media"))
+    implementation(project(":core:browse"))
+    testImplementation(project(":core:browse-testing"))
     implementation(project(":core:offline"))
     implementation(libs.media3.ui)
     implementation(libs.androidx.core.ktx)

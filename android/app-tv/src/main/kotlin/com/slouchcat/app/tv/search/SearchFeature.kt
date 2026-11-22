@@ -26,6 +26,7 @@ import com.slouchcat.app.tv.shell.RailSection
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.api.generated.models.LibraryKind
+import com.slouchcat.core.browse.search.SearchViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.ServerImages

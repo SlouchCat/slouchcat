@@ -11,6 +11,7 @@ import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.PersonRoute
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
+import com.slouchcat.core.browse.person.PersonViewModel
 import com.slouchcat.core.media.ServerImages
 
 /** A person (concept 26, 3.3, stage 2b; mockup `/person/:id`), opened from the cast or the search. */

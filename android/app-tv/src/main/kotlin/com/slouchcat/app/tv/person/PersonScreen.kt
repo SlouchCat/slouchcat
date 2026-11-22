@@ -39,6 +39,7 @@ import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.PersonCreditsInner
+import com.slouchcat.core.browse.person.PersonUiState
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem

@@ -11,8 +11,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.testing.PRIMARY
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
+import com.slouchcat.core.browse.testing.PRIMARY
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.strings.R

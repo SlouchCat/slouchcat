@@ -23,6 +23,8 @@ import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
+import com.slouchcat.core.browse.item.ItemMessage
+import com.slouchcat.core.browse.item.ItemViewModel
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R

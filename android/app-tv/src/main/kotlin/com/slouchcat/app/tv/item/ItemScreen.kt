@@ -44,6 +44,7 @@ import com.slouchcat.app.tv.ui.BackdropMode
 import com.slouchcat.app.tv.ui.BadgeTone
 import com.slouchcat.app.tv.ui.CardInfo
 import com.slouchcat.app.tv.ui.CardShape
+import com.slouchcat.app.tv.ui.DetailValue
 import com.slouchcat.app.tv.ui.FocusMemory
 import com.slouchcat.app.tv.ui.StartFocus
 import com.slouchcat.app.tv.ui.TvActions
@@ -58,13 +59,15 @@ import com.slouchcat.app.tv.ui.TvDialog
 import com.slouchcat.app.tv.ui.TvDimens
 import com.slouchcat.app.tv.ui.TvSideMenu
 import com.slouchcat.app.tv.ui.TvType
-import com.slouchcat.app.tv.ui.DetailValue
 import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.CastMember
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.browse.item.ItemAsk
+import com.slouchcat.core.browse.item.ItemEvents
+import com.slouchcat.core.browse.item.ItemUiState
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable

@@ -15,13 +15,7 @@ import com.slouchcat.app.tv.browse.ListRoute
 import com.slouchcat.app.tv.browse.PlayerRoute
 import com.slouchcat.app.tv.browse.WatchedRoute
 import com.slouchcat.app.tv.browse.WatchlistRoute
-import com.slouchcat.app.tv.collections.CollectionMessage
-import com.slouchcat.app.tv.collections.CollectionViewModel
-import com.slouchcat.app.tv.collections.CollectionsViewModel
 import com.slouchcat.app.tv.library.LibraryFeature
-import com.slouchcat.app.tv.mylists.ListMessage
-import com.slouchcat.app.tv.mylists.WatchedViewModel
-import com.slouchcat.app.tv.mylists.WatchlistViewModel
 import com.slouchcat.app.tv.shell.Label
 import com.slouchcat.app.tv.shell.RailEntry
 import com.slouchcat.app.tv.shell.RailMedia
@@ -29,6 +23,13 @@ import com.slouchcat.app.tv.shell.RailSection
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.app.tv.shell.isRoute
+import com.slouchcat.core.browse.collections.CollectionMessage
+import com.slouchcat.core.browse.collections.CollectionViewModel
+import com.slouchcat.core.browse.collections.CollectionsViewModel
+import com.slouchcat.core.browse.lists.ListViewModel
+import com.slouchcat.core.browse.mylists.ListMessage
+import com.slouchcat.core.browse.mylists.WatchedViewModel
+import com.slouchcat.core.browse.mylists.WatchlistViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.strings.R

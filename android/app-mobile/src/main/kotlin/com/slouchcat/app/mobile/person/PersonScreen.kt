@@ -43,6 +43,8 @@ import com.slouchcat.app.mobile.media.RoundIcon
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.core.api.generated.models.Person
+import com.slouchcat.core.browse.person.PersonPage
+import com.slouchcat.core.browse.person.PersonUiState
 import com.slouchcat.core.design.Badge
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme

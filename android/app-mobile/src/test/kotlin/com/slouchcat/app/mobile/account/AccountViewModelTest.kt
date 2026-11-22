@@ -1,11 +1,11 @@
 package com.slouchcat.app.mobile.account
 
-import com.slouchcat.app.mobile.testing.EMAIL
 import com.slouchcat.app.mobile.testing.FakeAuth
-import com.slouchcat.app.mobile.testing.session
-import com.slouchcat.app.mobile.testing.sessionInfo
-import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.browse.testing.EMAIL
+import com.slouchcat.core.browse.testing.session
+import com.slouchcat.core.browse.testing.sessionInfo
+import com.slouchcat.core.browse.testing.settle
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Dispatchers

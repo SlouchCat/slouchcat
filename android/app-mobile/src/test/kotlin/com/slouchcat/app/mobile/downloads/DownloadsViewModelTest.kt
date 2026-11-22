@@ -5,13 +5,7 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.testing.DL1
 import com.slouchcat.app.mobile.testing.DL2
-import com.slouchcat.app.mobile.testing.EMAIL
-import com.slouchcat.app.mobile.testing.FakeAccounts
 import com.slouchcat.app.mobile.testing.FakeOfflineServer
-import com.slouchcat.app.mobile.testing.FakeServers
-import com.slouchcat.app.mobile.testing.FakeTokens
-import com.slouchcat.app.mobile.testing.HTTP_SERVER
-import com.slouchcat.app.mobile.testing.PRIMARY
 import com.slouchcat.app.mobile.testing.downloadState
 import com.slouchcat.app.mobile.testing.offlineItem
 import com.slouchcat.app.mobile.testing.offlineProfile
@@ -23,6 +17,12 @@ import com.slouchcat.core.api.generated.models.DownloadStateValue
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemImages
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.testing.EMAIL
+import com.slouchcat.core.browse.testing.FakeAccounts
+import com.slouchcat.core.browse.testing.FakeServers
+import com.slouchcat.core.browse.testing.FakeTokens
+import com.slouchcat.core.browse.testing.HTTP_SERVER
+import com.slouchcat.core.browse.testing.PRIMARY
 import com.slouchcat.core.media.data.ItemRepository
 import com.slouchcat.core.offline.OfflineAccount
 import com.slouchcat.core.offline.OfflineEngine

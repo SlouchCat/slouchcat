@@ -78,6 +78,9 @@ import com.slouchcat.app.mobile.shell.LocalShell
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.home.HomeSection
+import com.slouchcat.core.browse.home.HomeUiState
+import com.slouchcat.core.browse.home.LibraryChip
 import com.slouchcat.core.design.Avatar
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SlouchcatButton

@@ -5,13 +5,13 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import com.slouchcat.app.tv.testing.CHILD
-import com.slouchcat.app.tv.testing.FakeHome
-import com.slouchcat.app.tv.testing.FakeProfileSettings
 import com.slouchcat.app.tv.testing.Pages
 import com.slouchcat.app.tv.testing.TV
-import com.slouchcat.app.tv.testing.profile
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.browse.testing.CHILD
+import com.slouchcat.core.browse.testing.FakeHome
+import com.slouchcat.core.browse.testing.FakeProfileSettings
+import com.slouchcat.core.browse.testing.profile
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,7 +39,7 @@ class ProfileSettingsScreenTest {
 
     private val repo = FakeProfileSettings(profile(1, "Primary", primary = true), profile(2, "Kid", rating = 12))
 
-    private fun open(profile: com.slouchcat.core.session.ActiveProfile = com.slouchcat.app.tv.testing.PRIMARY) {
+    private fun open(profile: com.slouchcat.core.session.ActiveProfile = com.slouchcat.core.browse.testing.PRIMARY) {
         pages.show({ it.copy(home = FakeHome(), profiles = repo) }, profile = profile)
         pages.openRail(pages.s(R.string.tv_settings_title))
         pages.waitFor(pages.s(R.string.app_profiles_manage_title))

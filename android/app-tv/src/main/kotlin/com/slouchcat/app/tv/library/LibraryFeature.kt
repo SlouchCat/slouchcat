@@ -18,6 +18,7 @@ import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.app.tv.shell.isRoute
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibrarySort
+import com.slouchcat.core.browse.library.LibraryViewModel
 
 /**
  * The libraries (concept 26, 3.3, stage 2b; mockup `/library/:key`): one entry per library of the

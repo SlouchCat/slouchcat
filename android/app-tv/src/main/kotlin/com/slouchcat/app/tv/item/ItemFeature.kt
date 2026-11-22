@@ -20,6 +20,8 @@ import com.slouchcat.app.tv.browse.PersonRoute
 import com.slouchcat.app.tv.browse.PlayerRoute
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
+import com.slouchcat.core.browse.item.ItemMessage
+import com.slouchcat.core.browse.item.ItemViewModel
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R

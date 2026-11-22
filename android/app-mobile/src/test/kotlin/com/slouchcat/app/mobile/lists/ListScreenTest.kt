@@ -7,10 +7,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.testing.SERVER_IMAGES
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
-import com.slouchcat.app.mobile.testing.itemRef
 import com.slouchcat.core.api.generated.models.HomeListKey
+import com.slouchcat.core.browse.lists.ListKind
+import com.slouchcat.core.browse.testing.SERVER_IMAGES
+import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable

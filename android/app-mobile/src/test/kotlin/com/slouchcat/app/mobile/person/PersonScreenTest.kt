@@ -20,11 +20,14 @@ import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import com.slouchcat.app.mobile.media.IMAGE_LOADED_TAG
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
-import com.slouchcat.app.mobile.testing.SERVER_IMAGES
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
-import com.slouchcat.app.mobile.testing.person
 import com.slouchcat.app.mobile.testing.reveal
-import com.slouchcat.app.mobile.testing.ulid
+import com.slouchcat.core.browse.person.PersonPage
+import com.slouchcat.core.browse.person.PersonTitle
+import com.slouchcat.core.browse.person.PersonUiState
+import com.slouchcat.core.browse.testing.SERVER_IMAGES
+import com.slouchcat.core.browse.testing.person
+import com.slouchcat.core.browse.testing.ulid
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable

@@ -23,6 +23,10 @@ import com.slouchcat.app.tv.ui.TvIcons
 import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.map
+import com.slouchcat.core.browse.profilesettings.PinKind
+import com.slouchcat.core.browse.profilesettings.ProfileMessage
+import com.slouchcat.core.browse.profilesettings.ProfileSettingsViewModel
+import com.slouchcat.core.browse.profilesettings.contentChanged
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.SessionState
@@ -52,7 +56,7 @@ object ProfileSettingsFeature : TvFeature {
         val graph = app.graph
         val navigator = app.navigator
         composable<ProfilesManageRoute> {
-            val vm = viewModel { ProfileSettingsViewModel(graph.session, graph.media.profiles, graph.media.profilesCount) { before, saved, partly -> activeChanged(graph, before, saved, partly) } }
+            val vm = viewModel { ProfileSettingsViewModel(graph.session, graph.media.profiles, graph.media.profilesCount, offlinePin = false) { before, saved, partly -> activeChanged(graph, before, saved, partly) } }
             val state by vm.state.collectAsStateWithLifecycle()
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
@@ -127,14 +131,4 @@ object ProfileSettingsFeature : TvFeature {
         graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image), contentChanged = content)
         if (!content) graph.librariesSource.reload()
     }
-}
-
-/**
- * Whether saving the profile in use changed what it may see (the phone app's rule): rating,
- * language, libraries (only without «alle Bibliotheken»). Without the earlier state: yes.
- */
-internal fun contentChanged(before: Profile?, saved: Profile): Boolean {
-    if (before == null) return true
-    if (before.maxRating != saved.maxRating || before.language != saved.language || before.allLibraries != saved.allLibraries) return true
-    return !saved.allLibraries && before.libraryIds.toSet() != saved.libraryIds.toSet()
 }

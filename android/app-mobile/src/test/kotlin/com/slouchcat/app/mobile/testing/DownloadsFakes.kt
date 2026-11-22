@@ -22,6 +22,10 @@ import com.slouchcat.core.api.generated.models.OfflineProfile
 import com.slouchcat.core.api.generated.models.OfflineSync
 import com.slouchcat.core.api.generated.models.OfflineSyncRequest
 import com.slouchcat.core.api.generated.models.RevocationList
+import com.slouchcat.core.browse.testing.account
+import com.slouchcat.core.browse.testing.episode
+import com.slouchcat.core.browse.testing.profile
+import com.slouchcat.core.browse.testing.session
 import com.slouchcat.core.offline.FileFetcher
 import com.slouchcat.core.offline.NetworkKind
 import com.slouchcat.core.offline.OfflineEngine

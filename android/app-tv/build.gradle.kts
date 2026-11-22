@@ -40,6 +40,8 @@ dependencies {
     implementation(project(":core:strings"))
     implementation(project(":core:pairing"))
     implementation(project(":core:media"))
+    implementation(project(":core:browse"))
+    testImplementation(project(":core:browse-testing"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

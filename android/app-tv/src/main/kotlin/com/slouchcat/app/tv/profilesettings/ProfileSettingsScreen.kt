@@ -62,6 +62,11 @@ import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileSummary
+import com.slouchcat.core.browse.profilesettings.PinError
+import com.slouchcat.core.browse.profilesettings.PinKind
+import com.slouchcat.core.browse.profilesettings.ProfileEditor
+import com.slouchcat.core.browse.profilesettings.ProfileSettingsUiState
+import com.slouchcat.core.browse.profilesettings.ProfileSettingsViewModel
 import com.slouchcat.core.design.Avatar
 import com.slouchcat.core.design.ProfileAccents
 import com.slouchcat.core.design.SlouchcatIcon

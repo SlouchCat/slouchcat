@@ -22,9 +22,7 @@ import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.browse.WatchlistRoute
 import com.slouchcat.app.mobile.library.LibraryActions
 import com.slouchcat.app.mobile.library.LibraryScreen
-import com.slouchcat.app.mobile.library.LibraryViewModel
 import com.slouchcat.app.mobile.lists.ListScreen
-import com.slouchcat.app.mobile.lists.ListViewModel
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -36,6 +34,10 @@ import com.slouchcat.app.mobile.shell.TopDestination
 import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.RootContent
+import com.slouchcat.core.browse.home.HomeMessage
+import com.slouchcat.core.browse.home.HomeViewModel
+import com.slouchcat.core.browse.library.LibraryViewModel
+import com.slouchcat.core.browse.lists.ListViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.strings.R
 import kotlinx.serialization.Serializable
@@ -88,10 +90,12 @@ object HomeFeature : Feature {
                     item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
                     play = if (navigator.canOpen(PlayerRoute::class)) ({ navigator.navigate(PlayerRoute(it.id)) }) else null,
                     showAll = { row ->
+                        val list = row.list
+                        val libraryId = row.libraryId
                         when {
-                            row.list != null -> navigator.opener(ListRoute(row.list.value))
+                            list != null -> navigator.opener(ListRoute(list.value))
                             row.picks -> navigator.opener(ListRoute(ListRoute.PICKS))
-                            row.key == HomeRowKey.LIBRARY && row.libraryId != null -> navigator.opener(LibraryRoute(row.libraryId, LibrarySort.ADDED.value))
+                            row.key == HomeRowKey.LIBRARY && libraryId != null -> navigator.opener(LibraryRoute(libraryId, LibrarySort.ADDED.value))
                             row.key == HomeRowKey.WATCHLIST -> navigator.opener(WatchlistRoute)
                             else -> null
                         }

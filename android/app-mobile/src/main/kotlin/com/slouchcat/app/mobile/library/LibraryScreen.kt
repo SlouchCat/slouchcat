@@ -41,6 +41,9 @@ import com.slouchcat.app.mobile.media.watchedTag
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.RootContent
+import com.slouchcat.core.browse.library.Decade
+import com.slouchcat.core.browse.library.LibrarySheet
+import com.slouchcat.core.browse.library.LibraryUiState
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SlouchcatButton
 import com.slouchcat.core.design.SlouchcatChip
@@ -144,7 +147,8 @@ fun LibraryScreen(state: LibraryUiState, actions: LibraryActions, modifier: Modi
         LibrarySheet.Genre -> GenreSheet(state, actions)
         LibrarySheet.Year -> YearSheet(state, actions)
         LibrarySheet.Rating -> RatingSheet(state, actions)
-        null -> Unit
+        // «Anzeigen» is the TV's side menu; the phone shows content and status as chips.
+        LibrarySheet.Show, null -> Unit
     }
 }
 

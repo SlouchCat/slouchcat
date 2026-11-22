@@ -23,6 +23,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.ui.TvScreenHost
 import com.slouchcat.app.tv.ui.TvTheme
+import com.slouchcat.core.browse.testing.settle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

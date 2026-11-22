@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,6 +59,8 @@ import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.search.SearchEvents
+import com.slouchcat.core.browse.search.SearchUiState
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable
@@ -135,16 +136,6 @@ fun SearchScreen(state: SearchUiState, images: ServerImages, links: SearchLinks,
         }
     }
     focus.StartFocus(START)
-}
-
-/** What the search can be asked to do; the ViewModel does it, tests record it. */
-interface SearchEvents {
-    fun onText(text: String)
-    fun onClear()
-    fun onGenre(genre: String)
-    fun onClearGenre()
-    fun retry()
-    fun onMore()
 }
 
 /** `.br-sf`: the field (no control: the keyboard types into it), the caret in the accent. */

@@ -8,8 +8,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -17,9 +17,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.testing.HTTP_SERVER
-import com.slouchcat.app.mobile.testing.HTTPS_SERVER
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
+import com.slouchcat.core.browse.testing.HTTPS_SERVER
+import com.slouchcat.core.browse.testing.HTTP_SERVER
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals

@@ -16,6 +16,17 @@ import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryNav
+import com.slouchcat.core.browse.testing.EMAIL
+import com.slouchcat.core.browse.testing.FakeAccounts
+import com.slouchcat.core.browse.testing.FakeLibraries
+import com.slouchcat.core.browse.testing.FakeServers
+import com.slouchcat.core.browse.testing.FakeTokens
+import com.slouchcat.core.browse.testing.HTTPS_SERVER
+import com.slouchcat.core.browse.testing.PRIMARY
+import com.slouchcat.core.browse.testing.library
+import com.slouchcat.core.browse.testing.profile
+import com.slouchcat.core.browse.testing.session
+import com.slouchcat.core.browse.testing.settle
 import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.ProbeResult

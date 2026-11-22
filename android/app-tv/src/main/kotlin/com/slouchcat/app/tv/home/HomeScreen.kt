@@ -73,6 +73,8 @@ import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.home.HomeSection
+import com.slouchcat.core.browse.home.HomeUiState
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable

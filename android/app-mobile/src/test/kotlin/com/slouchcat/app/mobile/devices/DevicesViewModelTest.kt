@@ -1,11 +1,11 @@
 package com.slouchcat.app.mobile.devices
 
-import com.slouchcat.app.mobile.testing.CHILD
 import com.slouchcat.app.mobile.testing.FakeDevices
 import com.slouchcat.app.mobile.testing.device
-import com.slouchcat.app.mobile.testing.session
-import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.browse.testing.CHILD
+import com.slouchcat.core.browse.testing.session
+import com.slouchcat.core.browse.testing.settle
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers

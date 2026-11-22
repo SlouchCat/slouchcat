@@ -36,7 +36,7 @@ data class LibraryRoute(val id: Long, val sort: String? = null)
 data class ListRoute(val key: String) {
     companion object {
         /** «User-Empfehlungen» (`listPicks`). */
-        const val PICKS = "picks"
+        const val PICKS = com.slouchcat.core.browse.lists.ListKind.PICKS
     }
 }
 

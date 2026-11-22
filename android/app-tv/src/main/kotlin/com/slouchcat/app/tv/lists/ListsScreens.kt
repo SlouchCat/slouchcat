@@ -41,13 +41,7 @@ import com.slouchcat.app.tv.browse.info
 import com.slouchcat.app.tv.browse.pluralCount
 import com.slouchcat.app.tv.browse.screenWidth
 import com.slouchcat.app.tv.browse.watchedTag
-import com.slouchcat.app.tv.collections.CollectionPage
-import com.slouchcat.app.tv.collections.CollectionUiState
-import com.slouchcat.app.tv.collections.CollectionWatched
-import com.slouchcat.app.tv.collections.CollectionsUiState
 import com.slouchcat.app.tv.common.LoadableContent
-import com.slouchcat.app.tv.mylists.MyListUiState
-import com.slouchcat.app.tv.mylists.WatchedCard
 import com.slouchcat.app.tv.shell.LocalContentStart
 import com.slouchcat.app.tv.ui.BackdropMode
 import com.slouchcat.app.tv.ui.CardInfo
@@ -69,6 +63,13 @@ import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.HomeListKey
+import com.slouchcat.core.browse.collections.CollectionPage
+import com.slouchcat.core.browse.collections.CollectionUiState
+import com.slouchcat.core.browse.collections.CollectionWatched
+import com.slouchcat.core.browse.collections.CollectionsUiState
+import com.slouchcat.core.browse.lists.ListKind
+import com.slouchcat.core.browse.mylists.MyListUiState
+import com.slouchcat.core.browse.mylists.WatchedCard
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable

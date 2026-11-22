@@ -1,10 +1,14 @@
 package com.slouchcat.app.tv.setup
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.slouchcat.app.tv.testing.FakeProbe
-import com.slouchcat.app.tv.testing.FakeServers
 import com.slouchcat.app.tv.testing.TV_DEVICE
-import com.slouchcat.app.tv.testing.session
 import com.slouchcat.core.api.crypto.Base64Url
+import com.slouchcat.core.browse.testing.FakeServers
+import com.slouchcat.core.browse.testing.session
 import com.slouchcat.core.pairing.PairingCode
 import com.slouchcat.core.pairing.PairingFlow
 import com.slouchcat.core.pairing.PairingPacket
@@ -15,10 +19,6 @@ import com.slouchcat.core.pairing.TvPairing
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.SessionState
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
