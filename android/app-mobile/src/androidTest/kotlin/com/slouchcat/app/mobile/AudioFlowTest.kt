@@ -107,6 +107,8 @@ class AudioFlowTest {
         if (!shots) return
         compose.waitForIdle()
         instrumentation.waitForIdleSync()
+        // A sheet is a window of its own: the screenshot waits until the screen holds still.
+        instrumentation.uiAutomation.waitForIdle(IDLE_MS, NOTIFICATION_SETTLE_MS)
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         val dir = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -261,6 +263,8 @@ class AudioFlowTest {
         // The audiobook: its page, «Abspielen», the audio player plays.
         jump("item/$book")
         waitFor(hasText("The Quiet Harbour") and isHeading())
+        // A new epoch after the profile choice may load the page once more: the button stands.
+        compose.waitUntil(20_000) { present(hasText(s(R.string.app_item_play)) and hasClickAction()) }
         shot("a01-book")
         if (shots) {
             // The download dialog of the audiobook with the server's sizes in kbit/s (mockup photo 48).
@@ -272,7 +276,7 @@ class AudioFlowTest {
         press(s(R.string.app_item_play))
         val started = SystemClock.elapsedRealtime()
         compose.waitUntil(30_000) { title()?.state?.playing == true }
-        Log.i("first sound", SystemClock.elapsedRealtime() - started)
+        measure("first sound (tap to playing), ms", SystemClock.elapsedRealtime() - started)
         waitFor(hasContentDescription(s(R.string.app_audio_close)))
         shot("a02-listen")
 
@@ -301,6 +305,8 @@ class AudioFlowTest {
         // Back in front: the progress at the server follows the device, with the speed.
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         compose.waitUntil(30_000) { (serverProgress(book)?.positionMs ?: 0) > 70_000 }
+        measure("device position after the background, ms", title()!!.state.positionMs)
+        measure("server position after the background, ms", serverProgress(book)!!.positionMs)
         assertEquals(1.5, serverProgress(book)!!.playbackRate!!.toDouble(), 0.01)
         instrumentation.runOnMainSync { graph.audio.playback.togglePlay() }
         compose.waitUntil(10_000) { title()?.state?.playing == false }
@@ -346,8 +352,11 @@ class AudioFlowTest {
         scenario.close()
     }
 
-    private object Log {
-        fun i(what: String, ms: Long) = com.slouchcat.core.api.log.Log.i("audio-flow", what, "ms" to ms)
+    /** A measure of the flow, also into `audio-measures.txt` beside the photos (docs/perf/K27-android-handy.md). */
+    private fun measure(what: String, value: Long) {
+        com.slouchcat.core.api.log.Log.i("audio-flow", what, "value" to value)
+        val dir = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
+        File(dir, "audio-measures.txt").appendText("$what: $value\n")
     }
 
     private companion object {

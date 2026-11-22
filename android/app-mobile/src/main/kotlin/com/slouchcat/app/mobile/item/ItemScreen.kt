@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -304,6 +305,8 @@ private fun kicker(item: ItemDetail): String? {
         }
         ItemKind.SEASON -> series
         ItemKind.PODCAST_EPISODE -> item.podcast?.title
+        // «HÖRBUCH», «PODCAST» over the title (mockup `/book/:i`, `/podcast/:i`).
+        ItemKind.AUDIOBOOK, ItemKind.PODCAST -> kindName(item.kind)?.uppercase(LocalConfiguration.current.locales[0])
         else -> null
     }
 }
