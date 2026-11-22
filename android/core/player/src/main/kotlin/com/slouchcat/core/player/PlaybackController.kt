@@ -267,6 +267,17 @@ class PlaybackController(
         }
     }
 
+    /**
+     * What the device reports changed while a title plays (concept 26 5.2: the sound system was
+     * switched off, a headphone came): a new start where it stands, with the capabilities read
+     * again, so the server decides again (rule 12). Nothing while nothing plays, in the background
+     * (the next start reads them anyway) or after an error.
+     */
+    fun capabilitiesChanged() {
+        if (info == null || inBackground || mutable.value.error != null) return
+        restart()
+    }
+
     /** «Erneut versuchen» of an error picture. */
     fun retry() {
         val id = itemId ?: return
