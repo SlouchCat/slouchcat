@@ -18,6 +18,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
+import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.features
 import com.slouchcat.app.mobile.tvlink.CodeScanner
 import com.slouchcat.app.mobile.tvlink.MemoryRelaySettings
@@ -236,10 +237,9 @@ class TvLinkFlowTest {
         }
 
         // «Mehr › Fernseher verbinden».
-        // The bar names its targets for the screen reader (phone), the side column shows them (tablet).
-        val more = (hasContentDescription(s(R.string.app_more_title)) or hasText(s(R.string.app_more_title))) and hasClickAction()
-        waitFor(more)
-        compose.onAllNodes(more).onLast().performClick()
+        // The target «Mehr» as a jump of the app (bottom bar and side column name it differently).
+        waitFor(hasContentDescription(s(R.string.app_more_title)) or hasText(s(R.string.app_more_title)))
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { graph.links.request(AppLink("more", emptyList())) }
         waitForText(s(R.string.app_tv_moreHint))
         shot("t01-more")
         button(s(R.string.app_tv_title)).performScrollTo().performClick()
