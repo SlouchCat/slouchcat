@@ -144,7 +144,7 @@ class TvLinkShowcaseTest {
         // The server's answers.
         failure(PhonePairing.Issue.PrimaryOnly, s(R.string.app_tv_intro_primaryOnly), "p06-primary-only")
         failure(PhonePairing.Issue.Offline, s(R.string.app_tv_fail_server), "p07-server-offline", dismiss = R.string.common_cancel)
-        failure(PhonePairing.Issue.TooManyAttempts(40), s(R.string.errors_code_too_many_attempts), "p08-too-many", dismiss = R.string.common_cancel)
+        failure(PhonePairing.Issue.TooManyAttempts(40), context.resources.getQuantityString(R.plurals.app_tv_fail_tooMany, 40, 40), "p08-too-many", dismiss = R.string.common_cancel)
         failure(PhonePairing.Issue.ServerUnconfirmed, s(R.string.app_serverKey_unconfirmedBody), "p09-server-unconfirmed")
         failure(PhonePairing.Issue.NotAllowed("app_session_required"), s(R.string.app_tv_fail_notAllowed), "p10-not-allowed")
 
