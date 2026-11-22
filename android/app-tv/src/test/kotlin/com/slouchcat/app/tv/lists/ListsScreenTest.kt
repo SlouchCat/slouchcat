@@ -138,6 +138,9 @@ class ListsScreenTest {
         remote.assertFocused("Night Trains")
         remote.ok()
         pages.waitFor("Part 11")
+        // With the player of stage 3, «Abspielen» leads (mockup `col-play`); «Alle merken» beside it.
+        remote.assertFocused(pages.s(R.string.item_play))
+        remote.right()
         remote.assertFocused(pages.s(R.string.collection_watchlist_add))
         remote.assertEveryControlReachable(pages.page)
         remote.ok()

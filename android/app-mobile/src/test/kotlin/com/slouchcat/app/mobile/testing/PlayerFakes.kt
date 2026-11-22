@@ -23,64 +23,20 @@ import com.slouchcat.core.api.generated.models.Trickplay
 import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.browse.testing.mediaFile
 import com.slouchcat.core.browse.testing.posters
-import com.slouchcat.core.browse.testing.progress
 import com.slouchcat.core.browse.testing.ulid
-import com.slouchcat.core.player.EngineMedia
-import com.slouchcat.core.player.EngineSignal
 import com.slouchcat.core.player.PlaybackPrefsRepository
-import com.slouchcat.core.player.PlaybackServer
-import com.slouchcat.core.player.PlayerEngine
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.player.TrackChoice
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.slouchcat.core.player.testing.FakeServer
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 
-/** A player that only records: no picture, no time. */
-class FakePlayerEngine : PlayerEngine {
-    val flow = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 16)
-    override val events = flow
-    val loads = mutableListOf<EngineMedia>()
-    var released = false
-    override val positionMs: Long = 0
-    override val durationMs: Long = 0
-    override val bufferedMs: Long = 0
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long) {
-        loads += media
-    }
-    override fun play() = Unit
-    override fun pause() = Unit
-    override fun seekTo(positionMs: Long) = Unit
-    override fun setSpeed(speed: Float) = Unit
-    override fun selectAudio(index: Int) = Unit
-    override fun selectText(index: Int?) = Unit
-    override fun stop() = Unit
-    override fun release() {
-        released = true
-    }
-}
-
-/** A server that answers every start with [playbackInfo] for the title and records the stops. */
-class FakePlaybackServer : PlaybackServer {
-    val starts = mutableListOf<String>()
-    val requests = mutableListOf<PlaybackRequest>()
-    val stops = mutableListOf<String>()
-    override suspend fun start(itemId: String, request: PlaybackRequest): ApiResult<PlaybackInfo> {
-        starts += itemId
-        requests += request
-        return ApiResult.Ok(playbackInfo(itemId))
-    }
-    override suspend fun progress(itemId: String, event: ProgressEvent): ApiResult<Progress> =
-        ApiResult.Ok(Progress(event.positionMs, event.durationMs, BigDecimal.ZERO, false, OffsetDateTime.now()))
-    override suspend fun state(sessionId: String): ApiResult<PlaybackSessionState> =
-        ApiResult.Ok(PlaybackSessionState(PlaybackSessionState.State.PlaybackStateActive))
-    override suspend fun stop(sessionId: String): ApiResult<Unit> {
-        stops += sessionId
-        return ApiResult.Ok(Unit)
-    }
-    override suspend fun trickplay(itemId: String, mediaFileId: String): ApiResult<Trickplay> = ApiResult.NotFound
-    override suspend fun episodes(seasonId: String): ApiResult<List<ItemRef>> = ApiResult.Ok(emptyList())
-    override fun absolute(path: String): String = "https://media.example.test$path"
+/**
+ * The server of the phone tests: the shared [FakeServer] of `:core:player-testing` answering with
+ * the playback description of these tests ([playbackInfo]).
+ */
+fun phoneServer(): FakeServer = FakeServer().apply {
+    answer = { id, _ -> ApiResult.Ok(playbackInfo(id)) }
 }
 
 class FakePrefs(var stored: PlaybackPrefs = PlaybackPrefs(setOf("de", "en"), SubtitleMode.FORCED, setOf("de"))) : PlaybackPrefsRepository {

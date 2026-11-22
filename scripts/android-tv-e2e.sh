@@ -5,7 +5,9 @@
 # instrumentation test TvFlowTest of app-tv there: (a) set up by hand, profile with PIN, browse
 # (start, a title, a library, search, watchlist, «Profile verwalten»),
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
-# script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account.
+# script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
+# (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
+# resume, an episode up to the countdown, «Wiedergabe» of the settings.
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -89,6 +91,8 @@ started=$(date +%s)
 # browses it (stage 2b).
 mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
+# Real video for the player of stage 3 (a film, a series of two episodes; needs ffmpeg).
+../scripts/android-test-video.sh "$root/media"
 SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \

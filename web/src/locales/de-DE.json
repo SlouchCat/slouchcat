@@ -811,6 +811,9 @@
     }
   },
   "tv": {
+    "player": {
+      "soundForcedStereo": "In den Einstellungen steht der Ton auf „Immer Stereo“."
+    },
     "pair": {
       "step1": "Öffne die Slouchcat-App am Handy und wähle „Fernseher verbinden“."
     },

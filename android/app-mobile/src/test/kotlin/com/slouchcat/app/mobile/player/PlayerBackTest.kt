@@ -13,8 +13,7 @@ import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.item.DetailStartFeature
 import com.slouchcat.app.mobile.item.ItemFeature
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
-import com.slouchcat.app.mobile.testing.FakePlaybackServer
-import com.slouchcat.app.mobile.testing.FakePlayerEngine
+import com.slouchcat.app.mobile.testing.phoneServer
 import com.slouchcat.app.mobile.testing.reveal
 import com.slouchcat.core.browse.testing.EMAIL
 import com.slouchcat.core.browse.testing.FakeAccounts
@@ -29,6 +28,7 @@ import com.slouchcat.core.browse.testing.ulid
 import com.slouchcat.core.player.DeviceFacts
 import com.slouchcat.core.player.DisplayInfo
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
+import com.slouchcat.core.player.testing.FakeEngine
 import com.slouchcat.core.session.StoredCredentials
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
@@ -53,8 +53,8 @@ class PlayerBackTest {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val details = FakeDetails(film(progress = progress(40)))
-    private val server = FakePlaybackServer()
-    private val engines = mutableListOf<FakePlayerEngine>()
+    private val server = phoneServer()
+    private val engines = mutableListOf<FakeEngine>()
 
     private val graph = AppGraph(
         context,
@@ -63,7 +63,7 @@ class PlayerBackTest {
             ItemFeature { details },
             // Everything on the main thread: the test waits for the idle main looper, not for a clock.
             PlayerFeature(
-                engine = { _, _ -> FakePlayerEngine().also { engines += it } },
+                engine = { _, _ -> FakeEngine { 0L }.also { engines += it } },
                 server = { server },
                 settings = { MemoryDeviceSettingsStore() },
                 facts = { _, type -> DeviceFacts(emptyList(), emptySet(), 2, DisplayInfo(2424, 1080), type, "Test phone") },
@@ -99,8 +99,8 @@ class PlayerBackTest {
         val loads = details.asked.size
         compose.reveal(compose.onNode(hasText(context.getString(R.string.app_item_resume)) and hasClickAction())).performClick()
         waitFor(closePlayer)
-        assertEquals(listOf(ulid(1)), server.starts)
-        assertEquals(null, server.requests.single().positionMs)
+        assertEquals(listOf(ulid(1)), server.starts.map { it.first })
+        assertEquals(null, server.starts.single().second.positionMs)
         back()
         waitFor(hasText("A new day begins."))
         compose.waitForIdle()
@@ -113,8 +113,8 @@ class PlayerBackTest {
         // «Von vorn»: the player from the beginning; its own arrow leads back.
         compose.reveal(compose.onNode(hasText(context.getString(R.string.app_item_fromStart)) and hasClickAction())).performClick()
         waitFor(closePlayer)
-        assertEquals(2, server.requests.size)
-        assertEquals(0L, server.requests.last().positionMs)
+        assertEquals(2, server.starts.size)
+        assertEquals(0L, server.starts.last().second.positionMs)
         compose.onNode(closePlayer).performClick()
         waitFor(hasText("A new day begins."))
         back()

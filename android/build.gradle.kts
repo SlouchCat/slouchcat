@@ -20,7 +20,7 @@ tasks.register("ciCheck") {
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:assembleFossDebug")
     dependsOn(":app-mobile:assemblePlayRelease", ":app-mobile:assembleFossRelease")
     dependsOn(":app-mobile:lintPlayDebug", ":app-mobile:lintFossDebug")
-    dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug", ":core:player:lintDebug", ":core:media:lintDebug", ":core:offline:lintDebug", ":core:browse:lintDebug", ":core:browse-testing:lintDebug")
+    dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug", ":core:player:lintDebug", ":core:player-testing:lintDebug", ":core:media:lintDebug", ":core:offline:lintDebug", ":core:browse:lintDebug", ":core:browse-testing:lintDebug")
     // The TV app (concept 26): debug and unsigned release (R8), lint; the pairing module.
     dependsOn(":app-tv:assembleDebug", ":app-tv:assembleRelease", ":app-tv:lintDebug", ":core:pairing:lint")
 }

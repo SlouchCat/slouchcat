@@ -16,6 +16,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -36,6 +37,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 import java.io.File
+import java.io.InputStreamReader
 
 /**
  * The way of a new TV through the app against a real server (scripts/android-tv-e2e.sh, concept 26
@@ -45,7 +47,8 @@ import java.io.File
  * (`pairCode=…`), the script lets `apicheck -pair-phone` play the phone through the local relay,
  * the TV redeems and lands in the profile choice with server and account (K-9). Between profile
  * and settings (a) browses as stage 2b: start page, a title with «Merken», a library from the
- * rail, the search with a keyboard, the watchlist, «Profile verwalten».
+ * rail, the search with a keyboard, the watchlist, «Profile verwalten». (c) plays real video with
+ * the player of stage 3 (`c_player`).
  *
  * Arguments (`am instrument -e <name> …`): `slouchcatServer` (default `http://10.0.2.2:8697`),
  * `slouchcatRelay` (default `http://10.0.2.2:8180`), `slouchcatEmail`, `slouchcatPassword`,
@@ -77,14 +80,18 @@ class TvFlowTest {
 
     /** The account as a household has it: set up, the primary profile with a PIN. */
     private fun prepareServer() {
+        // Once per run: the PIN of the profile has a limit per minute, the tests enter it themselves as well.
+        if (prepared) return
+        prepared = true
         val plain = SlouchcatHttp.client(identity)
         val setup = SlouchcatApi.create(::SetupApi, server, plain)
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
-        // One web session for both tests (TestLibrary): the server allows 10 sign-ins and PIN attempts a
+        // One web session for all tests (TestLibrary): the server allows 10 sign-ins and PIN attempts a
         // minute and address, which the TV's own sign-in and the phone of the script need.
         val library = TestLibrary(server, email, password, pin)
         library.primaryWithPin()
-        library.ensure(requireNotNull(media) { "run through scripts/android-tv-e2e.sh, which writes the media" }, LIBRARY)
+        val folder = requireNotNull(media) { "run through scripts/android-tv-e2e.sh, which writes the media" }
+        library.ensure(folder to LIBRARY, "$folder/Playback" to PLAYBACK)
     }
 
     /** Whether the focus is on an element with [text] now. */
@@ -248,11 +255,15 @@ class TvFlowTest {
         // A title: «Merken» to the server, Back to the same card.
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         waitFor(hasContentDescription(s(R.string.tv_item_more)))
+        // Stage 3: «Abspielen» leads; «Merken» beside it.
+        focused(s(R.string.app_item_play))
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
         focused(s(R.string.item_watchlist_add))
         shot("31-item")
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(s(R.string.item_watchlist_added))
         key(KeyEvent.KEYCODE_BACK)
+        // Start reads its rows again after a page (stage 3); the card keeps the focus.
         focused(TITLE)
         // The library from the rail.
         rail(LIBRARY)
@@ -286,8 +297,8 @@ class TvFlowTest {
         key(KeyEvent.KEYCODE_DPAD_UP)
         focused(s(R.string.tv_shell_switchProfile))
         // «Erweitert»: the relay is changed here (F-21), not on the page with the code.
-        key(KeyEvent.KEYCODE_DPAD_DOWN, 4)
-        focused(s(R.string.tv_settings_advanced))
+        // Down past «Wiedergabe» (stage 3) and «Server und Konto», «Über».
+        down(s(R.string.tv_settings_advanced))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         focused(s(R.string.tv_relay_label))
         shot("16-advanced-relay")
@@ -358,8 +369,244 @@ class TvFlowTest {
         scenario.close()
     }
 
+    /** Whether anything with [text] is on the screen now. */
+    private fun present(text: String): Boolean =
+        compose.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+
+    /** The card [text] on a grid page: down into the grid, then along it to the right or the left. */
+    private fun toCard(text: String) {
+        repeat(ROW_MAX) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        repeat(ROW_MAX) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        repeat(ROW_MAX * 2) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_LEFT) }
+        focused(text)
+    }
+
+    /** Down a menu until [text] has the focus. */
+    private fun down(text: String) {
+        repeat(MENU_MAX) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        focused(text)
+    }
+
+    /** Along the buttons of the player to [text]: to the right, else back to the left. */
+    private fun along(text: String) {
+        repeat(MENU_MAX) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        repeat(MENU_MAX) { if (!isFocusedOn(text)) key(KeyEvent.KEYCODE_DPAD_LEFT) }
+        focused(text)
+    }
+
+    /** The controls of the player shown with the focus on the bar (Hoch shows hidden controls, or goes up to the bar). */
+    private fun controls() {
+        key(KeyEvent.KEYCODE_DPAD_UP)
+        focused(bar)
+    }
+
+    /** Leaves the player: Zurück hides the controls, Zurück leaves. */
+    private fun leavePlayer() {
+        controls()
+        key(KeyEvent.KEYCODE_BACK)
+        key(KeyEvent.KEYCODE_BACK)
+    }
+
+    /** From the start of the app to «Start»: set up by hand when the TV is not, then the profile with its PIN. */
+    private fun toStart() {
+        waitFor(hasText(s(R.string.tv_setup_welcome)) or hasText(s(R.string.profiles_picker_title)) or hasText(TITLE, substring = true), timeout = 60_000)
+        // Still signed in with a profile (an earlier test stopped half way): Start already.
+        if (present(TITLE)) return
+        if (present(s(R.string.tv_setup_welcome))) {
+            focused(s(R.string.tv_setup_phoneTitle))
+            key(KeyEvent.KEYCODE_DPAD_RIGHT)
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitForText(s(R.string.tv_hand_serverLead))
+            type(s(R.string.tv_hand_serverLabel), shown)
+            waitForText(server.host)
+            focused(s(R.string.tv_hand_next))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitForText(s(R.string.tv_hand_emailLead))
+            type(s(R.string.tv_hand_emailLabel), email)
+            focused(s(R.string.tv_hand_next))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitForText(s(R.string.tv_hand_passwordLead, server.host))
+            type(s(R.string.tv_hand_passwordLabel), password)
+            focused(s(R.string.tv_hand_signIn))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+        }
+        waitForText(s(R.string.profiles_picker_title))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.tv_pin_prompt))
+        pin.forEach { key(KeyEvent.KEYCODE_0 + (it - '0')) }
+        submitPin()
+    }
+
+    /** The lines «first picture» the player logged (debug build), also into `first-pictures.txt` beside the photos. */
+    private fun firstPictures(): List<String> {
+        val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "raw", "-s", "SlouchcatTv/player:I"))
+        val lines = InputStreamReader(process.inputStream).readLines().filter { it.contains("first picture") }
+        val dir = File(context.filesDir, "shots").apply { mkdirs() }
+        File(dir, "first-pictures.txt").writeText(lines.joinToString("\n", postfix = "\n"))
+        return lines
+    }
+
+    private fun waitForFirstPictures(count: Int) =
+        compose.waitUntil(PLAY_MS) { firstPictures().size >= count }
+
+    private val bar get() = s(R.string.player_seek)
+
+    /**
+     * (c) The player of stage 3 with real video (scripts/android-test-video.sh): the film plays
+     * directly, pauses, spools, takes another sound track and subtitles from the menus, converts on
+     * the server for a lower quality (HLS), is left with Zurück in two steps and resumes; an episode
+     * runs up to the countdown, the next one plays; a file that is no video shows the error picture.
+     * The times to the first picture go to `first-pictures.txt`.
+     */
+    @Test
+    fun c_player() {
+        prepareServer()
+        Runtime.getRuntime().exec(arrayOf("logcat", "-c")).waitFor()
+        val scenario = launch()
+        toStart()
+        waitForText(TITLE)
+
+        // «Einstellungen › Wiedergabe»: quality, languages, series, sound.
+        rail(s(R.string.tv_settings_title))
+        waitForText(s(R.string.tv_settings_switchPane))
+        down(s(R.string.app_playback_title))
+        shot("59-settings")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.app_playback_quality))
+        waitForText(s(R.string.tv_playback_soundHelp))
+        shot("60-settings-playback")
+        key(KeyEvent.KEYCODE_BACK)
+
+        // The film plays directly: the controls, pause, spool, sound and subtitles from the menus.
+        rail(PLAYBACK)
+        waitForText(FILM)
+        toCard(FILM)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(hasContentDescription(s(R.string.tv_item_more)))
+        focused(s(R.string.app_item_play))
+        shot("61-item-play")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(bar)
+        waitForFirstPictures(1)
+        shot("62-player-controls")
+        // Home and back (TV-NP): the session ends, the film comes back paused at its place.
+        scenario.moveToState(Lifecycle.State.CREATED)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        waitForFirstPictures(2)
+        controls()
+        waitForText(s(R.string.tv_player_paused))
+        shot("62b-back-from-home")
+        // OK plays on (the next steps pause it again).
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        controls()
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.tv_player_paused))
+        shot("63-paused")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT, 3)
+        waitForText("+")
+        shot("64-seek-preview")
+        // One seek when the keys stop: the bubble goes.
+        compose.waitUntil(PLAY_MS) { !present("+") }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        key(KeyEvent.KEYCODE_DPAD_DOWN)
+        focused(s(R.string.player_tracks_audio))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused("Deutsch")
+        shot("65-menu-audio")
+        down("English")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.player_tracks_audio))
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        focused(s(R.string.player_tracks_subtitles))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.player_tracks_off))
+        shot("66-menu-subtitles")
+        down("Deutsch")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.player_tracks_subtitles))
+        along(s(R.string.tv_player_info))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.app_player_info_direct))
+        waitForText("English")
+        shot("67-info")
+        key(KeyEvent.KEYCODE_BACK)
+        // A quality below the file: the server converts it, HLS.
+        along(s(R.string.player_settings_quality))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        shot("69-menu-quality")
+        down(QUALITY)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForFirstPictures(3)
+        // Zurück hides the controls, then leaves; the title resumes where it stood.
+        controls()
+        key(KeyEvent.KEYCODE_BACK)
+        shot("70-controls-hidden")
+        key(KeyEvent.KEYCODE_BACK)
+        waitForText(s(R.string.app_item_resume), timeout = PLAY_MS)
+        focused(s(R.string.app_item_resume))
+        shot("71-item-resume")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(bar)
+        waitForFirstPictures(4)
+        leavePlayer()
+        focused(s(R.string.app_item_resume))
+        key(KeyEvent.KEYCODE_BACK)
+
+        // An episode: the list of the season, then up to the end credits and the countdown.
+        rail(PLAYBACK)
+        waitForText(SERIES)
+        toCard(SERIES)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(hasContentDescription(s(R.string.tv_item_more)))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(bar)
+        waitForFirstPictures(5)
+        controls()
+        key(KeyEvent.KEYCODE_DPAD_DOWN)
+        along(s(R.string.app_player_episodes))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText("Episode 2")
+        shot("72-menu-episodes")
+        key(KeyEvent.KEYCODE_BACK)
+        controls()
+        key(KeyEvent.KEYCODE_DPAD_RIGHT, 4)
+        waitFor(hasText(s(R.string.app_player_playNow)), timeout = PLAY_MS)
+        focused(s(R.string.app_player_playNow))
+        shot("73-countdown")
+        // The countdown runs out: episode 2 plays.
+        waitForFirstPictures(6)
+        shot("74-next-episode")
+        leavePlayer()
+        key(KeyEvent.KEYCODE_BACK)
+
+        // A file that is no video: the error picture with «Zurück».
+        rail(LIBRARY)
+        waitForText(TITLE)
+        toCard(TITLE)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(hasContentDescription(s(R.string.tv_item_more)))
+        focused(s(R.string.app_item_play))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitFor(hasText(s(R.string.common_back)) and hasClickAction(), timeout = PLAY_MS, unmerged = false)
+        shot("75-error")
+        firstPictures()
+        scenario.close()
+    }
+
     private companion object {
+        /** The server of this run is set up and has its libraries. */
+        var prepared = false
         const val FRAME_MS = 500L
+
+        /** The clips of scripts/android-test-video.sh and their library. */
+        const val FILM = "Two Voices"
+        const val SERIES = "Clip Show"
+        const val PLAYBACK = "Wiedergabe-Test"
+        const val QUALITY = "480p"
+        const val MENU_MAX = 10
+
+        /** How long the emulator may take to load a stream (a transcode in software). */
+        const val PLAY_MS = 90_000L
 
         /** The film of scripts/android-test-media.sh and the library the test makes of it. */
         const val TITLE = "Night Train"
