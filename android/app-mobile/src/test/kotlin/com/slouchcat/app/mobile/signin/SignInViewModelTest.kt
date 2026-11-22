@@ -217,4 +217,39 @@ class SignInViewModelTest {
         assertFalse("the credentials stay suppressed", keys.suppressed)
         assertEquals(listOf("begin:new-key", "finish:false"), keys.log)
     }
+
+    /**
+     * The same abort with the app's real confirmation (GateKeyConfirmation over the SessionManager):
+     * after an appLogin that never answered, the session sends its credentials again
+     * (`credentialsSuppressed` reset) and the gate forgets the candidate key.
+     */
+    @Test
+    fun anAbortedSignInResetsTheSuppressedCredentialsOfTheSession() = runTest(dispatcher) {
+        val hanging = CompletableDeferred<ApiResult<AppLogin>>()
+        val slow = object : com.slouchcat.core.session.AuthRepository by auth {
+            override suspend fun appLogin(server: okhttp3.HttpUrl, email: String, password: String, device: com.slouchcat.core.session.DeviceDescription, deviceId: String?) =
+                hanging.await()
+        }
+        val session = session(backgroundScope, token = null, tokens = tokens, servers = servers)
+        settle()
+        val gate = com.slouchcat.core.api.ServerIdentityGate(session, { 0L }, { _, _ -> null })
+        val real = com.slouchcat.app.mobile.common.GateKeyConfirmation(gate, session)
+        // The gate met another key under the address (what it holds in `newKey` after a failed proof).
+        val presented = object : com.slouchcat.app.mobile.common.KeyConfirmation by real {
+            override val newKey = kotlinx.coroutines.flow.MutableStateFlow<String?>("new-key")
+        }
+        val store = ViewModelStore()
+        val owner = object : ViewModelStoreOwner { override val viewModelStore = store }
+        val vm = ViewModelProvider.create(owner, viewModelFactory { initializer { SignInViewModel(saved, true, session, slow, probe, PHONE, presented) } })[SignInViewModel::class]
+        settle()
+        vm.typeIn(EMAIL, "secret")
+        vm.onSubmit()
+        settle()
+        assertTrue("suppressed while confirming", session.credentialsSuppressed)
+        assertEquals("new-key", gate.candidateKey)
+        store.clear()
+        settle()
+        assertFalse("the credentials stay suppressed", session.credentialsSuppressed)
+        assertNull(gate.candidateKey)
+    }
 }
