@@ -854,8 +854,8 @@
           "$description": ".br-skip, .br-next bottom without the controls"
         },
         "next": {
-          "$value": "410px",
-          "$description": ".br-next width"
+          "$value": "450px",
+          "$description": ".br-next width (820 px of the mockup; 40 more so «Abbrechen» fits at the TV font size)"
         },
         "next-pad": {
           "$value": "13px",
@@ -866,8 +866,8 @@
           "$description": ".br-next gap"
         },
         "next-image": {
-          "$value": "150px",
-          "$description": ".br-nxim width (16:9)"
+          "$value": "130px",
+          "$description": ".br-nxim width (16:9; 300 px of the mockup, smaller for the buttons)"
         },
         "next-radius": {
           "$value": "15px",

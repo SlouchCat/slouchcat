@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -211,6 +213,11 @@ private fun Episodes(state: PlayerState, seasons: SeasonsMenu, images: ServerIma
     if (list == null) {
         com.slouchcat.app.tv.ui.TvBusy(stringResource(R.string.common_loading), Modifier.focusRequester(first))
         return
+    }
+    // The list comes after the menu opened (the busy ring had the focus): the focus moves on to it.
+    LaunchedEffect(shownSeason, list.isEmpty()) {
+        withFrameNanos { }
+        runCatching { first.requestFocus() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(P.ChipsGap)) {
         val start = list.indexOfFirst { it.id == playing?.id }.takeIf { it >= 0 } ?: 0

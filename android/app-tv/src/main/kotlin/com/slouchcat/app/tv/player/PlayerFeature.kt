@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -159,7 +160,7 @@ class PlayerFeature(
                 images = images,
                 remoteKeys = graph.remoteKeys,
                 autoHide = !talkBack(context),
-                surface = { if (media3 != null) VideoSurface(media3) },
+                surface = { controls -> if (media3 != null) VideoSurface(media3, raised = controls) },
                 thumbnail = { tile, modifier -> TrickplayThumbnail(tile, graph.imageLoader, modifier) },
             )
         }
@@ -203,6 +204,9 @@ private fun AudioOutputWatch(engine: Media3Engine, vm: PlayerViewModel) {
     }
 }
 
+/** Share of the picture's height below text subtitles while the controls show (the controls take about a third). */
+private const val RAISED_SUBTITLES = 0.33f
+
 private val ENCODED = setOf(
     AudioFormat.ENCODING_AC3,
     AudioFormat.ENCODING_E_AC3,
@@ -220,7 +224,7 @@ private val ENCODED = setOf(
  */
 @OptIn(UnstableApi::class)
 @Composable
-private fun VideoSurface(engine: Media3Engine) {
+private fun VideoSurface(engine: Media3Engine, raised: Boolean) {
     val c = SlouchcatTheme.colors
     val text = c.tx.toArgb()
     val edge = c.bg.toArgb()
@@ -240,6 +244,8 @@ private fun VideoSurface(engine: Media3Engine) {
                 player = engine.player
             }
         },
+        // Text subtitles above the controls while they show (else they sit behind the buttons).
+        update = { it.subtitleView?.setBottomPaddingFraction(if (raised) RAISED_SUBTITLES else SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION) },
         onRelease = { it.player = null },
         modifier = Modifier.fillMaxSize(),
     )

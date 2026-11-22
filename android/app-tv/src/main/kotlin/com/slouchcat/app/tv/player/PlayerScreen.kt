@@ -69,7 +69,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.tv.material3.Border
@@ -151,7 +152,8 @@ fun PlayerScreen(
     remoteKeys: TvRemoteKeys? = null,
     autoHide: Boolean = true,
     initialControls: Boolean = true,
-    surface: @Composable () -> Unit = {},
+    /** The picture; `true` while the controls show (the subtitles move up above them). */
+    surface: @Composable (Boolean) -> Unit = {},
     thumbnail: @Composable (TrickplayTile, Modifier) -> Unit = { _, _ -> },
     now: () -> Long = { android.os.SystemClock.uptimeMillis() },
     wallClock: () -> Long = System::currentTimeMillis,
@@ -273,7 +275,7 @@ fun PlayerScreen(
                 hiddenKey(event, focus, onSpool = { spool(it, event.nativeKeyEvent.repeatCount > 0, event.nativeKeyEvent.eventTime) }, onToggle = ::toggle, show = ::show, row = row)
             },
     ) {
-        surface()
+        surface(controls)
         val dim by animateFloatAsState(if (!state.playing && !state.loading && state.info != null && state.error == null) 1f else 0f, label = "")
         Box(Modifier.fillMaxSize().alpha(dim).background(SlouchcatTokens.Tv.Color.ShadeMid))
 
@@ -583,7 +585,13 @@ private fun Bubble(
     Column(
         Modifier
             .width(P.Preview)
-            .offset { IntOffset(with(density) { x.roundToPx() }, -with(density) { (P.PreviewBottom + P.Seek).roundToPx() }) },
+            // Above the bar, whatever its own height (the picture comes only with trickplay).
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                layout(placeable.width, 0) {
+                    placeable.place(with(density) { x.roundToPx() }, -placeable.height - with(density) { P.PreviewBottom.roundToPx() })
+                }
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(P.PreviewGap),
     ) {
