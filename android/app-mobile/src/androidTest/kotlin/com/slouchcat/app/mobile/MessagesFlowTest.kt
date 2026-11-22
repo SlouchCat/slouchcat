@@ -93,11 +93,13 @@ class MessagesFlowTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val identity = ClientIdentity(ClientIdentity.Kind.MOBILE, BuildConfig.VERSION_NAME)
 
-    // The helpers of the run, by the server's port (as task android:contract places them).
-    private val seerrForServer = "http://127.0.0.1:${server.port - 11}"
-    private val seerrFromHere = server.newBuilder().port(server.port - 11).encodedPath("/").build()
-    private val relayFromHere = server.newBuilder().port(server.port + 83).encodedPath("/").build()
-    private val fcmFromHere = server.newBuilder().port(server.port + 84).encodedPath("/").build()
+    // The helpers of scripts/android-helpers.sh: their ports come as arguments, the defaults as there.
+    private fun port(name: String, default: Int) = args.getString(name)?.toIntOrNull() ?: default
+    private val seerrPort = port("slouchcatSeerrPort", server.port - 11)
+    private val seerrForServer = "http://127.0.0.1:$seerrPort"
+    private val seerrFromHere = server.newBuilder().port(seerrPort).encodedPath("/").build()
+    private val relayFromHere = server.newBuilder().port(port("slouchcatPushPort", server.port + 83)).encodedPath("/").build()
+    private val fcmFromHere = server.newBuilder().port(port("slouchcatFcmPort", server.port + 84)).encodedPath("/").build()
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
