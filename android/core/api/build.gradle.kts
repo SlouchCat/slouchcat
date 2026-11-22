@@ -62,9 +62,17 @@ dependencies {
     api(libs.okhttp)
     api(libs.serialization.json)
     api(libs.coroutines.core)
+    implementation(libs.tink.android)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+}
+
+// The shared test vectors of the repository (testdata/crypto, format slouchcat-crypto-vectors-v1).
+tasks.named<Test>("test") {
+    val vectors = rootProject.layout.projectDirectory.dir("../testdata/crypto")
+    inputs.dir(vectors).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("slouchcat.vectors", vectors.asFile.absolutePath)
 }
 
 // The contract test (task android:contract): the generated client against a real server the task
@@ -81,6 +89,14 @@ testing {
                     val base = providers.gradleProperty("slouchcat.contract.base")
                     inputs.property("base", base.orElse(""))
                     systemProperty("slouchcat.contract.base", base.getOrElse(""))
+                    // The media tree of scripts/android-test-media.sh below the server's browsable root.
+                    val media = providers.gradleProperty("slouchcat.contract.media")
+                    inputs.property("media", media.orElse(""))
+                    systemProperty("slouchcat.contract.media", media.getOrElse(""))
+                    // The capability profile of the phone app (core/player's rules for the emulator).
+                    val fixtures = rootProject.layout.projectDirectory.dir("../testdata/android")
+                    inputs.dir(fixtures).withPathSensitivity(PathSensitivity.RELATIVE)
+                    systemProperty("slouchcat.contract.fixtures", fixtures.asFile.absolutePath)
                     outputs.upToDateWhen { false }
                     testLogging { events("passed", "failed"); showStandardStreams = true }
                 }

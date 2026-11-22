@@ -32,10 +32,6 @@
         "confirm": "Anslut ändå"
       }
     },
-    "connected": {
-      "title": "Ansluten till {{host}}",
-      "change": "Ändra adress"
-    },
     "state": {
       "loading": "Läser in…",
       "offline": "Servern svarar inte. Kontrollera anslutningen.",
@@ -48,10 +44,6 @@
       "title": "Uppdatera appen",
       "body": "Din server behöver en nyare version av appen.",
       "close": "Stäng"
-    },
-    "connectedState": {
-      "empty": "Ingen server har konfigurerats än.",
-      "setUp": "Konfigurera server"
     },
     "tls": {
       "userCertificate": "Krypterad med ett certifikat som du har installerat",

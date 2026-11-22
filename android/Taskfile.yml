@@ -24,13 +24,15 @@ tasks:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain ciTest {{.CLI_ARGS}}
 
   apk:
-    desc: Debug APKs and unsigned release APKs (R8) of both flavours into app-mobile/build/outputs/apk
+    desc: >-
+      Debug APKs and unsigned release APKs (R8) of both flavours into app-mobile/build/outputs/apk, of the TV app into
+      app-tv/build/outputs/apk
     cmds:
-      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease
-      - find app-mobile/build/outputs/apk -name '*.apk' -print
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease :app-tv:assembleDebug :app-tv:assembleRelease
+      - find app-mobile/build/outputs/apk app-tv/build/outputs/apk -name '*.apk' -print
 
-  # The generated client against a real server: the server of this repository with empty data on
-  # its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
+  # The generated client against a real server: the server of this repository with fresh data and
+  # the media tree of scripts/android-test-media.sh on its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
   contract:
     desc: >-
       Contract test of the Kotlin client: starts bin/slouchcat with fresh data on CONTRACT_PORT
@@ -56,8 +58,13 @@ tasks:
           tail -n 40 "$root/server.log" >&2
           exit 1
         }
-        # The same throw-away setup as task apicheck: own config and cache, no TMDB key.
-        SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+        # The same throw-away setup as task apicheck: own config and cache, no TMDB key; a small
+        # media tree as the only browsable root (the detail pages' contract test adds it).
+        mkdir -p "$root/media"
+        ../scripts/android-test-media.sh "$root/media"
+        # Real video for the player's contract test (needs ffmpeg).
+        ../scripts/android-test-video.sh "$root/media"
+        SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
           --listen "127.0.0.1:$port" \
           --config-dir "$root/config" --cache-dir "$root/cache" \
           --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -69,8 +76,32 @@ tasks:
         done
         grep -q 'msg=listening' "$root/server.log" || fail "The server reported no address within 60 s."
         ../scripts/heavy-slot.sh ./gradlew --console=plain :core:api:contractTest \
-          "-Pslouchcat.contract.base=http://127.0.0.1:$port" || fail "The contract test failed."
+          "-Pslouchcat.contract.base=http://127.0.0.1:$port" "-Pslouchcat.contract.media=$root/media" || fail "The contract test failed."
         CONTRACT
+
+  # The flow of the app in an emulator (concept 27 12 «Gerät»): the server of this repository with
+  # fresh data on PORT (8597), the connected device or the AVD sc_phone, the instrumentation test
+  # SignInFlowTest. SHOTS=<dir> photographs every page and sheet instead (visual check).
+  e2e:
+    desc: >-
+      Instrumentation test in the emulator: server address, sign-in, profile with PIN, «Mehr», «Meine Geräte», sign-out
+      against bin/slouchcat on PORT (8597), only in its own emulator AVD (sc_phone) on EMU_PORT (5580); SHOTS=<dir> takes photos
+    cmds:
+      - task: :server:build
+      - PORT={{.PORT | default "8597"}} AVD={{.AVD | default "sc_phone"}} EMU_PORT={{.EMU_PORT | default "5580"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} CLASS={{.CLASS}} ../scripts/android-e2e.sh
+
+  # The flow of the TV app in a TV emulator (concept 26 stage 2a): the server with fresh data on PORT
+  # (8697), the relay relay/bin/pair on RELAY_PORT (8180), its own emulator AVD (sc_tv) on EMU_PORT
+  # (5584), the instrumentation test TvFlowTest; apicheck plays the phone for the scan.
+  e2e:tv:
+    desc: >-
+      Instrumentation test of the TV app in its own TV emulator: set up by hand, profile with PIN, settings, sign out;
+      set up by scan through a local relay with apicheck as the phone (PORT 8697, RELAY_PORT 8180, EMU_PORT 5584); SHOTS=<dir> takes photos
+    cmds:
+      - task: :server:build
+      - task: :relay:build
+      - cd ../server && go build -o bin/apicheck ./cmd/apicheck
+      - PORT={{.PORT | default "8697"}} RELAY_PORT={{.RELAY_PORT | default "8180"}} AVD={{.AVD | default "sc_tv"}} EMU_PORT={{.EMU_PORT | default "5584"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} ../scripts/android-tv-e2e.sh
 
   # The quick Android part of `task check:fast`: only when something the apps are built from
   # changed (android/, the contract, the texts, the tokens) against BASE (default HEAD, the

@@ -15,7 +15,11 @@ import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
+import org.snakeyaml.engine.v2.api.RepresentToNode
 import org.snakeyaml.engine.v2.common.FlowStyle
+import org.snakeyaml.engine.v2.common.ScalarStyle
+import org.snakeyaml.engine.v2.nodes.Tag
+import org.snakeyaml.engine.v2.representer.StandardRepresenter
 
 /**
  * The pre-pass of concept 27 (5.3): cuts api/openapi.yaml down to the operations one app may call
@@ -44,12 +48,49 @@ abstract class TrimOpenApi : DefaultTask() {
         @Suppress("UNCHECKED_CAST")
         val root = Load(settings).loadFromString(contract.get().asFile.readText()) as MutableMap<String, Any?>
         val stats = OpenApiTrimmer.trim(root, client.get(), visibilities.get().toSet())
-        val dump = Dump(DumpSettings.builder().setDefaultFlowStyle(FlowStyle.BLOCK).setWidth(4096).build())
+        val dumpSettings = DumpSettings.builder().setDefaultFlowStyle(FlowStyle.BLOCK).setWidth(4096).build()
+        val dump = Dump(dumpSettings, Yaml11SafeRepresenter(dumpSettings))
         output.get().asFile.apply { parentFile.mkdirs() }.writeText(dump.dumpToString(root))
         logger.lifecycle(
             "TrimOpenApi: ${stats.kept} operations kept, ${stats.dropped} dropped, " +
                 "${stats.components} components reached",
         )
+    }
+}
+
+/**
+ * Writes YAML 1.2 that a YAML 1.1 reader (the parser of openapi-generator) reads the same: a string
+ * that YAML 1.1 would resolve to a boolean, a number, a timestamp or null stays quoted. Unquoted,
+ * the generator read the enumeration value `off` of `SubtitleMode` as the boolean `false` and the
+ * client sent "false" (stage 5); likewise `1:30` would become 90, `1_000` 1000, `2026-11-21` a date.
+ */
+internal class Yaml11SafeRepresenter(settings: DumpSettings) : StandardRepresenter(settings) {
+    init {
+        val plain = representers.getValue(String::class.java)
+        representers[String::class.java] = RepresentToNode { data ->
+            if (isYaml11Special(data as String)) representScalar(Tag.STR, data, ScalarStyle.DOUBLE_QUOTED) else plain.representData(data)
+        }
+    }
+
+    companion object {
+        /** The implicit resolvers of YAML 1.1 (yaml.org/type: bool, int, float, null, timestamp). */
+        private val YAML11 = listOf(
+            Regex("""y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF"""),
+            Regex("""~|null|Null|NULL|"""),
+            Regex("""[-+]?0b[0-1_]+"""),
+            Regex("""[-+]?0[0-7_]+"""),
+            Regex("""[-+]?(0|[1-9][0-9_]*)"""),
+            Regex("""[-+]?0x[0-9a-fA-F_]+"""),
+            Regex("""[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+"""),
+            Regex("""[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?"""),
+            Regex("""[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*"""),
+            Regex("""[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)"""),
+            Regex("""[0-9][0-9][0-9][0-9]-[0-9][0-9]?-[0-9][0-9]?([Tt]|[ \t]+)[0-9][0-9]?:[0-9][0-9]:[0-9][0-9](\.[0-9]*)?(([ \t]*)Z|[-+][0-9][0-9]?(:[0-9][0-9])?)?"""),
+            Regex("""[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"""),
+        )
+
+        /** Whether a YAML 1.1 reader takes [value] for anything but a string. */
+        fun isYaml11Special(value: String): Boolean = YAML11.any { it.matches(value) }
     }
 }
 

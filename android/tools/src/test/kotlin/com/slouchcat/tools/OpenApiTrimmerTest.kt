@@ -97,4 +97,32 @@ class OpenApiTrimmerTest {
         assertTrue("public carries no list", OpenApiTrimmer.keeps(op("public", null), "app", kept))
         assertFalse(OpenApiTrimmer.keeps(op("admin", null), "app", kept))
     }
+
+    /** `off` of `SubtitleMode` must stay a string for the YAML 1.1 reader of openapi-generator. */
+    @Test
+    fun yaml11BooleanWordsStayQuoted() {
+        val settings = org.snakeyaml.engine.v2.api.DumpSettings.builder().build()
+        val yaml = org.snakeyaml.engine.v2.api.Dump(settings, Yaml11SafeRepresenter(settings))
+            .dumpToString(mapOf("enum" to listOf("off", "forced", "On", "yes"), "minimum" to 0))
+        assertTrue(yaml, yaml.contains("\"off\""))
+        assertTrue(yaml, yaml.contains("\"On\""))
+        assertTrue(yaml, yaml.contains("\"yes\""))
+        assertTrue(yaml, yaml.contains("forced") && !yaml.contains("\"forced\""))
+        assertTrue(yaml, yaml.contains("minimum: 0"))
+    }
+
+    /** Sexagesimal, underscores, timestamps and null of YAML 1.1 stay strings as well. */
+    @Test
+    fun yaml11NumbersDatesAndNullStayQuoted() {
+        for (value in listOf("1:30", "1_000", "2026-11-21", "2026-11-21T10:00:00Z", "~", "null", "010", "0b1", "0x1F", ".5", ".inf", "")) {
+            assertTrue(value, Yaml11SafeRepresenter.isYaml11Special(value))
+        }
+        for (value in listOf("forced", "1080p", "h264", "de", "2026-11", "v1.43.0", "en-GB")) {
+            assertFalse(value, Yaml11SafeRepresenter.isYaml11Special(value))
+        }
+        val settings = org.snakeyaml.engine.v2.api.DumpSettings.builder().build()
+        val yaml = org.snakeyaml.engine.v2.api.Dump(settings, Yaml11SafeRepresenter(settings))
+            .dumpToString(mapOf("enum" to listOf("1:30", "1_000", "2026-11-21")))
+        assertTrue(yaml, yaml.contains("\"1:30\"") && yaml.contains("\"1_000\"") && yaml.contains("\"2026-11-21\""))
+    }
 }

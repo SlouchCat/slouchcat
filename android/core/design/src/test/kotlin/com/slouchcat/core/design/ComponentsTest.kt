@@ -11,13 +11,14 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsAtLeast
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -109,6 +110,7 @@ class ComponentsTest {
                     SectionTitle("Section")
                     ListRow("Row", icon = SlouchcatIcon.Server, subtitle = "Second line", onClick = {})
                     Note("A note", warning = true)
+                    Note("Second line of a note", title = "Note title")
                     Badge("Found", tone = BadgeTone.Ok, icon = SlouchcatIcon.Check)
                     EmptyState("Nothing here", body = "Add something")
                     SlouchcatCard { Wordmark("Slouchcat") }
@@ -120,9 +122,65 @@ class ComponentsTest {
         compose.onNodeWithText("SECTION").assertIsDisplayed()
         compose.onNodeWithText("Row").assertHeightIsAtLeast(22.dp)
         compose.onNodeWithText("A note").assertIsDisplayed()
+        compose.onNodeWithText("Note title").assertIsDisplayed()
+        compose.onNodeWithText("Second line of a note").assertIsDisplayed()
         compose.onNodeWithText("Found").assertIsDisplayed()
         compose.onNodeWithText("Nothing here").assertIsDisplayed()
         compose.onNodeWithText("Slouchcat").assertIsDisplayed()
+    }
+
+    @Test
+    fun aPasswordFieldHidesItsTextAndItsEyeIsAButton() {
+        var shown = false
+        compose.setContent {
+            SlouchcatTheme {
+                var visible by remember { mutableStateOf(false) }
+                SlouchcatTextField(
+                    value = "secret",
+                    onValueChange = {},
+                    label = "Password",
+                    visualTransformation = if (visible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailing = { SlouchcatIconButton(SlouchcatIcon.Eye, contentDescription = "Show", onClick = { visible = true; shown = true }) },
+                )
+            }
+        }
+        compose.onNode(hasSetTextAction() and hasText("Password")).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password))
+        compose.onNodeWithContentDescription("Show").assertHeightIsAtLeast(48.dp).performClick()
+        assertTrue(shown)
+    }
+
+    @Test
+    fun anAvatarShowsTheInitial() {
+        compose.setContent { SlouchcatTheme { Avatar("lea", accent = "sky") } }
+        compose.onNodeWithText("L").assertIsDisplayed()
+        assertEquals(SlouchcatTokens.Color.Accent.Sky.Base, ProfileAccents.of("sky").base)
+        assertEquals(SlouchcatTokens.Color.Accent.Ember.Base, ProfileAccents.of(null).base)
+    }
+
+    /** A text field in a sheet as a dialog from 700 dp: the dialog has a definite width and settles. */
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-land")
+    fun aSheetWithAFieldSettlesOnAWideScreen() {
+        compose.setContent { SlouchcatTheme { SlouchcatSheet("Sheet", onDismiss = {}) { SlouchcatTextField("", {}, label = "Field") } } }
+        compose.onNode(hasSetTextAction() and hasText("Field")).assertIsDisplayed()
+    }
+
+    /** A chip that opens a choice («Genre ⌄»): the symbol after the label, one control, 48 dp. */
+    @Test
+    fun aChipWithATrailingSymbolIsOneControl() {
+        var clicks = 0
+        compose.setContent { SlouchcatTheme { SlouchcatChip("Genre", selected = true, onClick = { clicks++ }, trailingIcon = SlouchcatIcon.Down) } }
+        compose.onNodeWithText("Genre").assertTouchHeightIsEqualTo(48.dp).assertHasClickAction().performClick()
+        assertEquals(1, clicks)
+    }
+
+    /** A chip that may not be chosen (a rating above the account's ceiling): disabled, a tap does nothing. */
+    @Test
+    fun aDisabledChipIsNoControl() {
+        var clicks = 0
+        compose.setContent { SlouchcatTheme { SlouchcatChip("18", selected = false, onClick = { clicks++ }, enabled = false) } }
+        compose.onNodeWithText("18").assertIsNotEnabled().performClick()
+        assertEquals(0, clicks)
     }
 
     @Test

@@ -98,6 +98,14 @@ describe('Kotlin tokens', () => {
     expect(kt(['Focus', 'Scale'])).toBe('1.06f');
   });
 
+  it('writes the ten-foot tokens of the TV app (tokens-tv) only into Kotlin', () => {
+    // Half of the mockup's 1920 x 1080 canvas: 26 px there is 13 sp on the TV's 960 x 540 dp.
+    expect(kt(['Tv', 'Font', 'Size', 'S'])).toBe('13.sp');
+    expect(kt(['Tv', 'Space', 'SafeX'])).toBe('48.dp');
+    expect(kt(['Tv', 'Scale', 'Focus'])).toBe('1.06f');
+    expect(tokensCss()).not.toMatch(/--sc-tv-/);
+  });
+
   it('lists what Compose has no counterpart for instead of writing it', () => {
     expect(kotlin).toMatch(/\/\/ left out: font\.family\.sans/);
     expect(kotlin).toMatch(/\/\/ left out: library-tile\.label-size-fluid/);

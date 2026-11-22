@@ -12,7 +12,9 @@
 //	apicheck -base http://127.0.0.1:8099 -spec ../api/openapi.yaml -testdata ../testdata
 //
 // With -devices it runs only the device check, which plays a phone and a TV (concept 27, stage 1;
-// `task devicecheck`); -relay names a running pairing relay for the hand-over of the packet.
+// `task devicecheck`); -relay names a running pairing relay for the hand-over of the packet. With
+// -pair-phone it plays only the phone for a TV app that shows the given QR code (concept 26 stage
+// 2a, scripts/android-tv-e2e.sh); -pair-server is the server address the packet carries.
 //
 // The output is the evidence of the acceptance: one line per viewer function with "ok" or
 // "fehlgeschlagen", the operations it used and what the server answered. The exit code is 0 only
@@ -55,12 +57,43 @@ func main() {
 	budget := flag.Duration("budget", 30*time.Minute, "time budget of the whole run")
 	relay := flag.String("relay", "", "base URL of a running pairing relay for the device check (empty: hand the packet over in memory)")
 	devices := flag.Bool("devices", false, "run only the device check: a phone pairs a TV (task devicecheck)")
+	pairPhone := flag.String("pair-phone", "", "play only the phone for a TV app that shows this QR code content (https://<relay>/tv#v=1&i=…&k=…); the fixtures must exist (-devices once before)")
+	pairServer := flag.String("pair-server", "", "with -pair-phone: the server address the packet carries, the one the TV reaches (default: -base)")
+	pairEmail := flag.String("pair-email", ownerEmail, "with -pair-phone: the account the phone signs in with")
+	pairPassword := flag.String("pair-password", ownerPassword, "with -pair-phone: its password")
+	pairPin := flag.String("pair-pin", ownerPin, "with -pair-phone: the PIN of its primary profile")
 	flag.Parse()
+	if *pairPhone != "" {
+		account := phoneAccount{email: *pairEmail, password: *pairPassword, pin: *pairPin}
+		if err := runPhoneOnly(*base, *spec, *pairPhone, strings.TrimRight(*relay, "/"), *pairServer, account, *wait, *timeout); err != nil {
+			fmt.Fprintf(os.Stderr, "apicheck: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if err := run(*base, *spec, *data, *report, strings.TrimRight(*relay, "/"), *devices, *wait, *timeout, *budget); err != nil {
 		fmt.Fprintf(os.Stderr, "apicheck: %v\n", err)
 		os.Exit(2)
 	}
+}
+
+// runPhoneOnly plays the phone for a TV app (-pair-phone): no fixtures, no other check.
+func runPhoneOnly(base, spec, code, relay, packetServer string, account phoneAccount, wait, timeout time.Duration) error {
+	contract, err := loadContract(spec)
+	if err != nil {
+		return err
+	}
+	c, err := newClient(base, contract, timeout)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	if packetServer == "" {
+		packetServer = strings.TrimRight(base, "/")
+	}
+	return runPairPhone(ctx, &state{c: c}, code, relay, packetServer, account, wait)
 }
 
 // run builds the client, prepares the data and walks the checks. It returns an error only when

@@ -105,7 +105,7 @@ Texte und Tokens braucht der Bau Node und einmal `pnpm install` im Repo.
 
 **Aufbau:** `app-mobile` (die Handy-App, Bauarten `play` und `foss`, Typ `debug` mit Paket
 `com.slouchcat.app.dev`), `core/api` (erzeugter Client, gemeinsamer OkHttp-Client, Logger),
-`core/session` (Serveradresse, Heimnetz, Verträglichkeit), `core/design` (Tokens, Thema,
+`core/session` (Serveradresse, Heimnetz, Verträglichkeit, Token im Keystore, Sitzung, Netzwechsel), `core/design` (Tokens, Thema,
 Bausteine des Mockups), `core/strings` (Texte), `lint` (eigene Regeln für Regel 9 und 10),
 `build-logic` (Konventionen), `tools` (Generatoren). Versionen: `android/gradle/libs.versions.toml`,
 Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App kommen, steht in
@@ -115,7 +115,12 @@ Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App k
 task android:check        # beide Bauarten in debug und release (R8, unsigniert), Lint, Generatoren (CI-Job «android»)
 task android:test         # alle JVM-Tests: Robolectric-Oberflächentests, ViewModels, Lint-Regeln, Generatoren
 task android:contract     # erzeugter Client gegen einen frisch gestarteten Server (Port 8597, CONTRACT_PORT)
-task android:apk          # Debug-APKs nach android/app-mobile/build/outputs/apk
+task android:e2e          # Ablauf im Emulator gegen einen frischen Server (PORT 8597, AVD sc_phone); vor jedem PR an den Apps lokal, der CI-Job «android-emulator» steht nicht im Gate (docs/perf/K27-android-ci.md)
+task android:e2e AVD=sc_tablet SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf, fotografiert jede Seite und jedes Blatt
+task android:e2e:tv        # TV-App im eigenen TV-Emulator (sc_tv, Port 5584): von Hand einrichten, Profil mit PIN, Einstellungen,
+                          # abmelden; per Scan gegen relay/bin/pair (8180), apicheck spielt das Handy; Server auf 8697
+task android:e2e:tv SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf mit Fotos jeder Seite und jedes Menüs
+task android:apk          # Debug- und Release-APKs nach android/app-mobile/ und android/app-tv/build/outputs/apk
 task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
 ```
 
@@ -138,6 +143,17 @@ adb -s emulator-5580 emu kill
 ```
 
 `sc_phone` (5580, 412 dp), `sc_tablet` (5582, 1280 × 800 dp), `sc_tv` (5584), `sc_phone28` (5586).
+
+**TV-App von Hand im Emulator** (`sc_tv`, Google TV, API 34, 960 × 540 dp): APK
+`android/app-tv/build/outputs/apk/debug/app-tv-debug.apk`, Start mit
+`adb -s emulator-5584 shell am start -n com.slouchcat.app.dev/com.slouchcat.app.tv.MainActivity`. Steuern
+mit `adb -s emulator-5584 shell input keyevent DPAD_LEFT|DPAD_RIGHT|DPAD_UP|DPAD_DOWN|DPAD_CENTER|BACK`,
+Ziffern mit `KEYCODE_0` bis `KEYCODE_9`; ein geöffnetes Eingabefeld nimmt `input text "…"` und `ENTER`
+(Fertig). Die Tastatur des Emulators ist die des Systems (Gboard für TV). Die Adresse der Vermittlung
+für einen lokalen Lauf (`relay/bin/pair` mit `RELAY_LISTEN=0.0.0.0:8180`) stellt «Vermittlung ändern» auf
+der Seite mit dem QR-Code oder «Einstellungen › Erweitert» ein: `http://10.0.2.2:8180`. Das Skript
+`scripts/android-tv-e2e.sh` (hinter `task android:e2e:tv`) startet Server, Vermittlung und nur den eigenen
+Emulator, wartet, solange ein fremder läuft, und räumt am Ende nur das Eigene weg.
 Der Emulator erreicht einen Testserver des Rechners unter `http://10.0.2.2:<Port>` (Ports ab 8597,
 nie 8096). Deutsch: `adb shell cmd locale set-app-locales com.slouchcat.app.dev --locales de-CH`.
 

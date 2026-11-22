@@ -32,10 +32,6 @@
         "confirm": "Połącz mimo to"
       }
     },
-    "connected": {
-      "title": "Połączono z {{host}}",
-      "change": "Zmień adres"
-    },
     "state": {
       "loading": "Ładowanie…",
       "offline": "Serwer nie odpowiada. Sprawdź połączenie.",
@@ -48,10 +44,6 @@
       "title": "Zaktualizuj aplikację",
       "body": "Twój serwer wymaga nowszej wersji aplikacji.",
       "close": "Zamknij"
-    },
-    "connectedState": {
-      "empty": "Nie skonfigurowano jeszcze serwera.",
-      "setUp": "Skonfiguruj serwer"
     },
     "tls": {
       "userCertificate": "Szyfrowane certyfikatem zainstalowanym przez Ciebie",

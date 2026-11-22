@@ -32,10 +32,6 @@
         "confirm": "仍要連線"
       }
     },
-    "connected": {
-      "title": "已連線到 {{host}}",
-      "change": "變更網址"
-    },
     "state": {
       "loading": "載入中…",
       "offline": "伺服器沒有回應。請檢查連線。",
@@ -48,10 +44,6 @@
       "title": "請更新應用程式",
       "body": "你的伺服器需要較新版本的應用程式。",
       "close": "關閉"
-    },
-    "connectedState": {
-      "empty": "尚未設定伺服器。",
-      "setUp": "設定伺服器"
     },
     "tls": {
       "userCertificate": "以你自行安裝的憑證加密",

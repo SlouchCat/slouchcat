@@ -65,6 +65,9 @@ object Redaction {
         "smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
         "listurl", "deviceid", "clientkey",
         "seerrapikey", "newpassword", "radarrapikey", "sonarrapikey",
+        "apptoken", "devicetoken", "slouchcatdevice",
+        "voucher", "pickup", "pickupsecret", "pickuphash", "pairid", "meetingpoint", "meetingpointid", "packet",
+        "sealedtoken", "fcmtoken",
         // the apps: voucher, pickup secret of the meeting point, cookie, Bearer header, device header
         "voucher", "pickup", "cookie", "bearer", "xslouchcatdevice",
     )

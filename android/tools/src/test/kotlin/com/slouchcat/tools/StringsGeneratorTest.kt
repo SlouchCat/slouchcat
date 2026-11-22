@@ -145,6 +145,21 @@ class StringsGeneratorTest {
     }
 
     @Test
+    fun aPartOfANamespaceTakesOnlyItsTexts() {
+        val result = gen(
+            "en" to """{"settings":{"devices":{"title":"My devices"},"playback":{"title":"Playback"}}}""",
+            namespaces = listOf("settings.devices"),
+        )
+        val en = result.files.getValue("values")
+        assertTrue(en.contains("settings_devices_title"))
+        assertFalse(en.contains("settings_playback_title"))
+        val missing = assertThrows(StringsGenerator.Unsupported::class.java) {
+            gen("en" to """{"settings":{}}""", namespaces = listOf("settings.devices"))
+        }
+        assertTrue(missing.message!!.contains("settings.devices"))
+    }
+
+    @Test
     fun namespacesFileIgnoresCommentsAndBlankLines() {
         assertEquals(listOf("app", "player"), StringsGenerator.readNamespaces("# comment\napp\n\n player # inline\n"))
     }

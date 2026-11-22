@@ -266,11 +266,13 @@ jobs:
           cache-to: type=gha,mode=max,scope=relay-push
 
   # ---------------------------------------------------------------------------------------------
-  # Android: the phone app and its modules (concept 27 section 5.7). Debug builds of both flavours,
-  # lint with the own rules, the generators (client from the contract, texts from the locales,
-  # tokens through Node) and the JVM tests with Robolectric; `task ci:android` is the same locally.
-  # JDK 21 is the runner's own (JAVA_HOME_21_X64), the SDK the runner's with the packages the build
-  # needs added; no third-party action. The debug APKs stay with the run. Emulator tests: part 2.
+  # Android: the phone app, the TV app and their modules (concept 27 section 5.7, concept 26 stage
+  # 2a). Debug and release builds, lint with the own rules, the generators (client from the contract,
+  # texts from the locales, tokens through Node) and the JVM tests with Robolectric (the TV's D-pad
+  # tests included); `task ci:android` is the same locally. JDK 21 is the runner's own
+  # (JAVA_HOME_21_X64), the SDK the runner's with the packages the build needs added; no third-party
+  # action. The debug APKs of both apps stay with the run. The TV's emulator flow runs only locally
+  # (task android:e2e:tv; docs/perf/K27-android-ci.md).
   # ---------------------------------------------------------------------------------------------
   android:
     name: android (builds, lint, generators, tests)
@@ -322,7 +324,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-debug-apks
-          path: android/app-mobile/build/outputs/apk/**/*.apk
+          path: |
+            android/app-mobile/build/outputs/apk/**/*.apk
+            android/app-tv/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Keep the lint and test reports on failure
@@ -333,6 +337,166 @@ jobs:
           path: |
             android/**/build/reports/
             android/**/build/test-results/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
+  # Android against a real server (concept 27 section 12, «Vertrag»): the contract test of the
+  # Kotlin client against bin/slouchcat with fresh data. A job of its own: it needs Go and ffmpeg,
+  # and runs beside the job "android". Times: docs/perf/K27-android-ci.md.
+  # ---------------------------------------------------------------------------------------------
+  android-contract:
+    name: android-contract (client against a real server)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - name: Check the Gradle wrapper
+        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
+      # ffmpeg: the player's contract test needs real video (scripts/android-test-video.sh) and a
+      # server that probes it (K27 stage 5).
+      - uses: ./.github/actions/system-packages
+        with:
+          group: android-e2e
+
+      - name: JDK 21 and the Android SDK packages
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          log=$(mktemp)
+          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
+
+      - name: Gradle caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-e2e-${{ runner.os }}-
+
+      - run: task android:contract
+
+      - name: Keep the contract test report on failure
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-contract-reports
+          path: android/core/api/build/reports/tests/contractTest/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
+  # The flow of the phone app in an emulator (concept 27 section 12, «Gerät»): address, sign-in,
+  # profile with PIN, browsing, the player, sign-out, against bin/slouchcat with the test media.
+  #
+  # NOT part of the gate "ci", and it may fail (continue-on-error): on the hosted runner the
+  # emulator (37.3.10, the version that runs the same flow on the development machine) died with a
+  # segmentation fault in each of three runs, about 80 s into the flow, with and without Vulkan in
+  # the guest (docs/perf/K27-android-ci.md, «Emulator auf dem Runner»). Concept 27 section 5.7
+  # leaves it to this measurement whether the flow runs here. Until the emulator holds, the flow
+  # is run on the development machine before every pull request that touches the apps
+  # (docs/dev/SETUP.md); this job stays to show when the runner's emulator holds. The AVD is made
+  # here from the SDK's system image; no third-party action.
+  # ---------------------------------------------------------------------------------------------
+  android-emulator:
+    name: android-emulator (flow, informational)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - name: Check the Gradle wrapper
+        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
+      # ffmpeg: the flow plays real video (scripts/android-test-video.sh), and the server probes
+      # the test media when it scans.
+      - uses: ./.github/actions/system-packages
+        with:
+          group: android-e2e
+
+      # KVM for the emulator: the runner has /dev/kvm, the runner user needs the rights to it.
+      - name: JDK 21, the Android SDK packages, KVM and the AVD
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          log=$(mktemp)
+          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+          image="system-images;android-36;google_apis;x86_64"
+          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "$image" >"$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
+          # The runner sets XDG_CONFIG_HOME, and avdmanager then keeps its AVDs below it instead of
+          # ~/.android; a fixed ANDROID_AVD_HOME gives avdmanager, this step and the emulator one place.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$image" >"$log" 2>&1 || { cat "$log"; exit 1; }
+          # A phone of the mockup's size (412 dp wide), as sc_phone on the development machine.
+          printf '%s\n' hw.lcd.width=1080 hw.lcd.height=2424 hw.lcd.density=420 hw.ramSize=4096 hw.keyboard=yes \
+            >> "$ANDROID_AVD_HOME/ci_phone.avd/config.ini"
+
+      - name: Gradle caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-e2e-${{ runner.os }}-
+
+      # The test media (cached under the same key as the server tests, generated on a miss): with
+      # them the emulator flow browses a real library (docs/perf/K27-android-ci.md).
+      - uses: ./.github/actions/test-media
+
+      - run: task android:e2e AVD=ci_phone
+
+      # Also when the job was cancelled: a flow that hangs ends at the job's time limit, and its
+      # logs (server, emulator, logcat) are what explains it.
+      - name: Keep the instrumentation reports on failure
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-emulator-reports
+          path: |
+            android/app-mobile/build/reports/androidTests/
+            android/app-mobile/build/outputs/androidTest-results/
+            android/app-mobile/build/e2e-logs/
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
@@ -620,7 +784,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [changes, server-lint, server-groups, server-test, relay, android, web, storybook, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, relay, android, android-contract, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -704,6 +868,7 @@ jobs:
           check server-test   '${{ needs.server-test.result }}'
           check relay         '${{ needs.relay.result }}'
           check android       '${{ needs.android.result }}'
+          check android-contract '${{ needs.android-contract.result }}'
           check web           '${{ needs.web.result }}'
           check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'

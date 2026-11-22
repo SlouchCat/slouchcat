@@ -24,6 +24,8 @@ fun ComposeTestRule.assertEveryControlLabelledAndTappable() {
         }.filter { it.isNotBlank() }
         assertTrue("control without a label: $config", label.isNotEmpty())
         val bounds = node.touchBoundsInRoot
+        // A control a lazy list composed beyond its edge is clipped away and not on the screen.
+        if (bounds.width <= 0f || bounds.height <= 0f) continue
         with(density) {
             val minimum = 48.dp.toPx() - 0.5f
             assertTrue("«${label.first()}» is ${bounds.width.toDp()} wide", bounds.width >= minimum)

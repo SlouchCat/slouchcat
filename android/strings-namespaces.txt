@@ -1,6 +1,78 @@
 # Namespaces of web/src/locales/*.json that the Android apps get as string resources (concept 27,
-# 5.4; module core/strings). One per line. A text `ns.a.b` becomes R.string.ns_a_b.
+# 5.4; module core/strings). One per line, the order does not matter. A text `ns.a.b` becomes
+# R.string.ns_a_b. An entry may name a part of a namespace (`settings.devices`): then only its texts.
 #
-# `app`: texts only the apps use (and the app name the web app shares). Add the namespace of a
-# viewer page here when an app page needs its texts; `admin`, `setup` and `invite` stay out.
+# `app`: texts only the apps use (and the app name the web app shares). Add the namespace, or the
+# part of it, of a viewer page here when an app page needs its texts; `admin`, `setup` and
+# `invite` stay out. Parallel branches each add their own lines (merge=union in .gitattributes).
 app
+common
+login
+nav
+errors.code
+profiles.picker
+profiles.pin
+settings.devices
+home
+kind
+format
+rating
+picks.page
+library.page
+library.sort
+library.status
+library.filters
+library.content
+library.notFound
+item.play
+item.watchlist
+item.details
+item.notFound
+item.file
+item.trailer
+item.nextEpisode
+item.seriesLink
+item.episodeCode
+item.episodeCodeRange
+item.episodeOf
+item.extras
+item.cast.role
+item.audio.by
+item.podcast.link
+item.recommend
+watched
+person
+item.episodes
+search.label
+search.tooShort
+search.sections
+search.empty
+watchlist
+collection
+profiles.settings
+profiles.pinAdvice
+accent
+limits
+offline.pin
+errors.field
+player.play
+player.pause
+player.time
+player.seek
+player.busy
+player.error
+player.switching
+player.streamInfo
+player.tracks
+player.quality
+player.skipOutro
+player.next
+player.watchLimit
+player.streamLimit
+player.ended
+player.chrome
+player.settings
+player.option
+settings.playback
+format
+tv

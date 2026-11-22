@@ -389,3 +389,41 @@ Anleitung an Marco, wenn die Stufen so weit sind:
 4. **Auto-Downloads** (Stufe 6): WorkManager-Läufe über einen Tag mit Akku-Optimierung des
    Herstellers (Benachrichtigung im Abgleich-Log der App).
 5. **Hersteller-Eigenheiten:** Wegwischen auf Geräten, die dabei den Prozess beenden.
+
+## Stufe 5: Videoplayer (21. November 2026)
+
+**Gemessen** mit `PlayerFlowTest` (`task android:e2e CLASS=…PlayerFlowTest`) im Emulator gegen
+den Server dieses Zweigs mit den Clips von `scripts/android-test-video.sh` (H.264 in MKV, 1280 × 720,
+zwei AAC-Spuren, SRT). Gemessen wird vom Abspielstart des Players (`startPlayback` geht hinaus,
+wenige Millisekunden nach dem Tippen) bis zum ersten Bild auf der Fläche
+(`Player.Listener.onRenderedFirstFrame`); die App schreibt den Wert ins Log
+(`Slouchcat/player: first picture ms=…`).
+
+| Start | Modus des Servers | `sc_phone` (API 36) | `sc_tablet` (API 36) |
+|---|---|---|---|
+| Film, erster Start nach dem App-Start | `direct` | 910 ms | 650 ms |
+| derselbe Film auf 480p (Qualität im Blatt) | `hls`, `transcode`, Grund `quality` | 694 ms | 716 ms |
+| Folge 1 | `direct` | 390 ms | 363 ms |
+| Folge 2 (vom Countdown gestartet) | `direct` | 340 ms | 340 ms |
+
+Der erste Start enthält das Anlegen von ExoPlayer, Mediensitzung und Decodern im frischen Prozess;
+spätere Starts liegen bei 340 bis 390 ms. Der Transcode lief auf dem Entwicklungsrechner mit
+Hardware-Encoder; ein Server ohne GPU braucht für das erste Segment länger.
+
+**Was der Emulator nicht kann (bleibt auf dem echten Handy nachzumessen):**
+
+1. **HEVC und HDR:** Der Emulator hat keinen Main-10-Decoder; die App meldet dort kein `hevc` und
+   kein `hdr`. Auf dem Handy: eine HEVC-10-Bit-Datei und eine HDR10-Datei direkt abspielen, die
+   Fähigkeiten in der Wiedergabe-Info ansehen (Gerät, Abspielart), Start bis erstes Bild messen.
+2. **Dolby-Ton und Durchreichen:** AC-3/E-AC-3 über den Lautsprecher (Decoder vorhanden oder nicht)
+   und über ein USB-C/HDMI-Kabel an einer Tonanlage; der Rückfall bei stummer Spur ist nur mit
+   Fakes geprüft (`PlaybackControllerTest`).
+3. **Stromverbrauch:** eine Stunde Film direkt und als Transcode, Akkustand vorher und nachher.
+4. **Kopfhörer- und Bluetooth-Tasten:** Wiedergabe/Pause über die Taste eines Kopfhörers, Pause
+   beim Abziehen des Kopfhörers, Audiofokus bei einem Anruf (die `MediaSession` ist da, im Emulator
+   ohne Tasten nicht prüfbar).
+5. **Hochformat und Drehen:** Der Player dreht das Handy ins Querformat; auf einem Gerät mit
+   gesperrter Drehung prüfen, dass er quer bleibt und beim Verlassen zurückkehrt.
+
+Der Emulator ist kein Gerät: Software-Decoder, kein HDR, keine Tonausgänge ausser dem Lautsprecher.
+Die Zeiten oben zeigen die Grössenordnung und dass der Weg trägt, nicht, was ein Handy misst.

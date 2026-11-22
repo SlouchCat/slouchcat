@@ -1,7 +1,39 @@
 {
   "app": {
+    "player": {
+      "close": "Player schließen",
+      "qualityNote": "Über mobile Daten zählt jede Stunde: „Original“ braucht am meisten."
+    },
     "update": {
       "close": "Schließen"
+    },
+    "home": {
+      "watchlistFailed": "Die Merkliste ließ sich nicht ändern."
+    },
+    "signIn": {
+      "deviceHint": "Dieses Gerät erscheint danach als „{{name}}“ unter „Meine Geräte“ und bleibt angemeldet, bis du es abmeldest.",
+      "error": {
+        "storage": "Die Anmeldung ließ sich auf diesem Gerät nicht speichern."
+      }
+    },
+    "signOut": {
+      "doneOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde dieses Gerät unter „Meine Geräte“ ab, sobald du wieder verbunden bist."
+    },
+    "search": {
+      "emptyBody": "Für „{{query}}“ gibt es keinen Titel und keine Person. Prüfe die Schreibweise oder versuche einen kürzeren Begriff.",
+      "emptyGenre": "Im Genre „{{genre}}“ gibt es für dieses Profil keinen Titel."
+    },
+    "lists": {
+      "removed": "„{{title}}“ von der Merkliste entfernt",
+      "unwatched": "Haken bei „{{title}}“ entfernt"
+    },
+    "profiles": {
+      "manage": {
+        "deleteWarning": "„{{name}}“ wird gelöscht, mit Merkliste, Gesehen und Fortschritt. Das lässt sich nicht rückgängig machen.",
+        "added": "Profil „{{name}}“ hinzugefügt",
+        "deleted": "Profil „{{name}}“ gelöscht",
+        "partly": "Das Profil ist gespeichert, aber die PIN ließ sich nicht ändern. Versuche es erneut."
+      }
     }
   },
   "common": {
@@ -765,6 +797,15 @@
       "empty": {
         "title": "Nichts gefunden für „{{q}}“"
       }
+    }
+  },
+  "tv": {
+    "pair": {
+      "step1": "Öffne die Slouchcat-App am Handy und wähle „Fernseher verbinden“."
+    },
+    "settings": {
+      "tvHint": "So heißt dieser Fernseher am Handy unter „Meine Geräte“. Dort kannst du ihn auch abmelden.",
+      "signedOutOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde den Fernseher unter „Meine Geräte“ ab."
     }
   }
 }

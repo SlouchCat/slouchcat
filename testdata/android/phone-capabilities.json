@@ -1,0 +1,14 @@
+{
+  "video": ["h264", "av1", "vp9", "mpeg2video"],
+  "audio": ["aac", "mp3", "opus", "flac", "vorbis"],
+  "hls": "mse",
+  "containers": ["mp4", "mkv", "webm", "ts", "m2ts", "mov"],
+  "maxAudioChannels": 2,
+  "selectsTracks": true,
+  "subtitles": ["subrip", "ass", "webvtt", "hdmv_pgs_subtitle", "dvd_subtitle"],
+  "maxWidth": 2424,
+  "maxHeight": 1080,
+  "hdr": false,
+  "name": "Pixel 9 · Android 16",
+  "type": "phone"
+}

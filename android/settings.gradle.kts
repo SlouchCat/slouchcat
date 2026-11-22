@@ -24,9 +24,13 @@ rootProject.name = "slouchcat-android"
 
 include(
     ":app-mobile",
+    ":app-tv",
     ":core:api",
     ":core:session",
     ":core:design",
+    ":core:player",
+    ":core:media",
     ":core:strings",
+    ":core:pairing",
     ":lint",
 )

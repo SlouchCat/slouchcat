@@ -131,6 +131,49 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» folgen mit
     Teil 2 (braucht den Serverteil aus Stufe 1). Die Texte des Namensraums `app` gibt es erst in Deutsch
     und Englisch.
+- **Konzept 27, Stufe 3 «Gerüst», Teil 2:** Anmelden (`appLogin`), Zugang im Android-Keystore,
+  Profilwahl mit PIN, Hülle der App als Register von Seiten (untere Leiste am Handy, Seitenspalte am
+  Tablet), «Mehr», «Meine Geräte», Konto (Passwort, E-Mail), Abmelden.
+  - **Serverschlüssel im Heimnetz:** Die App merkt sich beim Einrichten den Schlüssel des Servers und
+    verlangt vor jeder Anfrage mit Zugang den Nachweis (`proveServer`); ein fremder Schlüssel unter
+    derselben Adresse bekommt weder Passwort noch Zugang. Gilt auch für Bilder und Medien.
+  - CI-Job `android-contract` im Gate: Vertragstest des Kotlin-Clients gegen einen echten Server. Der
+    Ablauf im Emulator (`task android:e2e`) läuft lokal vor jedem PR an den Apps; der CI-Job
+    `android-emulator` steht **nicht** im Gate, weil der Emulator auf den Runnern von GitHub in drei
+    Läufen mit einem Speicherzugriffsfehler abstürzte (dieselbe Fassung läuft lokal). Messung und
+    Entscheid in `docs/perf/K27-android-ci.md`.
+  - **Geprüft:** Code-Review und Sicherheits-Review mit Korrekturrunde (2 High behoben: Nachanmeldung
+    und erneutes Einrichten übernahmen einen fremden Schlüssel), Ablauf im Emulator an Handy und Tablet.
+- **Konzept 27, Stufe 4 «Stöbern»:** Start (Bühne, Reihen), Medienauswahl, Bibliothek (Raster und Liste,
+  Filter Genre, Jahr, Altersfreigabe, Sortierung), Listen, Detailseiten für Film, Serie, Staffel und
+  Folge, Person, Suche, Merkliste, Gesehen, Sammlungen, Profile verwalten (PIN, Offline-PIN).
+  - Neues Modul **`:core:media`**: Modelle, Bild-Adressen und alle Repositories der Seiten, ohne
+    Oberfläche; die TV-App benutzt dasselbe Modul.
+  - **Geprüft:** Oberflächentest je Seite (zwei Breiten, 200 % Schrift), Test über das echte Register,
+    Ablauf im Emulator an Handy und Tablet, Schaubilder aller Seiten mit eingespielten Daten gegen das
+    Mockup angesehen, getrenntes Code-Review mit Korrekturrunde (2 Major, 10 Minor).
+  - **Abweichungen vom Mockup:** keine Genres auf der Bühne (die Web-App zeigt dort auch keine);
+    «Mehr davon» fehlt (der Vertrag liefert keine Liste); Genre- und Bibliothekskacheln ohne Bild.
+- **Konzept 27, Stufe 5 «Videoplayer»:** gemeinsames Modul `:core:player` (Media3, Fähigkeitsprofil des
+  Geräts nach ADR 0041, Sitzung, Fortschritt, Spur- und Qualitätswechsel, nächste Folge, MediaSession),
+  Player der Handy-App (Bedienebene, Kapitel, Vorschaubilder, Folgenliste, Countdown) und die
+  Einstellungen der Wiedergabe.
+  - **Gemessen im Emulator** (`docs/perf/K27-android-handy.md`, Abschnitt «Stufe 5»): erstes Bild
+    direkt rund 0,3 bis 0,9 s, über HLS rund 0,6 bis 0,7 s. Auf echten Geräten nicht gemessen.
+  - **Geprüft:** Tests des Controllers gegen eine Attrappe, die sich wie Media3 verhält, Ablauf im
+    Emulator mit echter Wiedergabe, Code-Review und Sicherheits-Review mit Korrekturrunde (2 Blocker
+    behoben: Im Hintergrund lief der Countdown weiter und ein laufender Start überlebte den Wechsel).
+  - **Offen:** Wiedergabe, HDR und Ton auf echten Geräten.
+- **Konzept 26, Stufe 2, Teil a (TV-App, Gerüst):** Modul `:app-tv` (Compose for TV, eigene Masse
+  `tokens-tv`), Einrichten per Scan über die Vermittlung (`:core:pairing`: HPKE, Abholgeheimnis,
+  Signaturprüfung) und von Hand, Profilwahl mit PIN-Feld für die Fernbedienung, Hülle mit Leiste,
+  Einstellungen.
+  - `task android:e2e:tv`: Ablauf im TV-Emulator samt Scan gegen die lokale Vermittlung, das
+    Prüfprogramm `apicheck -pair-phone` spielt das Handy. Läuft lokal, nicht in der CI (Laufzeit).
+  - **Geprüft:** Tests mit dem Steuerkreuz als JVM-Tests, Test über das echte Register, getrenntes
+    Code-Review mit Korrekturrunde (3 Major, darunter: Die Kopplung lief nach Verlassen der Seite weiter).
+  - **Offen:** die Seiten der TV-App (Stufe 2 Teil b), der Scan mit der echten Handy-App (K27 Stufe 9),
+    alles auf einem echten Fernseher.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 

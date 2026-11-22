@@ -32,10 +32,6 @@
         "confirm": "Conectar mesmo assim"
       }
     },
-    "connected": {
-      "title": "Conectado a {{host}}",
-      "change": "Alterar endereço"
-    },
     "state": {
       "loading": "Carregando…",
       "offline": "O servidor não responde. Verifique a conexão.",
@@ -48,10 +44,6 @@
       "title": "Atualize o app",
       "body": "Seu servidor precisa de uma versão mais recente do app.",
       "close": "Fechar"
-    },
-    "connectedState": {
-      "empty": "Nenhum servidor configurado ainda.",
-      "setUp": "Configurar servidor"
     },
     "tls": {
       "userCertificate": "Criptografada com um certificado instalado por você",

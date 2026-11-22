@@ -53,12 +53,45 @@ class ApiCallerTest {
         val first = async { events.events.first() }
         testScheduler.advanceUntilIdle()
         assertEquals(ApiResult.SignedOut, answer(problem(401, "unauthenticated")))
-        assertEquals(SessionEvent.SignedOut, withTimeout(5_000) { first.await() })
+        assertEquals(SessionEvent.SignedOut, withTimeout(5_000) { first.await() }.event)
 
         val second = async { events.events.first() }
         testScheduler.advanceUntilIdle()
         assertEquals(ApiResult.AppTooOld, answer(problem(426, "app_too_old")))
-        assertEquals(SessionEvent.AppTooOld, withTimeout(5_000) { second.await() })
+        assertEquals(SessionEvent.AppTooOld, withTimeout(5_000) { second.await() }.event)
+    }
+
+    @Test
+    fun aWrongPasswordIsNoLostSession() = runTest {
+        val reported = mutableListOf<ReportedEvent>()
+        val collector = backgroundScope.async { events.events.collect { reported += it } }
+        testScheduler.advanceUntilIdle()
+        assertEquals(ApiResult.Failed(401, "invalid_credentials"), answer(problem(401, "invalid_credentials")))
+        testScheduler.advanceUntilIdle()
+        assertEquals(emptyList<ReportedEvent>(), reported)
+        collector.cancel()
+    }
+
+    @Test
+    fun aPauseIsReadFromTheProblemOrTheHeader() = runTest {
+        val locked = MockResponse(
+            code = 429,
+            body = """{"type":"about:blank","title":"x","status":429,"code":"pin_locked","retryAfterSeconds":42}""",
+        )
+        assertEquals(ApiResult.Failed(429, "pin_locked", 42), answer(locked))
+        val header = MockResponse(
+            code = 429,
+            headers = okhttp3.Headers.headersOf("Retry-After", "17"),
+            body = """{"type":"about:blank","title":"x","status":429,"code":"too_many_attempts"}""",
+        )
+        assertEquals(ApiResult.Failed(429, "too_many_attempts", 17), answer(header))
+    }
+
+    @Test
+    fun aServerThatDidNotProveItselfIsOfflineOrUnconfirmed() = runTest {
+        assertEquals(ApiResult.Offline, caller.call<Unit> { throw ServerNotProvenException("no proof") })
+        val other = caller.call<Unit> { throw ServerKeyChangedException("key") }
+        assertEquals(ApiResult.Failed(null, ApiCaller.SERVER_UNCONFIRMED), other)
     }
 
     @Test

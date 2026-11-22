@@ -22,8 +22,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -31,7 +34,8 @@ import androidx.compose.ui.unit.dp
 /**
  * `.field` with `.inp`: a label above, the input (54 dp, rounded), and under it either the error
  * (red, with the alert icon) or the [hint]. The label is the field's name for a screen reader, the
- * error its error state.
+ * error its error state. [visualTransformation] hides a password; [trailing] sits at the end of the
+ * input (the eye that shows the password).
  */
 @Composable
 fun SlouchcatTextField(
@@ -47,6 +51,10 @@ fun SlouchcatTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     fieldModifier: Modifier = Modifier,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailing: (@Composable () -> Unit)? = null,
+    /** What a password manager fills in (`ContentType.Password`, `EmailAddress` …; security review L-3). */
+    contentType: ContentType? = null,
 ) {
     val c = SlouchcatTheme.colors
     val interaction = remember { MutableInteractionSource() }
@@ -68,10 +76,14 @@ fun SlouchcatTextField(
             cursorBrush = SolidColor(c.tx),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
+            visualTransformation = visualTransformation,
             interactionSource = interaction,
             modifier = fieldModifier
                 .fillMaxWidth()
-                .semantics { if (error != null) error(error) },
+                .semantics {
+                    if (error != null) error(error)
+                    if (contentType != null) this.contentType = contentType
+                },
             // The label sits in the decoration, so it belongs to the field's node: a screen reader
             // says label and content together, and reads the content, not a description over it.
             decorationBox = { inner ->
@@ -84,13 +96,18 @@ fun SlouchcatTextField(
                         .clip(shape)
                         .background(if (readOnly) c.bg else c.s1)
                         .border(BorderStroke(if (focused && !readOnly) 2.dp else 1.dp, borderColor), shape)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(start = 16.dp, end = if (trailing != null) 4.dp else 16.dp, top = if (trailing != null) 0.dp else 12.dp, bottom = if (trailing != null) 0.dp else 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    if (value.isEmpty() && placeholder != null) {
-                        Text(placeholder, style = SlouchcatType.body, color = c.tx3)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            if (value.isEmpty() && placeholder != null) {
+                                Text(placeholder, style = SlouchcatType.body, color = c.tx3)
+                            }
+                            inner()
+                        }
+                        trailing?.invoke()
                     }
-                    inner()
                 }
                 }
             },
