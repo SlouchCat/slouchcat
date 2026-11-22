@@ -702,6 +702,8 @@ class TvFlowTest {
             shot("86-rail-badge")
 
             // «Einstellungen › Benachrichtigungen»: the announcement first, then the declined wish.
+            // From a hit across the eleven keys of the keyboard into the rail (more than LEFT_MAX).
+            key(KeyEvent.KEYCODE_DPAD_LEFT, KEYS_MAX)
             rail(s(R.string.tv_settings_title))
             waitForText(s(R.string.tv_settings_switchPane))
             down(s(R.string.notifications_title))
@@ -713,8 +715,7 @@ class TvFlowTest {
             shot("88-notifications")
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             focused(s(R.string.notifications_markAllRead))
-            key(KeyEvent.KEYCODE_DPAD_DOWN)
-            focused(s(R.string.notifications_wish_declined))
+            down(s(R.string.notifications_wish_declined))
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             waitForText(s(R.string.wishes_state_declined))
             focused(s(R.string.wishes_area_mine))

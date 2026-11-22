@@ -99,6 +99,10 @@ class WishesScreenTest {
         remote.back()
         remote.assertFocused("The Making")
         remote.assertEveryControlReachable(pages.page)
+        // The focus is visible on a tab and on a tile.
+        val tab = { label: Int -> compose.onNode(hasContentDescription(pages.s(label)) and hasClickAction() and pages.page) }
+        remote.assertFocusVisible(tab(R.string.wishes_area_search), tab(R.string.wishes_area_discover))
+        remote.assertFocusVisible(compose.onNode(hasContentDescription("Big Brother", substring = true) and hasClickAction()), tab(R.string.wishes_area_discover))
     }
 
     @Test

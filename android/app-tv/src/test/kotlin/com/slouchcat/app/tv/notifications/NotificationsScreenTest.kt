@@ -115,6 +115,10 @@ class NotificationsScreenTest {
         pages.waitFor("Pilot Five")
         // Without an announcement the first unread entry has the focus.
         remote.assertFocused("Pilot Five")
+        // The focus is visible on an entry.
+        val entry = { text: String -> compose.onNode(hasContentDescription(text, substring = true) and androidx.compose.ui.test.hasClickAction()) }
+        remote.assertFocusVisible(entry("Pilot Five"), entry("Wished Two"))
+        remote.assertFocused("Pilot Five")
         remote.up()
         remote.assertFocused(pages.s(R.string.notifications_markAllRead))
         remote.ok()

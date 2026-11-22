@@ -523,7 +523,7 @@ private fun WishRow(card: WishCard, focus: FocusMemory, onOpen: () -> Unit, onWi
                     Text(card.title, style = TvType.largeStrong, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(caption, style = TvType.small, color = quiet, maxLines = 1)
                     Row(Modifier.padding(top = TvDimens.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.m)) {
-                        TvBadge(state, tone = toneOf(card.state), icon = if (card.state == WishState.AVAILABLE) SlouchcatIcon.Check.vector else null)
+                        TvBadge(state, tone = toneOf(card.state), icon = if (card.state == WishState.AVAILABLE) SlouchcatIcon.Check.vector else null, onLight = focused)
                         Text(listOfNotNull(requested, progress).joinToString(separator), style = TvType.small, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     card.progress?.percent?.let { ProgressBar(it / PERCENT, W.RowBar, Modifier.padding(top = TvDimens.xs)) }
