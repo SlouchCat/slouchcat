@@ -68,7 +68,10 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -109,7 +112,7 @@ import kotlin.math.abs
 internal val P = SlouchcatTokens.Tv.Size.Player
 
 /** The menus of the player (mockup `brPlMenu`), each a side menu from the right. */
-enum class PlayerMenu { Audio, Subtitles, Quality, Speed, Episodes }
+enum class PlayerMenu { Audio, Subtitles, Quality, Episodes }
 
 /** Focus keys of the page. */
 internal object PlayerKeys {
@@ -123,11 +126,14 @@ internal object PlayerKeys {
     const val EPISODES = "btn-episodes"
     const val PREVIOUS = "btn-previous"
     const val NEXT = "btn-next"
-    const val SPEED = "btn-speed"
     const val INFO = "btn-info"
     const val RETRY = "retry"
     const val LEAVE = "leave"
-    val ROW = setOf(AUDIO, SUBTITLES, QUALITY, EPISODES, PREVIOUS, NEXT, SPEED, INFO)
+
+    /** Test tags of the controls (shown or hidden; they stay composed for the focus). */
+    const val CONTROLS_SHOWN = "player-controls"
+    const val CONTROLS_HIDDEN = "player-controls-hidden"
+    val ROW = setOf(AUDIO, SUBTITLES, QUALITY, EPISODES, PREVIOUS, NEXT, INFO)
 }
 
 /**
@@ -135,7 +141,7 @@ internal object PlayerKeys {
  * `24-play-2-e-2-at-end`, `47`–`52`): the picture of [surface], above it the controls for the
  * remote. OK pauses and plays, Links and Rechts spool (steps that grow while a key is held, with
  * the trickplay picture of the target), Hoch and Runter show the controls; Zurück closes the info,
- * then hides the controls, then leaves. The menus Ton, Untertitel, Qualität, Tempo and Folgen come
+ * then hides the controls, then leaves. The menus Ton, Untertitel, Qualität and Folgen come
  * from the right. The skip button and the card of the next episode float above the picture.
  * [autoHide]: the controls hide after 4 s of playing without a key (never with TalkBack, where
  * they stay reachable). [now]: the clock of the media keys (keys of the D-pad bring their own time),
@@ -222,7 +228,9 @@ fun PlayerScreen(
         hide()
     }
     // The card of the next episode takes the focus when it comes (mockup `brPlDraw`).
-    LaunchedEffect(nextShown) {
+    LaunchedEffect(nextShown, menu) {
+        // Not behind an open menu (its focus stays caught there); when it closes.
+        if (menu != null) return@LaunchedEffect
         if (nextShown) {
             focus.focus(PlayerKeys.NEXT_PLAY)
         } else if (focus.last == PlayerKeys.NEXT_PLAY || focus.last == PlayerKeys.NEXT_CANCEL) {
@@ -258,9 +266,19 @@ fun PlayerScreen(
     }
 
     // Zurück: the info first, then the controls; then the page leaves (the NavHost).
-    BackHandler(enabled = state.error == null && (info || controls)) {
-        if (info) info = false else hide()
+    // Zurück while spooling drops the target first (no jump after the key).
+    BackHandler(enabled = state.error == null && (info || controls || scrub.targetMs != null)) {
+        when {
+            scrub.targetMs != null -> {
+                scrub.reset()
+                scrubbed++
+            }
+            info -> info = false
+            else -> hide()
+        }
     }
+    // A key held when the app leaves never sends its release.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { holding = false }
 
     val inTheWay = state.error != null
     Box(
@@ -412,7 +430,7 @@ private fun Controls(
     val c = SlouchcatTheme.colors
     val shown by animateFloatAsState(if (visible) 1f else 0f, label = "")
     val item = state.item
-    Box(Modifier.fillMaxSize().alpha(shown)) {
+    Box(Modifier.fillMaxSize().alpha(shown).testTag(if (visible) PlayerKeys.CONTROLS_SHOWN else PlayerKeys.CONTROLS_HIDDEN)) {
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
@@ -617,7 +635,7 @@ private fun Bubble(
     }
 }
 
-/** `.br-pbtns`: Ton, Untertitel, Qualität, Folgen, Vorige, Nächste (episodes), Tempo, Info. */
+/** `.br-pbtns`: Ton, Untertitel, Qualität, Folgen, Vorige, Nächste (episodes), Info (no speed: concept 26 5.1 and the mockup have none). */
 @Composable
 private fun Buttons(
     state: PlayerState,
@@ -645,7 +663,6 @@ private fun Buttons(
             PlayerButton(stringResource(R.string.tv_player_previous), SlouchcatIcon.Prev.vector, events::onPrevious, Modifier.key(PlayerKeys.PREVIOUS), enabled = state.previous != null)
             PlayerButton(stringResource(R.string.tv_player_next), SlouchcatIcon.Next.vector, events::onNext, Modifier.key(PlayerKeys.NEXT), enabled = state.next != null)
         }
-        PlayerButton(stringResource(R.string.tv_player_speed), SlouchcatIcon.Speed.vector, { onMenu(PlayerMenu.Speed) }, Modifier.key(PlayerKeys.SPEED), trailing = speedLabel(state.speed).takeIf { state.speed != 1f })
         PlayerButton(stringResource(R.string.tv_player_info), SlouchcatIcon.Info.vector, onInfo, Modifier.key(PlayerKeys.INFO), pressed = info)
     }
 }
@@ -754,7 +771,7 @@ private fun InfoPanel(state: PlayerState, sound: SoundState, modifier: Modifier)
     ) {
         Text(stringResource(R.string.app_playback_title), style = TvType.largeStrong, modifier = Modifier.semantics { heading() })
         Column(Modifier.padding(top = TvDimens.m)) {
-            infoRows(state).forEach { (key, value) ->
+            infoRows(state, sound).forEach { (key, value) ->
                 Row(Modifier.fillMaxWidth().heightIn(min = P.InfoRow), verticalAlignment = Alignment.CenterVertically) {
                     Text(key, style = TvType.body, color = c.tx2, modifier = Modifier.width(P.InfoKey))
                     Text(value, style = TvType.body, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))

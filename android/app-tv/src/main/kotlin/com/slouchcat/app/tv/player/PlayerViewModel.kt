@@ -43,7 +43,6 @@ interface PlayerEvents {
     fun onPlay()
     fun onPause()
     fun onSeekTo(positionMs: Long)
-    fun onSpeed(speed: Float)
     fun onAudio(track: Track)
     fun onSubtitle(track: Track?)
     fun onQuality(quality: Quality)
@@ -76,7 +75,16 @@ data class SeasonsMenu(
  * through, channels), [setting] the choice of the settings, [passthrough] what Media3 does with
  * the playing track (`true`: the encoded stream goes to the sound system), `null` before it said.
  */
-data class SoundState(val output: SoundOutput? = null, val setting: AudioSetting = AudioSetting.Auto, val passthrough: Boolean? = null)
+data class SoundState(
+    val output: SoundOutput? = null,
+    val setting: AudioSetting = AudioSetting.Auto,
+    val passthrough: Boolean? = null,
+    /** The sound Media3 plays (ffprobe name and channels): after a remux or transcode not the file's track. */
+    val playing: PlayingSound? = null,
+)
+
+/** The format of the sound that reaches the TV. */
+data class PlayingSound(val codec: String?, val channels: Int?)
 
 /**
  * One player page of the TV (concept 26 5.1): a [PlaybackController] of `:core:player` over
@@ -110,6 +118,7 @@ class PlayerViewModel(
 
     private val reportedOutput = MutableStateFlow<SoundOutput?>(null)
     private val passthrough = MutableStateFlow<Boolean?>(null)
+    private val playingSound = MutableStateFlow<PlayingSound?>(null)
 
     private val controller = PlaybackController(
         scope = scope,
@@ -120,6 +129,7 @@ class PlayerViewModel(
             val now = facts()
             reportedOutput.value = SoundOutput.of(now)
             passthrough.value = null
+            playingSound.value = null
             CapabilityRules.build(now, settings.first().audio, narrowing)
         },
         settings = settings,
@@ -137,8 +147,8 @@ class PlayerViewModel(
     private val _seasons = MutableStateFlow(SeasonsMenu())
     val seasons: StateFlow<SeasonsMenu> = _seasons.asStateFlow()
 
-    val sound: StateFlow<SoundState> = combine(reportedOutput, settings, passthrough) { output, device, through ->
-        SoundState(output, device.audio, through)
+    val sound: StateFlow<SoundState> = combine(reportedOutput, settings, passthrough, playingSound) { output, device, through, playing ->
+        SoundState(output, device.audio, through, playing)
     }.stateIn(scope, SharingStarted.Eagerly, SoundState())
 
     /** Set by the page: Zurück and the error pictures leave through the navigation. */
@@ -203,6 +213,11 @@ class PlayerViewModel(
         passthrough.value = encoded
     }
 
+    /** Media3 took a new sound format (the outgoing track of a remux or transcode). */
+    fun onAudioFormat(codec: String?, channels: Int?) {
+        playingSound.value = PlayingSound(codec, channels)
+    }
+
     /** The app went to the background (ON_STOP: Home, screen saver, standby) and came back (ON_START). */
     fun onBackground() = controller.moveToBackground()
 
@@ -222,7 +237,6 @@ class PlayerViewModel(
     override fun onPlay() = controller.play()
     override fun onPause() = controller.pause()
     override fun onSeekTo(positionMs: Long) = controller.seekTo(positionMs)
-    override fun onSpeed(speed: Float) = controller.setSpeed(speed)
     override fun onAudio(track: Track) = controller.selectAudio(track)
     override fun onSubtitle(track: Track?) = controller.selectSubtitle(track)
     override fun onQuality(quality: Quality) = controller.selectQuality(quality)

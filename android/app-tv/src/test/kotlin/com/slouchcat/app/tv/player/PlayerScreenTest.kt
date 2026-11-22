@@ -2,6 +2,10 @@ package com.slouchcat.app.tv.player
 
 import android.content.Context
 import android.view.KeyEvent
+import android.view.accessibility.AccessibilityManager
+import org.robolectric.Shadows.shadowOf
+import com.slouchcat.app.tv.testing.seasonRef
+import com.slouchcat.app.tv.testing.ulid
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,6 +17,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
@@ -62,12 +67,16 @@ class PlayerScreenTest {
 
     private val menu = hasAnyAncestor(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))
 
-    private fun show(initial: PlayerState = filmState(), controls: Boolean = true, keys: TvRemoteKeys? = null) {
+    private var seasons by mutableStateOf(SeasonsMenu())
+
+    private fun show(initial: PlayerState = filmState(), controls: Boolean = true, keys: TvRemoteKeys? = null, autoHide: Boolean = false) {
         state = initial
         remote.show {
-            PlayerScreen(state, SoundState(), SeasonsMenu(), events, images = null, remoteKeys = keys, autoHide = false, initialControls = controls)
+            PlayerScreen(state, SoundState(), seasons, events, images = null, remoteKeys = keys, autoHide = autoHide, initialControls = controls)
         }
     }
+
+    private fun controlsShown(): Boolean = compose.onAllNodes(hasTestTag(PlayerKeys.CONTROLS_SHOWN)).fetchSemanticsNodes().isNotEmpty()
 
     @Test
     fun theBarHasTheFocusAndEveryButtonIsReached() {
@@ -176,17 +185,14 @@ class PlayerScreenTest {
         remote.back()
         remote.assertFocused(s(R.string.player_tracks_subtitles))
 
-        // «Qualität» and «Tempo».
+        // «Qualität»; right of it only «Info» (no speed on the TV, mockup 22-play-0).
         remote.right()
         remote.ok()
         remote.down(2)
         remote.ok()
         remote.right()
-        remote.assertFocused(s(R.string.tv_player_speed))
-        remote.ok()
-        remote.down()
-        remote.ok()
-        assertEquals(listOf("audio:11", "quality:1080p", "speed:1.25"), events.calls)
+        remote.assertFocused(s(R.string.tv_player_info))
+        assertEquals(listOf("audio:11", "quality:1080p"), events.calls)
     }
 
     @Test
@@ -259,7 +265,7 @@ class PlayerScreenTest {
     fun theInfoPanelNamesModeVideoHdrAndSound() {
         show()
         remote.down()
-        remote.right(4)
+        remote.right(3)
         remote.assertFocused(s(R.string.tv_player_info))
         remote.ok()
         compose.onNode(hasText(s(R.string.app_player_info_direct))).assertExists()
@@ -267,6 +273,87 @@ class PlayerScreenTest {
         // Zurück closes the panel first.
         remote.back()
         compose.onNode(hasText(s(R.string.app_player_info_direct))).assertDoesNotExist()
+    }
+
+    @Test
+    fun whileItPlaysTheControlsHideAfterFourSecondsAndAMediaKeyBringsThemBack() {
+        val keys = TvRemoteKeys()
+        show(filmState().copy(playing = true), keys = keys, autoHide = true)
+        assertTrue(controlsShown())
+        compose.mainClock.advanceTimeBy(HIDE_MS + FRAME)
+        remote.settle()
+        assertTrue("hidden after 4 s", !controlsShown())
+        // The focus stays on the bar (invisible), nothing is lost.
+        remote.assertFocused(s(R.string.player_seek))
+        compose.runOnUiThread { keys.dispatch(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)) }
+        remote.settle()
+        assertEquals(listOf("toggle"), events.calls)
+        assertTrue("a media key shows them", controlsShown())
+        // A key keeps them: 2.5 s, a key, 2.5 s more (5 s after the media key), still there.
+        compose.mainClock.advanceTimeBy(2_500)
+        remote.down()
+        compose.mainClock.advanceTimeBy(2_500)
+        remote.settle()
+        assertTrue("a key keeps them", controlsShown())
+    }
+
+    @Test
+    fun withTalkBackTheControlsStay() {
+        val manager = context.getSystemService(AccessibilityManager::class.java)
+        assertTrue(!touchExploration(manager))
+        shadowOf(manager).setEnabled(true)
+        shadowOf(manager).setTouchExplorationEnabled(true)
+        assertTrue(touchExploration(manager))
+        // The page then gets autoHide = false: nothing hides while it plays.
+        show(filmState().copy(playing = true), autoHide = !touchExploration(manager))
+        compose.mainClock.advanceTimeBy(HIDE_MS * 2)
+        remote.settle()
+        assertTrue(controlsShown())
+    }
+
+    @Test
+    fun backWhileSpoolingDropsTheTarget() {
+        show()
+        remote.right()
+        remote.back()
+        compose.mainClock.advanceTimeBy(Scrub.COMMIT_MS + FRAME)
+        remote.settle()
+        assertTrue("no jump after Zurück: ${events.calls}", events.calls.none { it.startsWith("seek") })
+        assertTrue("the controls stay for the next Zurück", controlsShown())
+    }
+
+    @Test
+    fun theSeasonChipsShowTheEpisodesOfAnotherSeason() {
+        val season1 = (1..3).map { playerEpisode(it) }
+        val season2 = listOf(playerEpisode(1, "Return").copy(id = ulid(401), seasonNumber = 2, parentId = ulid(202)))
+        seasons = SeasonsMenu(seasons = listOf(seasonRef(1), seasonRef(2).copy(id = ulid(202))))
+        show(episodeState().copy(episodes = SeasonEpisodes(1, season1)))
+        remote.down()
+        remote.right(3)
+        remote.ok()
+        remote.assertFocused("2. Episode 2")
+        // Up to the chips, right to season 2.
+        remote.up(3)
+        remote.right()
+        remote.ok()
+        assertEquals("season:${ulid(202)}", events.calls.last())
+        seasons = seasons.copy(shown = ulid(202), episodes = mapOf(ulid(202) to season2))
+        remote.settle()
+        remote.settle()
+        remote.assertFocused("Return")
+        remote.ok()
+        assertEquals("episode:${ulid(401)}", events.calls.last())
+    }
+
+    @Test
+    fun aBusyServerShowsTheWaitingThenTheWayOn() {
+        show(filmState().copy(error = PlayerError.Busy(retrying = true)))
+        compose.onNode(hasText(s(R.string.player_busy_body))).assertExists()
+        compose.onNode(hasText(s(R.string.common_retry))).assertDoesNotExist()
+        state = filmState().copy(error = PlayerError.Busy(retrying = false))
+        remote.settle()
+        remote.settle()
+        remote.assertFocused(s(R.string.common_retry))
     }
 
     private companion object {

@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.tv.material)
     implementation(libs.zxing.core)
+    testImplementation(project(":core:player-testing"))
     testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.androidx.test.junit)

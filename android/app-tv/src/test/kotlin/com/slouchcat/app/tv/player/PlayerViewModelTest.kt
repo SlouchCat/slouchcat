@@ -2,8 +2,9 @@ package com.slouchcat.app.tv.player
 
 import com.slouchcat.app.tv.testing.EMULATOR_TV
 import com.slouchcat.app.tv.testing.FakeDetails
-import com.slouchcat.app.tv.testing.FakeEngine
-import com.slouchcat.app.tv.testing.FakePlaybackServer
+import com.slouchcat.core.player.testing.FakeEngine
+import com.slouchcat.core.player.testing.FakeServer
+import com.slouchcat.app.tv.testing.tvServer
 import com.slouchcat.app.tv.testing.SERIES_ID
 import com.slouchcat.app.tv.testing.film
 import com.slouchcat.app.tv.testing.playbackInfo
@@ -19,7 +20,11 @@ import com.slouchcat.core.player.DeviceSettings
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
 import com.slouchcat.core.player.PlaybackController
 import com.slouchcat.core.player.PlayerError
+import com.slouchcat.core.api.generated.models.ItemDetail
+import com.slouchcat.core.media.data.ItemRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import okhttp3.HttpUrl
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -56,7 +61,7 @@ class PlayerViewModelTest {
     private class Setup(
         val vm: PlayerViewModel,
         val engine: FakeEngine,
-        val server: FakePlaybackServer,
+        val server: FakeServer,
         val details: FakeDetails,
         val outputs: MutableSharedFlow<Unit>,
         val store: MemoryDeviceSettingsStore,
@@ -67,8 +72,9 @@ class PlayerViewModelTest {
     private fun TestScope.setup(
         id: String,
         details: FakeDetails = FakeDetails(film()),
-        server: FakePlaybackServer = FakePlaybackServer(),
+        server: FakeServer = tvServer(),
         settings: DeviceSettings = DeviceSettings(),
+        items: ItemRepository = details,
     ): Setup {
         val clock = { testScheduler.currentTime }
         val engine = FakeEngine(clock)
@@ -81,7 +87,7 @@ class PlayerViewModelTest {
             fromStart = false,
             engine = engine,
             server = server,
-            items = details,
+            items = items,
             serverUrl = { "https://media.example.test/".toHttpUrl() },
             facts = { setup.facts },
             settings = store.settings,
@@ -138,7 +144,10 @@ class PlayerViewModelTest {
         s.vm.onBackground()
         runCurrent()
         assertEquals(listOf("session-${ulid(1)}"), s.server.stops)
-        assertFalse(s.engine.wantsPlay)
+        // The player is stopped and empty (Media3 keeps playWhenReady, nothing plays).
+        assertTrue(s.engine.stops > 0)
+        assertEquals(0L, s.engine.positionMs)
+        assertFalse(s.vm.state.value.playing)
         // Nothing starts in the background, however long it lasts.
         advanceTimeBy(60_000)
         assertEquals(1, s.server.starts.size)
@@ -152,7 +161,7 @@ class PlayerViewModelTest {
 
     @Test
     fun noCountdownAndNoNextEpisodeInTheBackground() = runTest(dispatcher) {
-        val server = FakePlaybackServer()
+        val server = tvServer()
         val ep = playerEpisode(2)
         server.answer = { id, _ ->
             ApiResult.Ok(if (id == ep.id) playbackInfo(id, ep, next = playerEpisode(3), outro = Segment(50_000, 60_000, Segment.Source.CHAPTER)) else playbackInfo(id, playerEpisode(3)))
@@ -225,5 +234,30 @@ class PlayerViewModelTest {
         s.vm.end()
         runCurrent()
         assertEquals(1, s.server.stops.size)
+    }
+
+    @Test
+    fun homeWhileTheTitleIsResolvedComesBackPausedNotLoadingForever() = runTest(dispatcher) {
+        val details = FakeDetails(film())
+        val answer = CompletableDeferred<Unit>()
+        // getItem still under way when Home is pressed (review M-1).
+        val slow = object : ItemRepository by details {
+            override suspend fun item(server: HttpUrl, id: String): ApiResult<ItemDetail> {
+                answer.await()
+                return details.item(server, id)
+            }
+        }
+        val s = setup(ulid(1), details = details, items = slow)
+        s.vm.onBackground()
+        answer.complete(Unit)
+        runCurrent()
+        // Nothing started in the background: no session that lives a second.
+        assertTrue(s.server.starts.isEmpty())
+        assertTrue(s.server.stops.isEmpty())
+        s.vm.onForeground()
+        runCurrent()
+        assertEquals(listOf(ulid(1)), s.server.starts.map { it.first })
+        assertFalse("comes paused", s.engine.loads.single().third)
+        assertFalse("no endless ring", s.vm.state.value.loading)
     }
 }

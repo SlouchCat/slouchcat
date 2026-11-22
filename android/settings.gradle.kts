@@ -29,6 +29,7 @@ include(
     ":core:session",
     ":core:design",
     ":core:player",
+    ":core:player-testing",
     ":core:media",
     ":core:strings",
     ":core:pairing",

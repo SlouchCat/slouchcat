@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.callbackFlow
  * nothing passed through, so the server sends what a headphone plays.
  */
 
-/** Outputs that take the sound from the HDMI output when they are connected: headphones of every kind. */
+/** Outputs that take the sound from the HDMI output when they are connected: headphones, Bluetooth speakers and hearing aids. */
 @SuppressLint("InlinedApi")
 val HEADPHONE_OUTPUTS: Set<Int> = setOf(
     AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
@@ -37,6 +37,9 @@ val HEADPHONE_OUTPUTS: Set<Int> = setOf(
     AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
     AudioDeviceInfo.TYPE_USB_HEADSET,
     AudioDeviceInfo.TYPE_BLE_HEADSET,
+    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+    AudioDeviceInfo.TYPE_BLE_BROADCAST,
+    AudioDeviceInfo.TYPE_HEARING_AID,
 )
 
 /** [facts] as the TV reports them: the setup's [name], stereo and no passthrough while a headphone listens ([outputs]: the types of the outputs). */

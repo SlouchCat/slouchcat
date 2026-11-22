@@ -36,8 +36,11 @@ private val CODEC_NAMES = mapOf(
 /** The sound formats as a sound system names them (mockup `MD_FMT`): product names, data. */
 private val SOUND_NAMES = mapOf(
     "aac" to "AAC", "ac3" to "Dolby Digital", "eac3" to "Dolby Digital Plus", "dts" to "DTS", "truehd" to "Dolby TrueHD",
-    "flac" to "FLAC", "opus" to "Opus", "mp3" to "MP3", "vorbis" to "Vorbis",
+    "flac" to "FLAC", "opus" to "Opus", "mp3" to "MP3", "vorbis" to "Vorbis", PCM to "PCM",
 )
+
+/** The name of decoded multichannel sound in [soundName]. */
+const val PCM = "pcm"
 
 /** The HDR formats of a file (`MediaFileInfo.hdr`) by their names: data. */
 private val HDR_NAMES = mapOf(
@@ -185,11 +188,11 @@ private fun resolutionClass(width: Int): String = stringResource(
 
 /**
  * The rows of the panel «Wiedergabe» (mockup `brPlInfoHtml`): mode, video, HDR, sound, container,
- * bit rate, subtitles, device. [sound] is what Media3 does with the sound right now (passed
- * through or decoded), `null` before it said.
+ * bit rate, subtitles, device. Over HLS the sound is the format Media3 plays ([sound]), the
+ * track of the file otherwise.
  */
 @Composable
-fun infoRows(state: PlayerState): List<Pair<String, String>> {
+fun infoRows(state: PlayerState, sound: SoundState? = null): List<Pair<String, String>> {
     val info = state.info ?: return emptyList()
     val file = info.mediaFile
     val transcoding = info.transcoding
@@ -219,7 +222,10 @@ fun infoRows(state: PlayerState): List<Pair<String, String>> {
         transcoding?.tonemap == true -> stringResource(R.string.tv_player_hdrTonemapped, hdrName(hdr))
         else -> hdrName(hdr)
     }
-    val audio = state.selectedAudio?.let { trackLabel(it, state.audio.indexOfFirst { c -> c.track.id == it.id }) } ?: none
+    val outgoing = sound?.playing?.takeIf { info.mode == PlaybackInfo.Mode.HLS && it.codec != null }
+    // Over HLS the server may convert the sound: the format Media3 plays, not the file's track (review m-5).
+    val audio = outgoing?.let { o -> listOfNotNull(soundName(o.codec!!), o.channels?.let(::channelLayout)).joinToString(separator) }
+        ?: state.selectedAudio?.let { trackLabel(it, state.audio.indexOfFirst { c -> c.track.id == it.id }) } ?: none
     val subtitle = state.selectedSubtitle?.let { trackLabel(it, state.subtitles.indexOfFirst { c -> c.track.id == it.id }) }
         ?: stringResource(R.string.player_tracks_off)
     val bitrate = (transcoding?.bitrate?.toLong() ?: file.bitrate)?.takeIf { it > 0 }?.let { bitrateLabel(it) } ?: none

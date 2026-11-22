@@ -4,9 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.slouchcat.app.tv.testing.EMULATOR_TV
 import com.slouchcat.app.tv.testing.FakeDetails
-import com.slouchcat.app.tv.testing.FakeEngine
+import com.slouchcat.core.player.testing.FakeEngine
 import com.slouchcat.app.tv.testing.FakeHome
-import com.slouchcat.app.tv.testing.FakePlaybackServer
+import com.slouchcat.app.tv.testing.tvServer
 import com.slouchcat.app.tv.testing.Pages
 import com.slouchcat.app.tv.testing.SERIES_ID
 import com.slouchcat.app.tv.testing.TV
@@ -49,7 +49,7 @@ class PlayerFlowTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
     private val pages = Pages(compose)
     private val remote = pages.remote
-    private val server = FakePlaybackServer()
+    private val server = tvServer()
     private val engines = mutableListOf<FakeEngine>()
     private val details = FakeDetails(film(1, title = "Night Train", progress = progress(40, minutes = 145)), series())
     private val home = FakeHome(

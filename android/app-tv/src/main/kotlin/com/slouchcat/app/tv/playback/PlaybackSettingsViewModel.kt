@@ -57,8 +57,10 @@ data class PlaybackSettingsUiState(
     val prefs: Loadable<LanguagePrefs> = Loadable.Loading,
     /** What the TV found at its output (Automatisch); `null` while it reads. */
     val detected: SoundOutput? = null,
-    /** The formats the TV decodes itself (they go into «Von Hand» as they are). */
+    /** The formats the TV decodes itself apart from Dolby and DTS (they stay in «Von Hand» as they are). */
     val decoded: List<String> = emptyList(),
+    /** What «Automatisch» reports (decoders and passthrough): «Von Hand» starts with it. */
+    val found: List<String> = emptyList(),
     val menu: PlaybackMenu? = null,
 )
 
@@ -96,7 +98,13 @@ class PlaybackSettingsViewModel(
         viewModelScope.launch { store.settings.collect { device -> _state.update { it.copy(device = device) } } }
         viewModelScope.launch {
             val now = facts()
-            _state.update { it.copy(detected = SoundOutput.of(now), decoded = CapabilityRules.decodedAudio(now).filter { c -> c !in CapabilityRules.PASSTHROUGH }) }
+            _state.update {
+                it.copy(
+                    detected = SoundOutput.of(now),
+                    decoded = CapabilityRules.decodedAudio(now).filter { c -> c !in CapabilityRules.PASSTHROUGH },
+                    found = CapabilityRules.build(now, AudioSetting.Auto).audio.orEmpty(),
+                )
+            }
         }
         load()
     }
@@ -127,12 +135,15 @@ class PlaybackSettingsViewModel(
     fun onSoundAuto() = device { it.copy(audio = AudioSetting.Auto) }
     fun onSoundStereo() = device { it.copy(audio = AudioSetting.Stereo) }
 
-    /** «Formate von Hand», filled with what the TV found: its decoders and the formats it passes through. */
+    /**
+     * «Formate von Hand», filled with what «Automatisch» reports: every decoder (Dolby too, when the
+     * TV decodes it) and the formats it passes through (K26 stage 0 point 2; review m-7).
+     */
     fun onSoundManual() {
         val s = _state.value
         if (s.device.audio is AudioSetting.Manual) return
-        val found = s.detected ?: SoundOutput(emptyList(), STEREO)
-        device { it.copy(audio = AudioSetting.Manual((s.decoded + found.passthrough).toSet(), found.channels)) }
+        val channels = s.detected?.channels ?: STEREO
+        device { it.copy(audio = AudioSetting.Manual((s.decoded + s.found).toSet(), channels)) }
     }
 
     /** A format of «Von Hand» on or off; the formats the TV decodes stay. */

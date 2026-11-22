@@ -42,6 +42,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.slouchcat.app.tv.common.LoadableContent
+import com.slouchcat.app.tv.player.PCM
 import com.slouchcat.app.tv.player.channelLayout
 import com.slouchcat.app.tv.player.reported
 import com.slouchcat.app.tv.player.soundName
@@ -209,7 +210,7 @@ private fun Detected(state: PlaybackSettingsUiState) {
     val separator = stringResource(R.string.format_listSeparator)
     val formats = { list: List<String> -> list.joinToString(separator) { soundName(it) } }
     val title = if (found.surround) {
-        stringResource(R.string.tv_playback_detected, formats(found.passthrough).ifEmpty { "PCM" }, channelLayout(found.channels))
+        stringResource(R.string.tv_playback_detected, formats(found.passthrough).ifEmpty { soundName(PCM) }, channelLayout(found.channels))
     } else {
         stringResource(R.string.tv_playback_detectedStereo)
     }
@@ -218,7 +219,7 @@ private fun Detected(state: PlaybackSettingsUiState) {
     val detail = when (setting) {
         AudioSetting.Auto -> stringResource(if (found.passthrough.isNotEmpty()) R.string.tv_playback_passedAuto else R.string.tv_playback_passedNone)
         AudioSetting.Stereo -> stringResource(R.string.tv_playback_passedStereo)
-        is AudioSetting.Manual -> stringResource(R.string.tv_playback_passedManual, formats(out.passthrough).ifEmpty { "PCM" }, channelLayout(out.channels))
+        is AudioSetting.Manual -> stringResource(R.string.tv_playback_passedManual, formats(out.passthrough).ifEmpty { soundName(PCM) }, channelLayout(out.channels))
     }
     val shape = RoundedCornerShape(TvDimens.radiusPanel)
     Row(

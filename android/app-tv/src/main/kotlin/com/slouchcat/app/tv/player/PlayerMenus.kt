@@ -55,9 +55,6 @@ import com.slouchcat.core.player.AudioSetting
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.strings.R
 
-/** The speeds of the menu «Tempo» (the web player's list). */
-val SPEEDS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-
 /**
  * The side menus of the player (mockup `brPlMenu`): a choice closes the menu; the focus starts on
  * the current choice. Play/Pause of the remote still works under a menu (the page takes it).
@@ -139,19 +136,6 @@ fun PlayerMenuPanel(
                         selected = option.current,
                         enabled = option.available,
                         modifier = if (n == current) Modifier.focusRequester(first) else Modifier,
-                    )
-                }
-            }
-        }
-        PlayerMenu.Speed -> TvSideMenu(stringResource(R.string.player_settings_speed), onDismiss = onClose, initialFocus = first) {
-            Column(verticalArrangement = Arrangement.spacedBy(P.ChipsGap)) {
-                SPEEDS.forEach { speed ->
-                    val on = speed == state.speed
-                    TvMenuItem(
-                        speedLabel(speed),
-                        onClick = { choose { events.onSpeed(speed) } },
-                        selected = on,
-                        modifier = if (on) Modifier.focusRequester(first) else Modifier,
                     )
                 }
             }

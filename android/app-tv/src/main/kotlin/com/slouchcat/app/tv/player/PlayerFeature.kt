@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioFormat
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.CaptioningManager
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.Format
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -51,6 +54,7 @@ import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.player.ApiPlaybackServer
+import com.slouchcat.core.player.CapabilityRules
 import com.slouchcat.core.player.DeviceFacts
 import com.slouchcat.core.player.DeviceSettingsStore
 import com.slouchcat.core.player.Media3Engine
@@ -92,28 +96,10 @@ class PlayerFeature(
 ) : TvFeature {
     override val fullScreen = setOf(PlayerRoute::class)
 
-    /** The players of each graph that play now, and the last progress and stops still on their way. */
-    private val players = Collections.synchronizedMap(WeakHashMap<TvGraph, Players>())
-
-    private class Players(val finals: Job) {
-        val playing: MutableSet<PlayerViewModel> = Collections.synchronizedSet(mutableSetOf())
-    }
-
-    private fun players(graph: TvGraph): Players = players.getOrPut(graph) {
-        Players(SupervisorJob(graph.scope.coroutineContext[Job])).also { p ->
-            // Concept 26 5.7: before the profile changes or the TV signs out, the playback ends at the
-            // server (with the token and the profile it began with), then the caches go.
-            graph.hooks.onProfileOrSessionEnd {
-                p.playing.toList().forEach { it.end() }
-                withTimeoutOrNull(STOP_WAIT_MS) { p.finals.children.toList().joinAll() }
-            }
-        }
-    }
-
     override fun NavGraphBuilder.register(app: TvScope) {
         val graph = app.graph
         val navigator = app.navigator
-        val own = players(graph)
+        val own = Playbacks.of(graph)
         composable<PlayerRoute> { entry ->
             val route = entry.toRoute<PlayerRoute>()
             val context = LocalContext.current.applicationContext
@@ -135,9 +121,11 @@ class PlayerFeature(
                     finalScope = CoroutineScope(graph.scope.coroutineContext + own.finals),
                     clock = SystemClock::elapsedRealtime,
                     saved = createSavedStateHandle(),
-                ).also { own.playing += it }
+                )
             }
+            // Back from «Ton-Einstellungen» the player counts again (review m-3).
             DisposableEffect(vm) {
+                own.playing += vm
                 onDispose { own.playing -= vm }
             }
             vm.leave = navigator::back
@@ -166,9 +154,41 @@ class PlayerFeature(
         }
     }
 
-    private companion object {
+}
+
+/**
+ * The playbacks of a graph: the players that play now and the last progress and stops still on
+ * their way (`finals`). Concept 26 5.7: before the profile changes or the TV signs out, a playback
+ * ends at the server with the token and the profile it began with, then the caches go. Start and
+ * the detail pages wait for the last progress before they read again ([settled]).
+ */
+class Playbacks private constructor(graph: TvGraph) {
+    val finals: Job = SupervisorJob(graph.scope.coroutineContext[Job])
+    val playing: MutableSet<PlayerViewModel> = Collections.synchronizedSet(mutableSetOf())
+
+    init {
+        graph.hooks.onProfileOrSessionEnd {
+            playing.toList().forEach { it.end() }
+            withTimeoutOrNull(STOP_WAIT_MS) { finals.children.toList().joinAll() }
+        }
+    }
+
+    companion object {
+        private val all = Collections.synchronizedMap(WeakHashMap<TvGraph, Playbacks>())
+
+        fun of(graph: TvGraph): Playbacks = all.getOrPut(graph) { Playbacks(graph) }
+
+        /** Waits (at most [SETTLE_MS]) until the last progress and stops of [graph] reached the server. */
+        suspend fun settled(graph: TvGraph) {
+            val own = all[graph] ?: return
+            withTimeoutOrNull(SETTLE_MS) { own.finals.children.toList().joinAll() }
+        }
+
         /** How long a profile change waits for the last progress and the stop of a playback. */
         const val STOP_WAIT_MS = 3_000L
+
+        /** How long a page that reads again waits for them (it shows the old rows meanwhile). */
+        const val SETTLE_MS = 2_000L
     }
 }
 
@@ -182,9 +202,23 @@ private fun KeepScreenOn(playing: Boolean) {
     }
 }
 
-/** With TalkBack the controls stay: hidden ones would leave nothing to reach (review M-3 of K27 stage 5). */
-private fun talkBack(context: Context): Boolean =
-    context.getSystemService(AccessibilityManager::class.java)?.let { it.isEnabled && it.isTouchExplorationEnabled } == true
+/**
+ * With TalkBack the controls stay: hidden ones would leave nothing to reach (review M-3 of K27
+ * stage 5). Read again when TalkBack is switched on or off while the page is seen.
+ */
+@Composable
+private fun talkBack(context: Context): Boolean {
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    val on by produceState(touchExploration(manager), manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { value = touchExploration(manager) }
+        manager?.addTouchExplorationStateChangeListener(listener)
+        awaitDispose { manager?.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return on
+}
+
+/** Whether a screen reader explores the screen (TalkBack). */
+internal fun touchExploration(manager: AccessibilityManager?): Boolean = manager?.let { it.isEnabled && it.isTouchExplorationEnabled } == true
 
 /**
  * Tells the page what Media3 does with the sound (K26 stage 0 point 2): an encoded output (AC-3,
@@ -197,6 +231,11 @@ private fun AudioOutputWatch(engine: Media3Engine, vm: PlayerViewModel) {
         val listener = object : AnalyticsListener {
             override fun onAudioTrackInitialized(eventTime: AnalyticsListener.EventTime, audioTrackConfig: AudioSink.AudioTrackConfig) {
                 vm.onAudioOutput(audioTrackConfig.encoding in ENCODED)
+            }
+
+            // The sound that reaches the TV (after a remux or transcode not the file's track; review m-5).
+            override fun onAudioInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?) {
+                vm.onAudioFormat(CapabilityRules.audioCodecOf(format.sampleMimeType), format.channelCount.takeIf { it > 0 })
             }
         }
         engine.player.addAnalyticsListener(listener)
@@ -239,7 +278,14 @@ private fun VideoSurface(engine: Media3Engine, raised: Boolean) {
                 subtitleView?.apply {
                     setApplyEmbeddedStyles(true)
                     setApplyEmbeddedFontSizes(true)
-                    setStyle(CaptionStyleCompat(text, none, none, CaptionStyleCompat.EDGE_TYPE_OUTLINE, edge, null))
+                    // The captions of the system (size and style for sofa distance) win when someone set them (review m-8).
+                    val captions = context.getSystemService(CaptioningManager::class.java)
+                    if (captions?.isEnabled == true) {
+                        setUserDefaultStyle()
+                        setUserDefaultTextSize()
+                    } else {
+                        setStyle(CaptionStyleCompat(text, none, none, CaptionStyleCompat.EDGE_TYPE_OUTLINE, edge, null))
+                    }
                 }
                 player = engine.player
             }
