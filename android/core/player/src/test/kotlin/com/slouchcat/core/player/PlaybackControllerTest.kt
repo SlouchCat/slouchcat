@@ -1,5 +1,12 @@
 package com.slouchcat.core.player
 
+import com.slouchcat.core.player.testing.FakeEngine
+import com.slouchcat.core.player.testing.FakeServer
+import com.slouchcat.core.player.testing.info
+import com.slouchcat.core.player.testing.ref
+import com.slouchcat.core.player.testing.audio
+import com.slouchcat.core.player.testing.subtitle
+import com.slouchcat.core.player.testing.group
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.PlaybackSessionState

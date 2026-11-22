@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coroutines.android)
+    testImplementation(project(":core:player-testing"))
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.robolectric)

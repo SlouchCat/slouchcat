@@ -52,6 +52,8 @@ class TvSessionActions(
      * TV still forgets everything (the session then stays under «Meine Geräte» until signed out there).
      */
     suspend fun signOut(): Boolean {
+        // First the cleaners: a playback still running ends at the server with the token it began with.
+        hooks.clean()
         val server = session.server
         val confirmed = if (server == null) {
             true
@@ -59,7 +61,6 @@ class TvSessionActions(
             val result = auth.logout(server)
             (result is ApiResult.Ok || result is ApiResult.SignedOut).also { if (!it) Log.w(TAG, "logout not confirmed", "result" to result::class.simpleName) }
         }
-        hooks.clean()
         // The server first: the epoch of signedOut() then opens the setup, with nothing left.
         servers.clear()
         session.signedOut()
