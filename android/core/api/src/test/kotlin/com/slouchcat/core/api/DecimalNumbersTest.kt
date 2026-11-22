@@ -20,6 +20,17 @@ class DecimalNumbersTest {
         assertTrue(json, json.contains("\"playbackRate\":1.5"))
     }
 
+    /** Code review stage 7 L-9: a value with an exponent goes out plain. */
+    @Test
+    fun aNumberGoesOutWithoutExponent() {
+        val event = ProgressEvent(
+            positionMs = 1, durationMs = 2, playedMs = 1, seq = 1, state = ProgressEvent.State.PAUSED,
+            clientTime = OffsetDateTime.parse("2026-11-22T10:00:00Z"), playbackRate = BigDecimal("1E+1"),
+        )
+        val json = SlouchcatApi.json.encodeToString(ProgressEvent.serializer(), event)
+        assertTrue(json, json.contains("\"playbackRate\":10,") || json.contains("\"playbackRate\":10}"))
+    }
+
     @Test
     fun numbersAndStringsComeIn() {
         val number = """{"positionMs":1,"durationMs":2,"percent":38.5,"completed":false,"updatedAt":"2026-11-22T10:00:00Z","playbackRate":1.25}"""

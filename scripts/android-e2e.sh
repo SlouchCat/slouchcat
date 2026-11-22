@@ -7,7 +7,8 @@
 #
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
-# AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580)
+# AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580), an
+#             even number from 5554 to 5584: adb finds only those as emulator-EMU_PORT
 # EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
@@ -15,8 +16,9 @@
 # CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
 # RADIO=1     the web radio without internet (K27 stage 7, AudioFlowTest): the server built with the
-#             tag radiotest (bin/slouchcat-e2e) and the test stations of web/e2e/radio-server.mjs on
-#             PORT-9, as in the e2e suite of the web app; needs node and go
+#             tag radiotest (into the run's own folder, never over another run's binary) and the
+#             test stations of web/e2e/radio-server.mjs on RADIO_PORT (default PORT+1); needs node
+#             and go. After the flow the server's log must show a heartbeat of a listen.
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
@@ -32,6 +34,12 @@ shots=${SHOTS:-}
 only=${CLASS:-}
 wait_max=${WAIT_MAX:-600}
 if [ "${1:-}" = "--shots" ]; then shots=$2; fi
+# adb lists an emulator only on an even console port from 5554 to 5584; any other port boots an
+# emulator that the script never reaches (code review stage 7 m-13).
+if ! [[ "$emu_port" =~ ^[0-9]+$ ]] || [ "$emu_port" -lt 5554 ] || [ "$emu_port" -gt 5584 ] || [ $((emu_port % 2)) -ne 0 ]; then
+  echo "android-e2e: EMU_PORT=$emu_port is not an even port from 5554 to 5584 (adb would not find the emulator)" >&2
+  exit 2
+fi
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
@@ -93,12 +101,20 @@ binary=../server/bin/slouchcat
 radio_env=()
 if [ "${RADIO:-}" = "1" ]; then
   # The test stations (Icecast MP3, Shoutcast, AAC, one unreachable) loop tones of testdata/radio.
-  radio_port=$((port - 9))
-  (cd ../server && go build -tags radiotest -o bin/slouchcat-e2e ./cmd/slouchcat)
+  radio_port=${RADIO_PORT:-$((port + 1))}
+  (cd ../server && go build -tags radiotest -o "$root/slouchcat-e2e" ./cmd/slouchcat)
   node --input-type=module -e "const m = await import('$(cd ../web/e2e && pwd)/radio-server.mjs'); await m.startRadioServer({ port: $radio_port });" \
     >"$root/radio.log" 2>&1 &
   radio_pid=$!
-  binary=../server/bin/slouchcat-e2e
+  # Ready when the port answers; a taken port or a dead node fails here, not in the flow.
+  for _ in $(seq 1 30); do
+    kill -0 "$radio_pid" 2>/dev/null || break
+    if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$radio_port/"; then break; fi
+    sleep 1
+  done
+  kill -0 "$radio_pid" 2>/dev/null && curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$radio_port/" ||
+    { cat "$root/radio.log" >&2; fail "the test stations do not answer on port $radio_port (taken? RADIO_PORT)"; }
+  binary=$root/slouchcat-e2e
   radio_env=(SLOUCHCAT_TEST_RADIO_CATALOG_URL="http://127.0.0.1:$radio_port" SLOUCHCAT_TEST_RADIO_WIKIDATA_URL="http://127.0.0.1:$radio_port/sparql"
     SLOUCHCAT_RADIO_DIR="$root/radio" SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1)
 fi
@@ -212,5 +228,12 @@ else
   mkdir -p "$shots"
   adb pull "/sdcard/Android/data/$app/files/shots/." "$shots" >/dev/null 2>&1
   echo "android-e2e: photos in $shots"
+fi
+# The flow of the radio listens for longer than one heartbeat: the server must have taken one
+# (code review stage 7 m-8). Without a heartbeat the run fails.
+if [ "${RADIO:-}" = "1" ] && { [ -z "$only" ] || [[ "$only" == *AudioFlowTest* ]]; }; then
+  grep -qE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log" ||
+    fail "no heartbeat of a radio listen reached the server"
+  echo "android-e2e: the server took $(grep -cE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log") radio heartbeats"
 fi
 echo "android-e2e: done after $(($(date +%s) - started)) s ($(($(date +%s) - booted)) s with the device)"

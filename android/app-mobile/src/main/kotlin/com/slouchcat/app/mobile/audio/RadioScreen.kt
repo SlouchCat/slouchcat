@@ -263,13 +263,16 @@ private fun StationTile(station: RadioStation, playing: RadioState?, logo: Image
             Box(Modifier.align(Alignment.TopEnd).padding(4.dp).clip(CircleShape).background(c.scrim)) {
                 SlouchcatIconButton(SlouchcatIcon.Heart, heart, onClick = { events.onFavorite(station) }, tint = if (station.favorite) c.accent else c.tx)
             }
-            Row(
-                Modifier.align(Alignment.BottomStart).padding(6.dp).clip(CircleShape).background(c.scrim).padding(horizontal = 10.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                SlouchcatIconImage(if (running) SlouchcatIcon.Pause else SlouchcatIcon.Play, contentDescription = null, size = 14.dp, tint = c.tx)
-                Text(stringResource(if (running) R.string.radio_page_playing else R.string.radio_player_live), style = SlouchcatType.label, color = c.tx)
+            // A broken station is not «Live» (code review L-3); its note says «Gerade gestört».
+            if (running || station.state != RadioStationState.BROKEN) {
+                Row(
+                    Modifier.align(Alignment.BottomStart).padding(6.dp).clip(CircleShape).background(c.scrim).padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SlouchcatIconImage(if (running) SlouchcatIcon.Pause else SlouchcatIcon.Play, contentDescription = null, size = 14.dp, tint = c.tx)
+                    Text(stringResource(if (running) R.string.radio_page_playing else R.string.radio_player_live), style = SlouchcatType.label, color = c.tx)
+                }
             }
         }
         Text(station.name, style = SlouchcatType.rowTitle, color = c.tx, maxLines = 2, overflow = TextOverflow.Ellipsis)

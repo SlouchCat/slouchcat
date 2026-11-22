@@ -66,10 +66,10 @@ class AudioShowcaseTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    // Without covers: the blurred cover behind an audio detail page crashes the emulator's software GPU
-    // («Failed to bind to texture»); the flow against the server shows the page with its field.
-    private val book = audiobook(progress = progress(38, minutes = 360)).copy(images = com.slouchcat.core.api.generated.models.ItemImages())
-    private val show = podcast().copy(images = com.slouchcat.core.api.generated.models.ItemImages())
+    // With covers: the backdrop of the detail pages is blurred on the CPU now (no RenderEffect, which
+    // crashed the emulator's software GPU).
+    private val book = audiobook(progress = progress(38, minutes = 360))
+    private val show = podcast()
     private val details = mapOf<String, ItemDetail>(book.id to book, show.id to show)
     private val engines = mutableListOf<FakeEngine>()
 
@@ -143,6 +143,8 @@ class AudioShowcaseTest {
 
     @Test
     fun soundPages() {
+        // The first sound asks for the notifications (security review L-7); granted, no dialog over the photos.
+        InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         showcase.start()
         showcase.waitFor(hasText(s(R.string.home_rows_continue)))
 
