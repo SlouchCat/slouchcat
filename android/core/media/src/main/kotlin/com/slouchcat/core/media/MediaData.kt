@@ -1,7 +1,10 @@
 package com.slouchcat.core.media
 
 import com.slouchcat.core.api.ApiCaller
+import com.slouchcat.core.media.data.ApiAudioRepository
 import com.slouchcat.core.media.data.ApiCollectionsRepository
+import com.slouchcat.core.media.data.ApiRadioRepository
+import com.slouchcat.core.media.data.AudioRepository
 import com.slouchcat.core.media.data.ApiDetailRepository
 import com.slouchcat.core.media.data.ApiHomeRepository
 import com.slouchcat.core.media.data.ApiLibraryRepository
@@ -17,6 +20,7 @@ import com.slouchcat.core.media.data.LibraryRepository
 import com.slouchcat.core.media.data.MyListsRepository
 import com.slouchcat.core.media.data.PersonRepository
 import com.slouchcat.core.media.data.ProfileSettingsRepository
+import com.slouchcat.core.media.data.RadioRepository
 import com.slouchcat.core.media.data.SearchRepository
 import okhttp3.Call
 
@@ -43,6 +47,10 @@ data class MediaData(
     val myLists: MyListsRepository,
     val collections: CollectionsRepository,
     val profiles: ProfileSettingsRepository,
+    /** Audiobook series and the episodes of a podcast (stage 7). */
+    val audio: AudioRepository,
+    /** The web radio's catalogue, favourites and «Jetzt läuft» (stage 7). */
+    val radio: RadioRepository,
     /** «Merkliste» in the media choice and «Mehr»: every page that changes the list adjusts it. */
     val watchlistCount: LiveCount = LiveCount(),
     /** «Sammlungen» in the media choice. */
@@ -71,6 +79,8 @@ data class MediaData(
                 myLists = ApiMyListsRepository(api, http),
                 collections = ApiCollectionsRepository(api, http),
                 profiles = ApiProfileSettingsRepository(api, http),
+                audio = ApiAudioRepository(api, http),
+                radio = ApiRadioRepository(api, http),
             )
         }
     }
