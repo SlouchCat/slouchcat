@@ -152,7 +152,7 @@ sealed interface ProfileMessage {
 /**
  * «Profile verwalten» (mockup `/settings/profiles`, web `ProfileSettingsPage`): the profiles of
  * the account; with the primary profile active each opens «Profil bearbeiten» (name, colour,
- * rating, PIN, delete; language, libraries and watch time stay as they are) and «Profil
+ * rating, language, libraries, PIN, delete; the watch time stays as it is) and «Profil
  * hinzufügen» creates one. Another profile only reads the list (`primary_profile_required`). PINs
  * change on «Speichern», as in the mockup. [onActiveChanged]: the profile in use was saved (its
  * name and colour in the session, its libraries in the media choice).
@@ -274,6 +274,14 @@ class ProfileSettingsViewModel(
     fun onAccent(accent: Accent) = edit { it.copy(accent = accent) }
 
     fun onRating(age: Int) = edit { it.copy(rating = age) }
+
+    fun onToggleLanguages() = edit { it.copy(languagesOpen = !it.languagesOpen) }
+
+    fun onLanguage(language: Language) = edit { it.copy(language = language, languagesOpen = false) }
+
+    fun onAllLibraries(all: Boolean) = edit { it.copy(allLibraries = all) }
+
+    fun onLibrary(id: Long, on: Boolean) = edit { it.copy(libraryIds = if (on) it.libraryIds + id else it.libraryIds - id) }
 
     fun onPinForm(kind: PinKind?) = edit { it.copy(pinForm = kind, first = "", second = "", pinError = null) }
 

@@ -7906,7 +7906,10 @@
       "media": "Medien",
       "switchProfile": "Profil wechseln",
       "exitHint": "Zum Verlassen nochmals Zurück drücken",
-      "signedOut": "Dieser Fernseher wurde abgemeldet. Richte ihn neu ein."
+      "signedOut": "Dieser Fernseher wurde abgemeldet. Richte ihn neu ein.",
+      "allLibraries": "Alle Bibliotheken …",
+      "libraries": "Bibliotheken",
+      "myLists": "Meine Listen"
     },
     "setup": {
       "welcome": "Willkommen bei Slouchcat",
@@ -8107,7 +8110,8 @@
       "symbols": "#+=",
       "letters": "abc",
       "hitsFor": "{{hits}} für «{{query}}»",
-      "libraries": "Bibliotheken"
+      "libraries": "Bibliotheken",
+      "deviceKeyboard": "Tastatur des Geräts"
     },
     "lists": {
       "removeHint": "OK auf einem Titel nimmt ihn von der Merkliste.",

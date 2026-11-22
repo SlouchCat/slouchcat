@@ -45,6 +45,11 @@ class LibraryScreenTest {
     private val library = FakeLibrary(ApiResult.Ok(titles)).apply { genreOf = { if (it.title.endsWith("1")) "Drama" else "Comedy" } }
     private val details = FakeDetails(film(2, title = "Film 2"))
 
+    private companion object {
+        /** Rows down to the end of a grid of 60 titles in seven columns. */
+        const val ROWS = 9
+    }
+
     private fun open(first: String = "Film 1") {
         pages.show({ it.copy(home = FakeHome(), library = library, detail = details, items = details) })
         pages.openRail("Filme")
@@ -97,6 +102,24 @@ class LibraryScreenTest {
         remote.ok()
         remote.back()
         remote.assertFocused(pages.s(R.string.library_sort_added))
+    }
+
+    @Test
+    fun theGridLoadsTheNextPageAndOffersRetryWhenItFails() {
+        val many = (1..60).map { itemRef(it, title = "Film $it", images = posters(ulid(it))) }
+        library.all = ApiResult.Ok(many)
+        open()
+        // The next page fails: «Erneut versuchen» below the grid (code review m-5).
+        library.all = ApiResult.Offline
+        repeat(ROWS) { remote.down() }
+        compose.waitUntil(5_000) { library.queries.any { it.second == 50 } }
+        pages.waitFor(pages.s(R.string.library_page_pageFailed))
+        library.all = ApiResult.Ok(many)
+        repeat(ROWS) { remote.down() }
+        remote.assertFocused(pages.s(R.string.app_state_retry))
+        remote.ok()
+        pages.waitFor("Film 60")
+        assertTrue(library.queries.count { it.second == 50 } >= 2)
     }
 
     @Test

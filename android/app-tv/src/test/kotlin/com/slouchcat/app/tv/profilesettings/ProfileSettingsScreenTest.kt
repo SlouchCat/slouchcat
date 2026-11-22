@@ -72,7 +72,7 @@ class ProfileSettingsScreenTest {
         remote.down()
         remote.right()
         remote.ok()
-        repeat(MENU_ROWS) { remote.down() }
+        repeat(MENU_SEARCH) { if (!remote.focusedLabel().contains(pages.s(R.string.profiles_settings_form_save))) remote.down() }
         remote.assertFocused(pages.s(R.string.profiles_settings_form_save))
         remote.ok()
         compose.waitUntil(5_000) { repo.calls.contains("update:2") }
@@ -82,11 +82,50 @@ class ProfileSettingsScreenTest {
     }
 
     @Test
+    fun thePinPadKeepsItsFocusOverBothSteps() {
+        open()
+        remote.down()
+        remote.ok()
+        // To «PIN setzen»: the rows of name, colour, rating, language, libraries, then the PIN.
+        repeat(MENU_SEARCH) { if (!remote.focusedLabel().contains(pages.s(R.string.profiles_settings_pin_set))) remote.down() }
+        remote.assertFocused(pages.s(R.string.profiles_settings_pin_set))
+        remote.ok()
+        remote.assertFocused("1")
+        "1234".forEach { remote.press(androidx.compose.ui.input.key.Key(android.view.KeyEvent.KEYCODE_0 + (it - '0'))) }
+        repeat(PAD_TO_STEP) { remote.down() }
+        remote.left()
+        remote.assertFocused(pages.s(R.string.tv_hand_next))
+        remote.ok()
+        // The second step: the focus is back on «1», not lost (code review M-4b).
+        remote.assertFocused("1")
+        "1234".forEach { remote.press(androidx.compose.ui.input.key.Key(android.view.KeyEvent.KEYCODE_0 + (it - '0'))) }
+        repeat(PAD_TO_STEP) { remote.down() }
+        remote.left()
+        remote.assertFocused(pages.s(R.string.app_profiles_manage_apply))
+        remote.ok()
+        remote.assertFocused(pages.s(R.string.profiles_settings_form_name))
+    }
+
+    @Test
+    fun aRefusedSaveKeepsTheFocusOnSave() {
+        repo.saveFailure = ApiResult.Offline
+        open()
+        remote.down()
+        remote.ok()
+        repeat(MENU_SEARCH) { if (!remote.focusedLabel().contains(pages.s(R.string.profiles_settings_form_save))) remote.down() }
+        remote.assertFocused(pages.s(R.string.profiles_settings_form_save))
+        remote.ok()
+        pages.waitFor(pages.s(R.string.app_state_offline))
+        // The menu stays open with the reason, the focus on «Speichern» (code review M-4c, m-3).
+        remote.assertFocused(pages.s(R.string.profiles_settings_form_save))
+    }
+
+    @Test
     fun deletingAsksFirst() {
         open()
         remote.down()
         remote.ok()
-        repeat(MENU_ROWS) { remote.down() }
+        repeat(MENU_SEARCH) { if (!remote.focusedLabel().contains(pages.s(R.string.profiles_settings_form_save))) remote.down() }
         remote.right()
         remote.assertFocused(pages.s(R.string.profiles_settings_delete_action))
         remote.ok()
@@ -108,7 +147,11 @@ class ProfileSettingsScreenTest {
     }
 
     private companion object {
-        /** Down from the colours to «Speichern»: rating, PIN, the buttons. */
-        const val MENU_ROWS = 4
+
+        /** Steps down the menu at most, looking for an element. */
+        const val MENU_SEARCH = 14
+
+        /** From «1» down to the row of «Weiter». */
+        const val PAD_TO_STEP = 5
     }
 }

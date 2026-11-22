@@ -29,11 +29,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
@@ -60,6 +67,10 @@ import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.Accent
+import com.slouchcat.core.api.generated.models.Language
+import com.slouchcat.app.tv.ui.TvMenuItem
+import com.slouchcat.app.tv.ui.TvSwitch
+import java.util.Locale
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.design.Avatar
@@ -81,6 +92,10 @@ interface ProfileSettingsEvents {
     fun onName(name: String)
     fun onAccent(accent: Accent)
     fun onRating(age: Int)
+    fun onToggleLanguages()
+    fun onLanguage(language: Language)
+    fun onAllLibraries(all: Boolean)
+    fun onLibrary(id: Long, on: Boolean)
     fun onPinForm(open: Boolean)
     fun onPinFirst(digits: String)
     fun onPinSecond(digits: String)
@@ -191,7 +206,7 @@ private fun profileLine(profile: Profile, state: ProfileSettingsUiState): String
     if (profile.isPrimary) stringResource(R.string.profiles_settings_primary) else null,
     if (profile.maxRating >= ProfileSettingsUiState.NO_AGE_LIMIT) null else stringResource(R.string.app_profiles_manage_rating, state.ratingLabel(profile.maxRating) ?: profile.maxRating.toString()),
     stringResource(if (profile.hasPin) R.string.tv_profiles_pinSet else R.string.app_profiles_manage_noPin),
-).joinToString(" · ")
+).joinToString(stringResource(R.string.format_separator))
 
 @Composable
 private fun SummaryRow(summary: ProfileSummary) {
@@ -221,7 +236,7 @@ private fun ProfileRow(name: String, accent: String?, subtitle: String, locked: 
             }
             Column(Modifier.weight(1f)) {
                 Text(name, style = TvType.largeStrong, maxLines = 1)
-                Text(subtitle, style = TvType.small, color = androidx.tv.material3.LocalContentColor.current.copy(alpha = SUBTLE), maxLines = 1)
+                Text(subtitle, style = TvType.small, color = androidx.tv.material3.LocalContentColor.current.copy(alpha = TvMotion.profileRest), maxLines = 1)
             }
             if (locked) TvIcon(SlouchcatIcon.Lock, TvDimens.Browse.Icon)
             if (!add) TvIcon(TvIcons.Edit, TvDimens.Browse.Icon)
@@ -234,6 +249,8 @@ private fun ProfileRow(name: String, accent: String?, subtitle: String, locked: 
 private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events: ProfileSettingsEvents, page: FocusMemory) {
     val c = SlouchcatTheme.colors
     val name = remember { FocusRequester() }
+    val expanded = stringResource(R.string.app_state_expanded)
+    val collapsed = stringResource(R.string.app_state_collapsed)
     val close = {
         events.onDismiss()
         page.restore()
@@ -245,7 +262,7 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
         initialFocus = name,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.l), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(editor.name.ifBlank { "?" }, editor.accent.value, size = TvDimens.Browse.ProfileAvatar)
+            Avatar(editor.name.ifBlank { stringResource(R.string.profiles_settings_form_name) }, editor.accent.value, size = TvDimens.Browse.ProfileAvatar)
             Column {
                 Text(editor.name.ifBlank { stringResource(R.string.profiles_settings_form_name) }, style = TvType.largeStrong)
                 if (editor.isPrimary) Text(stringResource(R.string.profiles_settings_primary), style = TvType.small, color = c.tx3)
@@ -279,6 +296,29 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
                 modifier = Modifier.padding(top = TvDimens.s),
             )
         }
+        // m-10: language and libraries as on the phone; the watch time stays (no field on the TV).
+        Label(stringResource(R.string.profiles_settings_form_language))
+        TvMenuItem(
+            languageName(editor.language),
+            onClick = events::onToggleLanguages,
+            icon = SlouchcatIcon.Globe.vector,
+            chevron = false,
+            modifier = Modifier.semantics { stateDescription = if (editor.languagesOpen) expanded else collapsed },
+        )
+        if (editor.languagesOpen) {
+            LANGUAGES.forEach { language ->
+                TvMenuItem(languageName(language), onClick = { events.onLanguage(language) }, selected = language == editor.language)
+            }
+        }
+        if (!editor.isPrimary && state.libraries.isNotEmpty()) {
+            Label(stringResource(R.string.profiles_settings_form_libraries))
+            TvSwitch(stringResource(R.string.app_profiles_manage_allLibraries), checked = editor.allLibraries, onCheckedChange = events::onAllLibraries)
+            if (!editor.allLibraries) {
+                state.libraries.forEach { library ->
+                    TvSwitch(library.name, checked = library.id in editor.libraryIds, onCheckedChange = { events.onLibrary(library.id, it) })
+                }
+            }
+        }
         Label(stringResource(R.string.profiles_pin_label))
         val pinOn = editor.pinOn()
         TvBadge(stringResource(if (pinOn) R.string.tv_profiles_pinSet else R.string.app_profiles_manage_noPin), tone = if (pinOn) BadgeTone.Ok else BadgeTone.Plain, icon = if (pinOn) SlouchcatIcon.Lock.vector else null)
@@ -286,14 +326,14 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
             TvButton(stringResource(if (pinOn) R.string.profiles_settings_pin_change else R.string.profiles_settings_pin_set), onClick = { events.onPinForm(true) }, icon = SlouchcatIcon.Lock.vector, small = true)
             if (pinOn) TvButton(stringResource(R.string.profiles_settings_pin_remove_action), onClick = events::onPinRemove, icon = TvIcons.Unlock, small = true, kind = TvButtonKind.Ghost)
         }
-        editor.error?.let { TvNote(stringResource(R.string.app_item_failed), Modifier.padding(top = TvDimens.l), tone = NoteTone.Bad) }
+        editor.error?.let { code -> TvNote(stringResource(errorText(code)), Modifier.padding(top = TvDimens.l), tone = NoteTone.Bad) }
         TvActions {
             TvButton(
                 stringResource(if (editor.isNew) R.string.profiles_settings_form_create else R.string.profiles_settings_form_save),
-                onClick = events::onSave,
+                // Stays focusable while saving (code review M-4c): a refused save keeps the focus here.
+                onClick = { if (!editor.busy) events.onSave() },
                 icon = SlouchcatIcon.Check.vector,
                 kind = TvButtonKind.Primary,
-                enabled = !editor.busy,
             )
             if (!editor.isNew && !editor.isPrimary) TvButton(stringResource(R.string.profiles_settings_delete_action), onClick = { events.onDeleteAsk(true) }, icon = SlouchcatIcon.Trash.vector, kind = TvButtonKind.Ghost)
         }
@@ -364,47 +404,83 @@ private fun PinForm(editor: ProfileEditor, events: ProfileSettingsEvents) {
     val digits = if (again) editor.second else editor.first
     val set = { value: String -> if (again) events.onPinSecond(value) else events.onPinFirst(value) }
     val cancel = { events.onPinForm(false) }
-    TvDialog(stringResource(R.string.profiles_settings_pin_title, editor.name.ifBlank { "?" }), onDismiss = cancel, initialFocus = first) {
-        Text(
-            stringResource(if (again) R.string.app_profiles_manage_repeat else R.string.profiles_settings_pin_label),
-            style = TvType.large,
-            color = c.tx2,
-        )
-        Row(Modifier.padding(vertical = TvDimens.l), horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinDotsGap)) {
-            repeat(maxOf(PinKind.Pin.min, digits.length)) { index ->
-                val on = index < digits.length
-                Box(Modifier.size(TvDimens.Profiles.PinDot).clip(CircleShape).background(if (on) c.tx else Color.Transparent).border(BorderStroke(TvDimens.borderThick, if (on) c.tx else c.tx2), CircleShape))
-            }
+    // One button for «Weiter» and «Übernehmen» (code review M-4b): the step changes, the focus goes back to «1».
+    val step = {
+        if (digits.length >= PinKind.Pin.min) {
+            if (!again) again = true else if (!events.onPinApply()) again = false
         }
-        editor.pinError?.let {
+    }
+    LaunchedEffect(again) {
+        withFrameNanos { }
+        runCatching { first.requestFocus() }
+    }
+    TvDialog(stringResource(R.string.profiles_settings_pin_title, editor.name.ifBlank { stringResource(R.string.profiles_settings_form_name) }), onDismiss = cancel, initialFocus = first) {
+        Column(
+            Modifier.onPreviewKeyEvent { event ->
+                // The digits of a remote and of a keyboard count as well.
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val digit = DIGITS[event.key]
+                when {
+                    digit != null -> set(digits + digit).let { true }
+                    event.key == Key.Backspace || event.key == Key.Delete -> set(digits.dropLast(1)).let { true }
+                    else -> false
+                }
+            },
+        ) {
             Text(
-                stringResource(if (it == PinError.Mismatch) R.string.app_profiles_manage_mismatch else R.string.profiles_settings_pin_hint),
-                style = TvType.body,
-                color = c.danger,
+                stringResource(if (again) R.string.app_profiles_manage_repeat else R.string.profiles_settings_pin_label),
+                style = TvType.large,
+                color = c.tx2,
             )
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
-            listOf("123", "456", "789").forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
-                    row.forEach { d -> TvButton(d.toString(), onClick = { set(digits + d) }, modifier = if (d == '1') Modifier.focusRequester(first) else Modifier) }
+            Row(Modifier.padding(vertical = TvDimens.l), horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinDotsGap)) {
+                repeat(maxOf(PinKind.Pin.min, digits.length)) { index ->
+                    val on = index < digits.length
+                    Box(Modifier.size(TvDimens.Profiles.PinDot).clip(CircleShape).background(if (on) c.tx else Color.Transparent).border(BorderStroke(TvDimens.borderThick, if (on) c.tx else c.tx2), CircleShape))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
-                TvButton(stringResource(R.string.app_profiles_pinDelete), onClick = { set(digits.dropLast(1)) }, icon = TvIcons.Backspace, small = true)
-                TvButton("0", onClick = { set(digits + '0') })
+            editor.pinError?.let {
+                Text(
+                    stringResource(if (it == PinError.Mismatch) R.string.app_profiles_manage_mismatch else R.string.profiles_settings_pin_hint),
+                    style = TvType.body,
+                    color = c.danger,
+                )
             }
-        }
-        TvActions {
-            if (!again) {
-                TvButton(stringResource(R.string.tv_hand_next), onClick = { again = true }, kind = TvButtonKind.Primary, enabled = digits.length >= PinKind.Pin.min)
-            } else {
-                TvButton(stringResource(R.string.app_profiles_manage_apply), onClick = {
-                    if (!events.onPinApply()) again = false
-                }, kind = TvButtonKind.Primary, enabled = digits.length >= PinKind.Pin.min)
+            Column(verticalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
+                listOf("123", "456", "789").forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
+                        row.forEach { d -> TvButton(d.toString(), onClick = { set(digits + d) }, modifier = if (d == '1') Modifier.focusRequester(first) else Modifier) }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.Profiles.PinGap)) {
+                    TvButton(stringResource(R.string.app_profiles_pinDelete), onClick = { set(digits.dropLast(1)) }, icon = TvIcons.Backspace, small = true)
+                    TvButton("0", onClick = { set(digits + '0') })
+                }
             }
-            TvButton(stringResource(R.string.common_cancel), onClick = cancel, kind = TvButtonKind.Ghost)
+            TvActions {
+                TvButton(stringResource(if (again) R.string.app_profiles_manage_apply else R.string.tv_hand_next), onClick = step, kind = TvButtonKind.Primary)
+                TvButton(stringResource(R.string.common_cancel), onClick = cancel, kind = TvButtonKind.Ghost)
+            }
         }
     }
 }
 
-private const val SUBTLE = 0.72f
+/** The digit keys of a remote and of a keyboard. */
+private val DIGITS: Map<Key, Char> = (0..9).associate { n -> Key(android.view.KeyEvent.KEYCODE_0 + n) to ('0' + n) } +
+    (0..9).associate { n -> Key(android.view.KeyEvent.KEYCODE_NUMPAD_0 + n) to ('0' + n) }
+
+/** The languages of the contract (the profile's metadata). */
+private val LANGUAGES = Language.entries.filter { it != Language.UNKNOWN_DEFAULT_OPEN_API }
+
+/** The name of a language in that language («Deutsch», «Français»), as the phone app shows it. */
+private fun languageName(language: Language): String {
+    val locale = Locale.forLanguageTag(language.value)
+    return locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }
+}
+
+/** What a refused save says (code review m-3): offline, not this profile, not found, else failed. */
+private fun errorText(code: String): Int = when (code) {
+    ProfileSettingsViewModel.OFFLINE -> R.string.app_state_offline
+    ProfileSettingsViewModel.NOT_FOUND -> R.string.app_state_notFound
+    "client_not_allowed", "primary_profile_required" -> R.string.profiles_settings_onlyPrimary_body
+    else -> R.string.app_state_failed
+}

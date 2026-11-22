@@ -136,6 +136,22 @@ class TvShowcaseTest {
         throw AssertionError("«$text» should have the focus, it is on «${focusedLabel()}»", e)
     }
 
+
+    /** A page of «Meine Listen» from the menu «Bibliotheken»: «Alle Bibliotheken …», then down to [label], OK. */
+    private fun fromMenu(label: String, shotName: String? = null) {
+        rail(s(R.string.tv_shell_allLibraries))
+        waitFor(s(R.string.tv_shell_myLists))
+        shotName?.let(::shot)
+        repeat(RAIL_MAX) {
+            if (focusedLabel().contains(label)) {
+                key(KeyEvent.KEYCODE_DPAD_CENTER)
+                return
+            }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+        }
+        throw AssertionError("no entry «$label» in the menu")
+    }
+
     /** An entry of the rail: Left into it, to its top, down to [label], OK. */
     private fun rail(label: String) {
         key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
@@ -222,10 +238,14 @@ class TvShowcaseTest {
         shot("c07-search")
 
         // «Merkliste» and a collection.
-        rail(s(R.string.watchlist_title))
+        // The rail open, then the menu «Bibliotheken» with «Meine Listen».
+        key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
+        shot("c11-rail-open")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        fromMenu(s(R.string.watchlist_title), "c12-libraries-menu")
         waitFor(s(R.string.app_lists_edit))
         shot("c08-watchlist")
-        rail(s(R.string.collection_all_title))
+        fromMenu(s(R.string.collection_all_title))
         waitFor("Lumen")
         focused("Lumen")
         key(KeyEvent.KEYCODE_DPAD_CENTER)

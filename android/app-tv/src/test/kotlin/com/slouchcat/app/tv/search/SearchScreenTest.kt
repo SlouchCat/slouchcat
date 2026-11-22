@@ -89,6 +89,24 @@ class SearchScreenTest {
     }
 
     @Test
+    fun aKeyboardOfTheTvTypesAndDeletesAndTheDeviceKeyboardIsOffered() {
+        open()
+        "nightx".forEach { remote.press(androidx.compose.ui.input.key.Key(android.view.KeyEvent.KEYCODE_A + (it - 'a'))) }
+        // Backspace of a keyboard deletes (code review m-4).
+        remote.press(androidx.compose.ui.input.key.Key.Backspace)
+        pages.waitFor("Night Train")
+        assertEquals("night", search.asked.last().first)
+        // «Tastatur des Geräts» is a key of the page, reached from the keyboard.
+        remote.up(2)
+        repeat(3) { if (!remote.focusedLabel().contains(pages.s(R.string.tv_search_deviceKeyboard))) remote.right() }
+        remote.assertFocused(pages.s(R.string.tv_search_deviceKeyboard))
+        remote.ok()
+        // The device's input has the field now; Back closes it and the focus comes back to the key.
+        remote.back()
+        remote.assertFocused(pages.s(R.string.tv_search_deviceKeyboard))
+    }
+
+    @Test
     fun aHitOpensItsTitleAndBackReturnsToIt() {
         open()
         type("night")

@@ -162,7 +162,6 @@ class TvGraph(
     /** The pages, rail entries and settings rows of every stage. */
     val registry = TvRegistry(features)
 
-    /** The libraries of the active profile for the rail (loaded only when a feature brings media entries). */
     /**
      * The repositories and counts of the pages (`:core:media`), as in the phone app's `AppGraph`:
      * built once, the counts forget themselves with the profile.
@@ -171,6 +170,7 @@ class TvGraph(
         (mediaData?.invoke(this) ?: MediaData.api(api, http)).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
     }
 
+    /** The libraries of the active profile for the rail (loaded only when a feature brings media entries). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
     init {

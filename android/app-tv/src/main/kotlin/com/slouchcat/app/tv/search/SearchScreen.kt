@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -29,7 +30,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.utf16CodePoint
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -84,6 +87,7 @@ class SearchLinks(
 private val LETTERS = listOf("1234567890", "qwertzuiop-", "asdfghjkl._", "yxcvbnm@:/&")
 private val SIGNS = listOf("1234567890", "!?#$%*+=()~", "[]{}<>'\";,|", "\\^`€§°äöüéè")
 private const val START = "k-1-0"
+private const val DEVICE_KEYBOARD = "kbd"
 private const val RETRY = "retry"
 
 /** The groups of titles, in the mockup's order. */
@@ -105,15 +109,23 @@ private val GROUPS = listOf(
 fun SearchScreen(state: SearchUiState, images: ServerImages, links: SearchLinks, events: SearchEvents) {
     val focus = rememberFocusMemory()
     var signs by rememberSaveable { mutableStateOf(false) }
+    // The device's input (code review m-4): every script the own keyboard does not have.
+    var systemInput by rememberSaveable { mutableStateOf(false) }
     val c = SlouchcatTheme.colors
     Row(
         Modifier
             .fillMaxSize()
             .padding(start = LocalContentStart.current, top = TvDimens.safeY)
             .onPreviewKeyEvent { event ->
-                // A keyboard on the TV: a printable sign types it (the D-pad and OK are no signs).
+                // A keyboard on the TV: a printable sign types it (the D-pad and OK are no signs),
+                // Backspace deletes (code review m-4). Not while the device's input has the field.
+                if (systemInput || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (event.key == androidx.compose.ui.input.key.Key.Backspace) {
+                    events.onText(state.text.dropLast(1))
+                    return@onPreviewKeyEvent true
+                }
                 val code = event.utf16CodePoint
-                if (event.type != KeyEventType.KeyDown || code < ' '.code || code == DELETE) return@onPreviewKeyEvent false
+                if (code < ' '.code || code == DELETE) return@onPreviewKeyEvent false
                 events.onText(state.text + code.toChar())
                 true
             },
@@ -122,7 +134,20 @@ fun SearchScreen(state: SearchUiState, images: ServerImages, links: SearchLinks,
         Column(Modifier.width(TvDimens.Browse.SearchKeys)) {
             Text(stringResource(R.string.nav_search), style = TvType.h1, modifier = Modifier.semantics { heading() })
             Row(Modifier.padding(top = TvDimens.l), horizontalArrangement = Arrangement.spacedBy(TvDimens.s), verticalAlignment = Alignment.CenterVertically) {
-                Field(state.text, Modifier.weight(1f))
+                if (systemInput) {
+                    SystemField(state.text, events::onText, Modifier.weight(1f)) {
+                        systemInput = false
+                        focus.focus(DEVICE_KEYBOARD)
+                    }
+                } else {
+                    Field(state.text, Modifier.weight(1f))
+                }
+                Key(
+                    stringResource(R.string.tv_search_deviceKeyboard),
+                    onClick = { systemInput = true },
+                    modifier = Modifier.width(TvDimens.Browse.SearchKey * 2).focusKey(focus, DEVICE_KEYBOARD),
+                    icon = com.slouchcat.app.tv.ui.TvIcons.Keyboard,
+                )
                 links.voice?.let { voice ->
                     Key(stringResource(R.string.tv_search_voice), onClick = voice, modifier = Modifier.width(TvDimens.Browse.SearchKey * 2).focusKey(focus, "mic"), icon = SlouchcatIcon.Mic.vector)
                 }
@@ -164,6 +189,44 @@ private fun Field(text: String, modifier: Modifier) {
         TvIcon(SlouchcatIcon.Search, TvDimens.Field.Icon, tint = c.tx2)
         Text(text.ifEmpty { hint }, style = TvType.field, color = if (text.isEmpty()) c.tx3 else c.tx, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Box(Modifier.width(TvDimens.borderThick * 2).height(TvDimens.Field.Icon).background(c.accent))
+    }
+}
+
+/**
+ * The field with the device's input: it takes the focus and opens the keyboard of the system;
+ * every change searches at once; «Fertig» or Back closes it ([onClose]).
+ */
+@Composable
+private fun SystemField(text: String, onText: (String) -> Unit, modifier: Modifier, onClose: () -> Unit) {
+    val c = SlouchcatTheme.colors
+    val requester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val label = stringResource(R.string.search_label)
+    val close = {
+        keyboard?.hide()
+        onClose()
+    }
+    androidx.activity.compose.BackHandler(onBack = close)
+    androidx.compose.foundation.text.BasicTextField(
+        value = text,
+        onValueChange = onText,
+        singleLine = true,
+        textStyle = TvType.field.copy(color = c.tx),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search, autoCorrectEnabled = false),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { close() }, onDone = { close() }),
+        modifier = modifier
+            .height(TvDimens.Field.Height)
+            .border(BorderStroke(TvDimens.borderThick, c.accent), RoundedCornerShape(TvDimens.radiusField))
+            .padding(horizontal = TvDimens.Field.Pad)
+            .focusRequester(requester)
+            .semantics { contentDescription = label },
+        decorationBox = { inner -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) { inner() } },
+    )
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        androidx.compose.runtime.withFrameNanos { }
+        runCatching { requester.requestFocus() }.getOrDefault(Unit)
+        keyboard?.show()
     }
 }
 

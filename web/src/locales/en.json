@@ -7906,7 +7906,10 @@
       "media": "Media",
       "switchProfile": "Switch profile",
       "exitHint": "Press Back again to leave",
-      "signedOut": "This TV was signed out. Set it up again."
+      "signedOut": "This TV was signed out. Set it up again.",
+      "allLibraries": "All libraries …",
+      "libraries": "Libraries",
+      "myLists": "My lists"
     },
     "setup": {
       "welcome": "Welcome to Slouchcat",
@@ -8107,7 +8110,8 @@
       "symbols": "#+=",
       "letters": "abc",
       "hitsFor": "{{hits}} for “{{query}}”",
-      "libraries": "Libraries"
+      "libraries": "Libraries",
+      "deviceKeyboard": "Device keyboard"
     },
     "lists": {
       "removeHint": "OK on a title takes it off the watchlist.",

@@ -115,6 +115,19 @@ class Pages(private val compose: TvRule) {
         error("no rail entry «$label»")
     }
 
+    /** A page of «Meine Listen» (or a library) from the menu «Bibliotheken»: its rail entry, then down to [label], OK. */
+    fun openList(label: String) {
+        openRail(s(com.slouchcat.core.strings.R.string.tv_shell_allLibraries))
+        repeat(MAX_RAIL) {
+            if (remote.focusedLabel().contains(label)) {
+                remote.ok()
+                return
+            }
+            remote.down()
+        }
+        error("no entry «$label» in the menu")
+    }
+
     private companion object {
         const val MAX_RAIL = 14
         const val WAIT_STEPS = 50

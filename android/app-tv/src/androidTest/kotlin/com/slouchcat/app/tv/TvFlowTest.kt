@@ -112,6 +112,22 @@ class TvFlowTest {
     private fun isFocusedOn(text: String): Boolean =
         compose.onAllNodes(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true))).fetchSemanticsNodes().isNotEmpty()
 
+
+    /** A page of «Meine Listen» from the menu «Bibliotheken»: «Alle Bibliotheken …», then down to [label], OK. */
+    private fun fromMenu(label: String, shotName: String? = null) {
+        rail(s(R.string.tv_shell_allLibraries))
+        waitForText(s(R.string.tv_shell_myLists))
+        shotName?.let(::shot)
+        repeat(RAIL_MAX) {
+            if (isFocusedOn(label)) {
+                key(KeyEvent.KEYCODE_DPAD_CENTER)
+                return
+            }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+        }
+        throw AssertionError("no entry «$label» in the menu")
+    }
+
     /** An entry of the rail from any page: Left into the rail, to its top, down to [label], OK. */
     private fun rail(label: String) {
         key(KeyEvent.KEYCODE_DPAD_LEFT, LEFT_MAX)
@@ -275,7 +291,7 @@ class TvFlowTest {
         waitFor(hasText(TITLE) and hasClickAction().not() or hasContentDescription(TITLE, substring = true))
         shot("33-search")
         // The watchlist from the rail: the title of before is on it.
-        rail(s(R.string.watchlist_title))
+        fromMenu(s(R.string.watchlist_title))
         waitForText(s(R.string.app_lists_edit))
         focused(TITLE)
         shot("34-watchlist")

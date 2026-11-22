@@ -47,6 +47,8 @@ class TvNavigator(
     private val registry: TvRegistry,
     val selected: MutableState<String?> = mutableStateOf(null),
     private val media: () -> List<RailEntry> = { emptyList() },
+    /** Opens the menu «Bibliotheken» of the shell (all libraries, «Meine Listen»). */
+    val openLibraries: () -> Unit = {},
 ) {
     /** The entry of the rail the current page counts to (also a library). */
     fun current(): RailEntry? = registry.entryOf(nav.currentBackStackEntry, media())
@@ -56,8 +58,35 @@ class TvNavigator(
         // Not again when it is the page shown (a double OK); another title from a title is a new
         // page above it (`ItemRoute(b)` over `ItemRoute(a)`), so Back returns to the first one.
         val top = nav.currentBackStackEntry
-        if (top != null && top.isRoute(route::class) && runCatching { top.toRoute<Any>(route::class) == route }.getOrDefault(false)) return
+        if (top != null && shows(top, route)) return
+        // Title → person → the same title (code review m-8): back to the page it already has
+        // instead of a stack without end.
+        if (has(route) && nav.popBackStack(route, inclusive = false)) return
         nav.navigate(route)
+    }
+
+    /** Whether a page of [route] (equal arguments) is in the stack. */
+    private fun has(route: Any): Boolean = runCatching { nav.getBackStackEntry(route) }.isSuccess
+
+    /** The rail entry whose first page is not its own route (a genre search), until the entry opens plain. */
+    private var foreign: String? = null
+
+    /** Whether [entry] is the page of [route]: same destination, equal arguments. */
+    private fun shows(entry: NavBackStackEntry, route: Any): Boolean =
+        entry.isRoute(route::class) && runCatching { entry.toRoute<Any>(route::class) == route }.getOrDefault(false)
+
+    /**
+     * [route] as the first page of the rail entry [key] (the search of a genre from the start
+     * page, code review M-2, as the phone app's `openTarget`): the entry is marked, the current
+     * entry keeps its pages, and the entry's earlier pages make way for the new question.
+     */
+    fun openTarget(key: String, route: Any) {
+        if (registry.entry(key) == null) return
+        selected.value = key
+        foreign = key
+        nav.navigate(route) {
+            popUpTo(registry.home.route) { saveState = true }
+        }
     }
 
     /**
@@ -91,21 +120,37 @@ class TvNavigator(
      */
     fun openRail(entry: RailEntry) {
         val here = current()
-        if (here?.key == entry.key && nav.currentBackStackEntry?.isRoute(entry.route::class) == true) return
-        if (selected.value == entry.key && nav.popBackStack(entry.route, inclusive = false)) return
+        val top = nav.currentBackStackEntry
+        // On its own first page nothing happens; on a first page with other arguments (the search
+        // of a genre) the entry opens plain.
+        if (here?.key == entry.key && top != null && shows(top, entry.route)) return
+        if (selected.value == entry.key && has(entry.route) && nav.popBackStack(entry.route, inclusive = false)) return
         selected.value = entry.key
         // All libraries share one route class: their pages are neither kept nor restored by class
         // (library 8 must not get the pages of library 7), and the same class is no reason to stay.
         val ownClass = entry.section != RailSection.Media
+        // The pages of an entry whose first page is not its own (a genre search) are not kept: the
+        // entry would come back with them (code review M-2).
+        val keep = here != null && here.section != RailSection.Media && here.key != foreign
+        if (here?.key == foreign || entry.key == foreign) foreign = null
         nav.navigate(entry.route) {
-            popUpTo(registry.home.route) { saveState = here?.section != RailSection.Media }
-            launchSingleTop = ownClass
+            popUpTo(registry.home.route) { saveState = keep }
+            launchSingleTop = ownClass && keep
             restoreState = ownClass
         }
     }
 
-    /** «Profil wechseln»: the choice above the current page; Back returns. */
-    fun toProfiles() = nav.navigate(ProfilesRoute) { launchSingleTop = true }
+    /**
+     * «Profil wechseln»: the choice above the current page; Back returns. Lies the choice just
+     * below (opened «Profile verwalten» from there), back to it instead of a second one (m-2).
+     */
+    fun toProfiles() {
+        if (nav.previousBackStackEntry?.isRoute(ProfilesRoute::class) == true) {
+            nav.popBackStack()
+            return
+        }
+        nav.navigate(ProfilesRoute) { launchSingleTop = true }
+    }
 
     /** A setup page from the choice. */
     fun toSetup(route: Any) = nav.navigate(route) { launchSingleTop = true }
