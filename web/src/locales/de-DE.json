@@ -9,8 +9,7 @@
       "already": "Schon auf dem Gerät. Du findest es unter „Downloads“.",
       "started": "„{{title}}“ wird heruntergeladen",
       "failed": "Der Download ließ sich nicht starten.",
-      "optionsFailed": "Die Angaben zum Download ließen sich nicht laden.",
-      "pinWeak": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Eine eigene, längere Offline-PIN legst du unter „Profile verwalten“ fest."
+      "optionsFailed": "Die Angaben zum Download ließen sich nicht laden."
     },
     "player": {
       "close": "Player schließen",

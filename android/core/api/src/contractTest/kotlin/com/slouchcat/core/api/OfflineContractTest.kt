@@ -23,6 +23,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.time.Duration
 import java.time.OffsetDateTime
 
 /**
@@ -54,7 +55,8 @@ class OfflineContractTest {
             override val bearerToken = login.token
             override val deviceId: String? = null
         }
-        val http = SlouchcatHttp.client(identity, credentials)
+        // A hang shows with its place and time instead of a read timeout somewhere later (code review m-10).
+        val http = SlouchcatHttp.client(identity, credentials, builder = OkHttpClient.Builder().callTimeout(Duration.ofSeconds(CALL_TIMEOUT_S)))
         val auth = SlouchcatApi.create(::AuthApi, base, http)
         val profile = auth.listMyProfiles()!!.single { it.isPrimary }.id
         auth.selectProfile(profile)
@@ -64,8 +66,23 @@ class OfflineContractTest {
     @Test
     fun aFilmIsOrderedPreparedFetchedSyncedRevokedAndDeleted() {
         val signed = signIn()
+        val admin = DetailContractTest.Admin(base)
+        admin.ensureLibrary(media, LIBRARY, "Playback")
+        var created: String? = null
+        try {
+            created = orderPrepareFetchAndRevoke(signed) { created = it }
+        } finally {
+            // The server is left as it was: the download deleted, no preparation running, the app session ended.
+            val offline = SlouchcatApi.create(::OfflineApi, base, signed.http)
+            created?.let { id -> runCatching { offline.deleteDownload(id) } }
+            val quiet = System.nanoTime() + TIMEOUT_NS
+            while (admin.jobs(PREPARE_JOB, "running") + admin.jobs(PREPARE_JOB, "queued") > 0 && System.nanoTime() < quiet) Thread.sleep(POLL_MS)
+            runCatching { SlouchcatApi.create(::AuthApi, base, signed.http).logout() }
+        }
+    }
+
+    private fun orderPrepareFetchAndRevoke(signed: Signed, ordered: (String) -> Unit): String {
         val http = signed.http
-        DetailContractTest.Admin(base).ensureLibrary(media, LIBRARY, "Playback")
         val items = SlouchcatApi.create(::ItemsApi, base, http)
         val library = items.listVisibleLibraries()!!.single { it.name == LIBRARY }
         val film = items.listLibraryItems(library.id)!!.items.single { it.title == "Two Voices" }
@@ -81,6 +98,7 @@ class OfflineContractTest {
         assertTrue(options.qualities.all { it.estimatedBytes > 0 })
 
         val created = offline.createDownloads(film.id, DownloadRequest(quality = DownloadQuality.LOW))!!.downloads.single()
+        ordered(created.id)
         assertTrue(signed.profileId in created.allowedProfileIds)
 
         // The sync reports the server's state until the copy is ready.
@@ -143,6 +161,7 @@ class OfflineContractTest {
         // Deleted in the server: the next revocation check names it.
         offline.deleteDownload(created.id)
         assertEquals(listOf(created.id), public.checkOfflineRevocations(RevocationCheck(listOf(created.id)))!!.revoked)
+        return created.id
     }
 
     private companion object {
@@ -151,6 +170,8 @@ class OfflineContractTest {
         const val DEVICE_NAME = "Contract phone offline · Android 16"
         const val LIBRARY = "Android playback media"
         const val TIMEOUT_NS = 120_000_000_000L
-        const val POLL_MS = 250L
+        const val POLL_MS = 1_000L
+        const val CALL_TIMEOUT_S = 60L
+        const val PREPARE_JOB = "download.prepare"
     }
 }

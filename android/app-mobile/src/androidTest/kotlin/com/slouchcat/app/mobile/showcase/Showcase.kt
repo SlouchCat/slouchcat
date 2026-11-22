@@ -78,6 +78,8 @@ class Showcase(
     /** The account's side (profile choice, «Mehr») and «Meine Geräte»; `null`: the server's (never asked by stage 4). */
     private val auth: AuthRepository? = null,
     private val devices: DevicesRepository? = null,
+    /** Downloads and offline (stage 6); `null`: the real one (never used by the other showcases). */
+    private val offline: ((AppGraph) -> com.slouchcat.app.mobile.downloads.OfflineData)? = null,
     private val media: (AppGraph) -> MediaData,
 ) {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -91,7 +93,7 @@ class Showcase(
             override suspend fun libraries(server: HttpUrl): ApiResult<List<LibraryNav>> = ApiResult.Ok(libraries)
         }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices, mediaData = media)
+            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices, mediaData = media, offlineData = offline)
         }
         val loader = images.loader(context)
         scenario = ActivityScenario.launch(MainActivity::class.java)

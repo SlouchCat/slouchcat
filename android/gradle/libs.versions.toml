@@ -99,7 +99,6 @@ zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 
