@@ -8244,8 +8244,24 @@
       "channels": "Kanäle",
       "deviceNote": "Qualität, Ablauf und Ton gelten für diesen Fernseher."
     },
-    "audio": {},
-    "radio": {},
+    "audio": {
+      "nowPlaying": "Läuft gerade",
+      "radioPlaying": "Radio läuft",
+      "nowLabel": "{{state}}: {{title}}",
+      "listen": "Anhören",
+      "progressLeft": "{{percent}} % · noch {{left}}",
+      "new": "neu",
+      "heard": "gehört",
+      "chapters_one": "{{count}} Kapitel",
+      "chapters_other": "{{count}} Kapitel",
+      "normal": "normal"
+    },
+    "radio": {
+      "hint": "OK startet einen Sender, nochmals OK hält ihn an.",
+      "countries": "Länder",
+      "favorite": "Favorit",
+      "addFavorite": "Als Favorit"
+    },
     "wishes": {},
     "settings": {
       "title": "Einstellungen",

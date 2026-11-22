@@ -1,5 +1,6 @@
 package com.slouchcat.app.tv.shell
 
+import com.slouchcat.app.tv.audio.AudioFeature
 import com.slouchcat.app.tv.home.HomeFeature
 import com.slouchcat.app.tv.item.ItemFeature
 import com.slouchcat.app.tv.library.LibraryFeature
@@ -29,4 +30,5 @@ val features: List<TvFeature> = listOf(
     ProfileSettingsFeature,
     PlayerFeature(),
     PlaybackSettingsFeature(),
+    AudioFeature(),
 )

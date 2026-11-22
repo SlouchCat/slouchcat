@@ -46,6 +46,7 @@ import com.slouchcat.app.tv.setup.SetupScreen
 import com.slouchcat.app.tv.shell.ENTRY_ROUTES
 import com.slouchcat.app.tv.shell.HandSetupRoute
 import com.slouchcat.app.tv.shell.LIBRARIES_MENU
+import com.slouchcat.app.tv.browse.LibraryRoute
 import com.slouchcat.app.tv.shell.LibrariesMenu
 import com.slouchcat.app.tv.shell.librariesMenuEntry
 import com.slouchcat.app.tv.shell.railLibraryCapacity
@@ -119,7 +120,9 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                 val all = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
                 // As many libraries as fit (code review M-3), then «Alle Bibliotheken …» with the menu.
                 val capacity = railLibraryCapacity(with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() })
-                val media = if (profile == null || (all.isEmpty() && graph.registry.lists.isEmpty())) emptyList() else all.take(capacity) + librariesMenuEntry()
+                // The capacity counts libraries only: the radio and «Läuft gerade» (stage 4) always show.
+                val (shelves, others) = all.partition { it.route is LibraryRoute }
+                val media = if (profile == null || (all.isEmpty() && graph.registry.lists.isEmpty())) emptyList() else (shelves.take(capacity) + others).sortedBy { it.order } + librariesMenuEntry()
                 val currentMedia by rememberUpdatedState(all)
                 var librariesMenu by rememberSaveable { mutableStateOf(false) }
                 var menuClosed by remember { mutableIntStateOf(0) }
@@ -199,6 +202,7 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                             with(feature) { register(app) }
                         }
                     }
+                    if (profile != null) for (overlay in graph.registry.overlays) overlay(app, page, showRail)
                 }
             }
             TvToastHost(graph.toasts)

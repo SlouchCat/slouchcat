@@ -89,13 +89,14 @@ class RegistryTest {
             LibraryNav(2, "Hörbücher", LibraryKind.AUDIOBOOKS, emptyList(), 1),
             LibraryNav(3, "Serien", LibraryKind.VIDEO, emptyList(), 1),
         )
-        assertEquals(listOf("library-1", "library-3"), registry.mediaEntries(libraries).map { it.key })
+        // Stage 4: audio libraries too, the radio after the libraries.
+        assertEquals(listOf("library-1", "library-2", "library-3", "radio"), registry.mediaEntries(libraries).map { it.key })
         assertEquals(listOf("watchlist", "watched", "collections"), registry.lists.map { it.key })
         // «Profile verwalten» in the settings (order 20) and from the profile choice; «Wiedergabe» (30, stage 3).
         assertEquals(listOf("manage" to 20, "playback" to 30), registry.settings.map { it.key to it.order })
         assertTrue(registry.manageProfiles != null)
-        // The player of stage 3 draws without rail and clock.
-        assertEquals(setOf(com.slouchcat.app.tv.browse.PlayerRoute::class), registry.fullScreen)
+        // The players of stage 3 and 4 draw without rail and clock.
+        assertTrue(com.slouchcat.app.tv.browse.PlayerRoute::class in registry.fullScreen)
     }
 
     @Test
@@ -156,6 +157,18 @@ class RegistryTest {
         assertTrue(fails(Probe(rail = listOf(start, start.copy(key = "lib", section = RailSection.Media)))))
         val media = TvRegistry(listOf(Probe(rail = listOf(start), media = listOf(RailMedia { list -> list.map { start.copy(key = "lib-${it.id}", section = RailSection.Media) } }))))
         assertTrue(runCatching { media.mediaEntries(listOf(LibraryNav(1, "Filme", LibraryKind.VIDEO, emptyList(), 1))) }.isFailure)
+    }
+
+    @Test
+    fun stage4BringsTheSoundAndItsPlayers() {
+        val registry = TvRegistry(features)
+        // The audio players draw without rail and clock; «Läuft gerade» draws above the pages.
+        assertTrue(registry.fullScreen.containsAll(setOf(com.slouchcat.app.tv.browse.ListenRoute::class, com.slouchcat.app.tv.browse.RadioListenRoute::class)))
+        assertEquals(1, registry.overlays.size)
+        // Podcasts and the radio count as media; the radio stands after every library, also without one.
+        val libraries = listOf(LibraryNav(5, "Podcasts", LibraryKind.PODCASTS, emptyList(), 1))
+        assertEquals(listOf("library-5", "radio"), registry.mediaEntries(libraries).map { it.key })
+        assertEquals(listOf("radio"), registry.mediaEntries(emptyList()).map { it.key })
     }
 
     private fun NavGraph.all(): List<NavDestination> = flatMap { if (it is NavGraph) it.all() else listOf(it) }

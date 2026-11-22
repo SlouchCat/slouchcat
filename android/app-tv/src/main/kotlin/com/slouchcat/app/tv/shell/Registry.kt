@@ -123,6 +123,12 @@ interface TvFeature {
     /** The page «Profile verwalten» (stage 2b): the profile choice offers it once it exists. */
     val manageProfiles: Any? get() = null
 
+    /**
+     * Drawn above every page of a profile (stage 4: «Läuft gerade» at the top right, and what
+     * follows the app's lifecycle): [page] is the page shown, [framed] whether the rail shows.
+     */
+    val overlay: (@Composable (app: TvScope, page: NavBackStackEntry?, framed: Boolean) -> Unit)? get() = null
+
     fun NavGraphBuilder.register(app: TvScope)
 }
 
@@ -140,6 +146,7 @@ class TvRegistry(val features: List<TvFeature>) {
     val lists: List<RailEntry> = features.flatMap { it.lists }.sortedBy { it.order }
     val settings: List<SettingsEntry> = features.flatMap { it.settings }.sortedBy { it.order }
     val fullScreen: Set<KClass<*>> = features.flatMapTo(mutableSetOf()) { it.fullScreen }
+    val overlays = features.mapNotNull { it.overlay }
     val manageProfiles: Any? = features.mapNotNull { it.manageProfiles }.let {
         require(it.size <= 1) { "two features bring «Profile verwalten»" }
         it.firstOrNull()

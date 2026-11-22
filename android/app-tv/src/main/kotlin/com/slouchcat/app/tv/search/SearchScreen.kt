@@ -164,11 +164,24 @@ fun SearchScreen(state: SearchUiState, images: ServerImages, links: SearchLinks,
     focus.StartFocus(START)
 }
 
+/**
+ * The search's own keyboard with its field for the search of another page (stage 4: the radio):
+ * [start] is the first letter (the side menu's start focus). Keys are known to a focus memory of
+ * their own.
+ */
+@Composable
+fun TvKeyboard(text: String, onText: (String) -> Unit, start: androidx.compose.ui.focus.FocusRequester, placeholder: String? = null) {
+    val focus = rememberFocusMemory()
+    var signs by rememberSaveable { mutableStateOf(false) }
+    Field(text, Modifier.fillMaxWidth(), placeholder)
+    Keyboard(if (signs) SIGNS else LETTERS, signs, focus, onType = { onText(text + it) }, onDelete = { onText(text.dropLast(1)) }, onSigns = { signs = !signs }, onClear = { onText("") }, start = start)
+}
+
 /** `.br-sf`: the field (no control: the keyboard types into it), the caret in the accent. */
 @Composable
-private fun Field(text: String, modifier: Modifier) {
+private fun Field(text: String, modifier: Modifier, placeholder: String? = null) {
     val c = SlouchcatTheme.colors
-    val hint = stringResource(R.string.app_search_placeholder)
+    val hint = placeholder ?: stringResource(R.string.app_search_placeholder)
     Row(
         modifier
             .height(TvDimens.Field.Height)
@@ -224,13 +237,14 @@ private fun SystemField(text: String, onText: (String) -> Unit, modifier: Modifi
 
 /** `.br-kb`: eleven columns of keys, the last row with the signs, the space and «Leeren». */
 @Composable
-private fun Keyboard(rows: List<String>, signs: Boolean, focus: FocusMemory, onType: (String) -> Unit, onDelete: () -> Unit, onSigns: () -> Unit, onClear: () -> Unit) {
+private fun Keyboard(rows: List<String>, signs: Boolean, focus: FocusMemory, onType: (String) -> Unit, onDelete: () -> Unit, onSigns: () -> Unit, onClear: () -> Unit, start: androidx.compose.ui.focus.FocusRequester? = null) {
     val gap = TvDimens.s
     Column(Modifier.padding(top = TvDimens.l), verticalArrangement = Arrangement.spacedBy(gap)) {
         rows.forEachIndexed { r, keys ->
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 keys.forEachIndexed { k, ch ->
-                    Key(ch.toString(), onClick = { onType(ch.toString()) }, modifier = Modifier.weight(1f).focusKey(focus, "k-$r-$k"))
+                    val first = if (start != null && "k-$r-$k" == START) Modifier.focusRequester(start) else Modifier
+                    Key(ch.toString(), onClick = { onType(ch.toString()) }, modifier = Modifier.weight(1f).focusKey(focus, "k-$r-$k").then(first))
                 }
                 if (r == 0) Key(stringResource(R.string.tv_search_delete), onClick = onDelete, modifier = Modifier.weight(1f).focusKey(focus, "k-0-10"), icon = com.slouchcat.app.tv.ui.TvIcons.Backspace)
             }
