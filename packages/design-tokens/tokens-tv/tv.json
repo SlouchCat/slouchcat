@@ -793,6 +793,10 @@
           "$value": "7px",
           "$description": ".br-seek.is-f .br-track height"
         },
+        "chapter-mark": {
+          "$value": "4px",
+          "$description": "the gap of a chapter mark in the bar (web SeekBar .mark, stage 5)"
+        },
         "knob": {
           "$value": "18px",
           "$description": ".br-seek.is-f .br-knob"

@@ -133,6 +133,9 @@ internal object PlayerKeys {
     /** Test tags of the controls (shown or hidden; they stay composed for the focus). */
     const val CONTROLS_SHOWN = "player-controls"
     const val CONTROLS_HIDDEN = "player-controls-hidden"
+
+    /** A chapter mark on the bar (stage 5). */
+    const val CHAPTER_MARK = "chapter-mark"
     val ROW = setOf(AUDIO, SUBTITLES, QUALITY, EPISODES, PREVIOUS, NEXT, INFO)
 }
 
@@ -568,6 +571,16 @@ private fun SeekBar(
         val shape = RoundedCornerShape(track / 2)
         Box(Modifier.fillMaxWidth().height(track).clip(shape).background(SlouchcatTokens.Tv.Color.GlassStrong))
         Box(Modifier.fillMaxWidth(share).height(track).clip(shape).background(c.accent))
+        // The chapters (paper 5.1, web SeekBar `.mark`): a gap in the bar where each one begins.
+        for (start in chapterMarks(state.chapters, state.durationMs)) {
+            Box(
+                Modifier
+                    .offset(x = maxWidth * (start.toFloat() / state.durationMs) - P.ChapterMark / 2)
+                    .size(P.ChapterMark, track)
+                    .background(c.bg)
+                    .testTag(PlayerKeys.CHAPTER_MARK),
+            )
+        }
         if (focused) {
             val x = maxWidth * share - P.Knob / 2
             Box(
@@ -625,6 +638,17 @@ private fun Bubble(
             ) { thumbnail(tile, Modifier.fillMaxSize()) }
         }
         Text(timecode(target), style = TvType.largeStrong)
+        // The chapter at the target (web SeekBar: its title, else «Kapitel n»).
+        val chapter = chapterIndexAt(state.chapters, target)
+        if (chapter >= 0) {
+            Text(
+                state.chapters[chapter].title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.player_chapters_untitled, (chapter + 1).toString()),
+                style = TvType.bodyStrong,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
         val way = abs(delta)
         val time = if (way < MINUTE_MS) stringResource(R.string.format_seconds, (way / SECOND_MS).toString()) else timecode(way)
         Text(

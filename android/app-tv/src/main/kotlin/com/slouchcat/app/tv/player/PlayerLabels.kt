@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.slouchcat.app.tv.browse.kindName
 import com.slouchcat.app.tv.browse.runtimeText
+import com.slouchcat.core.api.generated.models.Chapter
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.MediaFileInfo
 import com.slouchcat.core.api.generated.models.PlaybackInfo
@@ -104,6 +105,16 @@ fun overLine(item: ItemRef, durationMs: Long): String? {
     val parts = listOfNotNull(item.year?.toString(), kindName(item.kind), minutes?.let { runtimeText(it) })
     return parts.takeIf { it.isNotEmpty() }?.joinToString(stringResource(R.string.format_separator))
 }
+
+/**
+ * The chapter that plays at [ms]: the last one starting at or before it, -1 before all (web
+ * `chapterIndexAt`). The chapters come in the server's order, by their start.
+ */
+fun chapterIndexAt(chapters: List<Chapter>, ms: Long): Int = chapters.indexOfLast { it.startMs <= ms }
+
+/** Where the bar shows a mark: the start of every chapter inside the title, not its very start (web SeekBar). */
+fun chapterMarks(chapters: List<Chapter>, durationMs: Long): List<Long> =
+    if (durationMs <= 0) emptyList() else chapters.map { it.startMs }.filter { it in 1 until durationMs }
 
 /** «1:05:59» or «4:07» (mockup `brTc`). */
 fun timecode(ms: Long): String {
