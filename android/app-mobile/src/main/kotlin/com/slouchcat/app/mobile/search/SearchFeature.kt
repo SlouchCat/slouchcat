@@ -61,6 +61,7 @@ class SearchFeature(
                 onPerson = { navigator.opener(PersonRoute(it)) },
                 onCollection = { navigator.opener(CollectionRoute(it)) },
                 onLibrary = { navigator.opener(LibraryRoute(it)) },
+                missing = { query -> com.slouchcat.app.mobile.wishes.MissingTitles(app, query) },
             )
         }
     }
