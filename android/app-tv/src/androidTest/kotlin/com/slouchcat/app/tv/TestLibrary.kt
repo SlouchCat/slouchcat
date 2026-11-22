@@ -52,11 +52,18 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         call("GET", "admin/libraries")!!.jsonArray.map { it.jsonObject }.firstOrNull { it["name"]?.jsonPrimitive?.content == name }
 
     /** The library [name] over the films and series of [media], scanned. */
-    fun ensure(media: String, name: String) {
+    fun ensure(media: String, name: String) = ensure(media to name)
+
+    /** Each library (folder to name), scanned; one sign-in and one PIN for all (the PIN has a limit per minute). */
+    fun ensure(vararg libraries: Pair<String, String>) {
         call("POST", "auth/login", """{"email":${Json.encodeToString(email)},"password":${Json.encodeToString(password)}}""")
         val primary = call("GET", "auth/profiles")!!.jsonArray.map { it.jsonObject }.single { it["isPrimary"]!!.jsonPrimitive.boolean }
         val withPin = primary["hasPin"]?.jsonPrimitive?.boolean == true
         call("POST", "auth/profiles/${primary["id"]!!.jsonPrimitive.long}/select", if (withPin) """{"pin":"$pin"}""" else null)
+        for ((media, name) in libraries) scan(media, name)
+    }
+
+    private fun scan(media: String, name: String) {
         if (library(name) == null) {
             val movies = Json.encodeToString("$media/Movies")
             val tv = Json.encodeToString("$media/TV")

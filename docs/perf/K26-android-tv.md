@@ -450,3 +450,74 @@ scheitern dieselben Tests an «exit status 234» (Gegenprobe).
 `subtitles: [pgs, ass]`. MKV mit der AC-3-Spur → `direct`; nur MP4 → `remux`, CODECS
 `avc1.640028,ac-3`, init 1242 Bytes, Segmente 0 und 1 mit 1 170 590 und 1 194 867 Bytes;
 Qualität 480p → `transcode`, CODECS `avc1.640029,ac-3`, Segmente 1 056 457 und 1 073 138 Bytes.
+
+## Stufe 3: Videoplayer der TV-App (22. November 2026)
+
+Gebaut auf `claude/k26-stufe3-a`: Player-Seite auf `:core:player`, was der Fernseher meldet, Schalter «Ton»,
+Einstellungen der Wiedergabe. Gemessen nur im **Emulator** `sc_tv` (Google TV, API 34, x86, Software-Grafik,
+ohne Tonausgabe, ohne Dolby-Decoder, ohne HDR); was nur ein Gerät zeigen kann, steht unten als Abnahmeliste.
+
+**Was der Emulator meldet** (Fähigkeitsprofil des Starts, `type: tv`, `hls: mse`): `video` h264, av1, vp9,
+mpeg2video (HEVC nur Main, darum nicht gemeldet), `audio` aac, mp3, opus, flac, vorbis, `maxAudioChannels` 2,
+`selectsTracks: true`, `subtitles` subrip, ass, webvtt, hdmv_pgs_subtitle, dvd_subtitle, `hdr: false`,
+1920 × 1080, Name aus dem Einrichten («Modell · Android TV 14»).
+
+**Zeit bis zum ersten Bild** (Emulator, `TvFlowTest#c_player`, Testclips aus `scripts/android-test-video.sh`,
+Server auf demselben Rechner, gemessen vom Start des Controllers bis `onRenderedFirstFrame`, Zeile
+`first picture` im Log):
+
+| Wiedergabe | Abspielart | erstes Bild |
+|---|---|---|
+| Film «Two Voices» (H.264 720p, AAC, MKV), Start | Direktwiedergabe | 753 ms |
+| derselbe Film, Qualität 480p | HLS, Transcode | 960 ms |
+| derselbe Film, Fortsetzen von der Detailseite | Direktwiedergabe | 583 ms |
+| Folge 1 «Clip Show» | Direktwiedergabe | 321 ms |
+| Folge 2 nach dem Countdown | Direktwiedergabe | 631 ms |
+
+Ein Wert je Lauf (ein früherer Lauf: 724, 587, 531 ms für die ersten drei Zeilen); der Emulator rechnet die
+Grafik auf der CPU, das sagt über Geräte wenig. Der Transcode läuft
+im Software-Encoder des Rechners.
+
+**Entscheide des Baus:**
+
+- **Spulen:** Links/Rechts in Schritten 10, 10, 20, 30, 30, 60, 60, 120 s (Mockup `brPlSeek`); eine gehaltene
+  Taste höchstens alle 150 ms einen Schritt; gesprungen wird einmal, 800 ms nach der letzten Taste und erst
+  nach dem Loslassen (Media3 lädt sonst jeden Zwischenschritt). Vorschaubild aus Trickplay, wenn der Server
+  Bögen hat.
+- **Tonausgang wechselt:** Die App hört auf `AudioDeviceCallback` und `ACTION_HDMI_AUDIO_PLUG`, liest die Fakten
+  nach 1 s Ruhe neu und startet nur neu, wenn sich das Gemeldete ändert (bei «Immer Stereo» nie). Ein Kopfhörer
+  (kabelgebunden, Bluetooth, USB, BLE) nimmt den Ton vom HDMI-Ausgang: dann Stereo und kein Durchreichen.
+- **HDR:** Die App meldet `hdr` nach Stufe 0 Punkt 5; den Anzeigemodus schaltet das System für einen
+  HDR-Strom auf der `SurfaceView` selbst. Kein Wechsel der Bildfrequenz (F-8, Empfehlung).
+- **Qualität:** Der Fernseher fragt ohne Grenze («Automatisch»), bis man eine wählt; die Wahl gilt für jedes
+  Netz. «Original» als Vorgabe fehlt (das Tonmodell `QualityChoice` hat sie nicht), im Player gibt es sie.
+- **Untertitel:** Kontur statt Kasten, ASS-Stile und -Grössen und PGS-Bilder aus der Datei
+  (`setApplyEmbeddedStyles`, `setApplyEmbeddedFontSizes`). Eine eigene Grössen- und Stilwahl sieht das Papier
+  nicht vor.
+
+**Abnahmeliste je Gerät und Tonanlage.** Für jedes Gerät (Chromecast oder Google TV Streamer, Nvidia Shield,
+Fernseher mit Google TV) einmal mit den Lautsprechern des Fernsehers, einmal über eine Soundbar an ARC und, wo
+vorhanden, über einen Receiver an HDMI/eARC; dazu ein Bluetooth-Kopfhörer. Testdateien: eigene Filme (nicht
+ins Repo) mit E-AC-3 5.1, AC-3 5.1, DTS 5.1, TrueHD 7.1, AAC 5.1, PGS- und ASS-Untertiteln, HDR10, HLG, Dolby
+Vision Profil 8.1.
+
+| Nr. | Schritte | Erwartet |
+|---|---|---|
+| 1 | Einstellungen › Wiedergabe, Abschnitt «Ton» | «Erkannt: …» nennt, was die Anlage kann (Lautsprecher: Stereo; Soundbar: Dolby Digital, Dolby Digital Plus, 5.1; Receiver eARC: dazu DTS, Dolby TrueHD, 7.1) |
+| 2 | Film mit E-AC-3 5.1 abspielen, «Info» | «Direktwiedergabe», Ton «Dolby Digital Plus · 5.1», «Ton wird an die Tonanlage durchgereicht»; die Anlage zeigt Dolby Digital Plus. An den Lautsprechern: «Ton wird im Fernseher dekodiert», Ton hörbar |
+| 3 | Derselbe Film, «Qualität» 720p | Abspielart Transcode, Ton bleibt Dolby (kopiert), die Anlage zeigt weiter Dolby; Bild nach höchstens wenigen Sekunden |
+| 4 | Film mit DTS 5.1 über Soundbar ohne DTS | kein stummer Film: der Server wandelt den Ton (AC-3 5.1 oder AAC 5.1), Info zeigt Remux oder Transcode |
+| 5 | Film mit TrueHD 7.1 über Receiver an eARC | Direktwiedergabe, durchgereicht, Receiver zeigt TrueHD; über Soundbar: neu kodiert, Ton hörbar |
+| 6 | Film mit AAC 5.1 über Receiver ohne Dolby (nur PCM 5.1) | «Ausgang mit 5.1 erkannt», Ton auf allen Kanälen |
+| 7 | Während der Wiedergabe: Anlage ausschalten, dann wieder ein; Bluetooth-Kopfhörer verbinden | nach etwa 1 s ein Neustart an derselben Stelle; Info zeigt Stereo bzw. wieder Mehrkanal; mit Kopfhörer nichts durchgereicht |
+| 8 | Einstellungen: «Immer Stereo», Film aus Nr. 2 | Stereo, «Ton wird im Fernseher dekodiert», die Anlage zeigt PCM 2.0 |
+| 9 | Einstellungen: «Formate von Hand», nur Dolby Digital, 5.1; DTS-Film | der Server wandelt DTS; mit DTS angekreuzt geht DTS durch (falls die Anlage es kann) |
+| 10 | HDR10-Datei auf HDR-Fernseher | der Fernseher wechselt in HDR, Info «HDR10», Direktwiedergabe oder Remux; auf SDR-Gerät: «auf SDR umgewandelt» |
+| 11 | Dolby-Vision-Profil-8.1-Datei auf Gerät ohne DV | Bild in HDR10 (Grundschicht), keine Fehlfarben (F-8) |
+| 12 | Datei mit PGS- und ASS-Untertiteln, direkt | PGS an der Stelle aus der Datei, ASS mit Farben und Position; Wahl im Menü ohne Neustart |
+| 13 | Fernbedienung: OK, Links/Rechts tippen und halten, Play/Pause-Taste, Vor/Zurück in einer Serie, Stopp | wie im Papier 5.1; gehaltene Taste spult in wachsenden Schritten, Vorschaubild, ein Sprung beim Loslassen |
+| 14 | Während es spielt 10 min warten; pausieren und warten | kein Bildschirmschoner beim Spielen; beim Pausieren kommt er, danach steht der Film pausiert an derselben Stelle |
+| 15 | Home drücken, App wieder öffnen; Standby und wieder an | kein Ton im Hintergrund; zurück pausiert an derselben Stelle |
+| 16 | Folge bis zum Abspann | Karte «Nächste Folge in 10», danach die nächste Folge; «Abbrechen» bleibt in der Folge |
+| 17 | Film starten, mit Zurück verlassen, sofort Einstellungen › Profil wechseln; ebenso «Diesen Fernseher abmelden» | die Sitzung ist am Server beendet (die Streamübersicht der Verwaltung zeigt keinen Stream mehr), das neue Profil sieht keine Bilder des alten |
+| 18 | Tempo (Shield, schwächstes Gerät) | Bedienebene erscheint ohne Ruckeln, Spulen flüssig |

@@ -167,8 +167,11 @@ class TvShowcaseTest {
         val film = BrowseShowcaseData.films[0].title
         // Start: the focus on the stage, then on a row.
         waitFor(film)
-        focused(s(R.string.item_details))
+        // Stage 3: «Abspielen» leads the stage (mockup 01-start), then «Merken», «Details».
+        focused(s(R.string.item_play))
         shot("c01-start-stage")
+        key(KeyEvent.KEYCODE_DPAD_RIGHT, 2)
+        focused(s(R.string.item_details))
 
         // A film with its actions, then a person of the cast.
         key(KeyEvent.KEYCODE_DPAD_CENTER)
