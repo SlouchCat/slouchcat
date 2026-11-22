@@ -2,7 +2,8 @@
 # The flow of the TV app in a TV emulator against a real server and a local relay (task
 # android:e2e:tv, concept 26 stage 2a): starts bin/slouchcat with fresh data on PORT and the relay
 # relay/bin/pair on RELAY_PORT, starts its own emulator AVD on EMU_PORT and runs the
-# instrumentation test TvFlowTest of app-tv there: (a) set up by hand, profile with PIN,
+# instrumentation test TvFlowTest of app-tv there: (a) set up by hand, profile with PIN, browse
+# (start, a title, a library, search, watchlist, «Profile verwalten»),
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account.
 #
@@ -80,8 +81,12 @@ fail() {
 
 started=$(date +%s)
 
-# The server with fresh data and the relay, both on the loopback only.
-SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# The server with fresh data and the relay, both on the loopback only. The small media tree of
+# scripts/android-test-media.sh is the only browsable root: TvFlowTest adds it as a library and
+# browses it (stage 2b).
+mkdir -p "$root/media"
+../scripts/android-test-media.sh "$root/media"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -148,7 +153,7 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
 adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
-  -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" "${extra[@]}" \
+  -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" -e slouchcatMedia "$root/media" "${extra[@]}" \
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!
 
