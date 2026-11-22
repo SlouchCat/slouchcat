@@ -47,7 +47,11 @@ cleanup() {
     mkdir -p "$logs"
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
-    if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
+    if [ -n "$emulator_pid" ]; then
+      adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true
+      # The photos of a failed wait (FlowWaits.kt: semantics tree in the message, photo here).
+      adb_brief pull "/sdcard/Android/data/$app/files/failures" "$logs/" >/dev/null 2>&1 || true
+    fi
   fi
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
   if [ -n "$emulator_pid" ]; then

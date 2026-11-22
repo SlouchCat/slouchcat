@@ -68,9 +68,7 @@ class PlayerFlowTest {
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
-    }
+    private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNode(matcher, timeout)
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
