@@ -1,5 +1,20 @@
 {
   "app": {
+    "tv": {
+      "scan": {
+        "close": "Scanner schließen"
+      },
+      "problem": {
+        "notACode": "Das ist kein Code der Slouchcat-TV-App. Scanne den QR-Code, den der Fernseher unter „Mit dem Handy einrichten“ zeigt."
+      },
+      "fail": {
+        "relay": "Die Vermittlung antwortet nicht. Richte den Fernseher von Hand ein: Wähle am Fernseher „Von Hand einrichten“ und melde dich mit deinem Konto an.",
+        "leftAfter": "Du hast die Seite verlassen. Ob der Fernseher verbunden ist, siehst du unter „Meine Geräte“."
+      },
+      "done": {
+        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Du findest ihn unter „Meine Geräte“."
+      }
+    },
     "downloads": {
       "pinWeakCopy": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Der Prüfwert der normalen PIN liegt dafür auf diesem Gerät; wer ihn kopiert, findet damit auch die PIN, die online gilt. Eine eigene, längere Offline-PIN unter „Profile verwalten“ ist davon getrennt.",
       "ruleFailed": "Die Regel ließ sich nicht speichern.",
