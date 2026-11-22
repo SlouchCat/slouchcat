@@ -468,13 +468,14 @@ Server auf demselben Rechner, gemessen vom Start des Controllers bis `onRendered
 
 | Wiedergabe | Abspielart | erstes Bild |
 |---|---|---|
-| Film «Two Voices» (H.264 720p, AAC, MKV), Start | Direktwiedergabe | 753 ms |
-| derselbe Film, Qualität 480p | HLS, Transcode | 960 ms |
-| derselbe Film, Fortsetzen von der Detailseite | Direktwiedergabe | 583 ms |
-| Folge 1 «Clip Show» | Direktwiedergabe | 321 ms |
-| Folge 2 nach dem Countdown | Direktwiedergabe | 631 ms |
+| Film «Two Voices» (H.264 720p, AAC, MKV), Start | Direktwiedergabe | 497 ms |
+| derselbe Film nach Home und zurück (pausiert) | Direktwiedergabe | 417 ms |
+| derselbe Film, Qualität 480p | HLS, Transcode | 646 ms |
+| derselbe Film, Fortsetzen von der Detailseite | Direktwiedergabe | 517 ms |
+| Folge 1 «Clip Show» | Direktwiedergabe | 247 ms |
+| Folge 2 nach dem Countdown | Direktwiedergabe | 290 ms |
 
-Ein Wert je Lauf (ein früherer Lauf: 724, 587, 531 ms für die ersten drei Zeilen); der Emulator rechnet die
+Ein Wert je Lauf (frühere Läufe: Start 724 und 753 ms, HLS 587 und 960 ms, Fortsetzen 531 und 583 ms); der Emulator rechnet die
 Grafik auf der CPU, das sagt über Geräte wenig. Der Transcode läuft
 im Software-Encoder des Rechners.
 
