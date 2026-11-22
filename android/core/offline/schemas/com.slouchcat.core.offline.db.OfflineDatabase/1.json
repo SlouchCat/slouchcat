@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "7f1222ad4a938cfea34770eaab93e1bd",
+    "identityHash": "886acb24c3108812fdcc938fdc812803",
     "entities": [
       {
         "tableName": "downloads",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `account` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `data` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `account` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `data` TEXT NOT NULL, `manifest` TEXT, `bytes` INTEGER NOT NULL, `etag` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -31,6 +31,22 @@
             "columnName": "data",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "manifest",
+            "columnName": "manifest",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bytes",
+            "columnName": "bytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etag",
+            "columnName": "etag",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -128,7 +144,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7f1222ad4a938cfea34770eaab93e1bd')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '886acb24c3108812fdcc938fdc812803')"
     ]
   }
 }

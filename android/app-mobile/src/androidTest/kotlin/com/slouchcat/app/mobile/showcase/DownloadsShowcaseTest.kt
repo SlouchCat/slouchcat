@@ -44,14 +44,17 @@ class DownloadsShowcaseTest {
         if (feature is PlaybackSettingsFeature) PlaybackSettingsFeature(settings = { MemoryDeviceSettingsStore() }, repository = { PagesShowcaseData.playbackPrefs }) else feature
     }
 
-    private val images = ShowcaseImages(BrowseShowcaseData.names + PagesShowcaseData.names).also { it.squareIds = BrowseShowcaseData.squareIds }
-
-    private val showcase = Showcase(compose, pages, BrowseShowcaseData.libraries, images, PagesShowcaseData.auth, PagesShowcaseData.devices) { graph ->
-        PagesShowcaseData.data(MediaData.api(graph.api, graph.http))
-    }
+    private val images = ShowcaseImages(BrowseShowcaseData.names + PagesShowcaseData.names + DownloadsShowcaseData.names).also { it.squareIds = BrowseShowcaseData.squareIds }
 
     private val server = DownloadsShowcaseData.Server()
-    private lateinit var engine: OfflineEngine
+
+    private val showcase = Showcase(
+        compose, pages, BrowseShowcaseData.libraries, images, PagesShowcaseData.auth, PagesShowcaseData.devices,
+        media = { graph -> PagesShowcaseData.data(MediaData.api(graph.api, graph.http)) },
+        offline = DownloadsShowcaseData.data(context, server),
+    )
+
+    private val engine: OfflineEngine get() = showcase.graph.offline.engine
 
     @After
     fun close() = showcase.close()
@@ -65,8 +68,7 @@ class DownloadsShowcaseTest {
     @Test
     fun downloadsDialogOfflineAndSignOut() {
         showcase.start()
-        engine = DownloadsShowcaseData.install(context, showcase.graph, server)
-        showcase.graph.hooks.addSignOutStep(DownloadsSignOutStep(showcase.graph))
+        showcase.graph.hooks.addSignOutStep(DownloadsSignOutStep(showcase.graph, context))
         showcase.waitFor(hasText(s(R.string.home_rows_continue)))
 
         // Empty.
@@ -90,7 +92,7 @@ class DownloadsShowcaseTest {
         server.downloads = DownloadsShowcaseData.states
         runBlocking {
             engine.sync()
-            DownloadsShowcaseData.fill(engine)
+            DownloadsShowcaseData.fill(engine, images)
         }
         open("downloads", DownloadsRoute)
         showcase.waitFor(hasText(s(R.string.app_downloads_sectionActive)))

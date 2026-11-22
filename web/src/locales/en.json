@@ -398,6 +398,10 @@
       "failed": "Not saved. Try again."
     },
     "downloads": {
+      "legendOtherApps": "Other apps",
+      "storageBarApps": "Downloads {{used}}, other apps {{other}}, free {{free}}",
+      "backOnline": "Connected to the server again",
+      "pinWeakCopy": "Offline, a PIN of a few digits only guards against curious eyes: whoever holds the device can try them all. The check value of the normal PIN lies on this device for that; whoever copies it can also find the PIN that applies online. A separate, longer offline PIN under “Manage profiles” is kept apart from it.",
       "episodeShort": "E{{episode}} · {{title}}",
       "toDownloads": "Go to downloads",
       "episodeLine": "S{{season}} · E{{episode}} · {{title}}",
@@ -432,9 +436,7 @@
       "storageLabel": "Storage",
       "storageUsed": "{{size}} downloads",
       "storageFree": "{{free}} free of {{total}}",
-      "storageBar": "Downloads {{used}}, other data {{other}}, free {{free}}",
       "legendDownloads": "Downloads",
-      "legendOther": "Other data",
       "legendFree": "Free",
       "sectionActive": "Downloading",
       "sectionWaiting": "Waiting",
@@ -507,7 +509,6 @@
       "pinWrong": "The PIN is wrong.",
       "pinLocked": "Too many wrong attempts. Try again in {{seconds}} s.",
       "pinUnavailable": "Enter this profile's PIN online on this device once; then it opens offline too.",
-      "pinWeak": "Offline, a PIN of a few digits only guards against curious eyes: whoever holds the device can try them all. Set a separate, longer offline PIN under “Manage profiles”.",
       "watchLimit": "Today's watch time is used up.",
       "signOutQuestion": "Delete the downloads on this device",
       "signOutSize_one": "{{count}} download · {{size}}",

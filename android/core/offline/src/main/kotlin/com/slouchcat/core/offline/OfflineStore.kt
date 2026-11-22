@@ -1,6 +1,7 @@
 package com.slouchcat.core.offline
 
 import com.slouchcat.core.api.SlouchcatApi
+import com.slouchcat.core.api.generated.models.DownloadManifest
 import com.slouchcat.core.api.generated.models.OfflineEvent
 import com.slouchcat.core.offline.db.DownloadRow
 import com.slouchcat.core.offline.db.EventRow
@@ -22,11 +23,41 @@ class OfflineStore(private val dao: OfflineDao) {
     private val json = SlouchcatApi.json
     private val lock = Mutex()
 
+    /** Decoded manifests by download id with their JSON: a row read again decodes its fragment index once. */
+    private val manifests = java.util.concurrent.ConcurrentHashMap<String, Pair<String, DownloadManifest>>()
+
+    private fun manifestOf(id: String, text: String?): DownloadManifest? {
+        text ?: return null
+        manifests[id]?.takeIf { it.first == text }?.let { return it.second }
+        val decoded = runCatching { json.decodeFromString(DownloadManifest.serializer(), text) }.getOrNull() ?: return null
+        manifests[id] = text to decoded
+        return decoded
+    }
+
     private fun decode(row: DownloadRow): StoredDownload? =
         runCatching { json.decodeFromString(StoredDownload.serializer(), row.data) }.getOrNull()
+            ?.copy(manifest = manifestOf(row.id, row.manifest), bytesWritten = row.bytes, fileEtag = row.etag)
 
-    private fun encode(download: StoredDownload) =
-        DownloadRow(download.id, download.account, download.createdAt, json.encodeToString(StoredDownload.serializer(), download))
+    private fun encode(download: StoredDownload) = DownloadRow(
+        id = download.id,
+        account = download.account,
+        createdAt = download.createdAt,
+        data = json.encodeToString(StoredDownload.serializer(), download.copy(manifest = null, bytesWritten = 0, fileEtag = null)),
+        manifest = download.manifest?.let { m -> manifests[download.id]?.takeIf { it.second === m }?.first ?: json.encodeToString(DownloadManifest.serializer(), m) },
+        bytes = download.bytesWritten,
+        etag = download.fileEtag,
+    )
+
+    /**
+     * The durable length and ETag of a fetch, without the rest of the record; `false` when the
+     * download is gone or no longer wanted (deleted, paused): the fetch stops.
+     */
+    suspend fun setBytes(id: String, bytes: Long, etag: String?): Boolean = lock.withLock {
+        val row = dao.download(id) ?: return@withLock false
+        val download = decode(row) ?: return@withLock false
+        if (download.pendingDelete || download.paused) return@withLock false
+        dao.setBytes(id, bytes, etag) > 0
+    }
 
     private fun decodeProfile(row: ProfileRow): StoredProfile? =
         runCatching { json.decodeFromString(StoredProfile.serializer(), row.data) }.getOrNull()
@@ -53,6 +84,7 @@ class OfflineStore(private val dao: OfflineDao) {
     suspend fun deleteDownloads(ids: Collection<String>) {
         if (ids.isEmpty()) return
         lock.withLock { ids.chunked(CHUNK).forEach { dao.deleteDownloads(it) } }
+        ids.forEach(manifests::remove)
     }
 
     suspend fun allProfiles(): List<StoredProfile> = dao.profiles().mapNotNull(::decodeProfile)

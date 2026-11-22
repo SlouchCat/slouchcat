@@ -26,7 +26,9 @@ import com.slouchcat.core.api.generated.models.RevocationList
 import com.slouchcat.core.api.generated.models.SeriesRef
 import com.slouchcat.core.offline.FileFetcher
 import com.slouchcat.core.offline.NetworkKind
-import com.slouchcat.core.offline.OfflineAccount
+import com.slouchcat.core.offline.OfflineIdentity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.slouchcat.core.offline.OfflineEngine
 import com.slouchcat.core.offline.OfflineFiles
 import com.slouchcat.core.offline.OfflineServer
@@ -110,32 +112,52 @@ object DownloadsShowcaseData {
 
         override suspend fun upload(batch: OfflineEventBatch): ApiResult<OfflineEventResult> = ApiResult.Ok(OfflineEventResult(0, 0, 0, emptyList()))
 
+        override suspend fun accountId(): ApiResult<Long> = ApiResult.Ok(1)
+
         override fun absolute(path: String): HttpUrl? = "http://192.0.2.10:8096/".toHttpUrl().resolve(path)
     }
 
     val RULES = DownloadRules(enabled = true, nextEpisodes = true, newPodcastEpisodes = true, wifiOnly = true, maxCount = 3, quality = DownloadQuality.MEDIUM)
 
-    /** Installs the offline data of the showcase into [graph]; the account key matches the showcase's session. */
-    fun install(context: Context, graph: AppGraph, server: Server): OfflineEngine {
+    /** The offline data of the showcase for [graph]: an engine over a database in memory and [server]. */
+    fun data(context: Context, server: Server): (AppGraph) -> OfflineData = { graph ->
         val root = File(context.cacheDir, "showcase-offline").apply { deleteRecursively() }
         val engine = OfflineEngine(
             store = OfflineStore.inMemory(context),
             files = OfflineFiles(root),
             server = server,
             fetcher = FileFetcher(OkHttpClient(), { Long.MAX_VALUE }),
-            session = { OfflineAccount(OfflineData.accountKey(graph.session.server.toString(), "mara@example.test"), SHOWCASE_PROFILE.id) },
+            session = { OfflineIdentity("showcase-key", "mara@example.test", SHOWCASE_PROFILE.id) },
             network = { if (server.offline) NetworkKind.None else NetworkKind.Wifi },
             wifiOnly = { true },
             scope = graph.scope,
         )
-        OfflineData.install(graph, OfflineData(engine, MemoryDeviceSettingsStore(), { if (server.offline) NetworkKind.None else NetworkKind.Wifi }))
-        return engine
+        OfflineData(engine, MemoryDeviceSettingsStore(), { if (server.offline) NetworkKind.None else NetworkKind.Wifi })
     }
 
-    /** After a sync: the film complete, the first episode at 40 %, the last one paused at 25 %. */
-    suspend fun fill(engine: OfflineEngine) {
-        engine.updateDownload(ids[0]) { it?.copy(complete = true, bytesWritten = it.sizeBytes ?: 0) }
-        engine.updateDownload(ids[1]) { it?.copy(bytesWritten = (0.8 * GB).toLong()) }
-        engine.updateDownload(ids[4]) { it?.copy(paused = true, bytesWritten = (0.27 * GB).toLong()) }
+    /**
+     * After a sync: the film complete, the first episode at 40 %, the last one paused at 25 %. The
+     * files have the sizes the list names (the storage adds up), the posters are drawn like every
+     * other picture of the showcases.
+     */
+    suspend fun fill(engine: OfflineEngine, images: ShowcaseImages) {
+        engine.updateDownload(ids[0]) { it?.copy(complete = true, bytesWritten = it.sizeBytes ?: 0, posterStored = true) }
+        engine.updateDownload(ids[1]) { it?.copy(bytesWritten = (0.8 * GB).toLong(), posterStored = true) }
+        engine.updateDownload(ids[4]) { it?.copy(paused = true, bytesWritten = (0.27 * GB).toLong(), posterStored = true) }
+        engine.updateDownload(ids[2]) { it?.copy(posterStored = true) }
+        engine.updateDownload(ids[3]) { it?.copy(posterStored = true) }
+        withContext(Dispatchers.IO) {
+            for (d in engine.allDownloads()) {
+                engine.files.folder(d.id).mkdirs()
+                // Sparse: the length counts, the disk stays empty.
+                java.io.RandomAccessFile(engine.files.media(d.id), "rw").use { it.setLength(d.bytesWritten) }
+                val item = d.item ?: continue
+                val kind = if (item.episodeNumber != null) "backdrop" else "poster"
+                engine.files.poster(d.id).outputStream().use { images.draw("/api/v1/items/${item.id}/images/$kind/w400").compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            }
+        }
     }
+
+    /** The titles of the showcase's downloads for the drawn pictures. */
+    val names: Map<String, String> = states.mapNotNull { it.item }.associate { it.id to it.title } + ("show-1" to "Sternfahrt")
 }

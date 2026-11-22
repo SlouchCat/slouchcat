@@ -1,6 +1,5 @@
 package com.slouchcat.app.mobile.downloads
 
-import android.text.format.Formatter
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,7 +44,10 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.slouchcat.app.mobile.common.RowGroup
+import com.slouchcat.app.mobile.media.MediaImage
 import com.slouchcat.app.mobile.shell.ShellTopBar
+import com.slouchcat.core.media.ImageSet
+import com.slouchcat.core.media.ImageSource
 import com.slouchcat.core.api.generated.models.DownloadQuality
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.EmptyState
@@ -72,10 +74,6 @@ import com.slouchcat.core.offline.FetchError
 import com.slouchcat.core.offline.OfflinePin
 import com.slouchcat.core.offline.StoredProfile
 import com.slouchcat.core.strings.R
-
-/** Sizes in the units and the number format of the device's language («4,2 GB»). */
-@Composable
-fun fileSize(bytes: Long): String = Formatter.formatShortFileSize(LocalContext.current, bytes.coerceAtLeast(0))
 
 @Composable
 fun qualityName(quality: DownloadQuality): String = stringResource(
@@ -181,7 +179,7 @@ private fun StorageCard(storage: Storage) {
     val total = fileSize(storage.total)
     val other = (storage.total - storage.free - storage.downloads).coerceAtLeast(0)
     val otherText = fileSize(other)
-    val bar = stringResource(R.string.app_downloads_storageBar, used, otherText, free)
+    val bar = stringResource(R.string.app_downloads_storageBarApps, used, otherText, free)
     SlouchcatCard(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = bar }) {
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.app_downloads_storageUsed, used), style = SlouchcatType.strong, color = c.tx, modifier = Modifier.weight(1f))
@@ -199,7 +197,7 @@ private fun StorageCard(storage: Storage) {
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Legend(c.accent, stringResource(R.string.app_downloads_legendDownloads))
-            Legend(c.tx3, stringResource(R.string.app_downloads_legendOther))
+            Legend(c.tx3, stringResource(R.string.app_downloads_legendOtherApps))
             Legend(c.s3, stringResource(R.string.app_downloads_legendFree))
         }
     }
@@ -353,21 +351,19 @@ private fun errorText(code: String): Int = when (code) {
     else -> R.string.offline_state_evicted
 }
 
-/** The poster the fetch stored (or the title's initial on a quiet surface). */
+/**
+ * The poster the fetch stored, through the app's image loader in the size of its box, off the main
+ * thread (code review m-6); without one the name on a quiet field, as every card of the app does.
+ */
 @Composable
 private fun Poster(row: DownloadRowUi, wide: Boolean) {
-    val c = SlouchcatTheme.colors
     val width = if (wide) 88.dp else 44.dp
     val height = if (wide) 50.dp else 64.dp
-    val bitmap = remember(row.poster) { row.poster?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path) }.getOrNull() } }
-    Box(Modifier.size(width, height).clip(RoundedCornerShape(6.dp)).background(c.s3), contentAlignment = Alignment.Center) {
-        if (bitmap != null) {
-            androidx.compose.foundation.Image(bitmap.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        } else {
-            Text((row.groupTitle ?: row.title).take(1).uppercase(), style = SlouchcatType.strong, color = c.tx2)
-        }
-    }
+    val images = remember(row.poster) { ImageSet(listOfNotNull(row.poster?.let { ImageSource("file://" + it.absolutePath, POSTER_WIDTH) })) }
+    MediaImage(images, row.groupTitle ?: row.title, Modifier.size(width, height).clip(RoundedCornerShape(6.dp)))
 }
+
+private const val POSTER_WIDTH = 200
 
 /** The two folds of the mockup: «Automatische Downloads» and «Einstellungen» (closed by default). */
 @Composable
@@ -546,13 +542,13 @@ private fun PinSheet(pin: OfflinePinUi, events: DownloadsEvents) {
                 else -> null
             }
             if (message != null) Text(message, style = SlouchcatType.caption, color = c.warn, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
-            PinPad(events, enabled = !pin.checking)
-            if (!pin.offlinePin) Text(stringResource(R.string.app_downloads_pinWeak), style = SlouchcatType.caption, color = c.tx3, modifier = Modifier.padding(horizontal = gutter(), vertical = 8.dp))
+            PinPad(events, enabled = !pin.checking && pin.lockedSeconds == 0L)
+            if (!pin.offlinePin) Text(stringResource(R.string.app_downloads_pinWeakCopy), style = SlouchcatType.caption, color = c.tx3, modifier = Modifier.padding(horizontal = gutter(), vertical = 8.dp))
         }
         SheetActions {
             SlouchcatButton(stringResource(R.string.common_cancel), onClick = events::onDismissSheet, kind = ButtonKind.Ghost, modifier = Modifier.weight(1f))
             if (!pin.unavailable) {
-                SlouchcatButton(stringResource(R.string.app_downloads_pinOpen), onClick = events::onPinSubmit, busy = pin.checking, enabled = pin.digits.length >= DownloadsViewModel.MIN_PIN, modifier = Modifier.weight(1f))
+                SlouchcatButton(stringResource(R.string.app_downloads_pinOpen), onClick = events::onPinSubmit, busy = pin.checking, enabled = pin.digits.length >= DownloadsViewModel.MIN_PIN && pin.lockedSeconds == 0L, modifier = Modifier.weight(1f))
             }
         }
     }
