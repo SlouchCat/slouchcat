@@ -1,5 +1,7 @@
 package com.slouchcat.app.tv.item
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -173,7 +175,7 @@ private fun Hero(
             .onFocusChanged { onFocus(it.hasFocus) },
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(TvDimens.l), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = TvDimens.Browse.KindGap)) {
-            kindName(detail.kind)?.let { KindLine(if (detail.kind == ItemKind.EPISODE || detail.kind == ItemKind.SEASON) listOfNotNull(detail.seriesRef?.title ?: detail.seriesTitle, it).joinToString(" · ") else it) }
+            kindName(detail.kind)?.let { KindLine(if (detail.kind == ItemKind.EPISODE || detail.kind == ItemKind.SEASON) listOfNotNull(detail.seriesRef?.title ?: detail.seriesTitle, it).joinToString(stringResource(R.string.format_separator)) else it) }
             if (mark == WatchedMark.Full) TvBadge(stringResource(R.string.watched_state_full), tone = BadgeTone.Ok, icon = SlouchcatIcon.Check.vector)
             if (mark == WatchedMark.Half) TvBadge(stringResource(R.string.watched_state_half), tone = BadgeTone.Plain, icon = SlouchcatIcon.Check.vector)
         }
@@ -257,7 +259,7 @@ private fun facts(detail: ItemDetail): List<String> = buildList {
         ItemKind.SEASON -> detail.episodes?.size?.takeIf { it > 0 }?.let { add(pluralCount(R.plurals.app_item_episodes, it)) }
         else -> detail.runtimeMinutes?.takeIf { it > 0 }?.let { add(runtimeText(it)) }
     }
-    detail.genres.take(GENRES).takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
+    detail.genres.take(GENRES).takeIf { it.isNotEmpty() }?.let { add(it.joinToString(stringResource(R.string.format_separator))) }
 }
 
 /** «S1 · F3». */
@@ -322,14 +324,14 @@ private fun Episodes(detail: ItemDetail, state: ItemUiState, images: ServerImage
                         modifier.onFocusChanged { if (it.isFocused) focused = ref },
                         shape = CardShape.Wide,
                         caption = name,
-                        subcaption = listOfNotNull(minutes, seen).joinToString(" · ").ifEmpty { null },
+                        subcaption = listOfNotNull(minutes, seen).joinToString(stringResource(R.string.format_separator)).ifEmpty { null },
                         progress = episode.progress,
                     )
                 }
                 val shown = focused?.takeIf { f -> list.any { it.id == f.id } } ?: list.firstOrNull()
                 Column(Modifier.padding(start = LocalContentStart.current, end = TvDimens.safeX).heightIn(min = TvDimens.Browse.EpisodeInfo).widthIn(max = TvDimens.Browse.DetailOverview + LocalContentStart.current)) {
                     if (shown != null) {
-                        Text(listOfNotNull(episodeLabel(shown), shown.title).joinToString(" · "), style = TvType.largeStrong, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(listOfNotNull(episodeLabel(shown), shown.title).joinToString(stringResource(R.string.format_separator)), style = TvType.largeStrong, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         shown.overview?.let { Text(it, style = TvType.body, color = c.tx2, maxLines = 2, overflow = TextOverflow.Ellipsis) }
                     }
                 }
@@ -415,26 +417,41 @@ private fun MoreMenu(detail: ItemDetail, onDismiss: () -> Unit) {
     TvSideMenu(detail.title, onDismiss = onDismiss, initialFocus = close) {
         TvButton(stringResource(R.string.common_close), onClick = onDismiss, icon = SlouchcatIcon.Close.vector, small = true, kind = TvButtonKind.Ghost, modifier = Modifier.focusRequester(close))
         detail.tagline?.takeIf { it.isNotBlank() }?.let { Text(it, style = TvType.largeStrong, modifier = Modifier.padding(top = TvDimens.l)) }
-        Text(
-            detail.overview?.takeIf { it.isNotBlank() } ?: stringResource(R.string.app_item_noOverview),
-            style = TvType.body,
-            color = SlouchcatTheme.colors.tx2,
-            modifier = Modifier.padding(top = TvDimens.m),
-        )
+        ReadBlock(Modifier.padding(top = TvDimens.m)) {
+            Text(detail.overview?.takeIf { it.isNotBlank() } ?: stringResource(R.string.app_item_noOverview), style = TvType.body, color = SlouchcatTheme.colors.tx2)
+        }
         val rows = buildList<Pair<String, @Composable androidx.compose.foundation.layout.RowScope.() -> Unit>> {
             detail.year?.let { year -> add(stringResource(R.string.library_filters_year) to { DetailValue(year.toString()) }) }
             detail.rating?.let { age -> add(stringResource(R.string.library_filters_rating) to { DetailValue(stringResource(R.string.rating_age, age.toString())) }) }
             detail.runtimeMinutes?.takeIf { it > 0 }?.let { min -> add(stringResource(R.string.library_sort_runtime) to { DetailValue(runtimeText(min)) }) }
             if (detail.genres.isNotEmpty()) add(stringResource(R.string.library_filters_genre) to { DetailValue(detail.genres.joinToString(", ")) })
             detail.mediaFiles.firstOrNull()?.let { file ->
-                val video = listOfNotNull(file.videoCodec?.uppercase(), file.height?.let { stringResource(R.string.format_height, it.toString()) }).joinToString(" · ")
+                val video = listOfNotNull(file.videoCodec?.uppercase(java.util.Locale.ROOT), file.height?.let { stringResource(R.string.format_height, it.toString()) }).joinToString(stringResource(R.string.format_separator))
                 if (video.isNotEmpty()) add(stringResource(R.string.item_file_video) to { DetailValue(video) })
-                file.audioCodec?.let { audio -> add(stringResource(R.string.item_file_audio) to { DetailValue(audio.uppercase()) }) }
-                add(stringResource(R.string.item_file_container) to { DetailValue(file.container.uppercase()) })
+                file.audioCodec?.let { audio -> add(stringResource(R.string.item_file_audio) to { DetailValue(audio.uppercase(java.util.Locale.ROOT)) }) }
+                add(stringResource(R.string.item_file_container) to { DetailValue(file.container.uppercase(java.util.Locale.ROOT)) })
             }
         }
-        if (rows.isNotEmpty()) TvDetailRows(rows, keyWidth = TvDimens.Settings.Key, modifier = Modifier.padding(top = TvDimens.l))
+        if (rows.isNotEmpty()) ReadBlock(Modifier.padding(top = TvDimens.l)) { TvDetailRows(rows, keyWidth = TvDimens.Settings.Key) }
     }
+}
+
+/**
+ * A block of text in a menu that takes the focus (code review m-6): Down moves through the blocks
+ * and the menu scrolls them into view; a thin frame shows where the focus is.
+ */
+@Composable
+private fun ReadBlock(modifier: Modifier, content: @Composable () -> Unit) {
+    val c = SlouchcatTheme.colors
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .border(androidx.compose.foundation.BorderStroke(TvDimens.borderThick, if (focused) c.tx else androidx.compose.ui.graphics.Color.Transparent), androidx.compose.foundation.shape.RoundedCornerShape(TvDimens.radiusField))
+            .padding(TvDimens.s),
+    ) { content() }
 }
 
 private const val GENRES = 3

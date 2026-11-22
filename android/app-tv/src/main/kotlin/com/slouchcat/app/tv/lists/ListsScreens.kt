@@ -73,7 +73,9 @@ import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
 import com.slouchcat.core.media.Paged
+import com.slouchcat.app.tv.library.MoreRetry
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.strings.R
 
@@ -117,6 +119,7 @@ private fun TitleGrid(
     onCard: ((MediaItem) -> Unit)?,
     onNearEnd: () -> Unit,
     onFocused: (MediaItem?) -> Unit,
+    more: MoreState = MoreState.Idle,
     tag: @Composable (MediaItem) -> String? = { watchedTag(it) },
 ) {
     val index = remember(items) { items.withIndex().associate { it.value.id to it.index } }
@@ -127,6 +130,7 @@ private fun TitleGrid(
         gridKey = GRID,
         columns = COLUMNS,
         modifier = Modifier.fillMaxWidth().onFocusChanged { if (!it.hasFocus) onFocused(null) },
+        footer = if (more == MoreState.Failed) ({ MoreRetry(onNearEnd, focus) }) else null,
     ) { item, modifier ->
         MediaCard(
             item,
@@ -166,7 +170,7 @@ fun ListScreen(kind: ListKind?, state: Paged<MediaItem>, onItem: ((MediaItem) ->
     val tip = stringResource(R.string.app_browse_tip)
     GridPage(icon, title, (state.items as? Loadable.Ready)?.let { pluralCount(R.plurals.home_list_count, state.total) }, null, focused?.info()) {
         when (val items = state.items) {
-            is Loadable.Ready -> TitleGrid(items.value, focus, onItem, onNearEnd, { focused = it }) { item -> if (kind == ListKind.Picks) tip else watchedTag(item) }
+            is Loadable.Ready -> TitleGrid(items.value, focus, onItem, onNearEnd, { focused = it }, state.more) { item -> if (kind == ListKind.Picks) tip else watchedTag(item) }
             Loadable.Empty, Loadable.Failed(com.slouchcat.core.media.LoadError.NotFound) -> Empty(
                 SlouchcatIcon.Grid.vector,
                 stringResource(if (kind == null || items != Loadable.Empty) R.string.home_list_notFound_title else R.string.home_list_empty),
@@ -250,6 +254,7 @@ fun WatchlistScreen(
                 onCard = if (state.editing) ({ item -> moveOn(shown.value, item, focus); onRemove(item) }) else onItem,
                 onNearEnd = onMore,
                 onFocused = { focused = it },
+                more = state.entries.more,
                 tag = { if (state.editing) remove else watchedTag(it) },
             )
             Loadable.Empty -> Empty(SlouchcatIcon.Bookmark.vector, stringResource(R.string.watchlist_empty_title), stringResource(R.string.watchlist_empty_body), onHome, focus)
@@ -300,6 +305,7 @@ fun WatchedScreen(
                     onCard = if (state.editing) ({ item: MediaItem -> unmarkCard(shown.value, items, item, focus, onAsk) }) else onItem,
                     onNearEnd = onMore,
                     onFocused = { focused = it },
+                    more = state.entries.more,
                     tag = { if (state.editing) unmark else null },
                 )
             }
@@ -317,7 +323,15 @@ fun WatchedScreen(
         TvDialog(stringResource(R.string.watched_ask_removeTitle, card.item.title), onDismiss = close, initialFocus = cancel) {
             Text(stringResource(R.string.watched_ask_removeBodyAll), style = TvType.large, color = SlouchcatTheme.colors.tx2)
             TvActions {
-                TvButton(stringResource(R.string.watched_ask_removeAll), onClick = { onConfirm(); focus.restore() }, icon = SlouchcatIcon.Close.vector)
+                // The card goes once the server agrees: the focus moves on first (code review M-4a).
+                TvButton(
+                    stringResource(R.string.watched_ask_removeAll),
+                    onClick = {
+                        (shown as? Loadable.Ready)?.value?.map { it.item }?.let { moveOn(it, card.item, focus) }
+                        onConfirm()
+                    },
+                    icon = SlouchcatIcon.Close.vector,
+                )
                 TvButton(stringResource(R.string.common_cancel), onClick = close, kind = TvButtonKind.Primary, modifier = Modifier.focusRequester(cancel))
             }
         }

@@ -74,7 +74,7 @@ class ListsScreenTest {
     @Test
     fun theWatchlistTakesTitlesOffInEditMode() {
         show()
-        pages.openRail(pages.s(R.string.watchlist_title))
+        pages.openList(pages.s(R.string.watchlist_title))
         pages.waitFor("Kept 1")
         remote.assertFocused("Kept 1")
         remote.right()
@@ -99,7 +99,7 @@ class ListsScreenTest {
     @Test
     fun watchedAsksBeforeTheMarksOfASeriesGo() {
         show()
-        pages.openRail(pages.s(R.string.watched_page_title))
+        pages.openList(pages.s(R.string.watched_page_title))
         pages.waitFor("Seen Film")
         remote.up()
         remote.ok()
@@ -111,13 +111,21 @@ class ListsScreenTest {
         remote.back()
         remote.assertFocused("Seen Series")
         assertTrue(lists.calls.none { it.startsWith("watched:${ulid(6)}") })
+        // Confirmed: the card goes, the focus moves on to its neighbour (code review M-4a).
+        remote.ok()
+        remote.left()
+        remote.assertFocused(pages.s(R.string.watched_ask_removeAll))
+        remote.ok()
+        compose.waitUntil(5_000) { lists.calls.contains("watched:${ulid(6)}:false") }
+        remote.settle()
+        remote.assertFocused("Seen Film")
     }
 
     @Test
     fun anEmptyWatchlistLeadsBackToStart() {
         lists.watchlist.clear()
         show()
-        pages.openRail(pages.s(R.string.watchlist_title))
+        pages.openList(pages.s(R.string.watchlist_title))
         pages.waitFor(pages.s(R.string.watchlist_empty_title))
         remote.assertFocused(pages.s(R.string.app_lists_toStart))
     }
@@ -125,7 +133,7 @@ class ListsScreenTest {
     @Test
     fun aCollectionListsItsPartsAndMarksThemAll() {
         show()
-        pages.openRail(pages.s(R.string.collection_all_title))
+        pages.openList(pages.s(R.string.collection_all_title))
         pages.waitFor("Night Trains")
         remote.assertFocused("Night Trains")
         remote.ok()

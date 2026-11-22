@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -273,6 +274,8 @@ fun <T> TvCardGrid(
     columns: Int,
     modifier: Modifier = Modifier,
     state: LazyGridState = rememberLazyGridState(),
+    /** A line below the tiles over the whole width (the retry of a failed next page). */
+    footer: (@Composable () -> Unit)? = null,
     card: @Composable (item: T, modifier: Modifier) -> Unit,
 ) {
     val first = remember { FocusRequester() }
@@ -295,6 +298,7 @@ fun <T> TvCardGrid(
                     .onFocusChanged { if (it.isFocused) focusedKey = name },
             )
         }
+        if (footer != null) item(span = { GridItemSpan(maxLineSpan) }) { footer() }
     }
 }
 
