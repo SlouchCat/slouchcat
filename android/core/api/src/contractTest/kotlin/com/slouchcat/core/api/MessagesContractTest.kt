@@ -29,6 +29,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -141,6 +142,22 @@ class MessagesContractTest {
             return account
         }
 
+        /** Seerr (the mock) declines its open requests for [tmdbId]; the sync of the server then closes the wish. */
+        fun decline(tmdbId: Long) {
+            val seerr = prop("slouchcat.contract.seerr").toHttpUrl()
+            val plain = OkHttpClient()
+            val list = plain.newCall(Request.Builder().url(seerr.newBuilder().addPathSegment("__requests").build()).build()).execute()
+                .use { Json.parseToJsonElement(it.body.string()).jsonArray }
+            for (made in list.map { it.jsonObject }.filter { it["mediaId"]?.jsonPrimitive?.longOrNull == tmdbId }) {
+                val body = """{"request":{"id":${made["id"]!!.jsonPrimitive.long},"status":3}}"""
+                val request = Request.Builder().url(seerr.newBuilder().addPathSegment("__control").build())
+                    .post(body.toRequestBody("application/json".toMediaType())).build()
+                plain.newCall(request).execute().use { check(it.isSuccessful) { "the Seerr mock answered ${it.code}" } }
+            }
+            // A sync already running answers 409; the caller asks again until the inbox has it.
+            runCatching { call("POST", "admin/seerr/sync", "{}") }
+        }
+
         fun closeWishes(account: Long) {
             runCatching { call("PUT", "admin/wishes/mappings/accounts/$account", """{"seerrUserId":null}""") }
             runCatching { call("PUT", "admin/wishes/settings", """{"enabled":false}""") }
@@ -155,8 +172,9 @@ class MessagesContractTest {
         val admin = Admin().also { it.signIn() }
         val auth = SlouchcatApi.create(::AuthApi, base, http)
         val wishes = SlouchcatApi.create(::WishesApi, base, http)
-        val account = admin.openWishes()
+        var account: Long? = null
         try {
+            account = admin.openWishes()
             val rights = auth.getSession()!!.wishes!!
             assertTrue(rights.enabled)
             assertTrue(rights.canRequest)
@@ -177,11 +195,30 @@ class MessagesContractTest {
             wishes.withdrawWish(wish.id)
             assertEquals(WishState.WITHDRAWN, wishes.listWishes(null, 0, 50)!!.items.single { it.id == wish.id }.state)
             refused(404) { wishes.withdrawWish(999_999) }
+
+            // A second wish Seerr declines: the inbox of the profile gets it; read one, then all.
+            val declined = wishes.createWish(WishCreate(ExternalMedia.MOVIE, SECOND_FILM, source = WishCreate.Source.DETAIL))!!
+            admin.decline(SECOND_FILM)
+            val discover = SlouchcatApi.create(::DiscoverApi, base, http)
+            val deadline = System.nanoTime() + WAIT_NS
+            while (discover.listNotifications(0, 50)!!.notifications.none { it.wish?.id == declined.id }) {
+                check(System.nanoTime() < deadline) { "the declined wish did not reach the inbox" }
+                runCatching { admin.call("POST", "admin/seerr/sync", "{}") }
+                Thread.sleep(POLL_MS)
+            }
+            val page = discover.listNotifications(0, 50)!!
+            assertTrue(page.unread >= 1)
+            val entry = page.notifications.first { it.wish?.id == declined.id }
+            discover.markNotificationRead(entry.id)
+            assertEquals(page.unread - 1, discover.listNotifications(0, 50)!!.unread)
+            discover.markAllNotificationsRead()
+            assertEquals(0, discover.listNotifications(0, 50)!!.unread)
         } finally {
-            admin.closeWishes(account)
+            account?.let { admin.closeWishes(it) }
+            runCatching { SlouchcatApi.create(::AuthApi, base, http).logout() }
         }
         // Seerr gone: the server says the wishes are off.
-        assertFalse(auth.getSession()!!.wishes?.enabled ?: false)
+        assertFalse(SlouchcatApi.create(::AuthApi, base, appClient()).getSession()!!.wishes?.enabled ?: false)
     }
 
     @Test
@@ -191,9 +228,15 @@ class MessagesContractTest {
         val notify = SlouchcatApi.create(::NotifyApi, base, http)
         val page = discover.listNotifications(0, 50)!!
         assertTrue(page.unread <= page.total)
-        discover.markAllNotificationsRead()
-        assertEquals(0, discover.listNotifications(0, 50)!!.unread)
-        assertNotNull(SlouchcatApi.create(::AnnouncementsApi, base, http).listMyAnnouncements())
+        // An announcement of the main user: listed for the profile, «Verstanden» takes it away.
+        val admin = Admin().also { it.signIn() }
+        val created = admin.call("POST", "admin/announcements", """{"title":"Contract maintenance","body":"An hour off.","publish":true}""")!!.jsonObject
+        val id = created["id"]!!.jsonPrimitive.long
+        val announcements = SlouchcatApi.create(::AnnouncementsApi, base, http)
+        assertTrue(announcements.listMyAnnouncements()!!.any { it.id == id })
+        announcements.ackAnnouncement(id)
+        assertFalse(announcements.listMyAnnouncements()!!.any { it.id == id })
+        runCatching { admin.call("DELETE", "admin/announcements/$id") }
         val channels = notify.getMyChannels()!!.channels
         assertEquals(listOf(Channel.EMAIL, Channel.PUSH, Channel.TELEGRAM), channels.map { it.channel })
         val email = channels.single { it.channel == Channel.EMAIL }
@@ -262,6 +305,7 @@ class MessagesContractTest {
         const val TMDB_KEY = "e2e-tmdb-key-8c41d0a7f2b9"
         const val SEERR_USER = 3L
         const val FILM = 9001L
+        const val SECOND_FILM = 9002L
         const val SHOW = 9100L
         const val WAIT_NS = 30_000_000_000L
         const val POLL_MS = 250L
