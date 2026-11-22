@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -18,6 +19,7 @@ import com.slouchcat.app.tv.TvGraph
 import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.PersonRoute
 import com.slouchcat.app.tv.browse.PlayerRoute
+import com.slouchcat.app.tv.player.Playbacks
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.browse.item.ItemMessage
@@ -25,6 +27,7 @@ import com.slouchcat.core.browse.item.ItemViewModel
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R
+import kotlinx.coroutines.launch
 
 /**
  * The detail pages of stage 2b (concept 26, 3.3; mockup `/item/:i`): film, series with seasons and
@@ -52,7 +55,9 @@ class ItemFeature(
                 }
             }
             // Back from the player (stage 3): the title again, quietly (the new progress).
-            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onShown() }
+            // After the last progress of the player reached the server (at most 2 s; review m-6).
+            val resumed = rememberCoroutineScope()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumed.launch { Playbacks.settled(graph); vm.onShown() } }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
             val context = LocalContext.current

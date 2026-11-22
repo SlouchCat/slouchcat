@@ -5,7 +5,10 @@ import android.provider.Settings
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
@@ -16,6 +19,7 @@ import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.LibraryRoute
 import com.slouchcat.app.tv.browse.ListRoute
 import com.slouchcat.app.tv.browse.PlayerRoute
+import com.slouchcat.app.tv.player.Playbacks
 import com.slouchcat.app.tv.browse.SearchRoute
 import com.slouchcat.app.tv.browse.WatchlistRoute
 import com.slouchcat.app.tv.shell.Label
@@ -29,6 +33,7 @@ import com.slouchcat.core.browse.home.HomeMessage
 import com.slouchcat.core.browse.home.HomeViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.strings.R
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 /** «Start» (mockup `/`). */
@@ -50,6 +55,10 @@ object HomeFeature : TvFeature {
         composable<HomeRoute> {
             val vm = viewModel { HomeViewModel(graph.session, graph.media.home, graph.media.items, graph.media.watchlistCount) }
             val state by vm.state.collectAsStateWithLifecycle()
+            // Back from the player (stage 3): the rows again, quietly (progress, «Weiterschauen»).
+            // After the last progress of the player reached the server (at most 2 s; review m-6).
+            val resumed = rememberCoroutineScope()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumed.launch { Playbacks.settled(graph); vm.onShown() } }
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
                     when (message) {

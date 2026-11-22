@@ -1,5 +1,8 @@
 package com.slouchcat.core.player
 
+import com.slouchcat.core.player.testing.audio
+import com.slouchcat.core.player.testing.subtitle
+import com.slouchcat.core.player.testing.group
 import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.api.generated.models.Trickplay
 import com.slouchcat.core.api.generated.models.TrickplaySheet
