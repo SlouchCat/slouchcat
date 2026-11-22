@@ -26,6 +26,18 @@
       "shadow": {
         "$value": "#000000b3",
         "$description": "--shadow"
+      },
+      "shade-strong": {
+        "$value": "#0b0c10f0",
+        "$description": "--sh-strong: the shade at the edges of the player's controls"
+      },
+      "shade-mid": {
+        "$value": "#0b0c1099",
+        "$description": "--sh-mid"
+      },
+      "shade-none": {
+        "$value": "#0b0c1000",
+        "$description": "--sh-0: where the shade ends"
       }
     },
     "font": {
@@ -749,6 +761,220 @@
         "swatch": {
           "$value": "36px",
           "$description": ".md-sw: a colour of a profile"
+        }
+      },
+      "player": {
+        "$description": "The video player of stage 3 (browse.css .br-pl), half the mockup canvas",
+        "over-gap": {
+          "$value": "2px",
+          "$description": ".br-ptitle h1 margin-top"
+        },
+        "title-gap": {
+          "$value": "30px",
+          "$description": ".br-ptop gap between title and clock"
+        },
+        "state": {
+          "$value": "26px",
+          "$description": ".br-state min-height: «Pausiert»"
+        },
+        "state-icon": {
+          "$value": "18px",
+          "$description": ".br-state icon"
+        },
+        "seek": {
+          "$value": "24px",
+          "$description": ".br-seek height"
+        },
+        "track": {
+          "$value": "4px",
+          "$description": ".br-track height"
+        },
+        "track-focus": {
+          "$value": "7px",
+          "$description": ".br-seek.is-f .br-track height"
+        },
+        "knob": {
+          "$value": "18px",
+          "$description": ".br-seek.is-f .br-knob"
+        },
+        "knob-ring": {
+          "$value": "4px",
+          "$description": ".br-knob ring"
+        },
+        "times-top": {
+          "$value": "4px",
+          "$description": ".br-times margin-top"
+        },
+        "buttons-top": {
+          "$value": "13px",
+          "$description": ".br-pbtns margin-top"
+        },
+        "button": {
+          "$value": "36px",
+          "$description": ".br-pb height"
+        },
+        "button-pad": {
+          "$value": "15px",
+          "$description": ".br-pb padding"
+        },
+        "button-gap": {
+          "$value": "9px",
+          "$description": ".br-pbtns gap"
+        },
+        "button-icon": {
+          "$value": "16px",
+          "$description": ".br-pb icon"
+        },
+        "preview": {
+          "$value": "180px",
+          "$description": ".br-bubim width (16:9)"
+        },
+        "preview-bottom": {
+          "$value": "31px",
+          "$description": ".br-bub bottom above the seek bar"
+        },
+        "preview-gap": {
+          "$value": "5px",
+          "$description": ".br-bub gap"
+        },
+        "preview-radius": {
+          "$value": "8px",
+          "$description": ".br-bubim border-radius"
+        },
+        "preview-ring": {
+          "$value": "2px",
+          "$description": ".br-bubim ring"
+        },
+        "float-bottom": {
+          "$value": "165px",
+          "$description": ".br-skip, .br-next bottom while the controls show"
+        },
+        "float-bottom-hidden": {
+          "$value": "28px",
+          "$description": ".br-skip, .br-next bottom without the controls"
+        },
+        "next": {
+          "$value": "450px",
+          "$description": ".br-next width (820 px of the mockup; 40 more so «Abbrechen» fits at the TV font size)"
+        },
+        "next-pad": {
+          "$value": "13px",
+          "$description": ".br-next padding"
+        },
+        "next-gap": {
+          "$value": "15px",
+          "$description": ".br-next gap"
+        },
+        "next-image": {
+          "$value": "130px",
+          "$description": ".br-nxim width (16:9; 300 px of the mockup, smaller for the buttons)"
+        },
+        "next-radius": {
+          "$value": "15px",
+          "$description": ".br-next border-radius"
+        },
+        "info": {
+          "$value": "390px",
+          "$description": ".br-info width"
+        },
+        "info-top": {
+          "$value": "95px",
+          "$description": ".br-info top"
+        },
+        "info-pad-x": {
+          "$value": "21px",
+          "$description": ".br-info padding"
+        },
+        "info-pad-y": {
+          "$value": "17px",
+          "$description": ".br-info padding"
+        },
+        "info-key": {
+          "$value": "125px",
+          "$description": ".br-dl dt width"
+        },
+        "info-row": {
+          "$value": "24px",
+          "$description": ".br-dl div min-height"
+        },
+        "flash": {
+          "$value": "100px",
+          "$description": ".br-flash size"
+        },
+        "flash-icon": {
+          "$value": "48px",
+          "$description": ".br-flash icon"
+        },
+        "episode": {
+          "$value": "68px",
+          "$description": ".br-mep min-height"
+        },
+        "episode-image": {
+          "$value": "96px",
+          "$description": ".br-mepim width (16:9)"
+        },
+        "episode-radius": {
+          "$value": "6px",
+          "$description": ".br-mepim border-radius"
+        },
+        "chips-gap": {
+          "$value": "7px",
+          "$description": ".br-mchips gap"
+        },
+        "busy": {
+          "$value": "40px",
+          "$description": "the loading ring"
+        }
+      },
+      "playback": {
+        "$description": "The page «Wiedergabe» of the settings (media.css .md-pb), half the mockup canvas",
+        "width": {
+          "$value": "550px",
+          "$description": ".md-sgrp max-width"
+        },
+        "section-top": {
+          "$value": "28px",
+          "$description": ".md-sech margin-top"
+        },
+        "section-bottom": {
+          "$value": "9px",
+          "$description": ".md-sech margin-bottom"
+        },
+        "row": {
+          "$value": "48px",
+          "$description": ".md-srow min-height"
+        },
+        "row-gap": {
+          "$value": "7px",
+          "$description": ".md-srow margin-top"
+        },
+        "row-pad": {
+          "$value": "15px",
+          "$description": ".md-srow padding"
+        },
+        "radio": {
+          "$value": "52px",
+          "$description": ".md-radio min-height"
+        },
+        "radio-dot": {
+          "$value": "22px",
+          "$description": ".md-rdot"
+        },
+        "radio-dot-inner": {
+          "$value": "10px",
+          "$description": ".md-rdot::after"
+        },
+        "radio-ring": {
+          "$value": "2px",
+          "$description": ".md-rdot border"
+        },
+        "detect-pad": {
+          "$value": "13px",
+          "$description": ".md-detect padding"
+        },
+        "bottom": {
+          "$value": "80px",
+          "$description": ".md-pb padding-bottom"
         }
       }
     },

@@ -84,6 +84,13 @@ class PlaybackController(
     private var engineText: List<EngineTrack> = emptyList()
     private var tracksApplied = false
     private var wantsToPlay = false
+
+    /**
+     * Whether the user wants it to play: set by a start, Play/Pause and a pause of the player itself
+     * (a headphone, the media session). A new start of the same title keeps it (a paused title stays
+     * paused however often the output changes).
+     */
+    private var userPlay = true
     private var started = false
     private var startedAt = 0L
     private var seq = 1L
@@ -135,7 +142,15 @@ class PlaybackController(
         if (itemId != null && itemId != id) leaveCurrent()
         itemId = id
         resetChoices()
-        begin(id, if (fromStart) 0L else startAtMs, play = true, switching = false)
+        val at = if (fromStart) 0L else startAtMs
+        if (inBackground) {
+            // Nothing starts in the background (a page that resolved its title late): the start
+            // waits for the foreground and comes paused, like a playback that went there.
+            userPlay = false
+            resume = Resume(at)
+            return
+        }
+        begin(id, at, play = true, switching = false)
     }
 
     fun play() {
@@ -177,7 +192,10 @@ class PlaybackController(
         manualChoice = true
         audioWish = track.index
         val group = if (playing.mode == PlaybackInfo.Mode.DIRECT && !narrowing.noTrackChoice) TrackMatching.group(playing.tracks.audio, engineAudio, track) else null
-        if (group != null && engineAudio.getOrNull(group)?.supported == true) {
+        // Rule 12: inside the player only a codec the start reported («Immer Stereo», «von Hand»
+        // take formats out); any other the server decides on a new start.
+        val reported = track.codec in mutable.value.capabilities?.audio.orEmpty()
+        if (group != null && reported && engineAudio.getOrNull(group)?.supported == true) {
             engine.selectAudio(group)
             mutable.update { s -> s.copy(audio = s.audio.map { it.copy(selected = it.track.id == track.id) }) }
         } else {
@@ -267,6 +285,19 @@ class PlaybackController(
         }
     }
 
+    /**
+     * What the device reports changed while a title plays (concept 26 5.2: the sound system was
+     * switched off, a headphone came): a new start where it stands, with the capabilities read
+     * again, so the server decides again (rule 12). Nothing while nothing plays, in the background
+     * (the next start reads them anyway) or after an error.
+     */
+    fun capabilitiesChanged() {
+        if (inBackground || mutable.value.error != null || mutable.value.ended) return
+        // Also during the first start: the facts it read may be old already (a receiver waking up).
+        if (info == null && startJob?.isActive != true) return
+        restart()
+    }
+
     /** «Erneut versuchen» of an error picture. */
     fun retry() {
         val id = itemId ?: return
@@ -308,7 +339,7 @@ class PlaybackController(
         val back = resume ?: return
         resume = null
         val id = itemId ?: return
-        begin(id, back.positionMs, play = false, switching = true)
+        begin(id, back.positionMs, play = false, switching = info != null)
     }
 
     /** The page is left: the last progress and the end of the session, even after the page is gone. */
@@ -344,7 +375,10 @@ class PlaybackController(
     private fun restart(narrower: Narrowing? = null) {
         val id = itemId ?: return
         if (narrower != null) narrowing += narrower
-        begin(id, engine.positionMs.coerceAtLeast(0), play = wantsToPlay || !started, switching = true)
+        // While a start still runs the player is empty (position 0 after stop): its wish holds.
+        val starting = startJob?.isActive == true || mutable.value.switching
+        val position = if (starting) pendingPositionMs else engine.positionMs.coerceAtLeast(0)
+        begin(id, position, play = userPlay, switching = true)
     }
 
     private fun begin(id: String, positionMs: Long?, play: Boolean, switching: Boolean) {
@@ -364,6 +398,7 @@ class PlaybackController(
         engine.stop()
         loadId = NO_LOAD
         pendingPositionMs = positionMs
+        userPlay = play
         startedAt = clock()
         tracksApplied = false
         started = false
@@ -525,6 +560,8 @@ class PlaybackController(
             is EngineEvent.WantsToPlay -> {
                 val was = wantsToPlay
                 wantsToPlay = event.play
+                // Play/Pause of the page, a headphone, the media session: the wish for the next start.
+                userPlay = event.play
                 // The countdown stands while the picture stands (the web player's countdown runs
                 // with the media time).
                 val end = countdownEnd

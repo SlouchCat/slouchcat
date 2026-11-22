@@ -1,4 +1,11 @@
-package com.slouchcat.core.player
+package com.slouchcat.core.player.testing
+
+import com.slouchcat.core.player.EngineEvent
+import com.slouchcat.core.player.EngineMedia
+import com.slouchcat.core.player.EngineSignal
+import com.slouchcat.core.player.EngineTrack
+import com.slouchcat.core.player.PlaybackServer
+import com.slouchcat.core.player.PlayerEngine
 
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Chapter
@@ -22,10 +29,17 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 
+/*
+ * The one test double of the player for :core:player, the phone app and the TV app (only as
+ * testImplementation): a player that behaves like Media3 and a server that answers what a test sets.
+ */
+
 /**
  * A player without Media3: the position runs with the test clock while it plays. Like Media3 it
  * numbers its loads and answers [stop] with empty tracks and the end of playing, under a number no
- * load has. [emit] sends an event of the current load (as Media3 does for the player's own events).
+ * load has; after [stop] (Media3: `stop()` and `clearMediaItems()`) the position is 0 and the wish
+ * to play stays (`playWhenReady`). [emit] sends an event of the current load (as Media3 does for
+ * the player's own events).
  */
 class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
@@ -43,6 +57,7 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     }
 
     val loads = mutableListOf<Triple<EngineMedia, Long, Boolean>>()
+    val seeks = mutableListOf<Long>()
     val audioSelections = mutableListOf<Int>()
     val textSelections = mutableListOf<Int?>()
     var stops = 0
@@ -97,6 +112,7 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     }
 
     override fun seekTo(positionMs: Long) {
+        seeks += positionMs
         base = positionMs
         since = clock()
     }
@@ -119,10 +135,10 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     override fun stop() {
         current = PlayerEngine.NO_LOAD
         stops++
-        base = positionMs
+        // Media3 empties the player: no media, position 0; playWhenReady stays as it was.
+        base = 0
         val was = running
         running = false
-        wants = false
         // What Media3 says after stop() and clearMediaItems().
         emit(EngineEvent.Tracks(emptyList(), emptyList()))
         if (was) emit(EngineEvent.Playing(false))
@@ -149,6 +165,9 @@ class FakeServer : PlaybackServer {
     var state: ApiResult<PlaybackSessionState> = ApiResult.Ok(PlaybackSessionState(PlaybackSessionState.State.PlaybackStateActive))
     var answer: (String, PlaybackRequest) -> ApiResult<PlaybackInfo> = { id, request -> ApiResult.Ok(info(id, resumeMs = request.positionMs ?: 0)) }
     var seasonEpisodes: List<ItemRef> = emptyList()
+
+    /** Episodes of one season by its id (the menu «Folgen» with seasons); [seasonEpisodes] else. */
+    var episodesBySeason: Map<String, List<ItemRef>> = emptyMap()
 
     /** When set, a start waits for it (the server still deciding). */
     var startGate: CompletableDeferred<Unit>? = null
@@ -185,7 +204,7 @@ class FakeServer : PlaybackServer {
 
     override suspend fun trickplay(itemId: String, mediaFileId: String): ApiResult<Trickplay> = ApiResult.NotFound
 
-    override suspend fun episodes(seasonId: String): ApiResult<List<ItemRef>> = ApiResult.Ok(seasonEpisodes)
+    override suspend fun episodes(seasonId: String): ApiResult<List<ItemRef>> = ApiResult.Ok(episodesBySeason[seasonId] ?: seasonEpisodes)
 
     override fun absolute(path: String): String = "http://server.test$path"
 }
