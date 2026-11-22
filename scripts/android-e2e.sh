@@ -8,6 +8,7 @@
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580)
+# EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
@@ -113,8 +114,10 @@ while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
 done
 
 boot() {
+  # EMU_OPTS: more options for the emulator, split at spaces (CI: -feature -Vulkan).
+  # shellcheck disable=SC2086
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect >"$root/emulator.log" 2>&1 &
+    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 240); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1
