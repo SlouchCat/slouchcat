@@ -110,10 +110,16 @@ App in den Hintergrund geht, und der Nutzer hat unterwegs den Film nicht. / *Imp
 large download stops when the app goes to the background, and the user does not have the film
 when offline.*
 
+**So gebaut (Stufe 6, ADR 0043):** Der Vordergrunddienst `dataSync` läuft nur auf Android 9 bis 13
+und startet nur, während die App sichtbar ist (nach «Herunterladen», «Fortsetzen» oder beim Öffnen
+der App mit offenen Downloads); er holt dann alle offenen Downloads und endet, wenn sie da sind.
+Bei geschlossener App holt WorkManager Auto-Downloads (ohne Tippen des Nutzers, K27 9.3) in kurzen
+Läufen ohne Vordergrunddienst. Das Manifest erklärt dazu
+`POST_NOTIFICATIONS`, `RUN_USER_INITIATED_JOBS`, `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_DATA_SYNC` und `RECEIVE_BOOT_COMPLETED` (der Abruf überlebt einen Neustart).
+
 **Unbelegt:** ob Google für den Übertragungsauftrag (Android 14 und neuer) eine eigene Erklärung
-verlangt; ob Auto-Downloads (ohne Tippen des Nutzers, K27 9.3) unter `dataSync` fallen dürfen. Der
-Vorschlag von K27 holt sie mit WorkManager in kurzen Läufen, ohne Vordergrunddienst. Steht das im
-fertigen Bau anders, diesen Text anpassen.
+verlangt.
 
 ### 2.3 Drehbuch für die zwei Videos
 

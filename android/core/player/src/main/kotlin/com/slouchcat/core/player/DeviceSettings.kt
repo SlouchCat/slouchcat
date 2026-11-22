@@ -66,14 +66,16 @@ class MemoryDeviceSettingsStore(initial: DeviceSettings = DeviceSettings()) : De
 
 private val Context.playbackPreferences: DataStore<Preferences> by preferencesDataStore(name = "playback")
 
-/** [DeviceSettingsStore] in a DataStore of the app (concept 27 5.2). */
-class DataStoreDeviceSettingsStore(context: Context) : DeviceSettingsStore {
+/**
+ * [DeviceSettingsStore] in a DataStore of the app (concept 27 5.2). [defaults]: what a setting is
+ * before the user chose (the TV asks for no cap: it plays 4K files directly).
+ */
+class DataStoreDeviceSettingsStore(context: Context, private val defaults: DeviceSettings = DeviceSettings()) : DeviceSettingsStore {
     private val store = context.applicationContext.playbackPreferences
 
     override val settings: Flow<DeviceSettings> = store.data.map(::read)
 
     private fun read(prefs: Preferences): DeviceSettings {
-        val defaults = DeviceSettings()
         return DeviceSettings(
             qualityMobile = QualityChoice.of(prefs[QUALITY_MOBILE]) ?: defaults.qualityMobile,
             qualityWifi = QualityChoice.of(prefs[QUALITY_WIFI]) ?: defaults.qualityWifi,

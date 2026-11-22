@@ -2,13 +2,13 @@ package com.slouchcat.app.tv.profiles
 
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.app.tv.common.TvSessionHooks
-import com.slouchcat.app.tv.testing.EMAIL
 import com.slouchcat.app.tv.testing.FakeAuth
-import com.slouchcat.app.tv.testing.session
-import com.slouchcat.app.tv.testing.sessionInfo
-import com.slouchcat.app.tv.testing.settle
-import com.slouchcat.app.tv.testing.summary
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.browse.testing.EMAIL
+import com.slouchcat.core.browse.testing.session
+import com.slouchcat.core.browse.testing.sessionInfo
+import com.slouchcat.core.browse.testing.settle
+import com.slouchcat.core.browse.testing.summary
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
@@ -35,7 +35,7 @@ class ProfilesViewModelTest {
     private val auth = FakeAuth()
     private val hooks = TvSessionHooks()
     private var cleaned = 0
-    private val servers = com.slouchcat.app.tv.testing.FakeServers(com.slouchcat.app.tv.testing.HTTP_SERVER)
+    private val servers = com.slouchcat.core.browse.testing.FakeServers(com.slouchcat.core.browse.testing.HTTP_SERVER)
 
     @Before
     fun main() {

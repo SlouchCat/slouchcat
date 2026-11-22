@@ -55,6 +55,9 @@ import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.MediaFileInfo
+import com.slouchcat.core.browse.item.ItemAction
+import com.slouchcat.core.browse.item.ItemEvents
+import com.slouchcat.core.browse.item.ItemUiState
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.Note
 import com.slouchcat.core.design.SlouchcatButton

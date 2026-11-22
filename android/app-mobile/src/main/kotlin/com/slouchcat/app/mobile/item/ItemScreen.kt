@@ -64,6 +64,9 @@ import com.slouchcat.app.mobile.media.kindName
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.item.ItemAsk
+import com.slouchcat.core.browse.item.ItemEvents
+import com.slouchcat.core.browse.item.ItemUiState
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon
@@ -524,7 +527,7 @@ private fun Actions(
 
 /** One round action (`.dt-act`): the icon in its pill, filled with the accent when on, the label. */
 @Composable
-private fun ActionButton(
+internal fun ActionButton(
     icon: SlouchcatIcon,
     label: String,
     toggle: ToggleableState?,

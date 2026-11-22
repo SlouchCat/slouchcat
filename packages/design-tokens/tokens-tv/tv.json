@@ -26,6 +26,18 @@
       "shadow": {
         "$value": "#000000b3",
         "$description": "--shadow"
+      },
+      "shade-strong": {
+        "$value": "#0b0c10f0",
+        "$description": "--sh-strong: the shade at the edges of the player's controls"
+      },
+      "shade-mid": {
+        "$value": "#0b0c1099",
+        "$description": "--sh-mid"
+      },
+      "shade-none": {
+        "$value": "#0b0c1000",
+        "$description": "--sh-0: where the shade ends"
       }
     },
     "font": {
@@ -578,6 +590,391 @@
         },
         "progress": {
           "$value": "4px"
+        }
+      },
+      "browse": {
+        "$description": "The browsing pages of stage 2b (browse.css and the hero of app.css), half the mockup canvas",
+        "hero-height": {
+          "$value": "400px",
+          "$description": ".hero height: the stage of the start page"
+        },
+        "hero-top": {
+          "$value": "70px",
+          "$description": ".hero padding-top"
+        },
+        "hero-info": {
+          "$value": "520px",
+          "$description": ".sp-info max-width"
+        },
+        "hero-info-min": {
+          "$value": "180px",
+          "$description": ".sp-info min-height"
+        },
+        "kind-gap": {
+          "$value": "9px",
+          "$description": ".sp-kind margin-bottom"
+        },
+        "logo-height": {
+          "$value": "85px",
+          "$description": ".sp-logo max-height"
+        },
+        "logo-width": {
+          "$value": "320px",
+          "$description": ".sp-logo max-width"
+        },
+        "meta-top": {
+          "$value": "12px",
+          "$description": ".sp-meta margin-top"
+        },
+        "meta-gap": {
+          "$value": "9px",
+          "$description": ".sp-meta gap"
+        },
+        "overview": {
+          "$value": "490px",
+          "$description": ".sp-ov max-width"
+        },
+        "actions-top": {
+          "$value": "18px",
+          "$description": ".sp-acts margin-top"
+        },
+        "strip-top": {
+          "$value": "17px",
+          "$description": ".sp-strip margin-top"
+        },
+        "thumb-width": {
+          "$value": "88px",
+          "$description": ".sp-th width"
+        },
+        "thumb-height": {
+          "$value": "50px",
+          "$description": ".sp-th height"
+        },
+        "detail-top": {
+          "$value": "80px",
+          "$description": ".br-hero padding-top"
+        },
+        "detail-bottom": {
+          "$value": "33px",
+          "$description": ".br-hero padding-bottom"
+        },
+        "detail-logo-height": {
+          "$value": "95px",
+          "$description": ".br-logo max-height"
+        },
+        "detail-logo-width": {
+          "$value": "360px",
+          "$description": ".br-logo max-width"
+        },
+        "detail-overview": {
+          "$value": "530px",
+          "$description": ".br-ov max-width"
+        },
+        "detail-actions-top": {
+          "$value": "20px",
+          "$description": ".br-acts margin-top"
+        },
+        "icon-button": {
+          "$value": "40px",
+          "$description": ".br-ib: round icon button"
+        },
+        "icon": {
+          "$value": "18px",
+          "$description": "icon in .br-ib and .br-cb"
+        },
+        "progress-width": {
+          "$value": "140px",
+          "$description": ".br-pbar width"
+        },
+        "head-icon": {
+          "$value": "38px",
+          "$description": ".br-hic: the icon box of a page head"
+        },
+        "head-height": {
+          "$value": "42px",
+          "$description": ".br-head min-height"
+        },
+        "controls-top": {
+          "$value": "15px",
+          "$description": ".br-ctrls margin-top"
+        },
+        "control-height": {
+          "$value": "34px",
+          "$description": ".br-cb height"
+        },
+        "control-pad": {
+          "$value": "15px",
+          "$description": ".br-cb padding"
+        },
+        "grid-gap": {
+          "$value": "22px",
+          "$description": ".br-grid row gap"
+        },
+        "chip-height": {
+          "$value": "44px",
+          "$description": ".br-chip height (season)"
+        },
+        "chip-pad": {
+          "$value": "16px",
+          "$description": ".br-chip padding"
+        },
+        "episode-info": {
+          "$value": "68px",
+          "$description": ".br-epov min-height"
+        },
+        "cast-width": {
+          "$value": "100px",
+          "$description": ".br-cp width: a portrait of the cast"
+        },
+        "person-image": {
+          "$value": "200px",
+          "$description": ".br-pim width (person, collection)"
+        },
+        "person-gap": {
+          "$value": "42px",
+          "$description": ".br-person gap"
+        },
+        "person-top": {
+          "$value": "60px",
+          "$description": ".br-person padding-top"
+        },
+        "search-keys": {
+          "$value": "470px",
+          "$description": ".br-sl width: the keyboard of the search"
+        },
+        "search-key": {
+          "$value": "38px",
+          "$description": ".kb-k: a key of the search keyboard"
+        },
+        "profile-row": {
+          "$value": "64px",
+          "$description": ".md-prow height (Profile verwalten)"
+        },
+        "profile-avatar": {
+          "$value": "48px",
+          "$description": ".md-prow avatar"
+        },
+        "profile-list": {
+          "$value": "620px",
+          "$description": ".md-plist max-width"
+        },
+        "swatch": {
+          "$value": "36px",
+          "$description": ".md-sw: a colour of a profile"
+        }
+      },
+      "player": {
+        "$description": "The video player of stage 3 (browse.css .br-pl), half the mockup canvas",
+        "over-gap": {
+          "$value": "2px",
+          "$description": ".br-ptitle h1 margin-top"
+        },
+        "title-gap": {
+          "$value": "30px",
+          "$description": ".br-ptop gap between title and clock"
+        },
+        "state": {
+          "$value": "26px",
+          "$description": ".br-state min-height: «Pausiert»"
+        },
+        "state-icon": {
+          "$value": "18px",
+          "$description": ".br-state icon"
+        },
+        "seek": {
+          "$value": "24px",
+          "$description": ".br-seek height"
+        },
+        "track": {
+          "$value": "4px",
+          "$description": ".br-track height"
+        },
+        "track-focus": {
+          "$value": "7px",
+          "$description": ".br-seek.is-f .br-track height"
+        },
+        "knob": {
+          "$value": "18px",
+          "$description": ".br-seek.is-f .br-knob"
+        },
+        "knob-ring": {
+          "$value": "4px",
+          "$description": ".br-knob ring"
+        },
+        "times-top": {
+          "$value": "4px",
+          "$description": ".br-times margin-top"
+        },
+        "buttons-top": {
+          "$value": "13px",
+          "$description": ".br-pbtns margin-top"
+        },
+        "button": {
+          "$value": "36px",
+          "$description": ".br-pb height"
+        },
+        "button-pad": {
+          "$value": "15px",
+          "$description": ".br-pb padding"
+        },
+        "button-gap": {
+          "$value": "9px",
+          "$description": ".br-pbtns gap"
+        },
+        "button-icon": {
+          "$value": "16px",
+          "$description": ".br-pb icon"
+        },
+        "preview": {
+          "$value": "180px",
+          "$description": ".br-bubim width (16:9)"
+        },
+        "preview-bottom": {
+          "$value": "31px",
+          "$description": ".br-bub bottom above the seek bar"
+        },
+        "preview-gap": {
+          "$value": "5px",
+          "$description": ".br-bub gap"
+        },
+        "preview-radius": {
+          "$value": "8px",
+          "$description": ".br-bubim border-radius"
+        },
+        "preview-ring": {
+          "$value": "2px",
+          "$description": ".br-bubim ring"
+        },
+        "float-bottom": {
+          "$value": "165px",
+          "$description": ".br-skip, .br-next bottom while the controls show"
+        },
+        "float-bottom-hidden": {
+          "$value": "28px",
+          "$description": ".br-skip, .br-next bottom without the controls"
+        },
+        "next": {
+          "$value": "450px",
+          "$description": ".br-next width (820 px of the mockup; 40 more so «Abbrechen» fits at the TV font size)"
+        },
+        "next-pad": {
+          "$value": "13px",
+          "$description": ".br-next padding"
+        },
+        "next-gap": {
+          "$value": "15px",
+          "$description": ".br-next gap"
+        },
+        "next-image": {
+          "$value": "130px",
+          "$description": ".br-nxim width (16:9; 300 px of the mockup, smaller for the buttons)"
+        },
+        "next-radius": {
+          "$value": "15px",
+          "$description": ".br-next border-radius"
+        },
+        "info": {
+          "$value": "390px",
+          "$description": ".br-info width"
+        },
+        "info-top": {
+          "$value": "95px",
+          "$description": ".br-info top"
+        },
+        "info-pad-x": {
+          "$value": "21px",
+          "$description": ".br-info padding"
+        },
+        "info-pad-y": {
+          "$value": "17px",
+          "$description": ".br-info padding"
+        },
+        "info-key": {
+          "$value": "125px",
+          "$description": ".br-dl dt width"
+        },
+        "info-row": {
+          "$value": "24px",
+          "$description": ".br-dl div min-height"
+        },
+        "flash": {
+          "$value": "100px",
+          "$description": ".br-flash size"
+        },
+        "flash-icon": {
+          "$value": "48px",
+          "$description": ".br-flash icon"
+        },
+        "episode": {
+          "$value": "68px",
+          "$description": ".br-mep min-height"
+        },
+        "episode-image": {
+          "$value": "96px",
+          "$description": ".br-mepim width (16:9)"
+        },
+        "episode-radius": {
+          "$value": "6px",
+          "$description": ".br-mepim border-radius"
+        },
+        "chips-gap": {
+          "$value": "7px",
+          "$description": ".br-mchips gap"
+        },
+        "busy": {
+          "$value": "40px",
+          "$description": "the loading ring"
+        }
+      },
+      "playback": {
+        "$description": "The page «Wiedergabe» of the settings (media.css .md-pb), half the mockup canvas",
+        "width": {
+          "$value": "550px",
+          "$description": ".md-sgrp max-width"
+        },
+        "section-top": {
+          "$value": "28px",
+          "$description": ".md-sech margin-top"
+        },
+        "section-bottom": {
+          "$value": "9px",
+          "$description": ".md-sech margin-bottom"
+        },
+        "row": {
+          "$value": "48px",
+          "$description": ".md-srow min-height"
+        },
+        "row-gap": {
+          "$value": "7px",
+          "$description": ".md-srow margin-top"
+        },
+        "row-pad": {
+          "$value": "15px",
+          "$description": ".md-srow padding"
+        },
+        "radio": {
+          "$value": "52px",
+          "$description": ".md-radio min-height"
+        },
+        "radio-dot": {
+          "$value": "22px",
+          "$description": ".md-rdot"
+        },
+        "radio-dot-inner": {
+          "$value": "10px",
+          "$description": ".md-rdot::after"
+        },
+        "radio-ring": {
+          "$value": "2px",
+          "$description": ".md-rdot border"
+        },
+        "detect-pad": {
+          "$value": "13px",
+          "$description": ".md-detect padding"
+        },
+        "bottom": {
+          "$value": "80px",
+          "$description": ".md-pb padding-bottom"
         }
       }
     },

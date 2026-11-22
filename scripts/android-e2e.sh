@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The flow of the phone app in an emulator against a real server (task android:e2e, concept 27 12
 # «Gerät»): starts bin/slouchcat with fresh data on PORT, starts its own emulator AVD on EMU_PORT
-# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest).
+# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest, OfflineFlowTest).
 #
 #   scripts/android-e2e.sh [--shots DIR]
 #

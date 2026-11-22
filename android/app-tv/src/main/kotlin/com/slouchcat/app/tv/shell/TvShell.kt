@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -193,7 +195,9 @@ private fun Rail(
             Spacer(Modifier.width(r.Pad))
             TvWordmark(stringResource(R.string.app_name), small = true, modifier = Modifier.alpha(labels))
         }
-        Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(r.Gap, Alignment.CenterVertically)) {
+        // Scrolls as a safety (code review M-3): the focus brings its entry into view, so it never
+        // lands on one below the profile; the number of libraries keeps it from being needed.
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(r.Gap, Alignment.CenterVertically)) {
             val top = rail.filter { it.section == RailSection.Top }
             val bottom = rail.filter { it.section == RailSection.Bottom }
             for (entry in top) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus)

@@ -174,6 +174,59 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Code-Review mit Korrekturrunde (3 Major, darunter: Die Kopplung lief nach Verlassen der Seite weiter).
   - **Offen:** die Seiten der TV-App (Stufe 2 Teil b), der Scan mit der echten Handy-App (K27 Stufe 9),
     alles auf einem echten Fernseher.
+- **Konzept 27, Stufe 6 «Downloads» (ADR 0043):** neues Modul `:core:offline` (Room; Datenbank und Dateien
+  ausserhalb jeder Sicherung), Download-Dialog auf den Detailseiten, Seite «Downloads» (Ziel der unteren
+  Leiste), Abruf im Hintergrund (ab Android 14 als Übertragungsauftrag des Systems, davor als
+  Vordergrunddienst; Auto-Downloads und Abgleich über WorkManager), Offline-Zustand mit der
+  Offline-Bibliothek des Profils, Offline-Player über eine lokale HLS-Liste, Offline-PIN auf dem Gerät,
+  Abgleich von Fortschritt und Schauzeit, Widerruf, Auto-Downloads, Schritt «Downloads löschen» beim
+  Abmelden.
+  - **Regel 12 offline:** Die App schlägt nur nach, was der Server freigegeben hat (`allowedProfileIds`).
+  - **Geprüft:** Tests für Abruf (Fortsetzen, Abbruch, voller Speicher, kalter Start), Abgleich, Widerruf
+    und PIN-Bremse; Vertragstest; Ablauf im Emulator an Handy und Tablet; Code-Review und
+    Sicherheits-Review mit Korrekturrunde (2 Blocker behoben: Ein gestoppter Abruf lief verwaist weiter
+    und konnte die Datei zerstören; nach einem Neustart setzte kein Download fort. 1 Medium behoben: Die
+    PIN-Bremse liess sich mit Neustart und Datum umgehen).
+  - **Gemessen im Emulator** (`docs/perf/K27-android-handy.md`, «Stufe 6»): erstes Bild offline rund
+    0,6 s. Auf echten Geräten nicht gemessen; die Gerätecheckliste (Flugmodus, 20 GB über Nacht) steht dort.
+  - **Nicht gebaut, weil der Vertrag es nicht liefert:** Budget des Servers in der Speicheranzeige,
+    Regeln je Serie oder Podcast, Vorgabe «Qualität für neue Downloads», Lizenzfristen.
+  - **Bekannte Grenzen (Papier 9.4, 9.5):** Die Dateien liegen unverschlüsselt im Speicher der App; ein
+    Gerät ohne Kontakt zum Server behält seine Downloads ohne Frist.
+- **Gemeinsame Module der zwei Apps (Nachtrag ADR 0039):** `:core:browse` hält die ViewModels der
+  Stöber-Seiten ohne Oberfläche (Start, Bibliothek, Listen, Detail, Person, Suche, Merkliste, Gesehen,
+  Sammlungen, Profile verwalten) samt ihren Tests; Handy- und TV-App benutzen dieselben. Dazu
+  `:core:browse-testing` und `:core:player-testing` (Attrappen für Tests). Die Bühne der Startseite holt
+  Genres und Inhaltsangabe des gezeigten Titels über `getItem` (der Vertrag liefert sie in `getHome`
+  nicht).
+- **Konzept 26, Stufe 2, Teil b (TV-App, Seiten):** Start (Bühne, Reihen), Bibliothek Filme und Serien
+  (Raster, Filter und Sortierung als Seitenmenüs), Detailseiten, Person, Suche (eigene Tastatur wie im
+  Mockup, dazu Spracheingabe und die Tastatur des Geräts), Merkliste, Gesehen, Sammlungen, Profile
+  verwalten.
+  - **Leiste:** Start, Suche, höchstens fünf Bibliotheken, «Alle Bibliotheken …», Einstellungen. Merkliste,
+    Gesehen und Sammlungen stehen als «Meine Listen» im Menü «Bibliotheken» von rechts und, soweit es
+    Reihen dafür gibt, hinter «Alle» auf «Start».
+  - **Geprüft:** je Seite ein Test mit dem Steuerkreuz (Fokus nie verloren, Zurück), Test über das echte
+    Register, Ablauf im TV-Emulator, Schaubilder gegen das Mockup angesehen, Code-Review mit
+    Korrekturrunde (4 Major). Anhang B eingehalten: Die TV-App ruft nur Operationen auf, die `tv` tragen.
+  - **Abweichungen vom Mockup:** «Empfehlen» geht an alle Profile (der Server kann nur das); «Mehr davon»
+    und «Zuletzt gesucht» fehlen.
+- **Konzept 26, Stufe 3 «Videoplayer»:** Player der TV-App auf `:core:player` (Bedienebene für die
+  Fernbedienung, Spulen in wachsenden Schritten, Medientasten, Menüs Ton, Untertitel, Qualität, Folgen,
+  Info, Vorspann überspringen, nächste Folge), Fähigkeitsprofil des Fernsehers nach ADR 0041 (Tonformate
+  und Kanalzahl aus dem aktuellen Tonausgang; wechselt er, entscheidet der Server neu), Untertitel als
+  Text, ASS und PGS im Player, Einstellungen › Wiedergabe mit dem Schalter «Ton» (Automatisch, Immer
+  Stereo, Formate von Hand). Die App schaltet keinen Anzeigemodus um (F-8).
+  - **Geprüft:** Tests des Fähigkeitsprofils mit nachgestellten Geräten, Tests des Controllers gegen eine
+    Attrappe, die sich wie Media3 verhält, Ablauf im TV-Emulator mit echter Wiedergabe, Code-Review mit
+    Korrekturrunde (4 Major, zwei davon im gemeinsamen Player: Positionsverlust bei zwei Neustarts
+    hintereinander, ungewolltes Losspielen nach einer Pause).
+  - **Offen:** Kapitelmarken auf der Zeitleiste des TV-Players (Papier 5.1 nennt Kapitel; die Daten
+    kommen an, die Leiste zeigt sie noch nicht); folgt mit Stufe 4.
+  - **Nicht geprüft, weil der Emulator es nicht kann:** Dolby Digital und Dolby Digital Plus (dekodieren
+    und durchreichen), Mehrkanal-PCM, HDR10, HLG, Dolby Vision, der Wechsel des Tonausgangs an echter
+    Hardware. Die Abnahmeliste je Gerät und Tonanlage (28 Schritte) steht in `docs/perf/K26-android-tv.md`,
+    «Stufe 3».
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 

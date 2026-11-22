@@ -128,3 +128,23 @@ JDK braucht.
   `task android:test`; der Ablauf im TV-Emulator samt Einrichten per Scan gegen eine lokale
   Vermittlung ist `task android:e2e:tv` und läuft nur lokal (`docs/perf/K27-android-ci.md`).
 
+## Nachtrag 22. November 2026: gemeinsame Module der zwei Apps
+
+Was beide Apps ohne Oberfläche brauchen, liegt in eigenen `:core`-Modulen; in `:app-mobile` und `:app-tv`
+bleiben Seiten, Features, Routen, Navigator und Bausteine.
+
+- **`:core:media`**: Kartenmodell (`MediaItem`), Bildadressen, Haken und grosser Knopf (`ItemModel`),
+  Nachlader (`PageLoader`), `Loadable`, Zähler der Hülle (`LiveCount`), Bibliotheken des Profils und alle
+  Repositories der Stöberseiten über den erzeugten Client (`MediaData`, je Graph einmal, Testdaten über
+  den Konstruktor des Graphen).
+- **`:core:browse`**: die ViewModels der Stöberseiten (Start, Bibliothek, Listen, Detail, Person, Suche,
+  Merkliste und Gesehen, Sammlungen, Profile verwalten) samt Zuständen, Meldungen und Ereignissen. Wo
+  sich die Apps unterscheiden, entscheidet ein Parameter (z. B. `offlinePin = false` für den Fernseher,
+  E-8). Die Testhilfen beider Apps liegen in **`:core:browse-testing`** (nur `testImplementation`).
+- **`:core:player`**: Fähigkeiten des Geräts, Wiedergabesitzung, Media3 über den gemeinsamen Client, Ablauf
+  der Wiedergabe; jede App zeichnet ihren eigenen Player darauf.
+- **`:core:offline`**: Downloads und Wiedergabe ohne Netz der Handy-App (Konzept 27 Stufe 6).
+- **`:core:pairing`**: Kopplung des Fernsehers über die Vermittlung (siehe Nachtrag vom 21. November).
+
+Ein Modul unter `:core` hängt nie an einer App und nie an Compose-Material; Lint mit den eigenen Regeln
+und die Ziele `ciCheck`, `ciTest` und `fastCheck` erfassen jedes Modul.

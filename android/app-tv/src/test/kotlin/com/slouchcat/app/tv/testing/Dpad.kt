@@ -23,6 +23,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.ui.TvScreenHost
 import com.slouchcat.app.tv.ui.TvTheme
+import com.slouchcat.core.browse.testing.settle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -103,23 +104,30 @@ class Dpad(private val compose: TvRule) {
         val seen = linkedSetOf(start!!.id)
         val queue = ArrayDeque(listOf(start.id))
         val directions = listOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
+        // Lazy rows and lists compose only what is on the screen: a control far away comes and
+        // goes while the focus travels, so it counts by what a person reads on it as well.
+        val seenLabels = mutableSetOf(label(start))
         while (queue.isNotEmpty()) {
             val id = queue.removeFirst()
             var leaves = false
             for (direction in directions) {
-                node(id).requestFocus()
+                if (runCatching { node(id).requestFocus() }.isFailure) break
                 settle()
                 press(direction)
                 val now = compose.onAllNodes(isFocused()).fetchSemanticsNodes().singleOrNull() ?: continue
                 if (now.id != id) leaves = true
-                if (seen.add(now.id)) queue += now.id
+                if (seen.add(now.id)) {
+                    queue += now.id
+                    seenLabels += label(now)
+                }
             }
-            assertTrue("«${label(id)}» is a focus trap", leaves || controls.size == 1)
+            val gone = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id }).fetchSemanticsNodes().isEmpty()
+            assertTrue("«$id» is a focus trap", leaves || gone || controls.size == 1)
         }
-        val missing = controls.filter { it.id !in seen }.map(::label)
+        val missing = controls.filter { it.id !in seen && label(it) !in seenLabels }.map(::label)
         assertTrue("not reachable with the arrow keys: $missing", missing.isEmpty())
         // Back to the start focus for what the test does next.
-        node(start.id).requestFocus()
+        runCatching { node(start.id).requestFocus() }
         settle()
     }
 

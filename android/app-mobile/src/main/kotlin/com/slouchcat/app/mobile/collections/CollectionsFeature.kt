@@ -27,6 +27,9 @@ import com.slouchcat.app.mobile.shell.MediaSection
 import com.slouchcat.app.mobile.shell.MoreEntry
 import com.slouchcat.app.mobile.shell.MoreSection
 import com.slouchcat.core.api.map
+import com.slouchcat.core.browse.collections.CollectionMessage
+import com.slouchcat.core.browse.collections.CollectionViewModel
+import com.slouchcat.core.browse.collections.CollectionsViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.ServerImages

@@ -2,9 +2,12 @@
 # The flow of the TV app in a TV emulator against a real server and a local relay (task
 # android:e2e:tv, concept 26 stage 2a): starts bin/slouchcat with fresh data on PORT and the relay
 # relay/bin/pair on RELAY_PORT, starts its own emulator AVD on EMU_PORT and runs the
-# instrumentation test TvFlowTest of app-tv there: (a) set up by hand, profile with PIN,
+# instrumentation test TvFlowTest of app-tv there: (a) set up by hand, profile with PIN, browse
+# (start, a title, a library, search, watchlist, «Profile verwalten»),
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
-# script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account.
+# script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
+# (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
+# resume, an episode up to the countdown, «Wiedergabe» of the settings.
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -14,6 +17,7 @@
 # AVD         emulator to start (default sc_tv); EMU_PORT its console port (default 5584)
 # SHOTS=DIR   or --shots DIR: photograph every page and menu and copy the photos to DIR
 # LOCALE      language of the app (de-CH, en …; default: the device's)
+# EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
@@ -33,6 +37,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
 adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
+adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-tv-e2e-XXXXXX)
 logs=app-tv/build/e2e-logs
@@ -53,13 +59,13 @@ cleanup() {
     for f in server.log relay.log emulator.log instrument.txt apicheck.log; do
       [ -f "$root/$f" ] && cp "$root/$f" "$logs/"
     done
-    if [ -n "$emulator_pid" ]; then adb logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
+    if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
   for pid in "$server_pid" "$relay_pid"; do
     if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
   done
   if [ -n "$emulator_pid" ]; then
-    adb emu kill >/dev/null 2>&1 || true
+    adb_brief emu kill >/dev/null 2>&1 || true
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
@@ -80,8 +86,14 @@ fail() {
 
 started=$(date +%s)
 
-# The server with fresh data and the relay, both on the loopback only.
-SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# The server with fresh data and the relay, both on the loopback only. The small media tree of
+# scripts/android-test-media.sh is the only browsable root: TvFlowTest adds it as a library and
+# browses it (stage 2b).
+mkdir -p "$root/media"
+../scripts/android-test-media.sh "$root/media"
+# Real video for the player of stage 3 (a film, a series of two episodes; needs ffmpeg).
+../scripts/android-test-video.sh "$root/media"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -107,7 +119,7 @@ done
 
 boot() {
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect >"$root/emulator.log" 2>&1 &
+    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 300); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1
@@ -118,7 +130,7 @@ boot() {
 }
 if ! boot; then
   echo "android-tv-e2e: the emulator did not boot, trying once more"
-  adb emu kill >/dev/null 2>&1 || true
+  adb_brief emu kill >/dev/null 2>&1 || true
   kill "$emulator_pid" 2>/dev/null || true
   wait "$emulator_pid" 2>/dev/null || true
   boot || fail "the emulator did not boot"
@@ -148,9 +160,19 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
 adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
-  -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" "${extra[@]}" \
+  -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" -e slouchcatMedia "$root/media" "${extra[@]}" \
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!
+
+# The photos of the run, also after a failure: they show where it stopped. They lie in the app's
+# own files (debug build: run-as reads them).
+photos() {
+  [ -n "$shots" ] || return 0
+  rm -f "$shots"/*.png
+  mkdir -p "$shots"
+  adb exec-out run-as "$app" tar -cf - -C files shots | tar -xf - -C "$shots" --strip-components=1 || true
+  echo "android-tv-e2e: photos in $shots"
+}
 
 # The phone: as soon as the TV shows its code, apicheck lays the packet down at the relay.
 code=""
@@ -160,7 +182,13 @@ for _ in $(seq 1 600); do
   kill -0 "$instrument_pid" 2>/dev/null || break
   sleep 0.5
 done
-[ -n "$code" ] || { grep -E "^(OK|FAILURES|Tests run)|Exception|Error" "$root/instrument.txt" | head -n 12 >&2; fail "the TV showed no code"; }
+if [ -z "$code" ]; then
+  wait "$instrument_pid" || true
+  instrument_pid=""
+  grep -E "^(OK|FAILURES|Tests run)|Exception|Error|at com\.slouchcat" "$root/instrument.txt" | head -n 40 >&2
+  photos
+  fail "the TV showed no code"
+fi
 ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
   -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
   -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
@@ -168,14 +196,7 @@ grep '^apicheck:' "$root/apicheck.log"
 
 wait "$instrument_pid" || true
 instrument_pid=""
-grep -E "^(OK|FAILURES|Tests run)|Exception|Error" "$root/instrument.txt" | head -n 12
-if [ -n "$shots" ]; then
-  # Also after a failure: the photos show where it stopped. They lie in the app's own files
-  # (debug build: run-as reads them).
-  rm -f "$shots"/*.png
-  mkdir -p "$shots"
-  adb exec-out run-as "$app" tar -cf - -C files shots | tar -xf - -C "$shots" --strip-components=1 || true
-  echo "android-tv-e2e: photos in $shots"
-fi
+grep -E "^(OK|FAILURES|Tests run)|Exception|Error|at com\.slouchcat" "$root/instrument.txt" | head -n 40
+photos
 grep -q '^OK (' "$root/instrument.txt" || fail "the flow failed"
 echo "android-tv-e2e: done after $(($(date +%s) - started)) s ($(($(date +%s) - booted)) s with the device)"

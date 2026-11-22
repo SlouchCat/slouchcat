@@ -76,3 +76,8 @@ player.option
 settings.playback
 format
 tv
+offline.quality
+offline.rules
+offline.dialog
+offline.player
+offline.state

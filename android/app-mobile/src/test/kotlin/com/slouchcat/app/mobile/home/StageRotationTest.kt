@@ -10,8 +10,10 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.testing.SERVER_IMAGES
-import com.slouchcat.app.mobile.testing.itemRef
+import com.slouchcat.core.browse.home.HomeSection
+import com.slouchcat.core.browse.home.HomeUiState
+import com.slouchcat.core.browse.testing.SERVER_IMAGES
+import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem

@@ -28,6 +28,7 @@ import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.SetupApi
+import com.slouchcat.core.api.generated.models.ItemWatchedRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
@@ -128,6 +129,12 @@ class PlayerFlowTest {
         while ((listOf(film) + episodes).any { items.getItem(it)!!.mediaFiles.firstOrNull()?.videoCodec == null }) {
             check(System.nanoTime() < deadline) { "the test clips were not probed" }
             Thread.sleep(POLL_MS)
+        }
+        // No progress of an earlier flow on this server (OfflineFlowTest plays the film too): marked
+        // as watched and back, a title starts at 0 again, and the flow finds «Abspielen».
+        for (id in listOf(film) + episodes) {
+            items.setItemWatched(id, ItemWatchedRequest(true))
+            items.setItemWatched(id, ItemWatchedRequest(false))
         }
         return Titles(film, episodes, refs.map { it.title })
     }

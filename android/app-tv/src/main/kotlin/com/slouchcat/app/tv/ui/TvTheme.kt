@@ -63,6 +63,7 @@ object TvDimens {
     val Profiles = SlouchcatTokens.Tv.Size.Profiles
     val Settings = SlouchcatTokens.Tv.Size.Settings
     val Card = SlouchcatTokens.Tv.Size.Card
+    val Browse = SlouchcatTokens.Tv.Size.Browse
 }
 
 /** Scales, opacities and times of the mockup (`--focus-scale`, `--t` …). */

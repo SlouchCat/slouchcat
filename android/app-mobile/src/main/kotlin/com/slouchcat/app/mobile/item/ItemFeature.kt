@@ -17,10 +17,14 @@ import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.SEARCH_TARGET
+import com.slouchcat.app.mobile.downloads.DownloadAction
+import com.slouchcat.app.mobile.downloads.DownloadsRoute
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
+import com.slouchcat.core.browse.item.ItemMessage
+import com.slouchcat.core.browse.item.ItemViewModel
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R
@@ -76,6 +80,8 @@ class ItemFeature(
                 ),
                 events = vm,
                 snackbar = snackbar,
+                // Stage 6: the round action «Herunterladen» with its dialog, when the app has the downloads.
+                download = if (navigator.canOpen(DownloadsRoute::class)) ({ item -> DownloadAction(graph, item, snackbar) }) else null,
             )
         }
     }

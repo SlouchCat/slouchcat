@@ -46,6 +46,11 @@ import com.slouchcat.core.api.generated.models.Collection
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.browse.collections.CollectionPage
+import com.slouchcat.core.browse.collections.CollectionUiState
+import com.slouchcat.core.browse.collections.CollectionViewModel
+import com.slouchcat.core.browse.collections.CollectionWatched
+import com.slouchcat.core.browse.collections.CollectionsUiState
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon

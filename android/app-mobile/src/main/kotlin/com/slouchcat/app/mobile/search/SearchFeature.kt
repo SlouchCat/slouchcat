@@ -17,6 +17,7 @@ import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.TopDestination
+import com.slouchcat.core.browse.search.SearchViewModel
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.ServerImages

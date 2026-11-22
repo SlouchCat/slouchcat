@@ -13,6 +13,7 @@ import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
+import com.slouchcat.core.browse.person.PersonViewModel
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.data.PersonRepository
 

@@ -52,7 +52,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -61,7 +60,6 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
-import coil3.compose.AsyncImage
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatTokens
 import kotlinx.coroutines.delay
@@ -379,7 +377,7 @@ fun TvBackdrop(model: Any?, modifier: Modifier = Modifier, mode: BackdropMode = 
     val scrim = SlouchcatTokens.Color.Scrim
     Box(modifier.fillMaxSize()) {
         Crossfade(targetState = model, animationSpec = tween(SlouchcatTokens.Motion.Duration.Crossfade)) { image ->
-            if (image != null) AsyncImage(model = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (image != null) TvImage(image, Modifier.fillMaxSize())
         }
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to scrim.Solid, BACKDROP_MID to scrim.Medium, BACKDROP_CLEAR to scrim.Clear)))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(BACKDROP_BOTTOM to scrim.Clear, 1f to c.bg)))

@@ -21,12 +21,12 @@ import coil3.asImage
 import coil3.intercept.Interceptor
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
-import com.slouchcat.app.mobile.testing.SERVER_IMAGES
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
-import com.slouchcat.app.mobile.testing.itemRef
-import com.slouchcat.app.mobile.testing.posters
-import com.slouchcat.app.mobile.testing.progress
 import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.testing.SERVER_IMAGES
+import com.slouchcat.core.browse.testing.itemRef
+import com.slouchcat.core.browse.testing.posters
+import com.slouchcat.core.browse.testing.progress
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.CardShape
@@ -167,7 +167,7 @@ class MediaComponentsTest {
                 )
             }
             .build()
-        val withImage = MediaItem.from(itemRef(9, title = "Covered", images = posters(com.slouchcat.app.mobile.testing.ulid(9))), SERVER_IMAGES)
+        val withImage = MediaItem.from(itemRef(9, title = "Covered", images = posters(com.slouchcat.core.browse.testing.ulid(9))), SERVER_IMAGES)
         compose.setContent {
             SlouchcatTheme {
                 CompositionLocalProvider(LocalMediaImageLoader provides loader) {

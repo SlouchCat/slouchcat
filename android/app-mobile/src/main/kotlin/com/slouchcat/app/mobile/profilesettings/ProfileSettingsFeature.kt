@@ -20,6 +20,10 @@ import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.map
+import com.slouchcat.core.browse.profilesettings.PinKind
+import com.slouchcat.core.browse.profilesettings.ProfileMessage
+import com.slouchcat.core.browse.profilesettings.ProfileSettingsViewModel
+import com.slouchcat.core.browse.profilesettings.contentChanged
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.session.ActiveProfile
@@ -86,18 +90,6 @@ class ProfileSettingsFeature(
         graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image), contentChanged = content)
         if (!content) graph.librariesSource.reload()
     }
-}
-
-/**
- * Whether saving the profile in use changed what it may see: rating, libraries or language of the
- * metadata. Then a new session epoch, so no page keeps titles of the old state; name and colour
- * alone change in place (code review m-3 of part a). Without the earlier state: a new epoch.
- * The libraries count only without «alle Bibliotheken» (the server ignores the list then).
- */
-internal fun contentChanged(before: Profile?, saved: Profile): Boolean {
-    if (before == null) return true
-    if (before.maxRating != saved.maxRating || before.language != saved.language || before.allLibraries != saved.allLibraries) return true
-    return !saved.allLibraries && before.libraryIds.toSet() != saved.libraryIds.toSet()
 }
 
 /** The events of the page, bound to its ViewModel and the navigation. */

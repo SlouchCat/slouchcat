@@ -48,6 +48,8 @@ data class RailEntry(
     val label: Label,
     val icon: ImageVector,
     val route: Any,
+    /** The titles of a library, shown in the menu «Bibliotheken». */
+    val count: Int? = null,
     /**
      * Whether [entry] is this entry's page or a page below it (marks it); the default compares the
      * route class. Media entries must bring it: all libraries share one route class.
@@ -112,6 +114,12 @@ interface TvFeature {
     /** Routes drawn without the rail and the clock (the player of stage 3). */
     val fullScreen: Set<KClass<*>> get() = emptySet()
 
+    /**
+     * «Meine Listen» of the menu «Bibliotheken» (Merkliste, Gesehen, Sammlungen): pages reached
+     * from there and from the rows of Start, not from the rail (code review M-3, mockup).
+     */
+    val lists: List<RailEntry> get() = emptyList()
+
     /** The page «Profile verwalten» (stage 2b): the profile choice offers it once it exists. */
     val manageProfiles: Any? get() = null
 
@@ -129,6 +137,7 @@ class TvScope(val graph: TvGraph, val navigator: TvNavigator)
 class TvRegistry(val features: List<TvFeature>) {
     val rail: List<RailEntry> = features.flatMap { it.rail }.sortedWith(compareBy({ it.section }, { it.order }))
     val media: List<RailMedia> = features.flatMap { it.media }
+    val lists: List<RailEntry> = features.flatMap { it.lists }.sortedBy { it.order }
     val settings: List<SettingsEntry> = features.flatMap { it.settings }.sortedBy { it.order }
     val fullScreen: Set<KClass<*>> = features.flatMapTo(mutableSetOf()) { it.fullScreen }
     val manageProfiles: Any? = features.mapNotNull { it.manageProfiles }.let {
@@ -141,6 +150,7 @@ class TvRegistry(val features: List<TvFeature>) {
         requireUnique("rail entry key", rail.map { it.key })
         requireUnique("rail entry order", rail.map { it.section to it.order })
         requireUnique("rail entry route", rail.map { it.route::class })
+        requireUnique("list entry key", lists.map { it.key } + rail.map { it.key })
         requireUnique("settings row", settings.map { it.key } + BUILT_IN_SETTINGS.keys)
         requireUnique("settings order", settings.map { it.order } + BUILT_IN_SETTINGS.values)
         require(rail.none { it.section == RailSection.Media }) { "media entries come from RailMedia, not from rail" }

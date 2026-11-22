@@ -1,14 +1,14 @@
 package com.slouchcat.app.tv.setup
 
 import androidx.lifecycle.SavedStateHandle
-import com.slouchcat.app.tv.testing.EMAIL
 import com.slouchcat.app.tv.testing.FakeAuth
 import com.slouchcat.app.tv.testing.FakeProbe
-import com.slouchcat.app.tv.testing.FakeServers
 import com.slouchcat.app.tv.testing.TV_DEVICE
-import com.slouchcat.app.tv.testing.session
-import com.slouchcat.app.tv.testing.settle
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.browse.testing.EMAIL
+import com.slouchcat.core.browse.testing.FakeServers
+import com.slouchcat.core.browse.testing.session
+import com.slouchcat.core.browse.testing.settle
 import com.slouchcat.core.session.HostResolver
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.ServerInfo

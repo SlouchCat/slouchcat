@@ -16,7 +16,6 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
-import com.slouchcat.app.mobile.testing.profile
 import com.slouchcat.app.mobile.testing.reveal
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
@@ -24,6 +23,11 @@ import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibrarySummary
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileSummary
+import com.slouchcat.core.browse.profilesettings.PinError
+import com.slouchcat.core.browse.profilesettings.PinKind
+import com.slouchcat.core.browse.profilesettings.ProfileEditor
+import com.slouchcat.core.browse.profilesettings.ProfileSettingsUiState
+import com.slouchcat.core.browse.testing.profile
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable

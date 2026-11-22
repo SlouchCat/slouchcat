@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
@@ -147,6 +148,8 @@ fun TvMenuItem(
     subtitle: String? = null,
     chevron: Boolean = true,
     enabled: Boolean = true,
+    /** The current choice of a list (`role=menuitemradio`, `aria-checked`): a check mark instead of the chevron. */
+    selected: Boolean? = null,
 ) {
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(TvDimens.radiusMenuItem)
@@ -157,7 +160,8 @@ fun TvMenuItem(
             .focusProperties { canFocus = enabled }
             .fillMaxWidth()
             .heightIn(min = TvDimens.Menu.Item)
-            .alpha(if (enabled) 1f else TvMotion.disabled),
+            .alpha(if (enabled) 1f else TvMotion.disabled)
+            .semantics { if (selected != null) this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
@@ -188,7 +192,11 @@ fun TvMenuItem(
                 Text(title, style = TvType.largeStrong, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (subtitle != null) Text(subtitle, style = TvType.small, color = if (focused) c.bg else c.tx3, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            if (chevron) TvIcon(SlouchcatIcon.Right, TvDimens.Button.Icon, tint = if (focused) c.bg else c.tx3)
+            if (selected == true) {
+                TvIcon(SlouchcatIcon.Check, TvDimens.Menu.Icon, tint = if (focused) c.bg else c.accent)
+            } else if (chevron && selected == null) {
+                TvIcon(SlouchcatIcon.Right, TvDimens.Button.Icon, tint = if (focused) c.bg else c.tx3)
+            }
         }
     }
 }

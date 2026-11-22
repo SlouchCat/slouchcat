@@ -13,6 +13,8 @@ import com.slouchcat.app.mobile.common.KeyConfirmation
 import com.slouchcat.app.mobile.common.SessionActions
 import com.slouchcat.app.mobile.common.SessionHooks
 import com.slouchcat.app.mobile.common.ShellNotices
+import com.slouchcat.app.mobile.downloads.OfflineStarter
+import com.slouchcat.app.mobile.downloads.OfflineData
 import com.slouchcat.app.mobile.shell.AppLinks
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.ShellRegistry
@@ -27,6 +29,7 @@ import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.media.LibrariesSource
 import com.slouchcat.core.media.MediaData
+import com.slouchcat.core.offline.background.OfflineHost
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AndroidTrustInspector
 import com.slouchcat.core.session.ApiAuthRepository
@@ -78,6 +81,8 @@ class AppGraph(
     devicesRepository: DevicesRepository? = null,
     /** The data of the pages (`:core:media`); tests and the showcase bring their own. `null`: from the server. */
     private val mediaData: ((AppGraph) -> MediaData)? = null,
+    /** Downloads and offline (stage 6); tests bring an engine over a database in memory. `null`: the real one. */
+    private val offlineData: ((AppGraph) -> OfflineData)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -150,6 +155,9 @@ class AppGraph(
         (mediaData?.invoke(this) ?: MediaData.api(api, http)).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
     }
 
+    /** Downloads and offline (concept 27 section 9): built on first use, the same way for the app and its tests. */
+    val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
+
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
@@ -183,7 +191,7 @@ fun describeDevice(context: Context): DeviceDescription {
 
 private const val TABLET_DP = 600
 
-class SlouchcatApplication : Application(), SingletonImageLoader.Factory {
+class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost {
     lateinit var graph: AppGraph
         private set
 
@@ -191,7 +199,12 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         Log.sink = AndroidLogSink(BuildConfig.DEBUG)
         graph = AppGraph(this)
+        // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
+        OfflineStarter(this, graph).start()
     }
+
+    /** The one offline engine for the background fetch and the sync (core/offline). */
+    override val offlineEngine get() = graph.offline.engine
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = graph.imageLoader
 }

@@ -15,8 +15,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.tv.testing.Dpad
 import com.slouchcat.app.tv.testing.TV
-import com.slouchcat.app.tv.testing.summary
 import com.slouchcat.core.api.generated.models.Accent
+import com.slouchcat.core.browse.testing.summary
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
