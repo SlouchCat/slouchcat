@@ -86,7 +86,7 @@ class TvFlowTest {
         val plain = SlouchcatHttp.client(identity)
         val setup = SlouchcatApi.create(::SetupApi, server, plain)
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
-        // One web session for both tests (TestLibrary): the server allows 10 sign-ins and PIN attempts a
+        // One web session for all tests (TestLibrary): the server allows 10 sign-ins and PIN attempts a
         // minute and address, which the TV's own sign-in and the phone of the script need.
         val library = TestLibrary(server, email, password, pin)
         library.primaryWithPin()

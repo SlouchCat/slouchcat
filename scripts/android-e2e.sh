@@ -137,7 +137,7 @@ while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
 done
 
 boot() {
-  # EMU_OPTS: more options for the emulator, split at spaces (CI: -feature -Vulkan).
+  # EMU_OPTS: more options for the emulator, split at spaces (for example -feature -Vulkan).
   # shellcheck disable=SC2086
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
     -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
@@ -161,6 +161,9 @@ fi
 for setting in window_animation_scale transition_animation_scale animator_duration_scale; do
   adb shell settings put global "$setting" 0
 done
+# No touch sounds: the flow needs none, and on the hosted runner every write of the guest's audio
+# device failed with an I/O error, the last lines of the log before the emulator died there.
+adb shell settings put system sound_effects_enabled 0
 # The player hides the system bars: no system hint «Viewing full screen» over the photos.
 adb shell settings put secure immersive_mode_confirmations confirmed
 export ANDROID_SERIAL=$serial

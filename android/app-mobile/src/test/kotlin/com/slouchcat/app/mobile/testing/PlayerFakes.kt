@@ -23,7 +23,6 @@ import com.slouchcat.core.api.generated.models.Trickplay
 import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.browse.testing.mediaFile
 import com.slouchcat.core.browse.testing.posters
-import com.slouchcat.core.browse.testing.progress
 import com.slouchcat.core.browse.testing.ulid
 import com.slouchcat.core.player.PlaybackPrefsRepository
 import com.slouchcat.core.player.PlayerState

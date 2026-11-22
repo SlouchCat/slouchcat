@@ -78,7 +78,7 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
     /** The library [name] over the films and series of [media], scanned. */
     fun ensure(media: String, name: String) = ensure(media to name)
 
-    /** Each library (folder to name), scanned; one sign-in for all. */
+    /** Each library (folder to name), scanned, in the one web session of the run ([signIn]). */
     fun ensure(vararg libraries: Pair<String, String>) {
         signIn()
         for ((media, name) in libraries) scan(media, name)
