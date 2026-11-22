@@ -40,6 +40,9 @@ dependencies {
     implementation(project(":core:strings"))
     implementation(project(":core:pairing"))
     implementation(project(":core:media"))
+    // The player of stage 3 (concept 26, 5): the shared playback, Media3's surface for the picture.
+    implementation(project(":core:player"))
+    implementation(libs.media3.ui)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

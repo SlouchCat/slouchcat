@@ -24,6 +24,9 @@ import com.slouchcat.core.session.StoredCredentials
 import org.robolectric.shadows.ShadowLooper
 import java.util.concurrent.TimeUnit
 
+/** The real features without the player of stage 3: the pages of stage 2b with or without [TestPlayerFeature]. */
+val withoutPlayer: List<TvFeature> = com.slouchcat.app.tv.shell.features.filterNot { it is com.slouchcat.app.tv.player.PlayerFeature }
+
 /** A stand-in for the player of stage 3: registers [PlayerRoute] and remembers what it was asked to play. */
 class TestPlayerFeature : TvFeature {
     val played = mutableListOf<PlayerRoute>()
