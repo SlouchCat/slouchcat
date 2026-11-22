@@ -364,7 +364,8 @@ private fun errorText(error: PlayerError): String = when (error) {
 @Composable
 fun chaptersMeta(count: Int, durationMs: Long?): String {
     val length = durationMs?.let { runtimeText(maxOf(1, (it / 60_000).toInt())) }
-    return if (length != null) stringResource(R.string.app_audio_chaptersMeta, count.toString(), length) else count.toString()
+    // `{{count}}` is a number in every language (`%1$d`).
+    return if (length != null) stringResource(R.string.app_audio_chaptersMeta, count, length) else count.toString()
 }
 
 /** «noch 3 Minuten» of the sleep sheet («15 Minuten»). */

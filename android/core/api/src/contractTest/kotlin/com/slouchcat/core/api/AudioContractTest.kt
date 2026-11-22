@@ -187,8 +187,8 @@ class AudioContractTest {
             assertEquals(404, status { radio.startRadioListen(999_999) })
         } finally {
             // Clean up: the open sessions of the test and its libraries.
-            runCatching { admin.call("DELETE", "admin/libraries/$books") }
-            runCatching { admin.call("DELETE", "admin/libraries/$podcasts") }
+            runCatching { admin.call("POST", "admin/libraries/$books/deletion", """{"confirmName":"$BOOKS"}""") }
+            runCatching { admin.call("POST", "admin/libraries/$podcasts/deletion", """{"confirmName":"$PODCASTS"}""") }
         }
     }
 

@@ -83,7 +83,7 @@ class AudioFlowTest {
     private val context = instrumentation.targetContext
     private val identity = ClientIdentity(ClientIdentity.Kind.MOBILE, BuildConfig.VERSION_NAME)
     private val admin by lazy { DetailFlowTest.Admin(server, email, password, pin) }
-    private val created = mutableListOf<Long>()
+    private val created = mutableMapOf<Long, String>()
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
@@ -148,7 +148,7 @@ class AudioFlowTest {
             "admin/libraries",
             """{"name":"$name","kind":"$kind","roots":[{"path":${Json.encodeToString(root)},"content":"$content","providers":["local"]}]}""",
         )!!.jsonObject["id"]!!.jsonPrimitive.long
-        created += id
+        created[id] = name
         compose.waitUntil(SCAN_MS) {
             val state = (libraries().first { it["id"]!!.jsonPrimitive.long == id }["scan"] as JsonObject)["state"]!!.jsonPrimitive.content
             check(state != "failed" && state != "aborted") { "the scan of $name $state" }
@@ -248,7 +248,7 @@ class AudioFlowTest {
         if (graph.session.state.value is SessionState.Ready) graph.sessionActions.signOut()
         graph.serverStore.clear()
         // The own libraries go again (another flow on the same server sees nothing of them).
-        for (id in created) runCatching { call("DELETE", "admin/libraries/$id") }
+        for ((id, name) in created) runCatching { call("POST", "admin/libraries/$id/deletion", """{"confirmName":${Json.encodeToString(name)}}""") }
     }
 
     @Test
