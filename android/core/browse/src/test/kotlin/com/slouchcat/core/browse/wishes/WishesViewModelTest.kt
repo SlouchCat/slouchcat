@@ -39,6 +39,11 @@ import org.junit.Test
 class WishesViewModelTest {
     private val dispatcher = StandardTestDispatcher()
 
+    private companion object {
+        /** The pause of the TV's search (any value; the model takes it as given). */
+        const val PAUSE = 400L
+    }
+
     @Before
     fun main() = Dispatchers.setMain(dispatcher)
 
@@ -123,6 +128,46 @@ class WishesViewModelTest {
         val vm = area(repository, query = "seven")
         assertEquals("seven", vm.state.value.text)
         assertTrue("search:seven:1" in repository.calls)
+    }
+
+    @Test
+    fun theTvSearchesByItselfAPauseAfterTheLastKey() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        val s = session(backgroundScope)
+        settle()
+        val vm = WishesViewModel(s, repository, LiveCount(), searchPauseMs = PAUSE)
+        settle()
+        vm.onText("fo")
+        advanceTimeBy(PAUSE / 2)
+        vm.onText("found")
+        advanceTimeBy(PAUSE - 1)
+        assertFalse(repository.calls.any { it.startsWith("search:") })
+        advanceTimeBy(2)
+        settle()
+        // One search for the last text, none for «fo».
+        assertEquals(listOf("search:found:1"), repository.calls.filter { it.startsWith("search:") })
+        assertEquals(listOf("Found Seven", "Found Eight"), (vm.state.value.results!!.items as Loadable.Ready).value.map { it.title })
+        // The same text again (a key and its deletion) does not ask Seerr once more.
+        vm.onText("found ")
+        vm.onText("found")
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("search:") })
+        // The phone's model (no pause) waits for its search key.
+        val phone = area(FakeWishes())
+        phone.onText("found")
+        settle()
+        assertNull(phone.state.value.results)
+    }
+
+    @Test
+    fun theTvReadsTheLimitWithTheOwnWishes() = runTest(dispatcher) {
+        val s = session(backgroundScope)
+        settle()
+        val tv = WishesViewModel(s, FakeWishes(), LiveCount(), WishesTab.Mine, withQuota = true)
+        settle()
+        assertEquals(5, tv.state.value.quota?.movie?.limit)
+        assertEquals(1, tv.state.value.quota?.movie?.used)
+        assertNull(area(FakeWishes()).state.value.quota)
     }
 
     @Test

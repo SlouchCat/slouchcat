@@ -77,10 +77,11 @@ class RegistryTest {
     }
 
     @Test
-    fun theRailOfStage2bIsAsInTheMockup() {
+    fun theRailIsAsInTheMockup() {
         val registry = TvRegistry(features)
-        // Start, Suche on top, Einstellungen at the bottom; «Start» is home.
-        assertEquals(listOf("start", "search", "settings"), registry.rail.map { it.key })
+        // Start, Suche on top; Wünsche (stage 5) and Einstellungen at the bottom; «Start» is home.
+        assertEquals(listOf("start", "search", "wishes", "settings"), registry.rail.map { it.key })
+        assertEquals(listOf(10, 20, 40, 50), registry.rail.map { it.order })
         assertEquals("start", registry.home.key)
         // «Medien»: the video libraries in the server's order (audio waits for stage 4); the lists
         // are no entries of the rail (code review M-3) but «Meine Listen» of the menu.

@@ -6,6 +6,7 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.DiscoverRowKey
 import com.slouchcat.core.api.generated.models.Wish
 import com.slouchcat.core.api.generated.models.WishCounts
+import com.slouchcat.core.api.generated.models.WishQuota
 import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.api.map
 import com.slouchcat.core.media.ExternalCard
@@ -24,6 +25,7 @@ import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,6 +65,8 @@ data class WishesUiState(
     val withdrawing: WishCard? = null,
     /** Wishes whose change is on its way. */
     val busy: Set<Long> = emptySet(),
+    /** The limit of the account (`getWishQuota`), read with «Meine Wünsche» when the page asks for it. */
+    val quota: WishQuota? = null,
 ) {
     /** «Entdecken» is there only when the server shows its pages to the profile (`WishRights.discover`). */
     val discover: Boolean get() = (rights as? Loadable.Ready)?.value?.discover == true
@@ -94,6 +98,13 @@ class WishesViewModel(
     private val openCount: LiveCount,
     initialTab: WishesTab = WishesTab.Discover,
     initialQuery: String? = null,
+    /** Reads the limit with «Meine Wünsche» ([WishesUiState.quota]); the TV shows it above the list (mockup `.md-quota`). */
+    private val withQuota: Boolean = false,
+    /**
+     * Searches by itself this long after the last change of the text (the TV types with the remote,
+     * key by key); `null`: only [onSubmit] searches (the phone's field with its search key).
+     */
+    private val searchPauseMs: Long? = null,
 ) : ViewModel() {
     private val images = session.server?.let(::ServerImages)
     private val local = MutableStateFlow(WishesUiState(tab = initialTab, text = initialQuery.orEmpty()))
@@ -110,6 +121,7 @@ class WishesViewModel(
             if (result is ApiResult.Ok) {
                 local.update { it.copy(counts = result.value.counts) }
                 openCount.set(result.value.counts.open)
+                if (withQuota && offset == 0) (repository.quota(server) as? ApiResult.Ok)?.let { quota -> local.update { it.copy(quota = quota.value) } }
             }
         }.map { Page(it.items, it.total) }
     }
@@ -177,7 +189,17 @@ class WishesViewModel(
 
     fun onText(text: String) {
         local.update { it.copy(text = text) }
-        if (text.isBlank()) clearSearch()
+        if (text.isBlank()) {
+            clearSearch()
+            return
+        }
+        val pause = searchPauseMs ?: return
+        if (text.trim() == searchQuery) return
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(pause)
+            onSubmit()
+        }
     }
 
     fun onClear() {

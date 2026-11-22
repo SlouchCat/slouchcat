@@ -10,6 +10,7 @@ import com.slouchcat.app.tv.player.PlayerFeature
 import com.slouchcat.app.tv.profilesettings.ProfileSettingsFeature
 import com.slouchcat.app.tv.search.SearchFeature
 import com.slouchcat.app.tv.settings.SettingsFeature
+import com.slouchcat.app.tv.wishes.WishesFeature
 
 /**
  * Every feature of the TV app, one line each (concept 26, section 10: one or more per stage). The
@@ -29,4 +30,5 @@ val features: List<TvFeature> = listOf(
     ProfileSettingsFeature,
     PlayerFeature(),
     PlaybackSettingsFeature(),
+    WishesFeature(),
 )
