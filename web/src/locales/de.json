@@ -584,7 +584,9 @@
         "account": "Konto und Geräte",
         "general": "Mitteilungen des Servers"
       },
-      "pushChannel": "Push"
+      "pushChannel": "Push",
+      "publicText": "Neue Mitteilung",
+      "pushOffPending": "Ausgeschaltet. Der Server hat das Austragen noch nicht bestätigt: Die App holt es beim nächsten Kontakt nach. Lesen kann dieses Gerät keine Meldung mehr."
     },
     "tv": {
       "title": "Fernseher verbinden",

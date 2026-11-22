@@ -16,7 +16,10 @@ import java.util.Base64
 /** What the push relay said to `POST /v1/register`. */
 sealed interface RelayResult {
     /** The push address to give the server (`createPushSubscription.endpoint`). */
-    data class Registered(val endpoint: String) : RelayResult
+    data class Registered(val endpoint: String) : RelayResult {
+        /** The address holds the sealed Google token: never in a log (rule 10: `sealedtoken`). */
+        override fun toString(): String = "Registered(…)"
+    }
 
     /** The relay refused the token or the key (400), or is rate limited (429), or down (503 or no answer). */
     data class Failed(val status: Int?) : RelayResult
@@ -38,11 +41,12 @@ class PushRelay(private val base: HttpUrl, private val http: Call.Factory) {
         return try {
             http.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return RelayResult.Failed(response.code)
-                val answer = SlouchcatApi.json.parseToJsonElement(response.body.string()) as? JsonObject
+                // A bounded answer: the address is short (security review L-2).
+                val source = response.body.source()
+                if (source.request(MAX_ANSWER + 1L)) return RelayResult.Failed(null)
+                val answer = SlouchcatApi.json.parseToJsonElement(source.buffer.readUtf8()) as? JsonObject
                 val endpoint = (answer?.get("endpoint") as? JsonPrimitive)?.takeIf { it.isString }?.content
-                // The address must belong to the relay asked (scheme and host), never somewhere else.
-                val url = endpoint?.toHttpUrlOrNull()
-                if (url == null || url.host != base.host || url.scheme != base.scheme) RelayResult.Failed(response.code) else RelayResult.Registered(endpoint)
+                if (endpoint != null && isOwnAddress(endpoint)) RelayResult.Registered(endpoint) else RelayResult.Failed(null)
             }
         } catch (e: IOException) {
             RelayResult.Failed(null)
@@ -51,8 +55,24 @@ class PushRelay(private val base: HttpUrl, private val http: Call.Factory) {
         }
     }
 
+    /**
+     * The address must be one of the relay asked (scheme, host and port), of the form
+     * `/v1/push/<version>.<sealed>` (relay/internal/push), no query, no fragment, and fit the server's
+     * limit of 2048 characters; anything else is refused (security review L-2, code review L-2).
+     */
+    internal fun isOwnAddress(endpoint: String): Boolean {
+        if (endpoint.length > MAX_ENDPOINT) return false
+        val url = endpoint.toHttpUrlOrNull() ?: return false
+        return url.scheme == base.scheme && url.host == base.host && url.port == base.port &&
+            url.querySize == 0 && url.fragment == null && PATH.matches(url.encodedPath) &&
+            runCatching { java.net.URI(endpoint) }.isSuccess
+    }
+
     private companion object {
         val JSON = "application/json".toMediaType()
+        const val MAX_ANSWER = 8192
+        const val MAX_ENDPOINT = 2048
+        val PATH = Regex("/v1/push/[a-z0-9]{1,16}\\.[A-Za-z0-9_-]{16,2000}")
     }
 }
 
@@ -87,13 +107,30 @@ data class PushMessage(val title: String, val body: String, val url: String?) {
          */
         fun path(url: String?, server: HttpUrl?): String? {
             if (url.isNullOrBlank()) return null
-            if (url.startsWith("/") && !url.startsWith("//")) return url
+            if (url.startsWith("/")) return url.takeIf { safe(it) }
             val parsed = url.toHttpUrlOrNull() ?: return null
-            if (server == null || parsed.host != server.host || parsed.port != server.port) return null
+            if (server == null || parsed.scheme != server.scheme || parsed.host != server.host || parsed.port != server.port) return null
             val path = parsed.encodedPath
             val prefix = server.encodedPath.trimEnd('/')
-            val own = if (prefix.isNotEmpty() && path.startsWith(prefix)) path.removePrefix(prefix).ifEmpty { "/" } else path
-            return own + (parsed.encodedQuery?.let { "?$it" } ?: "")
+            // The server's own sub path, cut at a «/» only (code review L-1).
+            val own = when {
+                prefix.isEmpty() -> path
+                path == prefix -> "/"
+                path.startsWith("$prefix/") -> path.removePrefix(prefix)
+                else -> return null
+            }
+            return (own + (parsed.encodedQuery?.let { "?$it" } ?: "")).takeIf { safe(it) }
+        }
+
+        /**
+         * A path of the own server only: one leading «/», no second one, no backslash, no control
+         * character and no encoded slash or backslash at its start (security review I-1).
+         */
+        private fun safe(path: String): Boolean {
+            if (!path.startsWith("/") || path.startsWith("//")) return false
+            if (path.any { it == '\\' || it.isISOControl() }) return false
+            val head = path.drop(1).take(3).lowercase()
+            return !head.startsWith("%2f") && !head.startsWith("%5c")
         }
     }
 }

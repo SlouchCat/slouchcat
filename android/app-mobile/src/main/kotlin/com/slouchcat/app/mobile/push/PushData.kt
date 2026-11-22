@@ -10,7 +10,6 @@ import com.slouchcat.app.mobile.common.SignOutStep
 import com.slouchcat.app.mobile.more.DevicesRoute
 import com.slouchcat.app.mobile.more.MoreRoute
 import com.slouchcat.app.mobile.shell.AppLink
-import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.push.PushRelay
 import com.slouchcat.core.session.KeystoreSecretBox
 import com.slouchcat.core.session.SessionState
@@ -61,7 +60,8 @@ object PushData {
  */
 object PushStarter {
     fun start(application: Application, graph: AppGraph) {
-        PushNotifier.ensureChannels(application)
+        // Only a build with push gets the channels of the system (code review L-4).
+        if (PushPlatforms.configured) PushNotifier.ensureChannels(application)
         graph.hooks.addSignOutStep(
             object : SignOutStep {
                 override suspend fun beforeSignOut(answer: Boolean) = graph.push.forget()
@@ -72,13 +72,16 @@ object PushStarter {
             graph.session.state
                 .map { state -> (state as? SessionState.Ready)?.server?.address?.toString() ?: (state as? SessionState.ChooseProfile)?.server?.address?.toString() }
                 .distinctUntilChanged()
-                .collect { server -> if (server != null) runCatching { graph.push.sync() }.onFailure { Log.w("push", "sync failed", error = it) } }
+                .collect { server -> if (server != null) graph.push.sync() }
         }
+        // The check in the background (concept 27, 7.3; code review M-4): Android may not start the
+        // app for days, and a new VAPID key or a lost subscription must not stay unnoticed.
+        if (PushPlatforms.configured) PushCheckWorker.schedule(application)
     }
 
     /** Google gave a new token: enter the subscription again. */
     fun tokenChanged(graph: AppGraph) {
-        graph.scope.launch { runCatching { graph.push.sync() } }
+        graph.scope.launch { graph.push.sync() }
     }
 }
 

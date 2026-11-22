@@ -105,7 +105,8 @@ object WebPush {
         val nonce = hkdf(salt, ikm, "Content-Encoding: nonce\u0000".toByteArray(), 12)
 
         val out = java.io.ByteArrayOutputStream()
-        val records = ciphertext.toList().chunked(rs.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).map { it.toByteArray() }
+        val size = rs.coerceAtMost(MAX_BODY.toLong()).toInt()
+        val records = (ciphertext.indices step size).map { start -> ciphertext.copyOfRange(start, minOf(start + size, ciphertext.size)) }
         records.forEachIndexed { index, record ->
             val plain = try {
                 Cipher.getInstance("AES/GCM/NoPadding").run {

@@ -33,6 +33,13 @@ class LogTest {
     }
 
     @Test
+    fun thePushAddressIsScrubbed() {
+        val out = capture { Log.w("push", "bad address https://push.example.test/v1/push/1.SEALEDTOKEN0123456789 here") }
+        assertFalse(out, "SEALEDTOKEN" in out)
+        assertTrue(out, "/v1/push/[redacted] here" in out)
+    }
+
+    @Test
     fun messagesAndErrorsAreScrubbed() {
         val error = IOException(
             "failed: http://192.0.2.10:8096/api/v1/items/01J/stream?st=STREAMTOKEN&x=1",

@@ -584,7 +584,9 @@
         "account": "Account and devices",
         "general": "Messages of the server"
       },
-      "pushChannel": "Push"
+      "pushChannel": "Push",
+      "publicText": "New notification",
+      "pushOffPending": "Switched off. The server has not confirmed the removal yet: the app does it at the next contact. This device can no longer read a notification."
     },
     "tv": {
       "title": "Connect a TV",

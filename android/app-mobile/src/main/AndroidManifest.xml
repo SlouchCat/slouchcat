@@ -28,5 +28,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- The tap on a notification (stage 8, security review M-1): only the app's own
+             PendingIntent starts it (not exported, no intent filter). -->
+        <activity
+            android:name=".push.PushTapActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 </manifest>
