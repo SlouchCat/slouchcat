@@ -71,6 +71,9 @@ class RegistryTest {
         WatchlistRoute::class, WatchedRoute::class, CollectionsRoute::class, CollectionRoute::class, ProfilesSettingsRoute::class,
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
         DownloadsRoute::class, OfflinePlayerRoute::class,
+        com.slouchcat.app.mobile.browse.ListenRoute::class, com.slouchcat.app.mobile.browse.AudioSeriesRoute::class,
+        com.slouchcat.app.mobile.browse.AudiobooksRoute::class, com.slouchcat.app.mobile.browse.PodcastsRoute::class,
+        com.slouchcat.app.mobile.browse.RadioRoute::class,
     )
 
     @Test
@@ -82,6 +85,13 @@ class RegistryTest {
         // Media entries of every feature, for a few libraries, also pass their checks.
         val entries = registry.mediaEntries(libraries)
         assertEquals(entries.size, entries.map { it.section to it.order }.toSet().size)
+        // Stage 7: the small player in the slot of the shell, Webradio in the media choice and «Mehr».
+        assertTrue(registry.accessory != null)
+        assertTrue(entries.any { it.key == "radio" })
+        assertEquals(
+            listOf("watchlist", "watched", "collections", "audiobooks", "podcasts", "radio"),
+            registry.more.filter { it.section == MoreSection.Library }.map { it.key },
+        )
     }
 
     @Test

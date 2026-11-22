@@ -49,7 +49,14 @@ data class RadioUiState(
     val countrySheet: Boolean = false,
 )
 
-enum class RadioMessage { Failed, Added, Removed }
+/** A short message of the radio page. */
+sealed interface RadioMessage {
+    data class Added(val name: String) : RadioMessage
+
+    data class Removed(val name: String) : RadioMessage
+
+    data object Failed : RadioMessage
+}
 
 /**
  * The page «Webradio» (concept 16, concept 19 part B; web `RadioPage`): the stations of the offer
@@ -170,7 +177,7 @@ class RadioViewModel(
             _ui.update { it.copy(busy = it.busy - station.id) }
             if (result is ApiResult.Ok) {
                 favoritesCount?.adjust(if (on) 1 else -1)
-                _messages.send(if (on) RadioMessage.Added else RadioMessage.Removed)
+                _messages.send(if (on) RadioMessage.Added(station.name) else RadioMessage.Removed(station.name))
             } else {
                 hearts.update { it + (station.id to !on) }
                 _messages.send(RadioMessage.Failed)

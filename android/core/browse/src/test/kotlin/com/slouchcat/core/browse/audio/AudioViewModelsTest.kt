@@ -144,7 +144,7 @@ class AudioViewModelsTest {
         settle()
         assertEquals("favorite:3:true", radio.calls.single())
         assertEquals(2, count.count.value)
-        assertEquals(RadioMessage.Added, vm.messages.first())
+        assertEquals(RadioMessage.Added("Radio 3"), vm.messages.first())
         // Removing the last ones leaves «Meine Sender» empty.
         vm.onFavorite(vm.stations.value.loaded.first { it.id == 2L })
         vm.onFavorite(vm.stations.value.loaded.first { it.id == 3L })

@@ -109,7 +109,7 @@ class AudioPlayback(
         val controller = if (current?.title != null && current.source?.key == source.key) {
             current.title
         } else {
-            retire()
+            retire(clearEngine = false)
             val child = child()
             val engine = engines(EngineKind.Speech)
             val made = PlaybackController(child, scope, source.server(), engine, capabilities, settings, metered, clock)
@@ -133,7 +133,7 @@ class AudioPlayback(
         val controller = if (current?.radio != null) {
             current.radio
         } else {
-            retire()
+            retire(clearEngine = false)
             val child = child()
             val engine = engines(EngineKind.Music)
             val made = RadioController(child, scope, radioServer(), engine)
@@ -238,10 +238,12 @@ class AudioPlayback(
     }
 
     /** Closes what plays: the last progress or `endRadioListen` in the app's scope, then its loops end. */
-    private fun retire() {
+    private fun retire(clearEngine: Boolean = true) {
         val old = active ?: return
         active = null
-        engineFlow.value = null
+        // A change between two players keeps the flow on the old one until the new one is there (no
+        // `null` in between: the media session would end and start again).
+        if (clearEngine) engineFlow.value = null
         old.title?.close()
         old.radio?.close()
         old.scope.cancel()

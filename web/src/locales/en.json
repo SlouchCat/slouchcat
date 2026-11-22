@@ -514,8 +514,54 @@
       "signOutSize_other": "{{count}} downloads · {{size}}",
       "signOutKeep": "If you keep them, they open again only when the same account signs in."
     },
-    "audio": {},
-    "radio": {},
+    "audio": {
+      "chapterOf": "Chapter {{n}} of {{total}}",
+      "leftTotal": "{{left}} left in total · {{percent}} %",
+      "resumeChapter": "Chapter {{n}} · {{position}} of {{length}}",
+      "close": "Close the audio player",
+      "open": "Open the audio player: {{title}}",
+      "stop": "Stop playback",
+      "speedTitle": "Speed",
+      "sleepTitle": "Sleep timer",
+      "sleepLeft": "{{left}} left",
+      "download": "Download",
+      "allParts": "One download covers every part of the audiobook.",
+      "newest": "Newest episode",
+      "newestFirst": "newest first",
+      "episodeMeta": "{{date}} · {{length}}",
+      "chaptersMeta": "{{count}} · {{length}}",
+      "previousEpisode": "Previous episode",
+      "nextEpisode": "Next episode",
+      "restored": "Last played",
+      "offline": "From this device",
+      "channel": "Playback",
+      "episodeHeard": "Mark {{title}} as played",
+      "episodeUnheard": "Mark {{title}} as unplayed",
+      "failed": "That did not work. Please try again.",
+      "audiobooks": "Audiobooks",
+      "podcasts": "Podcasts",
+      "noLibrary": "This profile sees no such library."
+    },
+    "radio": {
+      "title": "Web radio",
+      "moreSubtitle": "Live stations",
+      "allCountries": "All countries",
+      "countryTitle": "Country",
+      "added": "{{name}} is now in “My stations”.",
+      "removed": "{{name}} is no longer in “My stations”.",
+      "failed": "That did not work. Please try again.",
+      "favoriteOn": "Remove {{name}} from “My stations”",
+      "favoriteOff": "Add {{name}} to “My stations”",
+      "error": {
+        "watchLimit": "The watch time for today is used up.",
+        "capacity": "The server relays as many stations as it may. Please try again later.",
+        "unreachable": "The station does not answer right now.",
+        "notAudio": "This station sends no sound.",
+        "ended": "Playback was ended.",
+        "network": "No connection to the server.",
+        "failed": "This station cannot be played right now."
+      }
+    },
     "wishes": {},
     "notifications": {},
     "tv": {}
@@ -1632,7 +1678,13 @@
     },
     "subtitleStyle": {
       "title": "Subtitle style",
-      "size": { "title": "Size", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Size",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Background",
         "none": "None",
@@ -1640,8 +1692,16 @@
         "translucent": "Translucent",
         "box": "Box"
       },
-      "color": { "title": "Colour", "white": "White", "yellow": "Yellow" },
-      "position": { "title": "Position", "bottom": "Bottom", "raised": "A little higher" },
+      "color": {
+        "title": "Colour",
+        "white": "White",
+        "yellow": "Yellow"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Bottom",
+        "raised": "A little higher"
+      },
       "offset": {
         "title": "Offset",
         "earlier": "0.1 s earlier",
@@ -1704,8 +1764,16 @@
       "cardSeason": "Season {{season}} · {{name}}",
       "notOnDevice": "Not on this device"
     },
-    "tabs": { "label": "More about the title", "next": "Up next", "info": "Info" },
-    "pauseView": { "label": "Paused", "paused": "Paused", "chapter": "Chapter: {{chapter}}" },
+    "tabs": {
+      "label": "More about the title",
+      "next": "Up next",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Paused",
+      "paused": "Paused",
+      "chapter": "Chapter: {{chapter}}"
+    },
     "slow": {
       "label": "Slow connection",
       "text": "Slow connection – switch to {{quality}}?",

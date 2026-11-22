@@ -45,6 +45,15 @@
         "deleted": "Profil „{{name}}“ gelöscht",
         "partly": "Das Profil ist gespeichert, aber die PIN ließ sich nicht ändern. Versuche es erneut."
       }
+    },
+    "audio": {
+      "close": "Tonplayer schließen"
+    },
+    "radio": {
+      "added": "{{name}} ist jetzt in „Meine Sender“.",
+      "removed": "{{name}} ist nicht mehr in „Meine Sender“.",
+      "favoriteOn": "{{name}} aus „Meine Sender“ entfernen",
+      "favoriteOff": "{{name}} zu „Meine Sender“ hinzufügen"
     }
   },
   "common": {
