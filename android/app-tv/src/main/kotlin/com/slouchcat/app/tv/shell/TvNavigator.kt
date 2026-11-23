@@ -65,6 +65,15 @@ class TvNavigator(
         nav.navigate(route)
     }
 
+    /**
+     * [route] instead of the page shown (a title outside the library that is in the library
+     * meanwhile): Back then skips the replaced page.
+     */
+    fun replace(route: Any) {
+        val top = nav.currentBackStackEntry ?: return navigate(route)
+        nav.navigate(route) { popUpTo(top.destination.id) { inclusive = true } }
+    }
+
     /** Whether a page of [route] (equal arguments) is in the stack. */
     private fun has(route: Any): Boolean = runCatching { nav.getBackStackEntry(route) }.isSuccess
 
@@ -154,4 +163,15 @@ class TvNavigator(
 
     /** A setup page from the choice. */
     fun toSetup(route: Any) = nav.navigate(route) { launchSingleTop = true }
+
+    /**
+     * [listener] hears every new page as it is navigated to, before the page is drawn (stage 4: the
+     * sound ends the title's session before a video starts its own, review M-2). Gives the call that
+     * stops listening.
+     */
+    fun onPage(listener: (androidx.navigation.NavDestination) -> Unit): () -> Unit {
+        val callback = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> listener(destination) }
+        nav.addOnDestinationChangedListener(callback)
+        return { nav.removeOnDestinationChangedListener(callback) }
+    }
 }

@@ -126,10 +126,16 @@ class FakeWishes(
     /** When set, every answer is this failure. */
     var failure: ApiResult<Nothing>? = null
 
+    /** Answers of `getExternalTitle` for single titles (409 `already_available` with its `item`). */
+    var titleFailures: MutableMap<Long, ApiResult<Nothing>> = mutableMapOf()
+
     /** When set, only creating and withdrawing fail. */
     var changeFailure: ApiResult<Nothing>? = null
     var discoverFailure: ApiResult<Nothing>? = null
     var searchHits: List<ExternalTitleRef> = listOf(externalRef(7, "Found Seven"), externalRef(8, "Found Eight", ExternalMedia.SHOW))
+
+    /** How long Seerr takes to answer a search for a text (a slow answer that comes late). */
+    var searchDelayMs: (String) -> Long = { 0 }
     val calls = mutableListOf<String>()
     val created = mutableListOf<WishCreate>()
 
@@ -144,8 +150,20 @@ class FakeWishes(
         return ApiResult.Ok(WishDiscover(rows))
     }
 
+    /** Further pages of the rows of «Entdecken»: page 2 and on of [rowPages] (key to the pages after the first). */
+    var rowPages: MutableMap<DiscoverRowKey, List<List<ExternalTitleRef>>> = mutableMapOf()
+
+    override suspend fun discoverRow(server: HttpUrl, row: DiscoverRowKey, page: Int): ApiResult<DiscoverPage> {
+        calls += "row:${row.value}:$page"
+        (failure ?: discoverFailure)?.let { return it }
+        val pages = rowPages[row].orEmpty()
+        val hits = pages.getOrNull(page - 2).orEmpty()
+        return ApiResult.Ok(DiscoverPage(hits.map { DiscoverEntry(it, false) }, page, stale = false, fetchedAt = AT, totalPages = pages.size + 1))
+    }
+
     override suspend fun search(server: HttpUrl, query: String, page: Int): ApiResult<DiscoverPage> {
         calls += "search:$query:$page"
+        searchDelayMs(query).takeIf { it > 0 }?.let { kotlinx.coroutines.delay(it) }
         failure?.let { return it }
         return ApiResult.Ok(DiscoverPage(searchHits.map { DiscoverEntry(it, false) }, page, stale = false, fetchedAt = AT, totalPages = 1))
     }
@@ -160,6 +178,7 @@ class FakeWishes(
     override suspend fun title(server: HttpUrl, media: ExternalMedia, tmdbId: Long): ApiResult<ExternalTitle> {
         calls += "title:${media.value}:$tmdbId"
         failure?.let { return it }
+        titleFailures[tmdbId]?.let { return it }
         val open = wishList.firstOrNull { it.tmdbId == tmdbId && it.state in OPEN_WISH_STATES }
         val title = titles[tmdbId] ?: return ApiResult.NotFound
         return ApiResult.Ok(title.copy(wish = open?.let { WishMark(it.id, it.state) }, canRequest = open == null && title.canRequest))
@@ -209,6 +228,11 @@ class FakeWishes(
         (changeFailure ?: failure)?.let { return it }
         val index = wishList.indexOfFirst { it.id == id }
         if (index < 0) return ApiResult.NotFound
+        // As the server: leaving a wish another profile owns removes it from this profile's list.
+        if (wishList[index].role == Wish.Role.JOINED) {
+            wishList.removeAt(index)
+            return ApiResult.Ok(Unit)
+        }
         wishList[index] = wishList[index].copy(state = WishState.WITHDRAWN, canWithdraw = false)
         return ApiResult.Ok(Unit)
     }

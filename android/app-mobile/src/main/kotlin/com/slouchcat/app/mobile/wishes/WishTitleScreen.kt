@@ -50,6 +50,8 @@ import com.slouchcat.core.api.generated.models.WishSeasonOffer
 import com.slouchcat.core.api.generated.models.WishState
 import com.slouchcat.core.browse.wishes.WishSheet
 import com.slouchcat.core.browse.wishes.WishTitleUiState
+import com.slouchcat.core.browse.wishes.progressTexts
+import com.slouchcat.core.browse.wishes.quotaText
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.Note
 import com.slouchcat.core.design.SectionTitle
@@ -221,27 +223,12 @@ private fun Steps(state: WishState) {
 }
 
 @Composable
-private fun progressText(progress: com.slouchcat.core.api.generated.models.WishProgress): String? = when (progress.stage) {
-    com.slouchcat.core.api.generated.models.WishProgress.Stage.SEARCH -> stringResource(R.string.wishes_progress_search)
-    com.slouchcat.core.api.generated.models.WishProgress.Stage.DOWNLOAD -> listOfNotNull(
-        stringResource(R.string.wishes_progress_download),
-        progress.percent?.let { stringResource(R.string.wishes_progress_percent, it.toString()) },
-    ).joinToString(stringResource(R.string.format_separator))
-    com.slouchcat.core.api.generated.models.WishProgress.Stage.IMPORT -> stringResource(R.string.wishes_progress_import)
-    com.slouchcat.core.api.generated.models.WishProgress.Stage.STALLED -> stringResource(R.string.wishes_progress_stalled)
-    else -> null
-}
+private fun progressText(progress: com.slouchcat.core.api.generated.models.WishProgress): String? =
+    progressTexts(progress).map { it.text() }.takeIf { it.isNotEmpty() }?.joinToString(stringResource(R.string.format_separator))
 
 /** «Filme: 1 von 5 in 7 Tagen» (web `quotaText`); without limit «Filme ohne Limit». */
 @Composable
-fun quotaLine(media: ExternalMedia, quota: WishQuota): String {
-    val part = if (media == ExternalMedia.SHOW) quota.tv else quota.movie
-    return when {
-        quota.unlimited || part == null -> stringResource(if (media == ExternalMedia.SHOW) R.string.wishes_quota_tvNone else R.string.wishes_quota_movieNone)
-        media == ExternalMedia.SHOW -> stringResource(R.string.wishes_quota_tv, part.used.toString(), part.limit.toString(), part.days.toString())
-        else -> stringResource(R.string.wishes_quota_movie, part.used.toString(), part.limit.toString(), part.days.toString())
-    }
-}
+fun quotaLine(media: ExternalMedia, quota: WishQuota): String = quotaText(media, quota).text()
 
 /** «Anfordern» (mockup handy 65): the title, for a series its seasons with «Alle Staffeln», the limit and the note. */
 @Composable

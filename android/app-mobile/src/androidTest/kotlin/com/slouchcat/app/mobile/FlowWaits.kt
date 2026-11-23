@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile
 
 import android.graphics.Bitmap
+import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.isRoot
@@ -16,10 +17,30 @@ import java.io.File
  * wait is the same, only the report is better.
  */
 
+/**
+ * The nodes of [matcher] now; `null` while no Compose hierarchy is there at all. That is a moment,
+ * not a state: an activity without Compose lies in front (the tap on a notification passes through
+ * `PushTapActivity` before `MainActivity` is back), and `fetchSemanticsNodes` throws then instead
+ * of answering «none». Only that one exception counts as «not yet»; every other one goes on.
+ */
+fun ComposeTestRule.nodesOrNull(matcher: SemanticsMatcher, unmerged: Boolean = false): List<SemanticsNode>? = try {
+    onAllNodes(matcher, useUnmergedTree = unmerged).fetchSemanticsNodes()
+} catch (e: IllegalStateException) {
+    if (e.message?.startsWith(NO_HIERARCHY) == true) null else throw e
+}
+
+/** A node of [matcher] is there now (no Compose hierarchy: not yet). */
+fun ComposeTestRule.isShown(matcher: SemanticsMatcher, unmerged: Boolean = false): Boolean = nodesOrNull(matcher, unmerged)?.isNotEmpty() == true
+
+/** No node of [matcher] is there now, in a Compose hierarchy that is there. */
+fun ComposeTestRule.isGone(matcher: SemanticsMatcher, unmerged: Boolean = false): Boolean = nodesOrNull(matcher, unmerged)?.isEmpty() == true
+
+private const val NO_HIERARCHY = "No compose hierarchies found in the app"
+
 /** Waits until a node of [matcher] is there; at the timeout fails with the screen's tree. */
 fun ComposeTestRule.waitForNode(matcher: SemanticsMatcher, timeout: Long, what: String = matcher.description) {
     try {
-        waitUntil(timeout) { onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        waitUntil(timeout) { isShown(matcher, unmerged = true) }
     } catch (e: ComposeTimeoutException) {
         throw AssertionError("not shown within $timeout ms: $what\n${screenReport(what)}", e)
     }
@@ -28,7 +49,7 @@ fun ComposeTestRule.waitForNode(matcher: SemanticsMatcher, timeout: Long, what: 
 /** Waits until no node of [matcher] is there; at the timeout fails with the screen's tree. */
 fun ComposeTestRule.waitForNoNode(matcher: SemanticsMatcher, timeout: Long, what: String = matcher.description) {
     try {
-        waitUntil(timeout) { onAllNodes(matcher).fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeout) { isGone(matcher) }
     } catch (e: ComposeTimeoutException) {
         throw AssertionError("still shown after $timeout ms: $what\n${screenReport(what)}", e)
     }

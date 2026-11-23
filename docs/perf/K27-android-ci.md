@@ -143,3 +143,40 @@ Was als Nächstes zu versuchen ist, ohne dass ein Pull Request daran hängt: Tö
 (seit diesem Stand schaltet das Skript die Tastentöne aus), eine andere Darstellung (`-gpu swangle`
 oder `lavapipe`), ein Systemabbild ohne Google-Apps (`aosp_atd`) oder eine ältere API-Stufe. Hält der
 Job über mehrere Pull Requests, kommt er zurück ins Gate.
+
+## Absturz des Emulators (23.11.2026): Darstellung `swangle_indirect` statt `swiftshader_indirect`
+
+**Befund:** Auf der Entwicklungsmaschine stürzte der Emulator im Handy-Ablauf auch bei ruhiger
+Maschine ab, rund 26 s in `AudioFlowTest`. Das Skript meldete «Speicherzugriffsfehler», danach
+`adb: device offline`. Der Logcat des Gasts endet jedes Mal damit, dass SystemUI die Medienkarte der
+Mitteilung aufbaut (`ConstraintSet: id unknown media_action_barrier_…`, `HWUI: Image decoding`).
+
+Die Speicherabzüge (`coredumpctl`, vier geprüfte Abstürze am 23.11.2026 zwischen 04:04 und 04:45) halten alle
+an derselben Instruktion an (`movdqu 0x184f0(%rax,%rcx,1),%xmm5`, gleicher Versatz in der Seite). Die
+Adresse liegt in Code, der zur Laufzeit erzeugt wurde, ausserhalb jeder Bibliothek des Emulators;
+auf dem Stack stehen Gleitkommawerte (0,5; 1,5). Das passt zu Shader-Code, den der Renderer
+SwiftShader zur Laufzeit erzeugt. Der Tonpfad (`-no-audio`) ist damit nicht als Ursache belegt.
+
+**Versuche** (`CLASS=com.slouchcat.app.mobile.AudioFlowTest`, `sc_phone`, API 36, je ein Lauf mit
+frischem Emulator, `PORT=9497`, `EMU_PORT=5574`):
+
+| Einstellung                                         | Abstürze |
+| --------------------------------------------------- | -------- |
+| unverändert (`-gpu swiftshader_indirect`)           | 3 von 5  |
+| `-gpu swangle_indirect` (ANGLE über SwiftShader-Vulkan) | 0 von 5  |
+
+Die Einstellungen der SystemUI zur Medienkarte haben wir nicht verändert. Der Gast kennt unter
+`settings secure` nur `media_button_receiver`, also keinen Schalter, der die Karte verbirgt. Der
+Wechsel der Darstellung hielt schon im ersten Versuch; weitere Versuche (Karte aus, Ton-Backend)
+waren nicht mehr nötig.
+
+**Lösung:** `scripts/android-e2e.sh` startet den Emulator mit `-gpu swangle_indirect`. Mit `EMU_GPU`
+lässt sich das überschreiben. Die Darstellung bleibt reine Software, wie bisher. Der CI-Job
+`android-emulator` ruft dasselbe Skript auf und bekommt die Einstellung mit. Ob der Job auf dem
+Runner damit hält, zeigt der nächste Pull Request: Die Abstürze dort (Detailseite, «Merken») hatten
+dasselbe Bild. Die Medienbenachrichtigung bleibt an. `AudioFlowTest` prüft weiterhin, dass die
+Mediensitzung im Hintergrund spielt; mit `SHOTS` fotografiert er die Mitteilung. Danach lief der ganze
+Handy-Ablauf ohne `CLASS` einmal durch (Ergebnis im Bericht der Stufe 7).
+
+`scripts/android-tv-e2e.sh` (TV-Emulator) nutzt weiter `swiftshader_indirect`; dort ist kein Absturz
+gemeldet.

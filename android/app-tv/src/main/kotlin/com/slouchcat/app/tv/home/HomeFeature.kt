@@ -18,7 +18,7 @@ import com.slouchcat.app.tv.browse.CollectionsRoute
 import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.LibraryRoute
 import com.slouchcat.app.tv.browse.ListRoute
-import com.slouchcat.app.tv.browse.PlayerRoute
+import com.slouchcat.app.tv.browse.player
 import com.slouchcat.app.tv.player.Playbacks
 import com.slouchcat.app.tv.browse.SearchRoute
 import com.slouchcat.app.tv.browse.WatchlistRoute
@@ -70,7 +70,8 @@ object HomeFeature : TvFeature {
             val links = remember(navigator) {
                 HomeLinks(
                     item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
-                    play = if (navigator.canOpen(PlayerRoute::class)) ({ navigator.navigate(PlayerRoute(it.id)) }) else null,
+                    // Audiobooks and episodes («Weiterhören») go to the audio player of stage 4.
+                    play = navigator.player()?.let { play -> { item -> play(item.id, item.kind) } },
                     showAll = { row ->
                         val list = row.list
                         val library = row.libraryId

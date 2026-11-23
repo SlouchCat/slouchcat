@@ -7,7 +7,11 @@
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
 # (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
-# resume, an episode up to the countdown, «Wiedergabe» of the settings.
+# resume, an episode up to the countdown, «Wiedergabe» of the settings; (d) «Wünsche» and
+# «Benachrichtigungen» of stage 5 through the Seerr and TMDB mocks of scripts/android-helpers.sh;
+# (e) the sound of stage 4 (TvAudioFlowTest): the audiobook and the podcast of
+# scripts/android-test-video.sh as libraries of their own, the audio player, Home, and the test
+# stations of the radio (radio_start of scripts/android-helpers.sh, always started).
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -21,6 +25,8 @@
 # WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
 # PHONE       who plays the phone: apicheck (default, Go) or kotlin (the phone app's own Kotlin of
 #             :core:pairing as a JVM program, :core:pairing:phoneCheck; task android:e2e:pair)
+# TESTS       only these test classes (`am instrument -e class`, comma separated, for example
+#             com.slouchcat.app.tv.TvAudioFlowTest); default every class
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
 # emulator-EMU_PORT), waits while another emulator runs, and on exit stops that emulator, the
@@ -38,7 +44,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
-adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# Every adb call has a limit: adb waits without end when the emulator has died (21 November 2026).
+adb() { timeout 300 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 # For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
 adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
@@ -99,7 +106,9 @@ mkdir -p "$root/media"
 ../scripts/android-test-video.sh "$root/media"
 # The helpers of scripts/android-helpers.sh (the pairing relay on RELAY_PORT among them) first.
 helpers_start "$root" "$port" "$relay_port" || fail "a helper did not come up"
-SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# The radio's test stations (stage 4): the server built with the tag radiotest reads them.
+radio_start "$root" "$port" || fail "the radio stations did not come up"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= "$HELPER_RADIO_SERVER" serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -166,7 +175,10 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
-adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
+extra+=(-e slouchcatRadio 1)
+if [ -n "${TESTS:-}" ]; then extra+=(-e class "$TESTS"); fi
+# The whole flow under one adb call: its own, longer limit.
+timeout 3600 "$sdk/platform-tools/adb" -s "$serial" shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
   -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" -e slouchcatMedia "$root/media" "${extra[@]}" \
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!
@@ -181,8 +193,18 @@ photos() {
   echo "android-tv-e2e: photos in $shots"
 }
 
-# The phone: as soon as the TV shows its code, apicheck lays the packet down at the relay.
+# The phone: as soon as the TV shows its code, apicheck lays the packet down at the relay (only
+# when TvFlowTest runs: its test b sets the TV up by scan).
 code=""
+if [ -n "${TESTS:-}" ] && [[ "$TESTS" != *TvFlowTest* ]]; then
+  wait "$instrument_pid" || true
+  instrument_pid=""
+  grep -E "^(OK|FAILURES|Tests run)|Exception|Error|at com\.slouchcat" "$root/instrument.txt" | head -n 40
+  photos
+  grep -q '^OK (' "$root/instrument.txt" || fail "the flow failed"
+  echo "android-tv-e2e: done after $(($(date +%s) - started)) s ($(($(date +%s) - booted)) s with the device)"
+  exit 0
+fi
 for _ in $(seq 1 600); do
   code=$(sed -n 's/^INSTRUMENTATION_STATUS: pairCode=//p' "$root/instrument.txt" | head -n 1 | tr -d '\r')
   [ -n "$code" ] && break

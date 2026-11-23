@@ -8404,9 +8404,28 @@
       "channels": "Channels",
       "deviceNote": "Quality, flow and sound apply to this TV."
     },
-    "audio": {},
-    "radio": {},
+    "audio": {
+      "nowPlaying": "Now playing",
+      "radioPlaying": "Radio on",
+      "nowLabel": "{{state}}: {{title}}",
+      "listen": "Listen",
+      "progressLeft": "{{percent}} % · {{left}} left",
+      "new": "new",
+      "heard": "played",
+      "chapters_one": "{{count}} chapter",
+      "chapters_other": "{{count}} chapters",
+      "normal": "normal"
+    },
+    "radio": {
+      "hint": "OK starts a station, OK again pauses it.",
+      "countries": "Countries",
+      "favorite": "Favourite",
+      "addFavorite": "Add to favourites"
+    },
     "wishes": {},
+    "notifications": {
+      "allRead": "All read"
+    },
     "settings": {
       "title": "Settings",
       "active": "Active: {{name}}",

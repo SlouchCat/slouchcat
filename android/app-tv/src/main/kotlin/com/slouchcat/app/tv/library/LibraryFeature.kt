@@ -22,15 +22,16 @@ import com.slouchcat.core.browse.library.LibraryViewModel
 
 /**
  * The libraries (concept 26, 3.3, stage 2b; mockup `/library/:key`): one entry per library of the
- * profile in the section «Medien» of the rail, in the server's order, and the page of each. Only
- * libraries of films and series: audiobooks, podcasts and the radio come with stage 4. An entry is
+ * profile in the section «Medien» of the rail, in the server's order, and the page of each: films
+ * and series, and since stage 4 audiobooks and podcasts (square covers; the radio is an entry of
+ * `AudioFeature` after them). An entry is
  * marked on its library and on the titles opened from it ([LibraryRoute] only: a title belongs to
  * whatever page it was opened from).
  */
 object LibraryFeature : TvFeature {
     override val media = listOf(
         RailMedia { libraries ->
-            libraries.filter { it.kind == LibraryKind.VIDEO }.mapIndexed { index, library ->
+            libraries.filter { it.kind in SHOWN }.mapIndexed { index, library ->
                 RailEntry(
                     key = "library-${library.id}",
                     section = RailSection.Media,
@@ -79,4 +80,7 @@ object LibraryFeature : TvFeature {
 
     /** Libraries first in «Medien» (the radio of stage 4 after them). */
     const val ORDER = 10
+
+    /** The kinds of libraries with a page (stage 4 added sound). */
+    private val SHOWN = setOf(LibraryKind.VIDEO, LibraryKind.AUDIOBOOKS, LibraryKind.PODCASTS)
 }

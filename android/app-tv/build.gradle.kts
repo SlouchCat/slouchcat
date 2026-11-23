@@ -69,4 +69,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.core)
+    // Stage 4: the showcase of the sound plays on the attrappes (made-up titles, players without sound).
+    androidTestImplementation(project(":core:browse-testing"))
+    androidTestImplementation(project(":core:player-testing"))
 }

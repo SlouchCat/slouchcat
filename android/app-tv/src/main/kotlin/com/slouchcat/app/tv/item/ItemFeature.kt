@@ -16,6 +16,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.slouchcat.app.tv.TvGraph
+import com.slouchcat.app.tv.audio.AudioItemPage
 import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.PersonRoute
 import com.slouchcat.app.tv.browse.PlayerRoute
@@ -25,6 +26,7 @@ import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.browse.item.ItemMessage
 import com.slouchcat.core.browse.item.ItemViewModel
 import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.isAudio
 import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.launch
@@ -60,6 +62,11 @@ class ItemFeature(
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumed.launch { Playbacks.settled(graph); vm.onShown() } }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
+            // Audiobooks, podcasts and episodes have a page of their own (stage 4).
+            if (state.detail?.kind?.let(::isAudio) == true) {
+                AudioItemPage(graph, navigator, state, vm, images)
+                return@composable
+            }
             val context = LocalContext.current
             val links = remember(navigator) {
                 val player = navigator.canOpen(PlayerRoute::class)

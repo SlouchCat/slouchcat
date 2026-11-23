@@ -193,6 +193,26 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Regeln je Serie oder Podcast, Vorgabe «Qualität für neue Downloads», Lizenzfristen.
   - **Bekannte Grenzen (Papier 9.4, 9.5):** Die Dateien liegen unverschlüsselt im Speicher der App; ein
     Gerät ohne Kontakt zum Server behält seine Downloads ohne Frist.
+- **Konzept 27, Stufe 7 «Ton»:** Bibliotheken Hörbücher und Podcasts, Detailseiten Hörbuch, Reihe,
+  Podcast (Folgen in Seiten, Haken «gehört») und Folge, Webradio (Sender, Länder, Suche, «Meine Sender»,
+  «Jetzt läuft»), Tonplayer (Kapitel auf einer Zeitachse, −15/+30 s, Tempo 0,5 bis 3 je Titel,
+  Schlaftimer, Folgen und Kapitel als Blätter), kleiner Player über der Navigation auf allen Seiten,
+  Wiedergabe im Hintergrund als Mediendienst (`AudioService`, Sperrbildschirm, Kopfhörertasten,
+  Bluetooth), Ton-Downloads über `:core:offline`. Ein Video beendet den Ton; Abmelden, Profilwechsel und
+  ein anderes Profil im Offline-Betrieb ebenso.
+  - **Gemeinsam für die TV-App:** `AudioPlayback`, `RadioController`, `AudioRules`, `SleepTimer` in
+    `:core:player`; `AudioRepository`, `RadioRepository` in `:core:media`; ViewModels in `:core:browse`.
+  - **Unschärfe ohne `RenderEffect`:** Der weiche Hintergrund der Detailseiten wird auf der CPU gerechnet
+    (`CpuBlur`); der Emulator ohne Grafikkarte stürzte mit `RenderEffect` ab.
+  - **Geprüft:** Tests je Seite, Tests des Dienstes und der Wege (Video beendet Ton, Betrachterwechsel
+    beendet Ton), Vertragstest (16), ganzer Ablauf im Emulator auf Handy und Tablet (`task android:e2e`
+    ohne `CLASS` fährt jetzt alle Klassen samt Webradio gegen Teststationen), Schaubilder gegen das Mockup
+    angesehen, Code-Review und Sicherheits-Review mit Korrekturrunde, Verifier.
+  - **Nicht gebaut, weil der Vertrag es nicht hergibt:** Webradio «Zuletzt gespielt».
+  - **Offen (nur auf dem Gerät prüfbar):** eine Stunde Hörbuch im Hintergrund, Akku, Bluetooth, Anruf,
+    Prozess-Tod, Titelwechsel im Webradio ohne Aussetzer; die Gerätecheckliste (15 Punkte) steht in
+    `docs/perf/K27-android-handy.md`, «Stufe 7». Offline startet der Ton mit dem Tempo aus dem Stand des
+    Downloads (`LocalPosition` führt kein Tempo).
 - **Konzept 27, Stufe 8 «Wünsche und Meldungen»:** Bereich «Wünsche» über Seerr (Ziel der unteren Leiste;
   «Entdecken», «Meine Wünsche», Seite eines Titels ausserhalb der Bibliothek, Anfordern mit Staffelwahl,
   Zurückziehen; in der Suche «Noch nicht in der Bibliothek?»), Benachrichtigungen mit Glocke und Abzeichen
@@ -267,12 +287,48 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Attrappe, die sich wie Media3 verhält, Ablauf im TV-Emulator mit echter Wiedergabe, Code-Review mit
     Korrekturrunde (4 Major, zwei davon im gemeinsamen Player: Positionsverlust bei zwei Neustarts
     hintereinander, ungewolltes Losspielen nach einer Pause).
-  - **Offen:** Kapitelmarken auf der Zeitleiste des TV-Players (Papier 5.1 nennt Kapitel; die Daten
-    kommen an, die Leiste zeigt sie noch nicht); folgt mit Stufe 4.
+  - **Kapitelmarken** auf der Zeitleiste des TV-Players (Papier 5.1) sind mit Stufe 5 nachgezogen:
+    ausgedünnte Marken, der Kapitelname steht beim Spulen und in der Ansage der Leiste.
   - **Nicht geprüft, weil der Emulator es nicht kann:** Dolby Digital und Dolby Digital Plus (dekodieren
     und durchreichen), Mehrkanal-PCM, HDR10, HLG, Dolby Vision, der Wechsel des Tonausgangs an echter
     Hardware. Die Abnahmeliste je Gerät und Tonanlage (28 Schritte) steht in `docs/perf/K26-android-tv.md`,
     «Stufe 3».
+- **Konzept 26, Stufe 4 «Ton» (TV-App):** Bibliotheken Hörbücher und Podcasts, Seiten Hörbuch, Reihe, Podcast
+  und Folge, Webradio (Kacheln mit Stern für «Meine Sender», Ländermenü, Suche mit der Tastatur der TV-App),
+  Tonplayer als Vollbild (Kapitel auf einer Zeitachse, −15/+30 s, Kapitel und Folge vor und zurück, Menüs
+  Tempo (0,75× bis 2×), Kapitel, Folgen; nach 12 s eine ruhige Seite, der Bildschirm wird nicht wachgehalten), «Läuft
+  gerade» als Eintrag der Leiste und als Plakette oben rechts auf allen Seiten. Die Logik kommt aus
+  `:core:player`, `:core:media` und `:core:browse` (dieselbe wie in der Handy-App).
+  - **Ton nur, solange die App vorn ist (Papier 5.6):** Er endet bei Home, Standby, HDMI weg, Verlassen
+    der App, Profilwechsel und Abmelden; ein Video beendet die Sitzung des Hörtitels. Beim Bildschirmschoner
+    läuft er weiter. Kein Hintergrunddienst auf dem Fernseher.
+  - **Geprüft:** je Seite ein Test mit dem Steuerkreuz, Tests für Home, Schoner, HDMI, Verlassen und Video
+    (`AudioForegroundTest`, `AudioFlowTest`), Test über das echte Register, Ablauf im TV-Emulator mit
+    Teststationen (`task android:e2e:tv`, 12 Tests), Schaubilder gegen das Mockup angesehen, Code-Review mit
+    Korrekturrunde (1 Blocker, 2 Major), Verifier.
+  - **Abweichungen:** Sprünge −15/+30 s wie in der Web-App und der Handy-App (das TV-Mockup zeigt 30/30,
+    das Papier nennt keinen Wert).
+  - **Bekannte Grenzen:** Stirbt der Prozess gleich nach dem Verlassen, fehlt die letzte Meldung des Standes
+    an den Server. Wirkung von Bildschirmschoner, CEC und HDMI-Signalen an echten Geräten ist nicht geprüft
+    (Abnahmeliste in `docs/perf/K26-android-tv.md`, «Stufe 4»).
+- **Konzept 26, Stufe 5 «Wünsche» (TV-App):** Bereich «Wünsche» in der Leiste mit «Entdecken», «Suchen»
+  (eigene Tastatur und Spracheingabe) und «Meine Wünsche» (Filter, Zahl der offenen Wünsche), Titelseite
+  ausserhalb der Bibliothek mit Anfordern (Serien mit Staffeln), Zurückziehen und «Nicht mehr
+  mitwünschen», Limit; die Hauptsuche zeigt «Noch nicht in der Bibliothek?». Dazu Benachrichtigungen
+  (Eingang und Ankündigungen, Abzeichen an der Leiste) und Einstellungen › Benachrichtigungen. Die Logik
+  kommt aus `:core:browse` und `:core:media` (dieselbe wie in der Handy-App); die Wörter der Wünsche
+  liegen gemeinsam in `WishWords`.
+  - **Nicht auf dem Fernseher:** Kanäle und Push (`x-clients: [app]`, F-18), nichts aus der Verwaltung von
+    Seerr (Regel 11).
+  - **Geprüft:** je Seite ein Test mit dem Steuerkreuz (Fokus nie verloren, auch wenn die fokussierte Zeile
+    verschwindet), Test über das echte Register, Ablauf im TV-Emulator gegen die Seerr-Attrappe
+    (`task android:e2e:tv`, 8 Tests), Schaubilder gegen das Mockup angesehen, Code-Review mit
+    Korrekturrunde (2 Major), Verifier.
+  - **Abweichungen:** «Filme» und «Serien» sind Reihen in «Entdecken», die am Ende nachladen, keine
+    eigenen Seiten, und Genres fehlen (Papier Abschnitt 6 nennt sie; das TV-Mockup zeigt Reihen). «Suchen»
+    ist ein dritter Reiter statt eines Blatts. Seite, Zeile der Einstellungen und Leiste zählen Einträge
+    plus Ankündigungen (das Mockup zählt auf der Seite nur die Einträge).
+  - **Offen:** Abnahme mit echtem Seerr auf einem Fernseher.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 

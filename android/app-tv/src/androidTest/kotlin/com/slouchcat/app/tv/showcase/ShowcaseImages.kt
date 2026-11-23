@@ -36,11 +36,17 @@ class ShowcaseImages(private val names: Map<String, String>) {
         }
         .build()
 
-    /** The picture behind an address of the server (`/api/v1/items/<id>/images/<kind>/<size>`, `/people/<id>/image`). */
+    /**
+     * The picture behind an address of the server (`/api/v1/items/<id>/images/<kind>/<size>`,
+     * `/people/<id>/image`; a title outside the library `/api/v1/titles/<media>/<tmdbId>/images/<kind>/<size>`,
+     * named as `<media>-<tmdbId>`).
+     */
     fun draw(url: String): Bitmap {
         val path = url.substringAfter("/api/v1/").substringBefore('?').split('/')
-        val id = path.getOrElse(1) { url }
+        val outside = path.firstOrNull() == "titles"
+        val id = if (outside) "${path.getOrElse(1) { "" }}-${path.getOrElse(2) { "" }}" else path.getOrElse(1) { url }
         val kind = when {
+            outside -> path.getOrElse(4) { "poster" }
             path.firstOrNull() == "people" -> "person"
             path.firstOrNull() == "collections" -> "poster"
             else -> path.getOrElse(3) { "poster" }
