@@ -18,7 +18,7 @@ Je Zielsprache eine Datei `<code>.md` (Konzept 22, Abschnitt 4.6). Sie gilt zusa
   Kategorie mehr als die Zahl 1 umfasst. `scripts/i18n/check.ts` prüft das.
 - **Länge:** Knöpfe, Reiter, Menüpunkte und Spaltenköpfe höchstens rund 1,5× so lang wie Englisch. Ist
   es länger, ein kürzeres Wort wählen, nicht abkürzen mit Punkt.
-- **Nicht übersetzen:** Liste im Glossar, Abschnitt 10.
+- **Nicht übersetzen:** Liste im Glossar, Abschnitt 11.
 - **Kein Schweizer Sonderfall:** Die Zielsprachen haben keine Schweizer Varianten. `fr` ist Französisch
   aus Frankreich, `it` Italienisch aus Italien.
 
