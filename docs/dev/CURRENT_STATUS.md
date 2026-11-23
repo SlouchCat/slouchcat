@@ -1,5 +1,54 @@
 # Aktueller Stand
 
+## Korrektur: Ein Abbruch in der App kostet den Serverbeweis nicht mehr (23. November 2026, PR #219)
+
+Der App-Fehler aus PR #218 ist behoben. `ServerIdentityGate` (`android/core/api`) verwarf den Beweis des
+Servers nach jeder gescheiterten Anfrage, auch wenn die App sie selbst beendet hatte: ein Bild beim Verlassen
+einer Seite, ein Segment beim Spulen, ein Aufruf, dessen Coroutine abgebrochen wurde. Anfragen, die in dem
+Moment unterwegs waren, scheiterten mit «the network changed before the request left». Betroffen waren nur
+Server über HTTP.
+
+- **Geändert:** Das Gate behält den Beweis, wenn der Aufruf abgebrochen ist (`Call.isCanceled`, sofern er kein
+  eigenes Zeitlimit hat) oder wenn Okio auf einem unterbrochenen Thread eine `InterruptedIOException` meldet,
+  die keine `SocketTimeoutException` ist. Zeitlimit, abgelehnte und zurückgesetzte Verbindung verwerfen ihn
+  wie bisher; jeder Sprung prüft weiter Netz und Alter des Beweises. Nur `ServerIdentityGate.kt` und sein Test.
+- **Gewählt ist die schmale von zwei Varianten.** Die zweite (eine Anfrage, die in `hop` scheitert, beweist neu
+  und geht noch einmal) war nicht nötig: Alle vier sichtbaren Fälle der Messung folgten auf einen Abbruch in
+  der App (zwei abgebrochene Aufrufe, zwei unterbrochene), keiner auf einen echten Netzfehler. Beleg je Fall in
+  `docs/perf/K27-android-ci.md`, «Behoben: die App verwarf den Serverbeweis nach einem abgebrochenen Aufruf».
+- **Was es kostet (ADR 0040, «Nachtrag 23. November 2026»):** Die Änderung wirkt nur in der bekannten Grenze
+  (ein Always-on-VPN verdeckt den WLAN-Wechsel). Hängt dort eine Anfrage und verlässt der Nutzer die Seite vor
+  dem Zeitlimit, löst das keinen neuen Beweis mehr aus; der alte gilt bis zum nächsten Verbindungsabbruch, den
+  das Gate sieht, höchstens 10 min. Dasselbe gilt für ein Zeitlimit der Coroutine um einen Aufruf (heute nur
+  `OfflineEngine.beforeSignOut`). Das Sicherheits-Review trägt das als dokumentierte Kosten mit.
+- **Tests:** acht neue Fälle in `ServerIdentityGateTest`, zusammen 25. Vor der Korrektur 2 von 21 rot mit
+  genau der Meldung aus dem Emulator, danach 25 von 25 grün; die 17 alten Fälle unverändert. Jede Bedingung der
+  Erkennung hat einen Fall, der ohne sie rot wird (drei Läufe mit je einer entfernten Bedingung).
+- **Geprüft:** `task check:fast BASE=origin/main` grün (2 min 18 s, Stand `eaf9ed5c`; danach nur Testquellen
+  von `:core:api` und Dokumente geändert). `task ci:android -- --no-daemon` auf `d0eca342`: `android:check`
+  grün (3 min 17 s), `android:test` im ersten Lauf rot, im zweiten grün (13 Testaufgaben, 1811 Fälle, 0 rot, 0
+  übersprungen). `task android:e2e` (`sc_phone`, 12 GB und 8 Kerne): 16 von 16 grün, 323 s; in den 16 Logcats
+  steht «the network changed before the request left» 0-mal (vorher 4-mal in fünf Läufen), bei fünf
+  unterbrochenen API-Aufrufen im selben Lauf. Sicherheits-Review und Code-Review je zweimal gelesen, kein
+  offener Befund an der Änderung.
+- **Der rote erste Lauf:** `SetupBackTest.backLeavesPhone` und `backLeavesTablet` (`:app-mobile`), beide mit
+  abgelaufener Wartezeit von 5 s auf den Titel der ersten Seite. Nicht wiederholbar: dasselbe Modul gleich
+  danach 554 von 554 grün (`SetupBackTest` in 0,06 s), die Klasse allein grün, die Variante `foss` im zweiten
+  Lauf grün; kein Speicherdruck im Käfig. Der Test startet die App ohne gespeicherten Server, also ohne Anfrage
+  durch das Gate. Die Ursache ist nicht gefunden.
+- **Offen, alle schon vor dieser Änderung:**
+  - **OkHttps eigene Wiederholung nimmt den alten Beweis mit (Sicherheit).** Bricht eine Verbindung aus dem
+    Vorrat, wiederholt OkHttp die Anfrage auf einer neuen, unterhalb der Stelle, an der das Gate den Bruch sähe.
+    Belegt mit einem Wegwerf-Test: Antwort 200, ein einziger Beweis, die Wiederholung auf der zweiten Verbindung
+    trägt das Token. Das ist der Fall, den M-1 mildern soll (das fremde Gerät beantwortet die alte Verbindung
+    mit einem Reset). Die Behebung braucht eine eigene Änderung mit Sicherheitsdurchsicht: den Bruch je Sprung
+    erkennen, neu beweisen, einmal wiederholen.
+  - **Ein unterbrochener Beweis sperrt 5 s.** Wird der Thread der Anfrage unterbrochen, die gerade den Beweis
+    holt, gilt er als gescheitert, und jede Anfrage scheitert 5 s lang sofort mit «the server did not prove
+    itself». Belegt mit einem Wegwerf-Test; in den Messläufen und im Emulator-Lauf kam es nicht vor.
+  - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen.
+  - Ob der Job `android-emulator` ins Gate kommt, ist ein eigener Entscheid.
+
 ## Emulator-Job: sechs Testfehler behoben, ein App-Fehler gefunden (23. November 2026, PR #218)
 
 Marco am 23. November 2026: die roten Tests des Jobs `android-emulator` untersuchen. Der Job war in jedem der

@@ -335,7 +335,8 @@ darauf, dass wieder «Pause» zu sehen ist.
 
 Der Job war in jedem Lauf rot. Untersucht an den Berichten von sieben Läufen (45132700824, 45158493082,
 45163735384, 45193438086, 45190586671, 45200252730, 45215280317) und den zehn Jobs der Laufzeitmessung,
-zusammen 17 Läufe. Sechs Ursachen liegen in den Tests und sind behoben, eine liegt in der App und ist offen.
+zusammen 17 Läufe. Sechs Ursachen lagen in den Tests, eine in der App. Alle sieben sind behoben, die der App
+mit einer eigenen Änderung (unten).
 
 | Fall                                                     | wie oft rot                         | Ursache                                                                                                                                                                                                                                 | Beleg                                                                                                                                                                                             | Behebung                                                                                              |
 | -------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -345,23 +346,23 @@ zusammen 17 Läufe. Sechs Ursachen liegen in den Tests und sind behoben, eine li
 | `MessagesShowcaseTest.wishesEmptyAndNotSetUp`            | 4 von 17                            | Der Test davor schloss die Mitteilungsleiste mit der Zurück-Taste und wartete nicht. Die Taste traf die Seite des nächsten Tests und schloss sie.                                                                                       | Logcat: `InputDispatcher: Waiting because no window has focus`, 2 s später schliesst die Aufgabe; kein Start einer anderen Seite davor. Dass es die Taste war, zeigt die Reihenfolge, kein eigener Logeintrag. | Die Leiste schliesst mit der Aktion des Systems (ab API 31), danach wartet der Test auf Ruhe.          |
 | `PlayerFlowTest.kt:242`                                  | 4 von 4 vor PR #216, danach 0 von 13 | Die Bedienleiste blendet nach einem `delay` aus. Im Compose-Test läuft der auf der Uhr des Tests; ein Warten stellt sie je Blick um ein Bild vor. Sind die Blicke langsam, sind 10 s Blicke weniger als 4 s dieser Uhr.                 | Lauf 45132700824: 22 s ununterbrochen `PLAYING`, die Leiste blieb. Warum der Fall seit PR #216 nicht mehr rot war (auch mit zwei Kernen nicht), ist nicht belegt; schnellere Blicke liegen nahe. | Das Warten stellt die Uhr selbst vor.                                                                 |
 | `MessagesFlowTest.kt:349`                                | 1 von 17                            | `notify()` kehrt zurück, bevor das System die Mitteilung listet. Der Test prüfte sofort.                                                                                                                                                | Logcat: `received notification posted event` 0,3 s nach der Prüfung.                                                                                                                               | Der Test wartet bis zu 5 s auf die Mitteilung.                                                        |
-| `MessagesFlowTest` (`FlowWaits.kt:45`, ein Text fehlt)   | 4 von 17                            | **App, offen:** siehe unten.                                                                                                                                                                                                            |                                                                                                                                                                                                   | keine                                                                                                 |
+| `MessagesFlowTest` (`FlowWaits.kt:45`, ein Text fehlt)   | 4 von 17                            | **App:** siehe unten.                                                                                                                                                                                                                   |                                                                                                                                                                                                   | Das Gate behält den Beweis nach einem Abbruch durch die App.                                          |
 
 **Danach gemessen:** Lauf 45221096541, fünf gleiche Jobs mit den korrigierten Tests (Wegwerf-Workflow, Zweig
-gelöscht): vier grün, einer rot (`MessagesFlowTest`, der offene App-Fehler). Es sind die ersten grünen Läufe
+gelöscht): vier grün, einer rot (`MessagesFlowTest`, der App-Fehler, damals noch offen). Es sind die ersten grünen Läufe
 dieses Ablaufs auf dem Runner. Lokal (`sc_phone`, Server mit `TZ=UTC`, 8 Kerne, 12 GB): der ganze Ablauf mit 16
 von 16 Fällen grün, 318 s; der Worktree hatte keine Testmedien, der Ablauf richtete sein Konto also selbst ein.
 
 **Nicht geändert:** `StoreShotsTest.kt:319` und `:325` haben dieselbe Tipp-Schleife wie `OfflineFlowTest`. Der
 Test gehört nicht zum Ablauf (`scripts/store-screenshots.sh`), eine Änderung dort ist nicht geprüft.
 
-### Offen: die App verwirft den Serverbeweis nach einem abgebrochenen Aufruf
+### Behoben: die App verwarf den Serverbeweis nach einem abgebrochenen Aufruf
 
-`ServerIdentityGate.intercept` (`android/core/api`) verwirft nach jeder `IOException` einer Anfrage den Beweis
+`ServerIdentityGate.intercept` (`android/core/api`) verwarf nach jeder `IOException` einer Anfrage den Beweis
 des Servers («The connection broke: maybe the network went with it»). Eine Anfrage, die gleichzeitig schon
-unterwegs ist, scheitert dann in `hop` mit `ServerNotProvenException: the network changed before the request
-left`, obwohl sich das Netz nicht geändert hat. Die Seite zeigt einen Fehler oder ein leeres Ergebnis und
-versucht es nicht neu. Betroffen sind nur Server über HTTP; bei HTTPS prüft das Gate nicht.
+unterwegs war, scheiterte dann in `hop` mit `ServerNotProvenException: the network changed before the request
+left`, obwohl sich das Netz nicht geändert hatte. Die Seite zeigte einen Fehler oder ein leeres Ergebnis und
+versuchte es nicht neu. Betroffen waren nur Server über HTTP; bei HTTPS prüft das Gate nicht.
 
 Gemessen im Lauf 45221096541 mit einer zusätzlichen Logzeile an dieser Stelle (nur im Wegwerf-Zweig), fünf Jobs:
 
@@ -373,13 +374,61 @@ Gemessen im Lauf 45221096541 mit einer zusätzlichen Logzeile an dieser Stelle (
 | echter Netzfehler (`OfflineFlowTest` schaltet das Netz ab)       | 5      |
 
 75 von 80 Malen war der Anlass also ein Abbruch in der App selbst (eine Seite wird verlassen, der Player
-spult), kein Ereignis im Netz. Viermal traf es eine laufende Anfrage sichtbar (`Slouchcat/wishes`, `player`,
-`home`, `libraries`: «no answer … the network changed before the request left»). Einmal scheiterte daran
-`MessagesFlowTest`: Zwei Plakate der Wunschsuche wurden um 16:59:22.679 abgebrochen, 0,5 s später scheiterte
-die Suche selbst.
+spult), kein Ereignis im Netz. Ein abgebrochener Aufruf endete dabei nicht immer mit `IOException: Canceled`:
+11-mal war es `SocketException: Socket closed`. Viermal traf es eine laufende Anfrage sichtbar. Zu jeder der
+vier das letzte Verwerfen davor, aus den Logcats der fünf Jobs:
 
-Das ist ein Fehler der App, kein Fehler des Tests, und er trifft Benutzer mit einem Server über HTTP. Die
-Behebung gehört in eine eigene Änderung mit einem JVM-Test in `ServerIdentityGateTest` und einer
-Sicherheitsdurchsicht: Das Verwerfen nach einem Verbindungsbruch ist Absicht (`aBrokenConnectionForgetsTheProof`),
-falsch ist nur, dass auch ein Abbruch in der App als Verbindungsbruch zählt und dass eine laufende Anfrage
-danach scheitert statt neu zu beweisen. Solange das offen ist, bleibt der Job ausserhalb des Gates.
+| Test               | verworfen wegen                                                   | gescheitert (Log-Tag) | Abstand |
+| ------------------ | ----------------------------------------------------------------- | --------------------- | ------- |
+| `MessagesFlowTest` | abgebrochenes Plakat (`canceled=true`, `IOException: Canceled`)   | `Slouchcat/wishes`    | 0,47 s  |
+| `PlayerFlowTest`   | abgebrochenes Segment (`canceled=true`, `IOException: Canceled`)  | `Slouchcat/player`    | 0,80 s  |
+| `BrowseFlowTest`   | unterbrochener Aufruf von `/libraries/visible` (`canceled=false`) | `Slouchcat/libraries` | 0,24 s  |
+| `BrowseFlowTest`   | unterbrochener Aufruf von `/libraries/visible` (`canceled=false`) | `Slouchcat/home`      | 0,18 s  |
+
+Keine der vier folgte auf einen echten Netzfehler. Die fünf echten fielen in `OfflineFlowTest`, wo das Netz
+absichtlich aus ist und eine laufende Anfrage ohnehin scheitert. Der Fall in `MessagesFlowTest` machte den
+Test rot.
+
+**Behebung (23. November 2026):** Das Gate behält den Beweis, wenn die App die Anfrage selbst beendet hat:
+wenn der Aufruf abgebrochen ist (`Call.isCanceled`, sofern er kein eigenes Zeitlimit hat) oder wenn Okio auf
+einem unterbrochenen Thread eine `InterruptedIOException` meldet, die keine `SocketTimeoutException` ist. Ein
+Zeitlimit, eine abgelehnte und eine zurückgesetzte Verbindung verwerfen ihn wie bisher, und jeder Sprung
+prüft weiter das aktuelle Netz. Gewählt ist damit die schmale von zwei Varianten. Die zweite (eine Anfrage,
+die in `hop` scheitert, beweist neu und geht noch einmal) war nicht nötig, weil alle vier gemessenen Fälle auf
+einen Abbruch in der App folgten. Was die Änderung für die Sicherheit kostet, steht in ADR 0040, «Nachtrag
+23. November 2026».
+
+**Beleg:**
+
+- `ServerIdentityGateTest` hat acht neue Fälle, zusammen 25. Vor der Korrektur waren die zwei Fälle zum Fehler
+  rot (`aCallTheAppCancelledKeepsTheProofForTheRequestsOnTheirWay`,
+  `aCallWhoseThreadWasInterruptedKeepsTheProofForTheRequestsOnTheirWay`), beide mit der Meldung aus dem
+  Emulator: `ServerNotProvenException: the network changed before the request left`. Mit der Korrektur: 25
+  Fälle, 0 Fehler, 4,4 s. Die 17 alten Fälle laufen unverändert.
+- Was weiter verwerfen muss, hat je einen Fall: Zeitlimit des Sockets, Zeitlimit des Aufrufs, eine Verbindung,
+  die der Server schliesst, und Zeitlimit und Reset auf einem unterbrochenen Thread. Dazu: Ein Netzwechsel
+  nach einem abgebrochenen Aufruf hält die laufende Anfrage weiter auf.
+- Jede Bedingung der Erkennung hat einen Fall, der ohne sie rot wird (drei Läufe mit je einer entfernten
+  Bedingung: ohne die Ausnahme für `SocketTimeoutException` 1 von 25 rot, nur mit dem Kennzeichen des Threads
+  2 von 25, ohne die Prüfung auf ein eigenes Zeitlimit 1 von 25).
+- Im Emulator (`task android:e2e`, `sc_phone`, 12 GB und 8 Kerne, Stand `d0eca342`): 16 von 16 Fällen grün,
+  323 s. Der Lauf legt auch grün je Test ein Logcat ab
+  (`android/app-mobile/build/outputs/androidTest-results/connected/debug/flavors/play/<Gerät>/logcat-*.txt`).
+  In den 16 Dateien (21 310 Zeilen) steht «the network changed before the request left» 0-mal; in den fünf
+  Messläufen stand es 4-mal. Den Anlass gab es weiter: Fünf API-Aufrufe endeten mit `InterruptedIOException:
+  interrupted`, in fünf verschiedenen Tests. Abgebrochene Bilder und Segmente schreibt die App nicht ins Log,
+  sie sind hier nicht gezählt. `ServerNotProvenException` kommt 13-mal vor, jedes Mal als «the server did not
+  prove itself» nach einem Beweis, der wirklich ausblieb (vier Mal: `OfflineFlowTest` ohne Netz, und die
+  Schaukästen mit der Adresse `192.0.2.10`, die niemand beantwortet).
+
+**Offen bleibt,** und zwar schon vor dieser Änderung (Einzelheiten und Proben in ADR 0040 und in
+`docs/dev/CURRENT_STATUS.md`):
+
+- Eine Anfrage, die nach einem echten Verbindungsbruch einer anderen in `hop` scheitert, beweist nicht neu,
+  sondern scheitert. In den Messläufen kam das nur bei abgeschaltetem Netz vor.
+- Einen Bruch, den OkHttp selbst auf einer neuen Verbindung wiederholt, sieht das Gate nicht. Die
+  Wiederholung trägt Token und Gerätekennung mit dem alten Beweis.
+- Wird der Thread der Anfrage unterbrochen, die gerade den Beweis holt, gilt der Beweis als gescheitert, und
+  jede Anfrage scheitert 5 s lang sofort.
+
+Ob der Job `android-emulator` jetzt ins Gate kommt, ist ein eigener Entscheid und nicht Teil dieser Änderung.
