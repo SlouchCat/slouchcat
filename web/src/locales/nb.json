@@ -40,7 +40,7 @@
       "failed": "Noe gikk galt.",
       "retry": "Prøv igjen",
       "expanded": "Utvidet",
-      "collapsed": "Skjult"
+      "collapsed": "Sammenslått"
     },
     "update": {
       "title": "Oppdater appen",
@@ -117,7 +117,7 @@
         "changeTitle": "Endre {{label}}",
         "repeat": "Gjenta",
         "apply": "Bruk",
-        "mismatch": "De to oppføringene stemmer ikke overens.",
+        "mismatch": "De to inntastingene er ikke like.",
         "nameMissing": "Gi profilen et navn.",
         "watchLimitInvalid": "Skriv inn 1 til 1440 minutter, eller la feltet stå tomt.",
         "keep": "Behold",
@@ -198,7 +198,7 @@
         "currentEmpty": "Skriv inn det nåværende passordet ditt.",
         "wrongPassword": "Det nåværende passordet er feil.",
         "same": "Det nye passordet er det samme som det gamle.",
-        "mismatch": "De to oppføringene stemmer ikke overens.",
+        "mismatch": "De to inntastingene er ikke like.",
         "sameEmail": "Dette er allerede e-postadressen din.",
         "tooShort_one": "Det nye passordet må ha minst {{count}} tegn.",
         "tooShort_other": "Det nye passordet må ha minst {{count}} tegn."
@@ -409,7 +409,7 @@
       "ruleFailed": "Regelen kunne ikke lagres.",
       "pinDelete": "Slett siste siffer",
       "expanded": "utvidet",
-      "collapsed": "skjult",
+      "collapsed": "sammenslått",
       "channel": "Nedlastinger",
       "notificationTitle": "Nedlasting pågår",
       "notificationProgress": "{{percent}} % lastet ned",
@@ -450,7 +450,7 @@
       "lineBudget": "Venter på plass på serveren · {{size}}",
       "lineServerPaused": "Venter · serveren strømmer akkurat nå · {{size}}",
       "lineWifi": "Venter på Wi-Fi · {{size}}",
-      "lineFailed": "Klargjøringen feilet",
+      "lineFailed": "Klargjøringen mislyktes",
       "lineDone": "{{quality}} · {{size}}",
       "lineAuto": "Automatisk",
       "offlineBanner": "Ingen kontakt med serveren · du ser nedlastingene dine",
@@ -487,7 +487,7 @@
       "loadsAny": "Laster også ned på mobildata.",
       "already": "Allerede på enheten. Du finner den under «Nedlastinger».",
       "start": "Last ned",
-      "starting": "Starter …",
+      "starting": "Starter…",
       "started": "«{{title}}» lastes ned",
       "startedMany_one": "{{count}} episode lastes ned",
       "startedMany_other": "{{count}} episoder lastes ned",
@@ -573,7 +573,7 @@
       },
       "caption": "{{year}} · {{kind}}",
       "steps": {
-        "label": "Stand for ønsket",
+        "label": "Status for ønsket",
         "requested": "Bedt om",
         "approved": "Godkjent",
         "loading": "Hentes",
@@ -582,7 +582,7 @@
         "done": "{{step}}, ferdig",
         "open": "{{step}}, ikke ferdig ennå"
       },
-      "requestedOn": "bedt om {{date}}",
+      "requestedOn": "ønsket {{date}}",
       "keep": "Behold",
       "request": "Be om",
       "requestNote": "Seerr får ønsket. Når tittelen er her, gir appen beskjed.",
@@ -700,7 +700,7 @@
         "expired": "Koden er utløpt. Vis en ny kode på TV-en.",
         "relay": "Reléet svarer ikke. Sett opp TV-en manuelt: Velg «Sett opp manuelt» på TV-en og logg inn med kontoen din.",
         "server": "Serveren svarer ikke. Sjekk tilkoblingen og skann koden på nytt.",
-        "notAllowed": "Med denne påloggingen kan ikke en TV kobles til.",
+        "notAllowed": "Med denne påloggingen kan ingen TV kobles til.",
         "leftBefore": "Du forlot siden før TV-en fikk tilgang. Skann koden på nytt.",
         "leftAfter": "Du forlot siden. Under «Mine enheter» ser du om TV-en er tilkoblet.",
         "ok": "Forstått",
@@ -8292,10 +8292,10 @@
       "continue": "Videre til profilene",
       "continueIn": "Videre til profilene ({{seconds}} s)",
       "undo": "Ikke min konto, koble fra",
-      "undone": "Frakoblet",
+      "undone": "Koblet fra",
       "noRelayTitle": "Tjenesten kan ikke nås",
-      "noRelayLead": "Kobletjenesten {{relay}} svarer ikke akkurat nå. Manuelt oppsett fungerer uten den.",
-      "busyLead": "Kobletjenesten er opptatt akkurat nå. Prøv igjen om et øyeblikk, eller sett opp TV-en manuelt.",
+      "noRelayLead": "Reléet {{relay}} svarer ikke akkurat nå. Manuelt oppsett fungerer uten det.",
+      "busyLead": "Reléet er opptatt akkurat nå. Prøv igjen om et øyeblikk, eller sett opp TV-en manuelt.",
       "noServerTitle": "Adressen kan ikke nås",
       "noServerSent": "Mobilen din sendte denne serveradressen:",
       "noServerLead": "TV-en får ikke kontakt med den. Kanskje mobilen din bruker et VPN eller et annet nettverk.",
@@ -8364,7 +8364,7 @@
       "surface": "Videobilde",
       "hdr": "HDR",
       "hdrNone": "Nei (SDR)",
-      "hdrTonemapped": "{{format}}, toneomformet til SDR",
+      "hdrTonemapped": "{{format}}, konvertert til SDR",
       "soundPassthrough": "Lyden sendes uendret til lydanlegget",
       "soundDecoded": "Lyden dekodes på TV-en",
       "soundDetected": "Lydanlegg funnet via HDMI: {{formats}}, {{layout}}. Surroundlyd sendes uendret til det.",
@@ -8418,7 +8418,7 @@
       "hint": "Trykk OK for å starte en stasjon, trykk OK igjen for pause.",
       "countries": "Land",
       "favorite": "Favoritt",
-      "addFavorite": "Som favoritt"
+      "addFavorite": "Legg til som favoritt"
     },
     "notifications": {
       "allRead": "Alt lest"
@@ -8462,7 +8462,7 @@
       "kind": "Person"
     },
     "search": {
-      "voice": "Taleinndata",
+      "voice": "Talesøk",
       "hint": "Du kan også skrive med et tastatur på TV-en.",
       "space": "Mellomrom",
       "clear": "Tøm",

@@ -117,7 +117,7 @@
         "changeTitle": "{{label}} wijzigen",
         "repeat": "Herhalen",
         "apply": "Toepassen",
-        "mismatch": "De twee invoeren komen niet overeen.",
+        "mismatch": "De twee ingevoerde waarden komen niet overeen.",
         "nameMissing": "Geef het profiel een naam.",
         "watchLimitInvalid": "Voer 1 tot 1440 minuten in of laat het veld leeg.",
         "keep": "Behouden",
@@ -198,7 +198,7 @@
         "currentEmpty": "Vul je huidige wachtwoord in.",
         "wrongPassword": "Het huidige wachtwoord klopt niet.",
         "same": "Het nieuwe wachtwoord is hetzelfde als het oude.",
-        "mismatch": "De twee invoeren komen niet overeen.",
+        "mismatch": "De twee ingevoerde waarden komen niet overeen.",
         "sameEmail": "Dit is al je e-mailadres.",
         "tooShort_one": "Het nieuwe wachtwoord moet minstens {{count}} teken bevatten.",
         "tooShort_other": "Het nieuwe wachtwoord moet minstens {{count}} tekens bevatten."
@@ -283,7 +283,7 @@
         "youngest": "Laagste leeftijd eerst"
       },
       "noMatch": "Geen titels",
-      "reset": "Filters herstellen",
+      "reset": "Filters wissen",
       "showList": "Als lijst tonen",
       "showGrid": "Als raster tonen"
     },
@@ -546,7 +546,7 @@
     },
     "radio": {
       "title": "Internetradio",
-      "moreSubtitle": "Live zenders",
+      "moreSubtitle": "Livezenders",
       "allCountries": "Alle landen",
       "countryTitle": "Land",
       "added": "{{name}} staat nu in “Mijn zenders”.",
@@ -662,7 +662,7 @@
         "loading": "Scanner laden…"
       },
       "problem": {
-        "notACode": "Dit is geen code van de Slouchcat tv-app. Scan de QR-code die de tv toont onder “Instellen met je telefoon”.",
+        "notACode": "Dit is geen code van de Slouchcat-tv-app. Scan de QR-code die de tv toont onder “Instellen met je telefoon”.",
         "otherVersion": "Deze code komt van een nieuwere tv-app. Werk de app op deze telefoon bij.",
         "otherRelay": "Deze code hoort bij een andere koppeldienst. Als je geen eigen koppeldienst draait, is dit geen code van jouw tv-app.",
         "loading": "De scanner van Google Play-services wordt nog geladen. Probeer het zo meteen opnieuw.",
@@ -8418,7 +8418,7 @@
       "hint": "OK start een zender, nogmaals OK pauzeert hem.",
       "countries": "Landen",
       "favorite": "Favoriet",
-      "addFavorite": "Als favoriet"
+      "addFavorite": "Aan favorieten toevoegen"
     },
     "notifications": {
       "allRead": "Alles gelezen"

@@ -40,7 +40,7 @@
       "failed": "Noget gik galt.",
       "retry": "Prøv igen",
       "expanded": "Udvidet",
-      "collapsed": "Skjult"
+      "collapsed": "Sammenklappet"
     },
     "update": {
       "title": "Opdatér appen",
@@ -107,7 +107,7 @@
         "pinOn": "Aktiv",
         "pinOff": "Alle kan skifte til denne profil",
         "offlineOff": "En separat, længere pinkode til downloads uden netværk",
-        "offlineExplain": "Offline-pinkoden beskytter profilen under downloads, når enheden ikke har netværk. Den afløser dér den almindelige pinkode, som enheden ikke kan kontrollere uden netværk. Online gælder den almindelige pinkode stadig.",
+        "offlineExplain": "Offline-pinkoden beskytter profilen i dine downloads, når enheden ikke har netværk. Den afløser dér den almindelige pinkode, som enheden ikke kan kontrollere uden netværk. Online gælder den almindelige pinkode stadig.",
         "pendingSet": "Ny · gælder, når du gemmer",
         "pendingRemove": "Fjernes, når du gemmer",
         "set": "Angiv",
@@ -290,7 +290,7 @@
     "search": {
       "placeholder": "Titler, personer, forfattere…",
       "clear": "Ryd søgning",
-      "browse": "Udforsk",
+      "browse": "Gennemse",
       "genres": "Genrer",
       "genreFilter": "Genre: {{genre}}",
       "genreRemove": "Fjern genren {{genre}}",
@@ -335,7 +335,7 @@
       "nextIn_one": "Næste afsnit om {{count}}",
       "nextIn_other": "Næste afsnit om {{count}}",
       "playNow": "Afspil nu",
-      "showControls": "Vis betjening",
+      "showControls": "Vis kontroller",
       "remaining": "−{{time}}",
       "jumpSeconds": "{{seconds}}",
       "infoRow": "{{label}}: {{value}}",
@@ -409,7 +409,7 @@
       "ruleFailed": "Reglen kunne ikke gemmes.",
       "pinDelete": "Slet sidste ciffer",
       "expanded": "udvidet",
-      "collapsed": "skjult",
+      "collapsed": "sammenklappet",
       "channel": "Downloads",
       "notificationTitle": "Download i gang",
       "notificationProgress": "{{percent}} % hentet",
@@ -522,7 +522,7 @@
       "open": "Åbn lydafspilleren: {{title}}",
       "stop": "Stop afspilningen",
       "speedTitle": "Hastighed",
-      "sleepTitle": "Sleeptimer",
+      "sleepTitle": "Sovetimer",
       "sleepLeft": "{{left}} tilbage",
       "download": "Download",
       "allParts": "Ét download dækker alle dele af lydbogen.",
@@ -694,7 +694,7 @@
         "pending": "Venter"
       },
       "fail": {
-        "occupied": "Der ligger allerede en pakke på mødestedet. Tv'et er måske forbundet til en fremmed servers. Kontrollér, hvilken server og konto tv'et viser.",
+        "occupied": "Der ligger allerede en pakke på mødestedet. Tv'et er måske forbundet til en fremmed server. Kontrollér, hvilken server og konto tv'et viser.",
         "lapses": "Din kupon udløber ubrugt.",
         "timedOut": "Det lykkedes ikke. Vis en ny kode på tv'et.",
         "expired": "Koden er udløbet. Vis en ny kode på tv'et.",
@@ -8364,7 +8364,7 @@
       "surface": "Videobillede",
       "hdr": "HDR",
       "hdrNone": "Nej (SDR)",
-      "hdrTonemapped": "{{format}}, tonemappet til SDR",
+      "hdrTonemapped": "{{format}}, omdannet til SDR",
       "soundPassthrough": "Lyden sendes uændret videre til lydanlægget",
       "soundDecoded": "Lyden afkodes på tv'et",
       "soundDetected": "Lydanlæg fundet via HDMI: {{formats}}, {{layout}}. Surroundlyd sendes uændret til det.",
@@ -8462,7 +8462,7 @@
       "kind": "Person"
     },
     "search": {
-      "voice": "Stemmeindtastning",
+      "voice": "Stemmesøgning",
       "hint": "Du kan også skrive med et tastatur på tv'et.",
       "space": "Mellemrum",
       "clear": "Ryd",

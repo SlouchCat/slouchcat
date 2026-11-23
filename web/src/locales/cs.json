@@ -104,14 +104,14 @@
         "editLabel": "Upravit profil {{name}}",
         "ratingAll": "Tento profil vidí všechny tituly.",
         "ratingUpTo": "Tento profil vidí jen tituly s věkovým omezením do {{rating}}.",
-        "aboveAccount": "Výše než maximum tohoto účtu",
+        "aboveAccount": "Nad limitem tohoto účtu",
         "languageLabel": "Jazyk: {{language}}",
         "allLibraries": "Všechny knihovny",
         "protection": "Ochrana",
         "pinOn": "Zapnuto",
         "pinOff": "Do profilu se může přepnout kdokoli",
         "offlineOff": "Vlastní, delší PIN pro stažené položky bez sítě",
-        "offlineExplain": "PIN pro offline chrání profil ve stažených položkách, když zařízení nemá síť. Nahrazuje tam běžný PIN, který zařízení bez sítě ověřit nemůže. Online platí dál běžný PIN.",
+        "offlineExplain": "Offline PIN chrání profil ve stažených položkách, když zařízení nemá síť. Nahrazuje tam běžný PIN, který zařízení bez sítě ověřit nemůže. Online platí dál běžný PIN.",
         "pendingSet": "Nově nastaveno · použije se po uložení",
         "pendingRemove": "Po uložení se odebere",
         "set": "Nastavit",
@@ -269,7 +269,7 @@
       "trailerFailed": "Upoutávku v tomto zařízení neotevře žádná aplikace."
     },
     "person": {
-      "knownFrom": "Známý z",
+      "knownFrom": "Známé tituly",
       "inLibrary_one": "{{count}} titul ve vaší knihovně",
       "inLibrary_few": "{{count}} tituly ve vaší knihovně",
       "inLibrary_many": "{{count}} titulu ve vaší knihovně",
@@ -278,8 +278,8 @@
     "home": {
       "slide": "Titul {{index}} z {{count}}",
       "details": "Podrobnosti: {{title}}",
-      "watchlistAdded": "{{title}} přidáno do seznamu",
-      "watchlistRemoved": "{{title}} odebráno ze seznamu",
+      "watchlistAdded": "Přidáno do seznamu: {{title}}",
+      "watchlistRemoved": "Odebráno ze seznamu: {{title}}",
       "watchlistFailed": "Seznam se nepodařilo změnit."
     },
     "browse": {
@@ -339,7 +339,7 @@
       "unwatched": "Označení zhlédnutí u titulu „{{title}}“ zrušeno",
       "failed": "To se nepovedlo. Zkuste to znovu.",
       "watchlistEmpty": "Zatím prázdné",
-      "watchedHint": "Co jste dokoukali"
+      "watchedHint": "Tituly zhlédnuté až do konce"
     },
     "collections": {
       "overline": "Kolekce",
@@ -432,7 +432,7 @@
       "legendOtherApps": "Ostatní aplikace",
       "storageBarApps": "Stažené {{used}}, ostatní aplikace {{other}}, volno {{free}}",
       "backOnline": "Znovu připojeno k serveru",
-      "pinWeakCopy": "Offline chrání PIN z několika číslic jen před zvědavými pohledy: kdo má zařízení v ruce, může je vyzkoušet všechny. K tomu je v tomto zařízení uložena kontrolní hodnota běžného PIN; kdo ji zkopíruje, zjistí i PIN, který platí online. Vlastní, delší PIN pro offline v části „Spravovat profily“ je od ní oddělen.",
+      "pinWeakCopy": "Offline chrání PIN z několika číslic jen před zvědavými pohledy: kdo má zařízení v ruce, může je vyzkoušet všechny. K tomu je v tomto zařízení uložena kontrolní hodnota běžného PIN; kdo ji zkopíruje, zjistí i PIN, který platí online. Vlastní, delší offline PIN v části „Spravovat profily“ je od ní oddělen.",
       "episodeShort": "E{{episode}} · {{title}}",
       "toDownloads": "Přejít na stažené",
       "episodeLine": "S{{season}} · E{{episode}} · {{title}}",
@@ -550,7 +550,7 @@
       "switchProfile": "Přepnout profil",
       "switchTitle": "Kdo se dívá offline?",
       "pinTitle": "PIN pro {{name}}",
-      "pinOffline": "PIN pro offline",
+      "pinOffline": "Offline PIN",
       "pinLabel": "PIN",
       "pinOpen": "Otevřít",
       "pinWrong": "PIN není správný.",
@@ -630,7 +630,7 @@
         "available": "K dispozici",
         "current": "{{step}}, aktuální krok",
         "done": "{{step}}, hotovo",
-        "open": "{{step}}, ještě otevřeno"
+        "open": "{{step}}, zatím nedokončeno"
       },
       "requestedOn": "vyžádáno {{date}}",
       "keep": "Ponechat",
@@ -718,7 +718,7 @@
       "problem": {
         "notACode": "Toto není kód televizní aplikace Slouchcat. Naskenujte QR kód, který televize zobrazuje v části „Nastavit pomocí telefonu“.",
         "otherVersion": "Tento kód pochází z novější televizní aplikace. Aktualizujte aplikaci v tomto telefonu.",
-        "otherRelay": "Tento kód patří jiné zprostředkovací službě. Pokud žádnou vlastní nepoužíváte, není to kód vaší televizní aplikace.",
+        "otherRelay": "Tento kód patří jiné zprostředkovací službě. Pokud žádnou vlastní neprovozujete, není to kód vaší televizní aplikace.",
         "loading": "Skener ze služeb Google Play se ještě načítá. Zkuste to za chvíli znovu.",
         "noPlayServices": "V tomto zařízení chybí služby Google Play, nebo jsou příliš staré. Bez nich skener nefunguje.",
         "noCamera": "Toto zařízení nemá fotoaparát, kterým by aplikace mohla kód přečíst.",
@@ -739,7 +739,7 @@
       "run": {
         "title": "Připojování…",
         "failedTitle": "Nepřipojeno",
-        "voucher": "Poukaz získán ze serveru",
+        "voucher": "Propustka získána ze serveru",
         "handedOver": "Šifrovaně předáno televizi",
         "waiting": "Televize se přihlašuje…",
         "done": "Hotovo",
@@ -749,14 +749,14 @@
       },
       "fail": {
         "occupied": "V místě setkání už čeká balíček. Televize je možná připojena k cizímu serveru. Zkontrolujte, jaký server a účet televize zobrazuje.",
-        "lapses": "Váš poukaz nevyužitý propadne.",
+        "lapses": "Vaše propustka propadne nevyužitá.",
         "timedOut": "To se nepovedlo. Zobrazte v televizi nový kód.",
         "expired": "Platnost kódu vypršela. Zobrazte v televizi nový kód.",
         "relay": "Zprostředkovací služba neodpovídá. Nastavte televizi ručně: v televizi zvolte „Nastavit ručně“ a přihlaste se svým účtem.",
         "server": "Server neodpovídá. Zkontrolujte připojení a naskenujte kód znovu.",
         "notAllowed": "Tímto přihlášením nelze televizi připojit.",
-        "leftBefore": "Opustili jste obrazovku dříve, než televize dostala přístup. Naskenujte kód znovu.",
-        "leftAfter": "Opustili jste obrazovku. Zda je televize připojena, uvidíte v části „Moje zařízení“.",
+        "leftBefore": "Obrazovka byla zavřena dříve, než televize dostala přístup. Naskenujte kód znovu.",
+        "leftAfter": "Obrazovka byla zavřena. Zda je televize připojena, uvidíte v části „Moje zařízení“.",
         "ok": "Rozumím",
         "again": "Skenovat znovu",
         "tooMany_one": "Příliš mnoho pokusů. Počkejte {{count}} sekundu a pak kód naskenujte znovu.",
@@ -9021,8 +9021,8 @@
     "radio": {
       "hint": "OK spustí stanici, další OK ji pozastaví.",
       "countries": "Země",
-      "favorite": "Moje stanice",
-      "addFavorite": "Do mých stanic"
+      "favorite": "V Mých stanicích",
+      "addFavorite": "Přidat do Mých stanic"
     },
     "notifications": {
       "allRead": "Vše přečteno"

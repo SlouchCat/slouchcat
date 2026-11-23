@@ -267,14 +267,14 @@
     "home": {
       "slide": "Título {{index}} de {{count}}",
       "details": "Detalhes de {{title}}",
-      "watchlistAdded": "{{title}} adicionado à lista",
-      "watchlistRemoved": "{{title}} removido da lista",
-      "watchlistFailed": "Não foi possível alterar a lista."
+      "watchlistAdded": "{{title}} adicionado à minha lista",
+      "watchlistRemoved": "{{title}} removido da minha lista",
+      "watchlistFailed": "Não foi possível alterar a minha lista."
     },
     "browse": {
       "showAll": "Todos",
       "showAllLabel": "Mostrar todos: {{title}}",
-      "tip": "Dica",
+      "tip": "Recomendado",
       "matches_one": "{{count}} resultado",
       "matches_many": "{{count}} de resultados",
       "matches_other": "{{count}} resultados",
@@ -290,7 +290,7 @@
         "newest": "Mais recentes primeiro",
         "best": "Melhores primeiro",
         "longest": "Mais longos primeiro",
-        "lastSeen": "Assistidos por último primeiro",
+        "lastSeen": "Assistidos recentemente primeiro",
         "aToZ": "A a Z",
         "youngest": "Menor faixa etária primeiro"
       },
@@ -319,7 +319,7 @@
       "editing_many": "{{count}} de títulos · toque em ✕ para remover um título",
       "editing_other": "{{count}} títulos · toque em ✕ para remover um título",
       "toStart": "Ir para o início",
-      "removed": "“{{title}}” removido da lista",
+      "removed": "“{{title}}” removido da minha lista",
       "undo": "Desfazer",
       "unwatchLabel": "Remover a marca de assistido de {{title}}",
       "unwatched": "Marca de assistido de “{{title}}” removida",
@@ -330,10 +330,10 @@
     "collections": {
       "overline": "Coleção",
       "members": "Nesta coleção",
-      "listed_one": "{{count}} título adicionado à lista",
-      "listed_many": "{{count}} de títulos adicionados à lista",
-      "listed_other": "{{count}} títulos adicionados à lista",
-      "unlisted": "Removido da lista",
+      "listed_one": "{{count}} título adicionado à minha lista",
+      "listed_many": "{{count}} de títulos adicionados à minha lista",
+      "listed_other": "{{count}} títulos adicionados à minha lista",
+      "unlisted": "Removido da minha lista",
       "watchedDone": "Todos os títulos marcados como assistidos",
       "unwatchedDone": "Todas as marcas removidas",
       "failed": "Não deu certo. Tente de novo."
@@ -449,7 +449,7 @@
       "deleteBodyMany_many": "{{count}} de episódios de “{{title}}” serão excluídos deste dispositivo. Você pode baixá-los de novo quando quiser.",
       "deleteBodyMany_other": "{{count}} episódios de “{{title}}” serão excluídos deste dispositivo. Você pode baixá-los de novo quando quiser.",
       "deleteConfirm": "Excluir",
-      "deleted_one": "Download excluído",
+      "deleted_one": "{{count}} download excluído",
       "deleted_many": "{{count}} de downloads excluídos",
       "deleted_other": "{{count}} downloads excluídos",
       "storageLabel": "Armazenamento",
@@ -645,7 +645,7 @@
       "pushBusy": "Registrando…",
       "pushFailed": {
         "offline": "O servidor não responde. O app tenta de novo na próxima abertura.",
-        "relay": "Não foi possível acessar o encaminhamento de push. O app tenta de novo na próxima abertura; a lista aqui, o e-mail e o Telegram continuam funcionando.",
+        "relay": "Não foi possível acessar o serviço de encaminhamento de push. O app tenta de novo na próxima abertura; a lista aqui, o e-mail e o Telegram continuam funcionando.",
         "google": "O dispositivo não recebeu do Google um token de push. Verifique se os serviços do Google Play estão funcionando.",
         "server": "O servidor recusou a inscrição deste dispositivo."
       },
@@ -691,7 +691,7 @@
       "problem": {
         "notACode": "Este não é um código do app Slouchcat para TV. Escaneie o QR code que a TV mostra em “Configurar com o celular”.",
         "otherVersion": "Este código vem de uma versão mais nova do app para TV. Atualize o app neste celular.",
-        "otherRelay": "Este código pertence a outra intermediação. Se você não tem uma intermediação própria, este não é um código do seu app para TV.",
+        "otherRelay": "Este código pertence a outro serviço de intermediação. Se você não tem um serviço de intermediação próprio, este não é um código do seu app para TV.",
         "loading": "O leitor dos serviços do Google Play ainda está carregando. Tente de novo em instantes.",
         "noPlayServices": "Os serviços do Google Play não estão neste dispositivo ou estão desatualizados. Sem eles, não há leitor.",
         "noCamera": "Este dispositivo não tem uma câmera com a qual o app possa ler o código.",
@@ -725,7 +725,7 @@
         "lapses": "Seu voucher expira sem ser usado.",
         "timedOut": "Não deu certo. Mostre um novo código na TV.",
         "expired": "O código expirou. Mostre um novo código na TV.",
-        "relay": "A intermediação não responde. Configure a TV manualmente: na TV, escolha “Configurar manualmente” e entre com a sua conta.",
+        "relay": "O serviço de intermediação não responde. Configure a TV manualmente: na TV, escolha “Configurar manualmente” e entre com a sua conta.",
         "server": "O servidor não responde. Verifique a conexão e escaneie o código de novo.",
         "notAllowed": "Este login não pode conectar uma TV.",
         "leftBefore": "Você saiu da página antes de a TV receber o acesso. Escaneie o código de novo.",
@@ -745,7 +745,7 @@
         "notMine": "Não é minha TV – desconectar"
       },
       "relay": {
-        "primaryOnly": "Só o perfil principal altera a intermediação."
+        "primaryOnly": "Só o perfil principal altera o serviço de intermediação."
       },
       "notMine": {
         "title": "Desconectar “{{name}}”?",
@@ -8581,7 +8581,7 @@
       "newCode": "Mostrar novo código",
       "byHand": "Configurar manualmente",
       "relay": "Alterar intermediação",
-      "ownRelay": "Intermediação própria: {{relay}}",
+      "ownRelay": "Serviço de intermediação próprio: {{relay}}",
       "retry": "Tentar novamente",
       "qrLabel": "QR code para conectar",
       "linked": "Conectada",
@@ -8606,12 +8606,12 @@
       "failedTitle": "Não deu certo"
     },
     "relay": {
-      "title": "Endereço da intermediação",
-      "lead": "Por este serviço, o app do celular encontra a TV durante a configuração. Só altere o endereço se você tiver uma intermediação própria. O celular e a TV precisam usar a mesma.",
-      "label": "Endereço da intermediação",
+      "title": "Endereço do serviço de intermediação",
+      "lead": "Por este serviço, o app do celular encontra a TV durante a configuração. Só altere o endereço se você tiver um serviço de intermediação próprio. O celular e a TV precisam usar o mesmo.",
+      "label": "Endereço do serviço de intermediação",
       "save": "Salvar",
       "reset": "Usar o endereço padrão",
-      "invalid": "Este endereço não é válido. A intermediação precisa de um endereço com https://."
+      "invalid": "Este endereço não é válido. O serviço de intermediação precisa de um endereço com https://."
     },
     "hand": {
       "subtitle": "Configurar manualmente",
@@ -8717,10 +8717,10 @@
       "normal": "normal"
     },
     "radio": {
-      "hint": "OK inicia uma estação; OK de novo a pausa.",
+      "hint": "OK inicia uma estação; outro OK pausa a reprodução.",
       "countries": "Países",
       "favorite": "Favorita",
-      "addFavorite": "Adicionar às favoritas"
+      "addFavorite": "Favoritar"
     },
     "notifications": {
       "allRead": "Tudo lido"
@@ -8776,11 +8776,11 @@
       "deviceKeyboard": "Teclado do dispositivo"
     },
     "lists": {
-      "removeHint": "OK em um título o remove da lista.",
+      "removeHint": "OK em um título o remove da minha lista.",
       "unwatchHint": "OK em um título remove a marca de assistido.",
-      "removed": "Removido da lista: {{title}}",
+      "removed": "Removido da minha lista: {{title}}",
       "unwatched": "Marca de assistido removida: {{title}}",
-      "listed": "Adicionados à lista: {{count}}"
+      "listed": "Adicionados à minha lista: {{count}}"
     }
   }
 }

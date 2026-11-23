@@ -283,7 +283,7 @@
         "youngest": "Lägst åldersgräns först"
       },
       "noMatch": "Inga titlar",
-      "reset": "Återställ filter",
+      "reset": "Rensa filter",
       "showList": "Visa som lista",
       "showGrid": "Visa som rutnät"
     },
@@ -369,7 +369,7 @@
       "wifi": "Över Wi-Fi",
       "mobileTitle": "Kvalitet över mobildata",
       "wifiTitle": "Kvalitet över Wi-Fi",
-      "mobileHint": "Lägre kvalitet använder mindre av din dataförbrukning.",
+      "mobileHint": "Lägre kvalitet använder mindre av din surfmängd.",
       "wifiHint": "Gäller strömmar. Kvaliteten på en nedladdning väljer du när du laddar ned.",
       "choice": {
         "auto": "Automatisk",
@@ -384,7 +384,7 @@
       "subtitleLanguage": "Undertextspråk",
       "noLanguage": "Inget",
       "profileNote": "Språk och undertexter gäller för profilen {{name}} på alla enheter. Det du väljer själv i spelaren går före.",
-      "flow": "Förlopp",
+      "flow": "Uppspelningsflöde",
       "autoplay": "Nästa avsnitt automatiskt",
       "autoplayHint": "Startar nästa avsnitt efter eftertexterna",
       "skipIntro": "Erbjud att hoppa över intro",
@@ -393,7 +393,7 @@
       "wifiOnly": "Ladda ned bara över Wi-Fi",
       "wifiOnlyOn": "Över mobildata väntar nedladdningen",
       "wifiOnlyOff": "Laddar även ned över mobildata",
-      "deviceNote": "Kvalitet, förlopp och nedladdningar gäller för den här enheten.",
+      "deviceNote": "Kvalitet, uppspelningsflöde och nedladdningar gäller för den här enheten.",
       "failed": "Inte sparat. Försök igen."
     },
     "downloads": {
@@ -401,9 +401,9 @@
       "storageBarApps": "Nedladdningar {{used}}, andra appar {{other}}, ledigt {{free}}",
       "backOnline": "Ansluten till servern igen",
       "pinWeakCopy": "Offline skyddar en pinkod med några få siffror bara mot nyfikna blickar: den som har enheten i handen kan prova alla. Den vanliga pinkodens kontrollvärde ligger på den här enheten för det ändamålet. Den som kopierar det kan också hitta pinkoden som gäller online. En egen, längre offlinepinkod under ”Hantera profiler” hålls åtskild från den.",
-      "episodeShort": "A{{episode}} · {{title}}",
+      "episodeShort": "E{{episode}} · {{title}}",
       "toDownloads": "Till nedladdningarna",
-      "episodeLine": "S{{season}} · A{{episode}} · {{title}}",
+      "episodeLine": "S{{season}} · E{{episode}} · {{title}}",
       "maxCountLess": "Ett avsnitt färre",
       "maxCountMore": "Ett avsnitt till",
       "ruleFailed": "Regeln kunde inte sparas.",
@@ -474,7 +474,7 @@
       "scope": "Omfattning",
       "scopeOne": "Det här avsnittet",
       "scopeNext": "Nästa 3 avsnitt",
-      "scopeNextRange": "A{{from}} till A{{to}}",
+      "scopeNextRange": "E{{from}} till E{{to}}",
       "scopeSeason": "Hela säsongen",
       "scopeSeasonSize_one": "Säsong {{season}} · {{count}} avsnitt",
       "scopeSeasonSize_other": "Säsong {{season}} · {{count}} avsnitt",
@@ -8364,7 +8364,7 @@
       "surface": "Videobild",
       "hdr": "HDR",
       "hdrNone": "Nej (SDR)",
-      "hdrTonemapped": "{{format}}, tonmappad till SDR",
+      "hdrTonemapped": "{{format}}, omvandlad till SDR",
       "soundPassthrough": "Ljudet skickas oförändrat till ljudanläggningen",
       "soundDecoded": "Ljudet avkodas i tv:n",
       "soundDetected": "Ljudanläggning hittad via HDMI: {{formats}}, {{layout}}. Surroundljud skickas oförändrat till den.",
@@ -8400,7 +8400,7 @@
       "passedManual": "Valt: {{formats}}, {{layout}}.",
       "formats": "Format som din ljudanläggning kan spela upp",
       "channels": "Kanaler",
-      "deviceNote": "Kvalitet, förlopp och ljud gäller för den här tv:n."
+      "deviceNote": "Kvalitet, uppspelningsflöde och ljud gäller för den här tv:n."
     },
     "audio": {
       "nowPlaying": "Spelas nu",

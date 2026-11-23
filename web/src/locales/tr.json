@@ -254,7 +254,7 @@
       "inLibrary_other": "Kitaplığınızda {{count}} içerik"
     },
     "home": {
-      "slide": "{{index}}/{{count}}. içerik",
+      "slide": "İçerik {{index}}/{{count}}",
       "details": "{{title}} ayrıntıları",
       "watchlistAdded": "{{title}} listeye eklendi",
       "watchlistRemoved": "{{title}} listeden kaldırıldı",
@@ -263,7 +263,7 @@
     "browse": {
       "showAll": "Tümü",
       "showAllLabel": "Tümünü göster: {{title}}",
-      "tip": "İpucu",
+      "tip": "Öneri",
       "matches_one": "{{count}} eşleşme",
       "matches_other": "{{count}} eşleşme",
       "all": "Tümü",
@@ -332,8 +332,8 @@
       "episodeLine": "{{number}}. {{title}}",
       "episodeNumber": "{{number}}. bölüm",
       "skipIntro": "Girişi atla",
-      "nextIn_one": "Sonraki bölüm: {{count}}",
-      "nextIn_other": "Sonraki bölüm: {{count}}",
+      "nextIn_one": "Sonraki bölüm {{count}} sn sonra",
+      "nextIn_other": "Sonraki bölüm {{count}} sn sonra",
       "playNow": "Şimdi oynat",
       "showControls": "Denetimleri göster",
       "remaining": "−{{time}}",
@@ -348,7 +348,7 @@
         "remux": "Remux · {{reason}}",
         "transcode": "{{quality}} kalitesine kod dönüştürme · {{reason}}",
         "device": "Cihaz",
-        "mbps": "{{value}} Mb/sn"
+        "mbps": "{{value}} Mbit/sn"
       },
       "error": {
         "notFoundTitle": "Artık kullanılamıyor",
@@ -398,7 +398,7 @@
     },
     "downloads": {
       "legendOtherApps": "Diğer uygulamalar",
-      "storageBarApps": "İndirmeler {{used}}, diğer uygulamalar {{other}}, boş {{free}}",
+      "storageBarApps": "İndirilenler {{used}}, diğer uygulamalar {{other}}, boş {{free}}",
       "backOnline": "Sunucuyla bağlantı yeniden kuruldu",
       "pinWeakCopy": "Çevrimdışıyken birkaç haneli bir PIN yalnızca meraklı gözlere karşı korur: cihaz kimin elindeyse hepsini deneyebilir. Bunun için normal PIN’in denetim değeri bu cihazda durur; onu kopyalayan, çevrimiçi geçerli PIN’i de bulabilir. “Profilleri yönet” altındaki ayrı, daha uzun bir çevrimdışı PIN ondan bağımsız tutulur.",
       "episodeShort": "B{{episode}} · {{title}}",
@@ -412,7 +412,7 @@
       "collapsed": "daraltıldı",
       "channel": "İndirmeler",
       "notificationTitle": "İndirme sürüyor",
-      "notificationProgress": "%{{percent}} yüklendi",
+      "notificationProgress": "%{{percent}} indirildi",
       "notificationWaiting": "Sunucu bekleniyor",
       "pause": "Duraklat",
       "pauseLabel": "{{title}} indirmesini duraklat",
@@ -433,9 +433,9 @@
       "deleted_one": "İndirme silindi",
       "deleted_other": "{{count}} indirme silindi",
       "storageLabel": "Depolama",
-      "storageUsed": "{{size}} indirme",
+      "storageUsed": "İndirilenler: {{size}}",
       "storageFree": "{{total}} içinde {{free}} boş",
-      "legendDownloads": "İndirmeler",
+      "legendDownloads": "İndirilenler",
       "legendFree": "Boş",
       "sectionActive": "İndiriliyor",
       "sectionWaiting": "Bekliyor",
@@ -479,12 +479,12 @@
       "scopeSeasonSize_one": "{{season}}. sezon · {{count}} bölüm",
       "scopeSeasonSize_other": "{{season}}. sezon · {{count}} bölüm",
       "qualityOption": "{{quality}} · {{height}}p",
-      "qualityAudio": "{{quality}} · {{kbps}} kb/sn",
+      "qualityAudio": "{{quality}} · {{kbps}} kbit/sn",
       "freeAfter": "Cihazda boş: {{free}} · sonra {{after}}",
       "free": "Cihazda boş: {{free}}",
       "tooLittle": "Yeterli yer yok: {{need}} gerekiyor, cihazda {{free}} boş.",
-      "loadsWifi": "Yalnızca Wi-Fi’da yüklenir. Mobil veride indirme bekler.",
-      "loadsAny": "Mobil veride de yüklenir.",
+      "loadsWifi": "Yalnızca Wi-Fi’da indirir. Mobil veride indirme bekler.",
+      "loadsAny": "Mobil veride de indirir.",
       "already": "Zaten cihazda. “İndirilenler” altında bulursunuz.",
       "start": "İndir",
       "starting": "Başlatılıyor…",
@@ -515,9 +515,9 @@
       "signOutKeep": "Saklarsanız, yalnızca aynı hesap oturum açtığında yeniden açılırlar."
     },
     "audio": {
-      "chapterOf": "{{n}}/{{total}}. kısım",
+      "chapterOf": "Kısım {{n}}/{{total}}",
       "leftTotal": "Toplam {{left}} kaldı · %{{percent}}",
-      "resumeChapter": "{{n}}. kısım · {{position}} / {{length}}",
+      "resumeChapter": "Kısım {{n}} · {{position}} / {{length}}",
       "close": "Ses oynatıcısını kapat",
       "open": "Ses oynatıcısını aç: {{title}}",
       "stop": "Oynatmayı durdur",
@@ -525,7 +525,7 @@
       "sleepTitle": "Uyku zamanlayıcısı",
       "sleepLeft": "{{left}} kaldı",
       "download": "İndir",
-      "allParts": "Tek indirme sesli kitabın tüm bölümlerini kapsar.",
+      "allParts": "Tek bir indirme, sesli kitabın tüm parçalarını kapsar.",
       "newest": "En yeni bölüm",
       "newestFirst": "en yeni önce",
       "episodeMeta": "{{date}} · {{length}}",
@@ -664,7 +664,7 @@
       "problem": {
         "notACode": "Bu, Slouchcat TV uygulamasının bir kodu değil. TV’nin “Telefonla kur” altında gösterdiği QR kodunu tarayın.",
         "otherVersion": "Bu kod daha yeni bir TV uygulamasından geliyor. Bu telefondaki uygulamayı güncelleyin.",
-        "otherRelay": "Bu kod başka bir aracı hizmete ait. Kendi aracı hizmetiniz yoksa bu, TV uygulamanızın kodu değildir.",
+        "otherRelay": "Bu kod başka bir eşleme hizmetine ait. Kendi eşleme hizmetiniz yoksa bu, TV uygulamanızın kodu değildir.",
         "loading": "Google Play hizmetlerinin tarayıcısı hâlâ yükleniyor. Birazdan tekrar deneyin.",
         "noPlayServices": "Bu cihazda Google Play hizmetleri yok ya da çok eski. Onlar olmadan tarayıcı da yok.",
         "noCamera": "Bu cihazda uygulamanın kodu okuyabileceği bir kamera yok.",
@@ -688,7 +688,7 @@
         "voucher": "Sunucudan eşleme kuponu alındı",
         "handedOver": "TV’ye şifreli olarak iletildi",
         "waiting": "TV oturum açıyor…",
-        "done": "Tamam",
+        "done": "Tamamlandı",
         "busy": "Sürüyor",
         "failed": "Başarısız",
         "pending": "Bekliyor"
@@ -698,7 +698,7 @@
         "lapses": "Eşleme kuponunuz kullanılmadan geçerliliğini yitirir.",
         "timedOut": "İşlem başarısız oldu. TV’de yeni bir kod gösterin.",
         "expired": "Kodun süresi doldu. TV’de yeni bir kod gösterin.",
-        "relay": "Aracı hizmet yanıt vermiyor. TV’yi elle kurun: TV’de “Elle kur” seçeneğini seçin ve hesabınızla oturum açın.",
+        "relay": "Eşleme hizmeti yanıt vermiyor. TV’yi elle kurun: TV’de “Elle kur” seçeneğini seçin ve hesabınızla oturum açın.",
         "server": "Sunucu yanıt vermiyor. Bağlantıyı denetleyin ve kodu yeniden tarayın.",
         "notAllowed": "Bu oturum bir TV’yi eşleyemez.",
         "leftBefore": "TV erişimini almadan sayfadan ayrıldınız. Kodu yeniden tarayın.",
@@ -712,17 +712,17 @@
         "title": "Eşlendi",
         "lede": "TV şimdi profil seçimini gösteriyor. “Cihazlarım” altında listelenir. “Yeni cihaz eşlendi” mesajı kurulu bildirim kanallarından gönderilir.",
         "finish": "Bitti",
-        "named": "TV kendine “{{name}}” diyor",
+        "named": "TV’nin adı: “{{name}}”",
         "several": "Yeni bir TV eşlendi. Aynı anda başka bir cihaz da katıldı: hangisinin sizin olduğunu “Cihazlarım” altında denetleyin.",
         "notMine": "Benim TV’m değil – oturumunu kapat"
       },
       "relay": {
-        "primaryOnly": "Aracı hizmeti yalnızca ana profil değiştirir."
+        "primaryOnly": "Eşleme hizmetini yalnızca ana profil değiştirir."
       },
       "notMine": {
-        "title": "“{{name}}” oturumu kapatılsın mı?",
+        "title": "“{{name}}” cihazının oturumu kapatılsın mı?",
         "body": "TV bu hesaba erişimini hemen kaybeder. Ardından “Cihazlarım” altında artık listelenmez.",
-        "done": "“{{name}}” oturumu kapatıldı."
+        "done": "“{{name}}” cihazının oturumu kapatıldı."
       }
     }
   },
@@ -8279,8 +8279,8 @@
       "showNew": "Yeni bir kod gösterin.",
       "newCode": "Yeni kod göster",
       "byHand": "Elle kur",
-      "relay": "Aracı hizmeti değiştir",
-      "ownRelay": "Kendi aracı hizmetiniz: {{relay}}",
+      "relay": "Eşleme hizmetini değiştir",
+      "ownRelay": "Kendi eşleme hizmetiniz: {{relay}}",
       "retry": "Tekrar dene",
       "qrLabel": "Eşlemek için QR kodu",
       "linked": "Eşlendi",
@@ -8305,12 +8305,12 @@
       "failedTitle": "İşlem başarısız oldu"
     },
     "relay": {
-      "title": "Aracı hizmetin adresi",
-      "lead": "Telefon uygulaması bu hizmet üzerinden kurulum sırasında TV’yi bulur. Adresi yalnızca kendi aracı hizmetinizi çalıştırıyorsanız değiştirin. Telefon ve TV aynısını kullanmalı.",
-      "label": "Aracı hizmetin adresi",
+      "title": "Eşleme hizmetinin adresi",
+      "lead": "Telefon uygulaması bu hizmet üzerinden kurulum sırasında TV’yi bulur. Adresi yalnızca kendi eşleme hizmetinizi çalıştırıyorsanız değiştirin. Telefon ve TV aynısını kullanmalı.",
+      "label": "Eşleme hizmetinin adresi",
       "save": "Kaydet",
       "reset": "Yerleşik adresi kullan",
-      "invalid": "Bu geçerli bir adres değil. Aracı hizmet için https:// ile başlayan bir adres gerekir."
+      "invalid": "Bu geçerli bir adres değil. Eşleme hizmeti için https:// ile başlayan bir adres gerekir."
     },
     "hand": {
       "subtitle": "Elle kur",
@@ -8318,7 +8318,7 @@
       "stepServerHint": "Sunucunun adresi",
       "stepEmail": "E-posta",
       "stepPassword": "Şifre",
-      "stepAccount": "hesabınızın",
+      "stepAccount": "Slouchcat hesabınız",
       "serverTitle": "Sunucu adresi",
       "serverLead": "Slouchcat’i tarayıcıda açtığınız adres.",
       "serverLabel": "Sunucu adresi",
@@ -8374,7 +8374,7 @@
       "soundManual": "Biçimler ayarlarda elle seçildi: {{formats}}, {{layout}}.",
       "soundSettings": "Ses ayarları",
       "subtitleImage": "Görüntü altyazısı, TV tarafından çizilir",
-      "qualityConverted": "Sunucuda dönüştürüldü",
+      "qualityConverted": "Sunucuda dönüştürülüyor",
       "episodesOf": "Bölümler · {{series}}",
       "seen": "izlendi"
     },
@@ -8390,7 +8390,7 @@
       "soundAutoHint": "TV, ses sisteminin neyi oynatabildiğini bildirir",
       "soundStereo": "Her zaman stereo",
       "soundStereoHint": "Kulaklık veya TV hoparlörleri için",
-      "soundManual": "Biçimler elle",
+      "soundManual": "Elle seçim",
       "soundManualHint": "Algılama yanlışsa",
       "detected": "Algılanan: {{formats}}, {{layout}}",
       "detectedStereo": "Algılanan: stereo",

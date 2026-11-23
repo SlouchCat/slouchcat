@@ -77,7 +77,7 @@
       "remembered": "Zapamiętany klucz",
       "presented": "Nowy klucz",
       "passwordGoes": "Po potwierdzeniu zalogujesz się ponownie. Adres e-mail i hasło trafią wtedy do urządzenia z nowym kluczem.",
-      "ownNetwork": "Jestem w mojej własnej sieci",
+      "ownNetwork": "Jestem we własnej sieci",
       "ownNetworkHint": "W domu lub w sieci, której ufasz; nie w hotelu, w pociągu ani w kawiarni.",
       "signIn": "Zaloguj się ponownie",
       "accept": "Zaakceptuj nowy klucz",
@@ -104,7 +104,7 @@
         "editLabel": "Edytuj: {{name}}",
         "ratingAll": "Ten profil widzi wszystkie tytuły.",
         "ratingUpTo": "Ten profil widzi tylko tytuły z kategorią wiekową do {{rating}}.",
-        "aboveAccount": "Wyżej niż limit tego konta",
+        "aboveAccount": "Powyżej limitu tego konta",
         "languageLabel": "Język: {{language}}",
         "allLibraries": "Wszystkie biblioteki",
         "protection": "Ochrona",
@@ -125,7 +125,7 @@
         "nameMissing": "Nadaj profilowi nazwę.",
         "watchLimitInvalid": "Wpisz od 1 do 1440 minut lub zostaw pole puste.",
         "keep": "Zachowaj",
-        "deleteWarning": "Profil „{{name}}” zostanie usunięty wraz z moją listą, obejrzanymi tytułami i postępem. Tej operacji nie można cofnąć.",
+        "deleteWarning": "Profil „{{name}}” zostanie usunięty wraz z listą, obejrzanymi tytułami i postępem. Tej operacji nie można cofnąć.",
         "primaryNoDelete": "Profilu głównego nie można usunąć.",
         "added": "Dodano profil „{{name}}”",
         "saved": "Zapisano",
@@ -174,7 +174,7 @@
       }
     },
     "signOut": {
-      "title": "Wylogować?",
+      "title": "Wylogować się?",
       "body": "Aplikacja wyloguje się na tym urządzeniu.",
       "hint": "Aby wrócić, potrzebujesz adresu serwera, swojego adresu e-mail i hasła.",
       "busy": "Wylogowywanie…",
@@ -285,14 +285,14 @@
     "browse": {
       "showAll": "Wszystkie",
       "showAllLabel": "Pokaż wszystkie: {{title}}",
-      "tip": "Wskazówka",
+      "tip": "Polecane",
       "matches_one": "{{count}} wynik",
       "matches_few": "{{count}} wyniki",
       "matches_many": "{{count}} wyników",
       "matches_other": "{{count}} wyniku",
       "all": "Wszystkie",
       "allYears": "Wszystkie lata",
-      "decade": "lata {{decade}}",
+      "decade": "Lata {{decade}}",
       "before": "Przed {{year}}",
       "yearTitle": "Rok premiery",
       "sortTitle": "Sortuj według",
@@ -380,7 +380,7 @@
         "remux": "Remux · {{reason}}",
         "transcode": "Transkodowanie do {{quality}} · {{reason}}",
         "device": "Urządzenie",
-        "mbps": "{{value}} Mb/s"
+        "mbps": "{{value}} Mbit/s"
       },
       "error": {
         "notFoundTitle": "Już niedostępne",
@@ -433,9 +433,9 @@
       "storageBarApps": "Pobrane {{used}}, inne aplikacje {{other}}, wolne {{free}}",
       "backOnline": "Ponownie połączono z serwerem",
       "pinWeakCopy": "Offline PIN z kilku cyfr chroni tylko przed ciekawskimi oczami: kto trzyma urządzenie, może wypróbować wszystkie kombinacje. Służy do tego wartość kontrolna zwykłego PIN-u zapisana na tym urządzeniu; kto ją skopiuje, może też znaleźć PIN obowiązujący online. Osobny, dłuższy PIN offline w sekcji „Zarządzaj profilami” jest od niej niezależny.",
-      "episodeShort": "E{{episode}} · {{title}}",
+      "episodeShort": "O{{episode}} · {{title}}",
       "toDownloads": "Przejdź do pobranych",
-      "episodeLine": "S{{season}} · E{{episode}} · {{title}}",
+      "episodeLine": "S{{season}} · O{{episode}} · {{title}}",
       "maxCountLess": "O jeden odcinek mniej",
       "maxCountMore": "O jeden odcinek więcej",
       "ruleFailed": "Nie udało się zapisać reguły.",
@@ -466,7 +466,7 @@
       "deleteBodyMany_one": "Z tego urządzenia zostanie usunięty {{count}} odcinek: „{{title}}”. Możesz pobrać go ponownie w dowolnym momencie.",
       "deleteBodyMany_few": "Z tego urządzenia zostaną usunięte {{count}} odcinki: „{{title}}”. Możesz pobrać je ponownie w dowolnym momencie.",
       "deleteBodyMany_many": "Z tego urządzenia zostanie usuniętych {{count}} odcinków: „{{title}}”. Możesz pobrać je ponownie w dowolnym momencie.",
-      "deleteBodyMany_other": "Z tego urządzenia zostanie usuniętego {{count}} odcinka: „{{title}}”. Możesz pobrać je ponownie w dowolnym momencie.",
+      "deleteBodyMany_other": "Z tego urządzenia zostanie usunięte {{count}} odcinka: „{{title}}”. Możesz pobrać je ponownie w dowolnym momencie.",
       "deleteConfirm": "Usuń",
       "deleted_one": "Usunięto pobranie",
       "deleted_few": "Usunięto {{count}} pobrania",
@@ -518,14 +518,14 @@
       "scope": "Zakres",
       "scopeOne": "Ten odcinek",
       "scopeNext": "Następne 3 odcinki",
-      "scopeNextRange": "Od E{{from}} do E{{to}}",
+      "scopeNextRange": "O{{from}}–O{{to}}",
       "scopeSeason": "Cały sezon",
       "scopeSeasonSize_one": "Sezon {{season}} · {{count}} odcinek",
       "scopeSeasonSize_few": "Sezon {{season}} · {{count}} odcinki",
       "scopeSeasonSize_many": "Sezon {{season}} · {{count}} odcinków",
       "scopeSeasonSize_other": "Sezon {{season}} · {{count}} odcinka",
       "qualityOption": "{{quality}} · {{height}}p",
-      "qualityAudio": "{{quality}} · {{kbps}} kb/s",
+      "qualityAudio": "{{quality}} · {{kbps}} kbit/s",
       "freeAfter": "Wolne na urządzeniu: {{free}} · potem {{after}}",
       "free": "Wolne na urządzeniu: {{free}}",
       "tooLittle": "Za mało miejsca: potrzeba {{need}}, wolne na urządzeniu: {{free}}.",
@@ -599,11 +599,11 @@
       "moreSubtitle": "Stacje na żywo",
       "allCountries": "Wszystkie kraje",
       "countryTitle": "Kraj",
-      "added": "Dodano do „Moje stacje”: {{name}}",
-      "removed": "Usunięto z „Moje stacje”: {{name}}",
+      "added": "Dodano do „Moich stacji”: {{name}}",
+      "removed": "Usunięto z „Moich stacji”: {{name}}",
       "failed": "To się nie udało. Spróbuj ponownie.",
-      "favoriteOn": "Usuń z „Moje stacje”: {{name}}",
-      "favoriteOff": "Dodaj do „Moje stacje”: {{name}}",
+      "favoriteOn": "Usuń z „Moich stacji”: {{name}}",
+      "favoriteOff": "Dodaj do „Moich stacji”: {{name}}",
       "error": {
         "watchLimit": "Czas oglądania na dziś został wykorzystany.",
         "capacity": "Serwer przekazuje już tyle stacji, ile może. Spróbuj ponownie później.",
@@ -630,7 +630,7 @@
         "available": "Dostępne",
         "current": "{{step}}, bieżący krok",
         "done": "{{step}}, zakończone",
-        "open": "{{step}}, jeszcze otwarte"
+        "open": "{{step}}, niezakończone"
       },
       "requestedOn": "prośba z dnia {{date}}",
       "keep": "Zachowaj",
@@ -739,8 +739,8 @@
       "run": {
         "title": "Łączenie…",
         "failedTitle": "Nie połączono",
-        "voucher": "Kupon pobrany z serwera",
-        "handedOver": "Przekazano telewizorowi, zaszyfrowane",
+        "voucher": "Przepustka pobrana z serwera",
+        "handedOver": "Zaszyfrowano i przekazano telewizorowi",
         "waiting": "Telewizor się loguje…",
         "done": "Gotowe",
         "busy": "W toku",
@@ -749,7 +749,7 @@
       },
       "fail": {
         "occupied": "W punkcie spotkania czeka już pakiet. Telewizor może być połączony z cudzym serwerem. Sprawdź, jaki serwer i jakie konto pokazuje telewizor.",
-        "lapses": "Twój kupon wygaśnie niewykorzystany.",
+        "lapses": "Twoja przepustka wygaśnie niewykorzystana.",
         "timedOut": "To się nie udało. Wyświetl na telewizorze nowy kod.",
         "expired": "Kod wygasł. Wyświetl na telewizorze nowy kod.",
         "relay": "Pośrednik nie odpowiada. Skonfiguruj telewizor ręcznie: wybierz na telewizorze „Skonfiguruj ręcznie” i zaloguj się na swoje konto.",
@@ -9019,10 +9019,10 @@
       "normal": "normalna"
     },
     "radio": {
-      "hint": "OK uruchamia stację, ponowne OK wstrzymuje ją.",
+      "hint": "OK uruchamia stację, ponowne OK ją wstrzymuje.",
       "countries": "Kraje",
-      "favorite": "Moja stacja",
-      "addFavorite": "Dodaj do moich stacji"
+      "favorite": "W Moich stacjach",
+      "addFavorite": "Dodaj do Moich stacji"
     },
     "notifications": {
       "allRead": "Wszystko przeczytane"

@@ -274,7 +274,7 @@
     "browse": {
       "showAll": "Tutti",
       "showAllLabel": "Mostra tutti: {{title}}",
-      "tip": "Suggerimento",
+      "tip": "Consigliato",
       "matches_one": "{{count}} risultato",
       "matches_many": "{{count}} di risultati",
       "matches_other": "{{count}} risultati",
@@ -347,9 +347,9 @@
       "episodeLine": "{{number}}. {{title}}",
       "episodeNumber": "Episodio {{number}}",
       "skipIntro": "Salta intro",
-      "nextIn_one": "Episodio successivo tra {{count}}",
-      "nextIn_many": "Episodio successivo tra {{count}}",
-      "nextIn_other": "Episodio successivo tra {{count}}",
+      "nextIn_one": "Episodio successivo tra {{count}} s",
+      "nextIn_many": "Episodio successivo tra {{count}} s",
+      "nextIn_other": "Episodio successivo tra {{count}} s",
       "playNow": "Riproduci ora",
       "showControls": "Mostra i comandi",
       "remaining": "−{{time}}",
@@ -439,7 +439,7 @@
       "play": "Riproduci {{title}}",
       "deleteLabel": "Elimina {{title}}",
       "deleteGroupLabel_one": "Elimina l’episodio di {{title}} ({{count}})",
-      "deleteGroupLabel_many": "Elimina tutti i {{count}} di episodi di {{title}}",
+      "deleteGroupLabel_many": "Elimina tutti i {{count}} episodi di {{title}}",
       "deleteGroupLabel_other": "Elimina tutti i {{count}} episodi di {{title}}",
       "deleteTitle_one": "Eliminare il download?",
       "deleteTitle_many": "Eliminare i download?",
@@ -615,7 +615,7 @@
       "seasonsCount_one": "{{count}} stagione",
       "seasonsCount_many": "{{count}} di stagioni",
       "seasonsCount_other": "{{count}} stagioni",
-      "searchCard": "Esprimi il desiderio «{{query}}»",
+      "searchCard": "Aggiungi «{{query}}» ai desideri",
       "searchCardHint": "Cerca in Seerr e invia un desiderio",
       "missingTitle": "Non ancora nella libreria?",
       "toMine": "I miei desideri",
@@ -712,7 +712,7 @@
       "run": {
         "title": "Collegamento in corso…",
         "failedTitle": "Non collegata",
-        "voucher": "Buono richiesto al server",
+        "voucher": "Buono ottenuto dal server",
         "handedOver": "Consegnato alla TV, cifrato",
         "waiting": "La TV sta accedendo…",
         "done": "Fatto",
@@ -8557,7 +8557,7 @@
       "myLists": "Le mie liste"
     },
     "setup": {
-      "welcome": "Benvenuto in Slouchcat",
+      "welcome": "Ti diamo il benvenuto in Slouchcat",
       "lead": "Collega questa TV al tuo server Slouchcat.",
       "recommended": "Consigliato",
       "phoneTitle": "Configura con il telefono",
@@ -8627,7 +8627,7 @@
       "checking": "Verifica dell’indirizzo…",
       "encrypted": "cifrata",
       "notEncrypted": "non cifrata",
-      "consent": "Ho capito e voglio collegare comunque",
+      "consent": "Ho capito e voglio collegarmi comunque",
       "next": "Avanti",
       "emailTitle": "E-mail",
       "emailLead": "L’indirizzo e-mail con cui accedi a Slouchcat.",
@@ -8758,7 +8758,7 @@
     },
     "item": {
       "more": "Altre info",
-      "recommended": "Consigliato. Il titolo ora è tra gli scelti dagli utenti."
+      "recommended": "Consigliato. Il titolo ora è in «Scelti dagli utenti»."
     },
     "person": {
       "kind": "Persona"

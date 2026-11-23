@@ -274,7 +274,7 @@
     "browse": {
       "showAll": "Tudo",
       "showAllLabel": "Mostrar tudo: {{title}}",
-      "tip": "Dica",
+      "tip": "Recomendado",
       "matches_one": "{{count}} resultado",
       "matches_many": "{{count}} de resultados",
       "matches_other": "{{count}} resultados",
@@ -292,7 +292,7 @@
         "longest": "Mais longos primeiro",
         "lastSeen": "Vistos recentemente primeiro",
         "aToZ": "De A a Z",
-        "youngest": "Menor idade mínima primeiro"
+        "youngest": "Menor classificação etária primeiro"
       },
       "noMatch": "Sem títulos",
       "reset": "Repor filtros",
@@ -300,7 +300,7 @@
       "showGrid": "Mostrar em grelha"
     },
     "search": {
-      "placeholder": "Títulos, pessoas, autores …",
+      "placeholder": "Títulos, pessoas, autores…",
       "clear": "Limpar pesquisa",
       "browse": "Explorar",
       "genres": "Géneros",
@@ -477,7 +477,7 @@
       "offlineBanner": "Sem contacto com o servidor · está a ver as suas transferências",
       "offlineHint": "Os títulos guardados continuam a ser reproduzidos; o progresso e as eliminações chegam ao servidor no próximo contacto.",
       "emptyTitle": "Ainda não há transferências",
-      "emptyBody": "Transfira filmes e episódios e passam a funcionar também sem rede.",
+      "emptyBody": "Transfira filmes e episódios para os ver também sem rede.",
       "toStart": "Ir para o início",
       "autoTitle": "Transferências automáticas",
       "autoOn": "Regra ativa",
@@ -691,7 +691,7 @@
       "problem": {
         "notACode": "Este não é um código da app Slouchcat para TV. Digitalize o código QR que o televisor mostra em «Configurar com o telemóvel».",
         "otherVersion": "Este código vem de uma app de TV mais recente. Atualize a app neste telemóvel.",
-        "otherRelay": "Este código pertence a outra mediação. Se não tem uma mediação própria, não é um código da sua app de TV.",
+        "otherRelay": "Este código pertence a outro serviço de mediação. Se não tem um serviço de mediação próprio, não é um código da sua app de TV.",
         "loading": "O scanner dos serviços do Google Play ainda está a carregar. Tente novamente daqui a pouco.",
         "noPlayServices": "Neste dispositivo faltam os serviços do Google Play ou estão desatualizados. Sem eles, não há scanner.",
         "noCamera": "Este dispositivo não tem uma câmara com que a app possa ler o código.",
@@ -725,7 +725,7 @@
         "lapses": "O seu vale expira sem ter sido usado.",
         "timedOut": "Não resultou. Mostre um novo código no televisor.",
         "expired": "O código expirou. Mostre um novo código no televisor.",
-        "relay": "A mediação não responde. Configure o televisor manualmente: escolha «Configurar manualmente» no televisor e inicie sessão com a sua conta.",
+        "relay": "O serviço de mediação não responde. Configure o televisor manualmente: escolha «Configurar manualmente» no televisor e inicie sessão com a sua conta.",
         "server": "O servidor não responde. Verifique a ligação e digitalize o código novamente.",
         "notAllowed": "Com este início de sessão não é possível ligar um televisor.",
         "leftBefore": "Saiu da página antes de o televisor receber o acesso. Digitalize o código novamente.",
@@ -745,7 +745,7 @@
         "notMine": "Não é o meu televisor – terminar sessão"
       },
       "relay": {
-        "primaryOnly": "Só o perfil principal altera a mediação."
+        "primaryOnly": "Só o perfil principal altera o serviço de mediação."
       },
       "notMine": {
         "title": "Terminar a sessão de «{{name}}»?",
@@ -8581,7 +8581,7 @@
       "newCode": "Mostrar novo código",
       "byHand": "Configurar manualmente",
       "relay": "Alterar mediação",
-      "ownRelay": "Mediação própria: {{relay}}",
+      "ownRelay": "Serviço de mediação próprio: {{relay}}",
       "retry": "Tentar novamente",
       "qrLabel": "Código QR para ligar",
       "linked": "Ligado",
@@ -8606,12 +8606,12 @@
       "failedTitle": "Não resultou"
     },
     "relay": {
-      "title": "Endereço da mediação",
-      "lead": "Por este serviço, a app do telemóvel encontra o televisor durante a configuração. Só altere o endereço se tiver uma mediação própria. O telemóvel e o televisor precisam da mesma.",
-      "label": "Endereço da mediação",
+      "title": "Endereço do serviço de mediação",
+      "lead": "Por este serviço, a app do telemóvel encontra o televisor durante a configuração. Só altere o endereço se tiver um serviço de mediação próprio. O telemóvel e o televisor precisam do mesmo.",
+      "label": "Endereço do serviço de mediação",
       "save": "Guardar",
       "reset": "Usar o endereço integrado",
-      "invalid": "Este endereço não é válido. A mediação precisa de um endereço com https://."
+      "invalid": "Este endereço não é válido. O serviço de mediação precisa de um endereço com https://."
     },
     "hand": {
       "subtitle": "Configurar manualmente",
@@ -8780,7 +8780,7 @@
       "unwatchHint": "OK num título remove a sua marca de visto.",
       "removed": "Removido da lista: {{title}}",
       "unwatched": "Marca de visto removida: {{title}}",
-      "listed": "Adicionados {{count}} à lista"
+      "listed": "Títulos adicionados à lista: {{count}}"
     }
   }
 }

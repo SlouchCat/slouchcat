@@ -73,7 +73,7 @@
       "unconfirmedBody": "伺服器位址上有一部裝置回應的金鑰與設定時的不同。App 不會傳送任何資料給它。",
       "check": "檢查金鑰",
       "title": "金鑰不同",
-      "cases": "如果伺服器重新安裝過，或是從不含密鑰的備份還原，這是正常的。如果你在別人的網路中，而那裡有另一部裝置使用相同的位址，這就是攻擊。",
+      "cases": "如果伺服器重新安裝過，或是從不含機密資料的備份還原，這是正常的。如果你在別人的網路中，而那裡有另一部裝置使用相同的位址，這就是攻擊。",
       "remembered": "已記住的金鑰",
       "presented": "新金鑰",
       "passwordGoes": "確認後，你會重新登入。你的電子郵件地址和密碼會傳送到使用新金鑰的裝置。",
@@ -155,8 +155,8 @@
       "serverSheet": {
         "title": "伺服器",
         "connection": "連線",
-        "encrypted": "已加密 (HTTPS)",
-        "notEncrypted": "未加密 (HTTP)",
+        "encrypted": "已加密（HTTPS）",
+        "notEncrypted": "未加密（HTTP）",
         "hint": "App 只會連線到一台伺服器。若要使用其他伺服器，請先登出，再輸入新的位址。",
         "change": "更換伺服器"
       }
@@ -252,7 +252,7 @@
     "browse": {
       "showAll": "全部",
       "showAllLabel": "顯示全部：{{title}}",
-      "tip": "提示",
+      "tip": "推薦",
       "matches_other": "{{count}} 個結果",
       "all": "全部",
       "allYears": "所有年份",
@@ -357,10 +357,10 @@
       "wifiHint": "適用於串流。下載的畫質會在下載時選擇。",
       "choice": {
         "auto": "自動",
-        "high": "高 (1080p)",
-        "medium": "中 (720p)",
-        "low": "低 (480p)",
-        "saver": "節省數據 (360p)"
+        "high": "高（1080p）",
+        "medium": "中（720p）",
+        "low": "低（480p）",
+        "saver": "節省數據（360p）"
       },
       "language": "語言",
       "audioLanguage": "偏好的音訊語言",
@@ -652,7 +652,7 @@
         "primary": "{{name}}（主個人資料）",
         "profile": "{{name}}（個人資料）",
         "hint": "電視可以存取這個帳戶的個人資料，但無法存取管理功能。它會保持登入，直到你在「我的裝置」中將它登出。",
-        "plainHttp": "與伺服器的連線未加密 (HTTP)。電視也會以明文在網路上傳送它的存取權限。請為伺服器設定 HTTPS。",
+        "plainHttp": "與伺服器的連線未加密（HTTP）。電視也會以明文在網路上傳送它的存取權限。請為伺服器設定 HTTPS。",
         "go": "連結"
       },
       "run": {
@@ -8062,7 +8062,7 @@
       "behind": "−{{time}}",
       "surface": "影片畫面",
       "hdr": "HDR",
-      "hdrNone": "否 (SDR)",
+      "hdrNone": "否（SDR）",
       "hdrTonemapped": "{{format}}，已轉換為 SDR",
       "soundPassthrough": "聲音直接傳送到音響系統",
       "soundDecoded": "聲音由電視解碼",

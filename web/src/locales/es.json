@@ -274,7 +274,7 @@
     "browse": {
       "showAll": "Todo",
       "showAllLabel": "Ver todo: {{title}}",
-      "tip": "Consejo",
+      "tip": "Recomendado",
       "matches_one": "{{count}} resultado",
       "matches_many": "{{count}} de resultados",
       "matches_other": "{{count}} resultados",
@@ -288,9 +288,9 @@
       "sortTitleAz": "Título de la A a la Z",
       "order": {
         "newest": "Más recientes primero",
-        "best": "Mejor valoradas primero",
-        "longest": "Más largas primero",
-        "lastSeen": "Vistas más recientemente primero",
+        "best": "Mejor valorados primero",
+        "longest": "Más largos primero",
+        "lastSeen": "Vistos recientemente primero",
         "aToZ": "De la A a la Z",
         "youngest": "Menor edad primero"
       },
@@ -551,7 +551,7 @@
       "sleepLeft": "quedan {{left}}",
       "download": "Descargar",
       "allParts": "Una sola descarga incluye todas las partes del audiolibro.",
-      "newest": "Último episodio",
+      "newest": "Episodio más reciente",
       "newestFirst": "más recientes primero",
       "episodeMeta": "{{date}} · {{length}}",
       "chaptersMeta": "{{count}} · {{length}}",
@@ -8717,10 +8717,10 @@
       "normal": "normal"
     },
     "radio": {
-      "hint": "OK inicia una emisora; otra vez OK la pausa.",
+      "hint": "OK inicia una emisora; otro OK la pone en pausa.",
       "countries": "Países",
       "favorite": "Favorita",
-      "addFavorite": "Añadir a favoritas"
+      "addFavorite": "Marcar como favorita"
     },
     "notifications": {
       "allRead": "Todo leído"
