@@ -28,6 +28,53 @@ knapp 2 min das Einrichten.
   Stellvertreter-Befehl geprüft. Kein `task ci` und kein `task check:fast`: Der Pull Request ändert nur
   `ci.yml`, das Skript des Emulator-Ablaufs und Dokumente, und keines der beiden Ziele liest eine dieser Dateien.
 
+## Korrektur: das Zeichen der App sitzt in der Mitte (23. November 2026, Zweig `claude/logo-zentrierung`)
+
+Marco meldete nach dem ersten Release-Bau der Handy-App: «Das Logo ist nicht sauber zentriert, vermutlich
+überall.» Es stimmte überall, und es waren zwei Fehler.
+
+- **Ursache 1, alle Stellen:** Das Zeichen (Katzenkopf mit Abspiel-Dreieck) sass in seiner Quelle
+  `web/public/icon.svg` 24 von 512 Einheiten unter der Mitte seiner Fläche (Rand oben 136, unten 88,
+  seitlich je 136). Jede Stelle trug dieselbe Form als Kopie und damit denselben Fehler: Starter-Symbol
+  der Handy-App (3,4 dp zu tief), Symbol der TV-App, PWA-Symbole, Logo neben dem Namen in der Web-App
+  (1,5 px zu tief), Platzhalter für fehlende Cover, Symbol für den Store.
+- **Ursache 2, nur TV-Banner und Feature-Grafik:** Zeichen und Name sassen als Gruppe zu weit rechts
+  (Banner 7,1 von 320 dp, Feature-Grafik 38 von 1024 px), weil der Generator die leere Fläche um das
+  Zeichen mitgezählt hatte.
+- **Korrektur:** Das Zeichen ist um 24 Einheiten nach oben gerückt (Rand oben und unten je 112), in der
+  Quelle und in jeder Kopie. Gewählt ist die geometrische Mitte (die Mitte des umschliessenden
+  Rechtecks): Sie ist messbar, gilt für runde wie eckige Masken und liegt zwischen den zwei optischen
+  Massen (kleinster umschliessender Kreis: 18 Einheiten, Flächenschwerpunkt: 46 Einheiten). Das
+  Abspiel-Dreieck bleibt wie üblich auf seinen Schwerpunkt zentriert. Der Generator des TV-Banners
+  (`android/app-tv/banner/build_banner.py`) liest das Zeichen jetzt aus `web/public/icon.svg`, setzt
+  Zeichen und Name nach dem Gezeichneten in die Mitte und schreibt auch die zwei Store-Grafiken
+  `tv-banner.svg` und `feature-graphic.svg`.
+- **Kopien:** Die Web-App hat das Zeichen nur noch einmal (`web/src/ui/logoMark.ts`, von `Logo` und
+  `PosterFallback` benutzt). Neun Dateien können es nicht einbinden und tragen es weiter als Kopie
+  (`icon.svg`, `spike/icon.svg`, drei Store-Grafiken, vier Android-Zeichnungen);
+  `web/src/ui/logoMark.test.ts` prüft, dass das Zeichen in der Mitte sitzt und jede Kopie dieselbe Form
+  hat, `LauncherIconTest` prüft die Mitte der zwei Ebenen des Starter-Symbols.
+- **Geprüft:** gemessene Ränder vorher und nachher je Stelle im Pull Request; Bilder aus dem Emulator
+  (Handy, TV), aus der Web-App und von den Store-Grafiken. Nicht geprüft: das einfarbige Symbol
+  («Design-Symbole» von Android 13) im Bild, es trägt dieselbe Form und denselben Test.
+- **Was Marco tun muss:** die Apps neu bauen und einspielen (das Symbol steckt in der App);
+  `scripts/store-graphics.sh <Ordner>` neu laufen lassen und Symbol, Feature-Grafik und TV-Banner in
+  der Play Console ersetzen, falls schon hochgeladen. Die Web-App zeigt es mit dem nächsten
+  Server-Release; eine installierte PWA holt das neue Symbol erst nach erneutem Installieren.
+- **Nachtrag, der unsichtbare Rand im Web-Logo (Marco am 23. November 2026: «Mach, was du für richtig
+  hältst»):** Um das Zeichen lagen links und rechts je 8,5 px leere Fläche. Auf Anmelde- und
+  Einrichtungsseite stand es darum 8,5 px rechts von der Kante der Überschrift, der Abstand zum Namen
+  war 16,5 statt der vorgesehenen 8 px. `Logo` schneidet die Fläche jetzt auf die Breite des Zeichens
+  (`LOGO_SIGN_VIEW_BOX`), die Höhe von 32 px bleibt. Der Link in der Kopfzeile (`.brand`) behält auf
+  schmalen Schirmen, wo der Name ausgeblendet ist, ein Quadrat von 32 px zum Antippen. Nebenbei sitzt
+  das Logo in der Kopfzeile jetzt auf der Mittellinie (Mitte bei 32,2 statt 29,2 von 64 px): Der Link
+  war vorher eine Textzeile mit Platz für Unterlängen. Gemessen in Chromium und Firefox. WebKit läuft
+  lokal nicht (`libavif16` fehlt); die Breite des Zeichens ist darum ausdrücklich gesetzt (Höhe mal
+  Seitenverhältnis), kein Browser muss sie errechnen. Neun Storybook-Bilder nachgezogen
+  (`ui-logo--*`, `ui-appheader--*`).
+- **Offen:** Der Startbildschirm des Systems in der Handy-App ist grau (`Theme.Material.NoActionBar`),
+  die App danach dunkel.
+
 ## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, PR #212, veröffentlicht)
 
 Marco meldete am 23. November 2026: «Strike Back» über die Android-App gewünscht, erscheint nicht in der Startreihe

@@ -3,6 +3,6 @@
        its own mask and shadow over it): color.bg.base and color.accent.ember.base of
        packages/design-tokens. Rendered by scripts/store-graphics.sh. -->
   <rect width="512" height="512" fill="#0b0c10" />
-  <path d="M136 400V136l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z" fill="#e8794a" />
-  <path d="M228 268v96l84-48z" fill="#0b0c10" />
+  <path d="M136 376V112l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z" fill="#e8794a" />
+  <path d="M228 244v96l84-48z" fill="#0b0c10" />
 </svg>

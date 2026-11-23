@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
-"""Builds the TV banner (concept 26, K26 stage 0 checklist TV-LB/TV-BN) as an Android vector drawable.
+"""Builds the TV banner (concept 26, K26 stage 0 checklist TV-LB/TV-BN) as an Android vector drawable,
+and from the same layout the two store graphics that show it (docs/store/grafiken.md).
 
     python3 android/app-tv/banner/build_banner.py <font.ttf> > android/app-tv/src/main/res/drawable/banner.xml
+    python3 android/app-tv/banner/build_banner.py <font.ttf> tv-banner > docs/store/grafiken/tv-banner.svg
+    python3 android/app-tv/banner/build_banner.py <font.ttf> feature-graphic > docs/store/grafiken/feature-graphic.svg
 
 320 x 180 dp (xhdpi: 320 x 180 px as the TV quality list asks), the colours from
-packages/design-tokens (bg, text, accent), the app icon of web/public/icon.svg on the left and the
+packages/design-tokens (bg, text, accent), the sign of web/public/icon.svg on the left and the
 wordmark «Slouchcat» («cat» in the accent) as outlines of a bold sans font (the repo used Noto Sans
 Bold, SIL OFL 1.1; any TrueType font with simple glyphs works). Only the standard library: the
 glyphs are read from the font's cmap, loca and glyf tables, quadratic curves stay quadratic.
+
+Sign and name sit in the middle of the banner as one group, measured by what is drawn: from the
+left edge of the sign to the right edge of the last letter, and each of the two around the
+horizontal middle line. The empty canvas around the sign in icon.svg does not count.
 """
 import json
 import pathlib
+import re
 import struct
 import sys
 
@@ -80,6 +88,18 @@ class Font:
         off = self.tables["hmtx"][0]
         i = min(gid, self.metrics - 1)
         return struct.unpack(">H", self.raw[off + 4 * i: off + 4 * i + 2])[0]
+
+    def box(self, gid):
+        """xMin, yMin, xMax, yMax of a glyph in font units, None for an empty glyph."""
+        loca = self.tables["loca"][0]
+        if self.long_loca:
+            a, b = struct.unpack(">II", self.raw[loca + 4 * gid: loca + 4 * gid + 8])
+        else:
+            a, b = (2 * x for x in struct.unpack(">HH", self.raw[loca + 2 * gid: loca + 2 * gid + 4]))
+        if a == b:
+            return None
+        g = self.tables["glyf"][0] + a
+        return struct.unpack(">4h", self.raw[g + 2: g + 10])
 
     def contours(self, gid):
         loca = self.tables["loca"][0]
@@ -173,35 +193,152 @@ def text_paths(font, text, size, x, baseline):
     return "".join(paths), x
 
 
-def main():
-    font = Font(pathlib.Path(sys.argv[1]).read_bytes())
-    bg = token("color.bg.base")
-    tx = token("color.text.primary")
-    accent = token("color.accent.ember.base")
-    # The app icon of web/public/icon.svg (512 units) scaled into a square of 96 at the left.
-    icon = 96 / 512
-    ix, iy = 28, 42
-    body = "M136 400V136l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z"
-    play = "M228 268v96l84-48z"
-    size = 30
-    first, x = text_paths(font, "Slouch", size, 136, 101)
-    second, end = text_paths(font, "cat", size, x, 101)
-    if end > 304:
-        raise SystemExit("the wordmark is %.0f wide, more than the banner holds" % (end - 136))
+def text_box(font, text, size):
+    """What is drawn of a text set at x 0 on the baseline 0: left, top, right, bottom (y grows downwards)."""
+    scale = size / font.units
+    x, boxes = 0.0, []
+    for ch in text:
+        gid = font.cmap.get(ord(ch), 0)
+        box = font.box(gid)
+        if box:
+            boxes.append((x + box[0] * scale, -box[3] * scale, x + box[2] * scale, -box[1] * scale))
+        x += font.advance(gid) * scale
+    return min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)
+
+
+def path_box(d):
+    """The box of the end points of a path of M, L, H, V, A and Z commands, absolute or relative.
+
+    Enough for the sign: its two arcs are rounded corners, which reach no further than their end points.
+    Reads numbers as icon.svg writes them (digits, an optional fraction, a sign); a path packed further,
+    say with arc flags run together, stops the build instead of giving a wrong box."""
+    x = y = 0.0
+    xs, ys = [], []
+    for command, args in re.findall(r"([MLHVAZmlhvaz])([^MLHVAZmlhvaz]*)", d):
+        numbers = [float(n) for n in re.findall(r"-?\d+(?:\.\d+)?", args)]
+        kind = command.upper()
+        if kind == "Z":
+            continue
+        step = {"M": 2, "L": 2, "H": 1, "V": 1, "A": 7}[kind]
+        if not numbers or len(numbers) % step:
+            raise SystemExit("web/public/icon.svg: cannot read the path command %s%s" % (command, args))
+        for i in range(0, len(numbers), step):
+            part = numbers[i: i + step]
+            if kind == "H":
+                x = part[0] + (x if command.islower() else 0)
+            elif kind == "V":
+                y = part[0] + (y if command.islower() else 0)
+            elif command.islower():
+                x, y = x + part[-2], y + part[-1]
+            else:
+                x, y = part[-2], part[-1]
+            xs.append(x)
+            ys.append(y)
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def sign():
+    """The two paths of web/public/icon.svg, the head and the play triangle, and the head's box."""
+    svg = (ROOT / "web/public/icon.svg").read_text()
+    paths = re.findall(r'<path d="([^"]+)"', svg)
+    if len(paths) != 2:
+        raise SystemExit("web/public/icon.svg: expected the head and the play triangle, found %d paths" % len(paths))
+    box = path_box(paths[0])
+    if (box[0] + box[2], box[1] + box[3]) != (CANVAS, CANVAS):
+        raise SystemExit("web/public/icon.svg: the sign is not in the middle of its canvas (box %s)" % (box,))
+    return paths[0], paths[1], box
+
+
+CANVAS = 512        # the canvas of web/public/icon.svg
+WIDTH, HEIGHT = 320, 180
+SIGN = 96 / CANVAS  # the canvas of the sign as a square of 96
+GAP = 37.5          # from the right edge of the sign to the origin of the name (its first letter starts a little later)
+SIZE = 30           # font size of the name
+EDGE = 16           # what stays free at the left and the right at least
+
+
+def number(value):
+    return ("%.4f" % value).rstrip("0").rstrip(".")
+
+
+def layout(font):
+    """Where sign and name go: both around the middle line, together in the middle of the width."""
+    head, play, box = sign()
+    _, top, right, bottom = text_box(font, "Slouchcat", SIZE)
+    sign_width = (box[2] - box[0]) * SIGN
+    drawn = sign_width + GAP + right
+    if drawn > WIDTH - 2 * EDGE:
+        raise SystemExit("sign and wordmark are %.0f wide, more than the banner holds" % drawn)
+    sign_left = (WIDTH - drawn) / 2
+    origin = sign_left + sign_width + GAP
+    baseline = HEIGHT / 2 - (top + bottom) / 2
+    first, x = text_paths(font, "Slouch", SIZE, origin, baseline)
+    second, _ = text_paths(font, "cat", SIZE, x, baseline)
+    return {
+        "bg": token("color.bg.base"),
+        "tx": token("color.text.primary"),
+        "accent": token("color.accent.ember.base"),
+        "x": number(sign_left - box[0] * SIGN),
+        "y": number(HEIGHT / 2 - CANVAS / 2 * SIGN),
+        "scale": number(SIGN),
+        "head": head,
+        "play": play,
+        "first": first,
+        "second": second,
+    }
+
+
+def vector(v):
     print('<?xml version="1.0" encoding="utf-8"?>')
     print("<!-- The TV banner (320 x 180, TV-LB, TV-BN). Generated by android/app-tv/banner/build_banner.py from")
     print("     the design tokens, web/public/icon.svg and the outlines of a bold sans font; do not edit by hand. -->")
     print('<vector xmlns:android="http://schemas.android.com/apk/res/android"')
     print('    android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">')
-    print('    <path android:fillColor="%s" android:pathData="M0 0h320v180H0z" />' % bg)
-    print('    <group android:translateX="%s" android:translateY="%s" android:scaleX="%s" android:scaleY="%s">' % (ix, iy, icon, icon))
-    print('        <path android:fillColor="%s" android:pathData="M0 0h512v512H0z" />' % bg)
-    print('        <path android:fillColor="%s" android:pathData="%s" />' % (accent, body))
-    print('        <path android:fillColor="%s" android:pathData="%s" />' % (bg, play))
+    print('    <path android:fillColor="%s" android:pathData="M0 0h320v180H0z" />' % v["bg"])
+    print('    <group android:translateX="%s" android:translateY="%s" android:scaleX="%s" android:scaleY="%s">' % (v["x"], v["y"], v["scale"], v["scale"]))
+    print('        <path android:fillColor="%s" android:pathData="%s" />' % (v["accent"], v["head"]))
+    print('        <path android:fillColor="%s" android:pathData="%s" />' % (v["bg"], v["play"]))
     print("    </group>")
-    print('    <path android:fillColor="%s" android:pathData="%s" />' % (tx, first))
-    print('    <path android:fillColor="%s" android:pathData="%s" />' % (accent, second))
+    print('    <path android:fillColor="%s" android:pathData="%s" />' % (v["tx"], v["first"]))
+    print('    <path android:fillColor="%s" android:pathData="%s" />' % (v["accent"], v["second"]))
     print("</vector>")
+
+
+# The store graphics: the banner enlarged around the middle of their own size.
+STORE = {
+    "tv-banner": (1280, 720, 4, "TV banner of the store, 1280 x 720 px: the in-app banner (320 x 180) times four."),
+    "feature-graphic": (1024, 500, 3, "Feature graphic of the store, 1024 x 500 px: the in-app banner times three, cut to the size."),
+}
+
+
+def store(v, name):
+    width, height, scale, what = STORE[name]
+    print('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">' % (width, height, width, height))
+    print("  <!-- %s" % what)
+    print("       Sign and name «Slouchcat» in the middle. Generated by android/app-tv/banner/build_banner.py")
+    print("       from the design tokens (color.bg.base, color.text.primary, color.accent.ember.base),")
+    print("       web/public/icon.svg and the outlines of a bold sans font; do not edit by hand. Rendered by")
+    print("       scripts/store-graphics.sh. -->")
+    print('  <rect width="%d" height="%d" fill="%s" />' % (width, height, v["bg"]))
+    print('  <g transform="translate(%s %s) scale(%d)">' % (number((width - WIDTH * scale) / 2), number((height - HEIGHT * scale) / 2), scale))
+    print('    <g transform="translate(%s %s) scale(%s)">' % (v["x"], v["y"], v["scale"]))
+    print('      <path fill="%s" d="%s" />' % (v["accent"], v["head"]))
+    print('      <path fill="%s" d="%s" />' % (v["bg"], v["play"]))
+    print("    </g>")
+    print('    <path fill="%s" d="%s" />' % (v["tx"], v["first"]))
+    print('    <path fill="%s" d="%s" />' % (v["accent"], v["second"]))
+    print("  </g>")
+    print("</svg>")
+
+
+def main():
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] not in STORE):
+        raise SystemExit("usage: build_banner.py <font.ttf> [%s]" % "|".join(STORE))
+    v = layout(Font(pathlib.Path(sys.argv[1]).read_bytes()))
+    if len(sys.argv) == 3:
+        store(v, sys.argv[2])
+    else:
+        vector(v)
 
 
 if __name__ == "__main__":

@@ -4,8 +4,13 @@
   align-items: center;
 }
 
+/* As wide as the sign itself: the view box is cut to it, and the width is the height times the
+   ratio Logo.tsx hands over, so no browser has to work it out. The gap to the name is then the
+   `gap` of `.logo`, and the sign starts at the edge of what stands above or below it. The height
+   stays a field of its own: the sign sits in its middle, on the middle line of the name. */
 .mark {
-  width: var(--sc-space-8);
+  flex: none;
+  width: calc(var(--sc-space-8) * var(--logo-sign-ratio));
   height: var(--sc-space-8);
 }
 

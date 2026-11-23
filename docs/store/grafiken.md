@@ -20,7 +20,12 @@ Die Bilder liegen nicht im Repo. Ablage: `<Ordner für die Store-Grafiken>`.
 
 **App-Symbol, Feature-Grafik und TV-Banner** entstehen aus den SVG-Quellen in `docs/store/grafiken/`
 (`app-icon.svg`, `feature-graphic.svg`, `tv-banner.svg`; Zeichen und Name aus dem Banner der TV-App,
-Farben aus den Tokens):
+Farben aus den Tokens). `feature-graphic.svg` und `tv-banner.svg` schreibt der Generator des
+TV-Banners (`android/app-tv/banner/build_banner.py`, Aufrufe im Kopf der Datei), nicht von Hand
+ändern. Zeichen und Name sitzen als Gruppe in der Mitte, gemessen am Gezeichneten: vom linken Rand
+des Zeichens bis zum rechten Rand des letzten Buchstabens. Das Zeichen selbst kommt aus
+`web/public/icon.svg` und sitzt dort in der Mitte seiner Fläche (`web/src/ui/logoMark.test.ts`
+prüft es und alle Kopien). Aus den SVG-Quellen werden die Bilder:
 
 ```bash
 scripts/store-graphics.sh <Ordner für die Store-Grafiken>
