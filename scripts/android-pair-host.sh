@@ -8,6 +8,11 @@
 # PORT        port of the test server (default 8797)
 # RELAY_PORT  port of the relay (default 8182)
 #
+# Unlike the emulator flows, this script does not use scripts/android-helpers.sh (helper ports
+# derived from PORT): its relay has the fixed default 8182, outside every helper port of the
+# default PORTs (android:e2e and android:contract 8597, android:e2e:tv 8697). Two runs of this
+# script at once, or one with a PORT near 8182, need RELAY_PORT set by hand.
+#
 # Run from android/ (the Taskfile does). Needs server/bin/slouchcat, server/bin/apicheck and
 # relay/bin/pair.
 set -euo pipefail

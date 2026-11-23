@@ -154,6 +154,12 @@ für einen lokalen Lauf (`relay/bin/pair` mit `RELAY_LISTEN=0.0.0.0:8180`) stell
 der Seite mit dem QR-Code oder «Einstellungen › Erweitert» ein: `http://10.0.2.2:8180`. Das Skript
 `scripts/android-tv-e2e.sh` (hinter `task android:e2e:tv`) startet Server, Vermittlung und nur den eigenen
 Emulator. Ein Emulator zugleich: Die Skripte nehmen eine maschinenweite Sperre (`flock` auf `${XDG_RUNTIME_DIR:-/tmp}/slouchcat-emulator.lock`, Wartezeit `WAIT_MAX`) und räumen am Ende nur das Eigene weg. Die Ports der Helfer leiten sich aus `PORT` ab (Kopf von `scripts/android-helpers.sh`).
+Der Handy-Ablauf (`task android:e2e`) und `task android:contract` haben denselben Standard-`PORT`
+8597: Mit den Vorgaben laufen sie nicht gleichzeitig; für einen parallelen Lauf `PORT` bzw.
+`CONTRACT_PORT` um mindestens 100 versetzen. Ausnahme von «Helfer-Ports aus `PORT`»:
+`scripts/android-pair-host.sh` (`task android:pair:host`) benutzt die Helfer nicht und startet seine
+Vermittlung auf dem festen `RELAY_PORT` 8182 (Server auf 8797); zwei Läufe davon zugleich brauchen
+einen eigenen `RELAY_PORT`.
 Der Emulator erreicht einen Testserver des Rechners unter `http://10.0.2.2:<Port>` (Ports ab 8597,
 nie 8096). Deutsch: `adb shell cmd locale set-app-locales com.slouchcat.app.dev --locales de-CH`.
 
