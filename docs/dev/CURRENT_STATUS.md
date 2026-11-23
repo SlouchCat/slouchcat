@@ -310,6 +310,13 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     eigenen Seiten, und Genres fehlen (Papier Abschnitt 6 nennt sie; das TV-Mockup zeigt Reihen). «Suchen»
     ist ein dritter Reiter statt eines Blatts. Seite, Zeile der Einstellungen und Leiste zählen Einträge
     plus Ankündigungen (das Mockup zählt auf der Seite nur die Einträge).
+- **Konzept 26 und 27, Übersetzungen der Apps:** Die 782 Texte der Apps (`app.*`, `tv.*` in
+  `web/src/locales/*.json`) sind am 23. November 2026 in allen 20 Sprachen übersetzt und zweitgelesen
+  (266 Korrekturen); `task i18n:check` ist strikt grün. Die neuen Begriffe stehen im Glossar,
+  Abschnitt 9 «Android-Apps».
+  - **Offen (Altbestand):** Die Glossarzeile «In Beschaffung» in Italienisch («In elaborazione», Abschnitt 8)
+    und der Webtext `wishes.state.processing` widersprechen der Regel des Glossars («wird geholt», nie «wird
+    verarbeitet»); die App-Texte (`app.wishes.steps.loading` «In download») halten die Regel.
   - **Offen:** Abnahme mit echtem Seerr auf einem Fernseher.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)

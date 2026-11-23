@@ -183,13 +183,13 @@ Die Begriffe der Wünsche über Seerr (Konzept 25, `docs/planning/25-medienwuens
 zwei Seiten: Der **Wunsch** ist, was ein Profil haben möchte (Zuschauerseite, «Meine Wünsche»).
 **Anfordern** ist die Handlung, und die **Anfrage** ist der Auftrag, wie Seerr ihn führt (Verwaltung,
 Reiter «Anfragen»). Die Tabelle hält diese Trennung, wo sie in der Sprache natürlich klingt; wo nicht,
-steht es in Abschnitt 9. Vorbild für Anfordern, Freigabe und die Zustände sind die Übersetzungen von
+steht es in Abschnitt 10. Vorbild für Anfordern, Freigabe und die Zustände sind die Übersetzungen von
 Seerr, Overseerr und Jellyseerr, für Tag, Warteschlange und Import die von Radarr und Sonarr.
 
 - **Wunschzustände** («Freigabe ausstehend» bis «Zurückgezogen») und **Fortschritt** («Wird gesucht» bis
   «Download verzögert») sind Zustände, keine Befehle: auf Knöpfen nie so übersetzen.
 - Der Sammelbenutzer heisst in Seerr immer `slouchcat-gaeste`, der Profil-Tag beginnt mit `sc-`
-  (Abschnitt 10).
+  (Abschnitt 11).
 - **«In Beschaffung»** heisst in jeder Sprache «wird geholt», nie «wird verarbeitet» oder «erledigt» (Zweitlesung
   vom 18. November 2026: zwölf Sprachen geändert).
 - **cs:** Verbformen von «Anfordern» heissen «žádat o …», nie «vyžadovat» (liest sich als «verlangen»); der Knopf
@@ -263,7 +263,58 @@ Seerr, Overseerr und Jellyseerr, für Tag, Warteschlange und Import die von Rada
 | Fehlende Staffeln («Alle fehlenden Staffeln») | Missing seasons | Saisons manquantes | Temporadas faltantes | Stagioni mancanti | Ontbrekende seizoenen | Temporadas que faltam | Temporadas em falta | Brakujące sezony | Saknade säsonger | Manglende sæsoner | Manglende sesonger | Puuttuvat kaudet | Chybějící řady | Hiányzó évadok | Eksik sezonlar | Недостающие сезоны | Відсутні сезони | 未取得のシーズン | 누락된 시즌 | 缺少的季 | 缺少的季 |
 | Angekündigt (künftige Staffel) | Announced | Annoncée | Anunciada | Annunciata | Aangekondigd | Anunciada | Anunciada | Zapowiedziany | Annonserad | Annonceret | Annonsert | Julkistettu | Ohlášeno | Bejelentve | Duyuruldu | Анонсирован | Анонсовано | 発表済み | 공개 예정 | 即将推出 | 即將推出 |
 
-## 9. Doppelbelegungen, auf die man achten muss
+## 9. Android-Apps (Konzept 26 und 27)
+
+Die Begriffe der zwei Android-Apps: der Handy-App (Konzept 27, Schlüssel `app.*`) und der TV-App
+(Konzept 26, Schlüssel `tv.*`). Die 782 Texte wurden am 23. November 2026 in allen zwanzig Sprachen
+übersetzt und zweitgelesen; die Tabelle hält fest, was dabei geprägt oder geändert wurde. Wo eine
+Sprache schon ein Wort der Web-App hat (Merkliste, Haken, Hauptprofil, Geräte), gilt dieses.
+
+- **Fernseher verbinden** ist die Handlung, mit der das Handy einen Fernseher koppelt. Mehrere Sprachen
+  haben dafür ein Wort der Kopplung (es «vincular», nl «koppelen», hu «párosítás»,
+  tr «eşle»), während die Verbindung der App zum Server das gewöhnliche Wort trägt (es «conectado»,
+  nl «verbonden», tr «bağlandı»). Wo eine Sprache beides trennt, bleibt die Trennung in allen Texten.
+- **Vermittlung** und **Treffpunkt** sind Begriffe der Kopplung (Konzept 27): Der Fernseher legt ein
+  verschlüsseltes **Paket** an einen Treffpunkt der Vermittlung, das Handy holt es dort ab. Die
+  **Push-Weiterleitung** ist ein anderer Dienst (Meldungen an die Handy-App) und trägt in den meisten
+  Sprachen ein eigenes Wort.
+- **Gutschein** ist der einmalige Kopplungsgutschein, kein Rabatt- oder Geschenkgutschein.
+- **Mehrkanalton** und **Tonanlage** kommen nur in den TV-Texten vor (Tonausgabe über HDMI). Die Tonanlage
+  ist das Gerät am Fernseher (Soundbar, Receiver).
+- **Meine Sender** ist die Liste auf Handy, Fernseher und im Web; der Knopf an einer Station darf ein
+  eigenes Wort tragen (tv «Favorit», «Als Favorit»).
+- **OK** bleibt «OK» (Abschnitt 11, «Technik»). Die Taste steht im Satz als Subjekt («OK startet einen
+  Sender»); wo die Sprache ein Verb braucht, ist es «drücken» («Trykk OK», «按 OK», «OKを押す»,
+  «OK를 누르면», «Нажатие OK», «OK’a basmak»).
+- **Tipp** ist die Marke an einem empfohlenen Titel; in fr, es, it, pt, pl, tr, ru, uk, ja, ko und zh
+  steht dafür das Wort für «empfohlen». **Empfehlung** ist die Handlung eines Nutzers.
+- **de-DE** überlagert in diesem Bereich nur die Anführungszeichen („…“) und ß-Wörter; keine der Zeilen
+  braucht eine eigene Fassung.
+
+| de | en | fr | es | it | nl | pt-BR | pt-PT | pl | sv | da | nb | fi | cs | hu | tr | ru | uk | ja | ko | zh-CN | zh-TW |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Fernseher verbinden (Handlung, Titel) | Connect a TV | Connecter un téléviseur | Vincular un televisor | Collega una TV | Tv koppelen | Conectar uma TV | Ligar um televisor | Połącz telewizor | Anslut en tv | Forbind tv | Koble til en TV | Yhdistä TV | Připojit televizi | TV párosítása | TV eşle | Подключить телевизор | Підключити телевізор | テレビを接続 | TV 연결 | 连接电视 | 連結電視 |
+| Verbunden (Zustand eines Fernsehers) | Connected | Connecté | Vinculado | Collegata | Gekoppeld | Conectada | Ligado | Połączony | Ansluten | Forbundet | Tilkoblet | Yhdistetty | Připojeno | Párosítva | Eşlendi | Подключен | Підключено | 接続済み | 연결됨 | 已连接 | 已連結 |
+| Mit dem Handy einrichten | Set up with your phone | Configurer avec le téléphone | Configurar con el móvil | Configura con il telefono | Instellen met je telefoon | Configurar com o celular | Configurar com o telemóvel | Skonfiguruj przez telefon | Konfigurera med telefonen | Opsæt med din telefon | Sett opp med mobilen | Määritä puhelimella | Nastavit pomocí telefonu | Beállítás telefonnal | Telefonla kur | Настроить с помощью телефона | Налаштувати за допомогою телефона | スマートフォンでセットアップ | 휴대폰으로 설정 | 用手机设置 | 用手機設定 |
+| Von Hand einrichten | Set up manually | Configurer manuellement | Configurar manualmente | Configura manualmente | Handmatig instellen | Configurar manualmente | Configurar manualmente | Skonfiguruj ręcznie | Konfigurera manuellt | Opsæt manuelt | Sett opp manuelt | Määritä käsin | Nastavit ručně | Beállítás kézzel | Elle kur | Настроить вручную | Налаштувати вручну | 手動でセットアップ | 직접 설정 | 手动设置 | 手動設定 |
+| Vermittlung, Vermittlungsdienst (Dienst, über den sich Handy und Fernseher treffen) | relay | relais | servicio de enlace | servizio di collegamento | koppeldienst | serviço de intermediação | serviço de mediação | pośrednik | förmedling | formidler | relé | välityspalvelu | zprostředkovací služba | közvetítő | eşleme hizmeti | посредник | служба посередництва | 中継サービス | 중계 서비스 | 中转服务 | 中繼服務 |
+| Push-Weiterleitung (Dienst für Meldungen an die Handy-App) | push relay | relais des notifications push | servicio de reenvío de notificaciones push | inoltro delle notifiche push | pushdoorgifte | serviço de encaminhamento de push | reencaminhamento de push | przekaźnik push | push-förmedling | push-formidler | push-relé | push-välityspalvelu | služba pro předávání push upozornění | push-közvetítő | push aracı hizmeti | служба доставки push-уведомлений | служба пересилання push-сповіщень | プッシュ中継サービス | 푸시 중계 서비스 | 推送转发服务 | 推播轉送服務 |
+| Treffpunkt (Ort an der Vermittlung, wo das Paket liegt) | meeting point | point de rendez-vous | punto de encuentro | punto di incontro | ontmoetingspunt | ponto de encontro | ponto de encontro | punkt spotkania | mötesplats | mødested | møtepunkt | kohtauspiste | místo setkání | találkozási pont | buluşma noktası | точка обмена | точка зустрічі | 受け渡し場所 | 전달 지점 | 会合点 | 交會點 |
+| Paket (verschlüsselte Sendung an der Vermittlung) | packet | paquet | paquete | pacchetto | pakket | pacote | pacote | pakiet | paket | pakke | pakke | paketti | balíček | csomag | paket | пакет | пакет | パッケージ | 패키지 | 数据包 | 資料包 |
+| Gutschein (einmaliger Kopplungsgutschein) | voucher | bon | vale | buono | voucher | voucher | vale | przepustka | kupong | kupon | kupong | kuponki | propustka | utalvány | eşleme kuponu | ваучер | талон | バウチャー | 이용권 | 凭证 | 憑證 |
+| Downloads (Bereich der Handy-App) | Downloads | Téléchargements | Descargas | Download | Downloads | Downloads | Transferências | Pobrane | Nedladdningar | Downloads | Nedlastinger | Lataukset | Stažené | Letöltések | İndirmeler | Загрузки | Завантаження | ダウンロード | 다운로드 | 下载 | 下載 |
+| Schlaftimer | Sleep timer | Minuteur d’arrêt | Temporizador | Timer di spegnimento | Slaaptimer | Timer de sono | Temporizador de sono | Wyłącznik czasowy | Insomningstimer | Sovetimer | Sovetimer | Uniajastin | Časovač spánku | Elalvásidőzítő | Uyku zamanlayıcısı | Таймер сна | Таймер сну | スリープタイマー | 취침 타이머 | 睡眠定时 | 睡眠定時器 |
+| Tonanlage (Soundbar, Receiver, Anlage am Fernseher) | sound system | système audio | equipo de sonido | impianto audio | geluidssysteem | sistema de som | sistema de som | system audio | ljudanläggning | lydanlæg | lydanlegg | äänentoistojärjestelmä | audiosystém | hangrendszer | ses sistemi | звуковая система | аудіосистема | サウンドシステム | 음향 기기 | 音响系统 | 音響系統 |
+| Mehrkanalton | surround sound | son multicanal | sonido envolvente | audio multicanale | surroundgeluid | som surround | som surround | dźwięk wielokanałowy | surroundljud | surroundlyd | surroundlyd | monikanavaääni | vícekanálový zvuk | többcsatornás hang | surround ses | многоканальный звук | багатоканальний звук | サラウンド音声 | 서라운드 사운드 | 多声道音频 | 多聲道音訊 |
+| Läuft gerade | Now playing | En cours de lecture | Reproduciendo | In riproduzione | Speelt nu | Reproduzindo agora | A reproduzir | Teraz odtwarzane | Spelas nu | Afspilles nu | Spilles nå | Nyt toistetaan | Právě hraje | Lejátszás alatt | Şimdi oynatılıyor | Сейчас воспроизводится | Зараз відтворюється | 再生中 | 지금 재생 중 | 正在播放 | 正在播放 |
+| Meine Sender (Liste der Radiosender) | My stations | Mes stations | Mis emisoras | Le mie stazioni | Mijn zenders | Minhas estações | As minhas estações | Moje stacje | Mina stationer | Mine stationer | Mine stasjoner | Omat asemat | Moje stanice | Saját adók | İstasyonlarım | Мои станции | Мої станції | マイラジオ局 | 내 방송국 | 我的电台 | 我的電台 |
+| Hauptbenutzer (wer das Hauptprofil des Kontos führt) | main user | utilisateur principal | usuario principal | utente principale | hoofdgebruiker | usuário principal | utilizador principal | użytkownik główny | ägare | hovedbruger | hovedbruker | pääkäyttäjä | hlavní uživatel | fő felhasználó | ana kullanıcı | главный пользователь | головний користувач | メインユーザー | 기본 사용자 | 主用户 | 主要使用者 |
+| Fernbedienung | remote | télécommande | mando | telecomando | afstandsbediening | controle remoto | comando | pilot | fjärrkontroll | fjernbetjening | fjernkontroll | kaukosäädin | dálkový ovladač | távirányító | kumanda | пульт | пульт | リモコン | 리모컨 | 遥控器 | 遙控器 |
+| OK (Taste der Fernbedienung, «OK drücken») | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK | OK |
+| Tipp (Marke «Tipp» an einem Titel) | Tip | Recommandé | Recomendado | Consigliato | Tip | Recomendado | Recomendado | Polecane | Tips | Tip | Tips | Vinkki | Tip | Tipp | Öneri | Рекомендация | Рекомендація | おすすめ | 추천 | 推荐 | 推薦 |
+| Empfehlung (ein Nutzer empfiehlt einen Titel) | recommendation | recommandation | recomendación | consiglio | aanbeveling | recomendação | recomendação | polecenie | rekommendation | anbefaling | anbefaling | suositus | doporučení | ajánlás | öneri | рекомендация | рекомендація | おすすめ | 추천 | 推荐 | 推薦 |
+
+## 10. Doppelbelegungen, auf die man achten muss
 
 Manche Sprachen haben für zwei deutsche Begriffe naheliegend dasselbe Wort. Das Glossar trennt sie so:
 
@@ -319,7 +370,7 @@ das natürliche Wort und hält die Trennung zu «Anfrage» mit einem zweiten Wor
 Die übrigen Sprachen nehmen das wörtliche Wort («Souhait», «Desiderio», «Wens», «Önskemål», «Ønske»,
 «Toive», «Přání», «Kívánság», «心愿»/«心願»); dort trägt es die Zuschauerseite gut.
 
-## 10. Nicht übersetzen
+## 11. Nicht übersetzen
 
 Diese Namen und Zeichenfolgen bleiben in jeder Sprache genau so, wie sie in `en.json` stehen.
 
