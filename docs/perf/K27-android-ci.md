@@ -217,3 +217,116 @@ Beleg: beide Klassen je zehnmal auf vier Kernen (`taskset -c 0-3`), alle grün. 
 wurden nach demselben Muster durchgesehen, ohne weiteren Beleg. Verdachtsfälle ohne Beleg, nicht geändert:
 `OfflineEngineTest` (die Liste `syncs` ist nicht threadsicher), `OfflineWorkerTest.tearDown` (bricht den Scope
 nicht ab), `FileFetcherTest` (Abbruch gegen eine gedrosselte Übertragung).
+
+## Laufzeit des Emulator-Jobs (23. November 2026)
+
+Marco am 23. November 2026: Der Job `android-emulator` dauert viel zu lange. Gemessen an drei Pull-Request-Läufen
+desselben Tages (45132700824, 45158493082, 45163735384): 15,2 bis 15,6 min je Lauf.
+
+**Wohin die Zeit ging** (Lauf 45163735384, Job 137695228452):
+
+| Abschnitt                                              | Zeit  | Bemerkung                                                              |
+| ------------------------------------------------------ | ----- | ---------------------------------------------------------------------- |
+| Einrichten (Checkout, Go, Node, apt, SDK, AVD, Caches) | 110 s | davon 54 s SDK-Pakete mit dem Systemabbild                             |
+| Server und Vermittlung bauen                           | 11 s  |                                                                        |
+| Server einrichten, Helfer starten                      | 47 s  |                                                                        |
+| Emulator kalt starten                                  | 43 s  | bereit 91 s nach dem Start des Skripts                                 |
+| Gradle: App und Test-APK                               | 237 s | 197 von 251 Aufgaben ausgeführt, 54 aus dem Cache                      |
+| Ablauf am Gerät                                        | 480 s | 16 Fälle, Summe 469 s                                                  |
+
+Zwei Ursachen ausserhalb der Tests:
+
+- **Der Gradle-Cache war fast leer.** Der Job teilte seinen Schlüssel (`gradle-e2e-…`) mit `android-contract`.
+  Der Vertragstest ist nach vier Minuten fertig und speichert zuerst, und er baut nur `core:api`. Der Emulator-Job
+  selbst speicherte nie: `actions/cache` speichert nur nach einem grünen Job, und dieser war in jedem Lauf rot.
+  Die App entstand darum jedes Mal fast von Grund auf.
+- **Der Gast nutzte den halben Runner.** `avdmanager` legt ein Gerät mit zwei Kernen an, der Runner hat vier.
+  Der Bildschirm (1080 × 2424) wird in Software gezeichnet (`swangle_indirect`). Im Logcat des Laufs oben stehen
+  80 Meldungen «Skipped … frames» mit zusammen 4468 ausgelassenen Bildern.
+
+**Gemessen** auf dem Runner, je Variante ein eigener Job desselben Laufs (Wegwerf-Workflow auf einem eigenen
+Zweig, nicht gemergt). Alle Varianten mit dem geänderten Skript (APK-Bau im Hintergrund, siehe unten).
+«Stets grün» ist die Summe der 12 Fälle, die in allen sechs Varianten des ersten Laufs grün waren; sie ist das
+Mass für die Geschwindigkeit des Gasts, weil ein roter Fall an seinem Zeitlimit hängt.
+
+Lauf 45182593516:
+
+| Variante           | Kerne | Bildschirm  | Gradle-Cache    | Emulator bereit | APKs bereit | Fälle | stets grün | rot | Job      |
+| ------------------ | ----- | ----------- | --------------- | --------------- | ----------- | ----- | ---------- | --- | -------- |
+| wie bisher         | 2     | 1080 × 2424 | `gradle-e2e`    | 141 s           | 256 s       | 444 s | 260 s      | 2   | 14,2 min |
+| vier Kerne         | 4     | 1080 × 2424 | `gradle-e2e`    | 220 s           | 268 s       | 464 s | 287 s      | 2   | 15,5 min |
+| kleiner Bildschirm | 2     | 720 × 1616  | `gradle-e2e`    | 258 s           | 350 s       | 438 s | 257 s      | 2   | 16,9 min |
+| beides             | 4     | 720 × 1616  | `gradle-e2e`    | 175 s           | 303 s       | 384 s | 194 s      | 3   | 14,2 min |
+| drei Kerne, klein  | 3     | 720 × 1616  | `gradle-e2e`    | 215 s           | 361 s       | 415 s | 232 s      | 3   | 15,5 min |
+| beides, Cache      | 4     | 720 × 1616  | der von android | 116 s           | 121 s       | 323 s | 176 s      | 1   | 11,7 min |
+
+Lauf 45185868418, alle mit vier Kernen und dem Cache des Jobs `android`:
+
+| Variante | Bildschirm          | Emulator bereit | APKs bereit | Gradle-Bau | Fälle | rot | Job      |
+| -------- | ------------------- | --------------- | ----------- | ---------- | ----- | --- | -------- |
+| final a  | 720 × 1616, 280 dpi | 121 s           | 127 s       | 87 s       | 366 s | 3   | 11,9 min |
+| final b  | 720 × 1616, 280 dpi | 117 s           | 122 s       | 81 s       | 329 s | 1   | 11,9 min |
+| winzig a | 540 × 1212, 210 dpi | 117 s           | 123 s       | 82 s       | 280 s | 1   | 10,7 min |
+| winzig b | 540 × 1212, 210 dpi | 159 s           | 167 s       | 119 s      | 334 s | 1   | 11,6 min |
+
+Was die Zahlen zeigen:
+
+- **Der Cache des Jobs `android` bringt am meisten.** Der Bau der beiden APKs dauert damit 81 bis 119 s statt
+  4 bis 6 min (121 von 250 Aufgaben ausgeführt, 129 aus dem Cache). Das Zurückspielen der 2,2 GiB kostet 20 bis
+  40 s statt 5 s.
+- **Vier Kerne oder ein kleinerer Bildschirm allein bringen nichts** (287 s und 257 s gegen 260 s). Beides
+  zusammen macht die stets grünen Fälle um ein Viertel bis ein Drittel schneller (194 s und 176 s). Mit vier
+  Kernen und 720 × 1616 stehen im Logcat noch 11 Meldungen «Skipped … frames».
+- **Noch weniger Pixel lohnen nicht belegbar.** 540 × 1212 war in einem Lauf schneller und im anderen gleich
+  schnell wie 720 × 1616. 280 dpi ist zudem eine Dichte, die Android kennt; 210 dpi ist keine.
+- **Der Bau neben dem Emulatorstart** hilft erst mit dem Cache. Mit kaltem Gradle teilen sich Bau und Start die
+  vier Kerne: Der Emulator war 141 bis 258 s nach dem Start des Skripts bereit statt nach 91 s, und der Ablauf
+  begann nicht früher als zuvor. Mit dem Cache sind APKs und Emulator nach rund zwei Minuten zugleich bereit;
+  nacheinander wären es rund drei.
+- Die Runner streuen stark: Dieselben SDK-Pakete brauchten 36 bis 101 s, zwei gleiche Varianten 329 und 366 s.
+
+**Umgesetzt:**
+
+- `ci.yml`, Job `android-emulator`: liest den Gradle-Cache des Jobs `android` (gleiche Pfadliste und gleicher
+  Schlüssel, nur lesend über `actions/cache/restore`). Ein eigener Cache käme zu den 2,2 GiB dazu, und das
+  Repository steht mit 9,99 von 10 GiB an der Grenze. `android-contract` behält `gradle-e2e-…`.
+- `ci.yml`: Der AVD `ci_phone` hat vier Kerne (`hw.cpu.ncore=4`) und 720 × 1616 bei 280 dpi. Das sind dieselben
+  412 × 923 dp wie `sc_phone`. Fotos macht der Ablauf in der CI keine.
+- `scripts/android-e2e.sh`: Der Bau der beiden APKs läuft von der ersten Zeile an im Hintergrund, neben dem
+  Einrichten des Servers und dem Start des Emulators. Der Ablauf wartet auf ihn. Das gilt auch lokal und für
+  `SHOTS`. Bricht das Skript vorher ab, beendet es die Prozessgruppe des Baus.
+
+**Ergebnis:** 11,7 bis 11,9 min (die drei Jobs mit vier Kernen, 720 × 1616 und dem Cache von `android`) statt
+15,2 bis 15,6 min, also rund 3,5 Minuten oder knapp ein Viertel weniger. Der erste Lauf des Pull Requests
+(45190586671) brauchte 12,4 min: Gradle-Bau 85 s, Ablauf am Gerät 391 s, SDK-Pakete 70 s. Der Rest verteilt sich so (Variante «final b»): Einrichten rund 3,5 min, bis zum ersten Fall 2,7 min, Ablauf 5,6 min.
+
+**Nicht gemacht, mit Grund:**
+
+- **Den Ablauf auf zwei Jobs verteilen.** Das brächte rund 2,5 min, für die doppelte Rechenzeit. Der Job steht
+  nicht im Gate und bestimmt die Wartezeit eines Pull Requests nicht: Am längsten laufen `server tests (2)`
+  (22 min) und `android` (16 bis 18 min).
+- **Die Tests kürzen.** `AudioFlowTest`, `OfflineFlowTest`, `PlayerFlowTest` und `TvLinkFlowTest` machen zwei
+  Drittel des Ablaufs aus. Sie spielen Ton und Bild in Echtzeit und warten auf Herzschläge des Servers.
+  `TvLinkFlowTest` dauerte in allen zehn Jobs 31 bis 36 s, unabhängig von der Variante.
+- **SDK-Pakete im Hintergrund laden** (rund 45 s): ein Prozess über mehrere Schritte des Workflows hinweg, für
+  einen Job ausserhalb des Gates zu viel Mechanik.
+
+**Rote Fälle in den zehn Jobs der Messung** (der Job bleibt rot und ausserhalb des Gates):
+
+| Fall                                | rot in    | Stelle                                                               |
+| ----------------------------------- | --------- | -------------------------------------------------------------------- |
+| `AudioFlowTest`                     | 10 von 10 | `AudioFlowTest.kt:341`: das Radio spielt nicht innert 30 s           |
+| `OfflineFlowTest`                   | 4 von 10  | `OfflineFlowTest.kt:252` und `:253`                                  |
+| `MessagesFlowTest`                  | 2 von 10  | `FlowWaits.kt:45`: ein Text erscheint nicht innert 20 s              |
+| `MessagesShowcaseTest`              | 2 von 10  | «Cannot run onActivity since Activity has been destroyed already»    |
+| `SignInFlowTest`                    | 1 von 10  | `SignInFlowTest.kt:368`: «the phone is still signed in»              |
+| `PlayerFlowTest`                    | 0 von 10  | in den drei Läufen davor jedes Mal rot (`PlayerFlowTest.kt:242`)     |
+
+Mit dem Cache des Jobs `android` war in vier von fünf Jobs nur `AudioFlowTest` rot, mit `gradle-e2e` hatte
+jeder der fünf Jobs mindestens zwei rote Fälle. Fünf Läufe je Seite belegen das nicht; die Ursache der roten
+Fälle ist nicht untersucht.
+
+`OfflineFlowTest.kt:253` wackelt auch auf der Entwicklungsmaschine: Im Lauf mit dem geänderten Skript
+(`task android:e2e`, `sc_phone`, 8 Kerne, 12 GB) war der Fall rot und die übrigen 15 grün, die Wiederholung
+allein (`CLASS=…OfflineFlowTest`) war grün. Der Fall spult im Offline-Player auf die Hälfte und wartet 30 s
+darauf, dass wieder «Pause» zu sehen ist.

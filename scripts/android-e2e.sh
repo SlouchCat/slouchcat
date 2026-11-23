@@ -28,7 +28,8 @@
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
-# server, nothing else. One emulator at a time on a shared machine: while another one runs, it
+# server, nothing else. The two APKs (app and test) build in the background from the first line on,
+# while the server is seeded and the emulator boots; the flow waits for them. One emulator at a time on a shared machine: while another one runs, it
 # waits. On a failure the logs (logcat, server, relay, emulator) stay in app-mobile/build/e2e-logs/.
 # Run from android/ (the Taskfile does). Needs server/bin/slouchcat (task server:build),
 # relay/bin (task relay:build) and Node.
@@ -59,6 +60,7 @@ root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
 server_pid=""
 emulator_pid=""
+build_pid=""
 # shellcheck source=android-helpers.sh
 . ../scripts/android-helpers.sh
 
@@ -69,12 +71,16 @@ cleanup() {
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
     helpers_save_logs "$logs"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
+    [ -f "$root/gradle-build.log" ] && cp "$root/gradle-build.log" "$logs/"
     if [ -n "$emulator_pid" ]; then
       adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true
       # The photos of a failed wait (FlowWaits.kt: semantics tree in the message, photo here).
       adb_brief pull "/sdcard/Android/data/$app/files/failures" "$logs/" >/dev/null 2>&1 || true
     fi
   fi
+  # A build that still runs (the script failed before the flow): its whole process group, so that
+  # no Gradle client stays behind; the daemon cancels the build when its client is gone.
+  if [ -n "$build_pid" ]; then kill -- "-$build_pid" 2>/dev/null || true; wait "$build_pid" 2>/dev/null || true; fi
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
   helpers_stop
   if [ -n "$emulator_pid" ]; then
@@ -98,6 +104,25 @@ fail() {
 }
 
 started=$(date +%s)
+
+# The two APKs, in the background from here on: the build needs neither the server nor the device,
+# and on the hosted runner it is the longest part before the flow (about 4 min of a cold Gradle,
+# docs/perf/K27-android-ci.md, «Laufzeit des Emulator-Jobs»). Seeding the server and booting the
+# emulator run beside it instead of before it, and the freshly booted guest has settled by the
+# time the flow starts. setsid: a process group of its own, which the cleanup can stop as a whole.
+setsid ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assemblePlayDebugAndroidTest \
+  >"$root/gradle-build.log" 2>&1 &
+build_pid=$!
+build_wait() {
+  local status=0
+  wait "$build_pid" || status=$?
+  build_pid=""
+  if [ "$status" -ne 0 ]; then
+    cat "$root/gradle-build.log" >&2
+    fail "the APKs did not build"
+  fi
+  echo "android-e2e: APKs ready $(($(date +%s) - started)) s after the start ($(grep -m1 '^BUILD ' "$root/gradle-build.log" || true))"
+}
 
 # The server: fresh data, no TMDB key, on the loopback only (code review minor 30). Browsable roots:
 # the small media tree of scripts/android-test-media.sh (DetailFlowTest), real video for the
@@ -213,6 +238,7 @@ server_url="http://10.0.2.2:$port"
 relay_url="http://10.0.2.2:$relay_port"
 # Stage 8 (MessagesFlowTest): the ports of the Seerr mock, the push relay and fcmfake.
 flow_args+=(slouchcatSeerrPort "$HELPER_SEERR_PORT" slouchcatPushPort "$HELPER_PUSH_PORT" slouchcatFcmPort "$HELPER_FCM_PORT")
+build_wait
 if [ -z "$shots" ]; then
   gradle_args=()
   for ((i = 0; i < ${#flow_args[@]}; i += 2)); do
@@ -224,7 +250,6 @@ if [ -z "$shots" ]; then
     "-Pandroid.testInstrumentationRunnerArguments.slouchcatMedia=$root/media" "${gradle_args[@]}" \
     ${only:+"-Pandroid.testInstrumentationRunnerArguments.class=$only"} || fail "the flow failed"
 else
-  ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-mobile:assemblePlayDebug :app-mobile:assemblePlayDebugAndroidTest
   adb install -r -t app-mobile/build/outputs/apk/play/debug/app-mobile-play-debug.apk >/dev/null
   adb install -r -t app-mobile/build/outputs/apk/androidTest/play/debug/app-mobile-play-debug-androidTest.apk >/dev/null
   if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
