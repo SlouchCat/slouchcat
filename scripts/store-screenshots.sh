@@ -334,6 +334,12 @@ for i in json.load(sys.stdin)["items"]: print(i["id"] + "\t" + i["title"])' >"$r
       curl -sS -f -b "$jar" -H 'X-Requested-With: Slouchcat' -X PUT -F "file=@$cache/art/$folder-${pair#*:}.jpg;type=image/jpeg" \
         "$base/api/v1/admin/items/$id/images/${pair%%:*}/upload" >/dev/null || fail "the ${pair%%:*} of $folder failed ($lang)"
     done
+    # Every size of the pictures once now: the server derives a size on its first request, and a
+    # poster still being derived showed as an empty card on a photo.
+    api "$jar" GET "items/$id" | python3 -c 'import json, sys
+for image in json.load(sys.stdin).get("images", {}).values(): print(image["url"])' | while IFS= read -r url; do
+      curl -sS -f -o /dev/null -b "$jar" -H 'X-Requested-With: Slouchcat' "$base$url" || fail "picture $url of $folder failed ($lang)"
+    done
   done
   # «Im Voraus» makes the previews of files that come after the first scan; the films of the first
   # scan get theirs from one run of the backfill (StoreShotsTest waits for the set of its film).

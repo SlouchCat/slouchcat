@@ -127,16 +127,18 @@ class StoreShotsTest {
         key(KeyEvent.KEYCODE_DPAD_CENTER)
     }
 
-    /** A photo once the screen holds still (two screenshots in a row the same), at most [settleMs] long. */
+    /** A photo once the screen holds still ([STILL_COUNT] screenshots in a row the same), at most [settleMs] long. */
     private fun photo(name: String, settleMs: Long = SETTLE_MS) {
         compose.waitForIdle()
         instrumentation.waitForIdleSync()
         val deadline = SystemClock.uptimeMillis() + settleMs
         var last: Bitmap? = null
         var bitmap: Bitmap
+        var same = 1
         while (true) {
             bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "no screenshot" }
-            if (last != null && bitmap.sameAs(last)) break
+            same = if (last != null && bitmap.sameAs(last)) same + 1 else 1
+            if (same >= STILL_COUNT) break
             last?.recycle()
             last = bitmap
             if (SystemClock.uptimeMillis() > deadline) break
@@ -263,6 +265,8 @@ class StoreShotsTest {
 
         /** The code page counts its validity down every second: it never holds still. */
         const val QR_SETTLE_MS = 2_000L
+        /** Two alone once caught a poster still on its way (phone). */
+        const val STILL_COUNT = 3
         const val STILL_MS = 500L
         const val STILL_MAX_MS = 3_000L
         const val ROW_MAX = 6

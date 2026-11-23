@@ -139,9 +139,10 @@ class StoreShotsTest {
     private fun ready(): Boolean = (graph.session.state.value as? SessionState.Ready)?.profile != null
 
     /**
-     * A photo once the screen holds still: two screenshots in a row the same (pictures loaded, the
-     * page settled), at most [settleMs] long; a screen that never holds still (a running clock) is
-     * taken as it is then. Not `Showcase.shot`: that one is bound to `slouchcatShots` and `files/shots`.
+     * A photo once the screen holds still: [STILL_COUNT] screenshots in a row the same (pictures
+     * loaded, the page settled; two alone once caught a poster still on its way), at most [settleMs]
+     * long; a screen that never holds still (a running clock) is taken as it is then. Not
+     * `Showcase.shot`: that one is bound to `slouchcatShots` and `files/shots`.
      */
     private fun photo(name: String, settleMs: Long = SETTLE_MS) {
         compose.waitForIdle()
@@ -149,9 +150,11 @@ class StoreShotsTest {
         val deadline = SystemClock.uptimeMillis() + settleMs
         var last: Bitmap? = null
         var bitmap: Bitmap
+        var same = 1
         while (true) {
             bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "no screenshot" }
-            if (last != null && bitmap.sameAs(last)) break
+            same = if (last != null && bitmap.sameAs(last)) same + 1 else 1
+            if (same >= STILL_COUNT) break
             last?.recycle()
             last = bitmap
             if (SystemClock.uptimeMillis() > deadline) break
@@ -432,6 +435,7 @@ class StoreShotsTest {
 
         /** The sound player's clock runs every second: it never holds still, so a short wait. */
         const val AUDIO_SETTLE_MS = 3_000L
+        const val STILL_COUNT = 3
         const val STILL_MS = 500L
         const val STILL_MAX_MS = 3_000L
         const val SEEK_FROM = 0.40f
