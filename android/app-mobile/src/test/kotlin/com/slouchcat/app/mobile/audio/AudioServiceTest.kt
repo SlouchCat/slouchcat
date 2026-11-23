@@ -77,6 +77,16 @@ class AudioServiceTest {
 
     private fun idle() = ShadowLooper.idleMainLooper()
 
+    /** Runs the main looper until [done] holds (at most 5 s): the player answers some events from its own thread. */
+    private fun until(done: () -> Boolean) {
+        val end = System.nanoTime() + 5_000_000_000L
+        while (System.nanoTime() < end) {
+            idle()
+            if (done()) return
+            Thread.onSpinWait()
+        }
+    }
+
     @Test
     fun withNothingLoadedTheServiceEndsAtOnce() {
         val service = Robolectric.buildService(AudioService::class.java).create().get()
@@ -147,7 +157,9 @@ class AudioServiceTest {
         player.play()
         idle()
         app.sendBroadcast(Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-        idle()
+        // The player takes the broadcast on its own thread and pauses from there: one pass of the main
+        // looper can come too early (it did once on a CI runner).
+        until { !player.playWhenReady }
         assertFalse(player.playWhenReady)
     }
 
