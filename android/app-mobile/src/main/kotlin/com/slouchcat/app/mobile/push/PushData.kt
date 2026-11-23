@@ -59,9 +59,10 @@ object PushData {
  * (the server deleted the subscription with the session).
  */
 object PushStarter {
-    fun start(application: Application, graph: AppGraph) {
+    /** [configured]: the build has the Firebase values (a seam for the test). */
+    fun start(application: Application, graph: AppGraph, configured: Boolean = PushPlatforms.configured) {
         // Only a build with push gets the channels of the system (code review L-4).
-        if (PushPlatforms.configured) PushNotifier.ensureChannels(application)
+        if (configured) PushNotifier.ensureChannels(application)
         graph.hooks.addSignOutStep(
             object : SignOutStep {
                 override suspend fun beforeSignOut(answer: Boolean) = graph.push.forget()
@@ -76,7 +77,7 @@ object PushStarter {
         }
         // The check in the background (concept 27, 7.3; code review M-4): Android may not start the
         // app for days, and a new VAPID key or a lost subscription must not stay unnoticed.
-        if (PushPlatforms.configured) PushCheckWorker.schedule(application)
+        if (configured) PushCheckWorker.schedule(application)
     }
 
     /** Google gave a new token: enter the subscription again. */

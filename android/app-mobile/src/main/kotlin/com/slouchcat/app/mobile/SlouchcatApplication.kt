@@ -200,7 +200,7 @@ private const val TABLET_DP = 600
 
 class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost {
     lateinit var graph: AppGraph
-        private set
+        internal set // the JVM tests of this module put a graph with fakes in (PushCheckWorkerTest)
 
     override fun onCreate() {
         super.onCreate()
