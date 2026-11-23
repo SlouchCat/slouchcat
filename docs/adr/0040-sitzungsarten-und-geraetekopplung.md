@@ -266,19 +266,45 @@ Abbruch, wenn das fremde Gerät schweigt. Ganz schliessen kann sie nur HTTPS.
 
 Nicht gebaut:
 
-- **Verfall nach Ruhe** (Vorschlag des Sicherheits-Reviews dieser Änderung): Ein Beweis zählt nicht mehr,
-  wenn 60 s lang kein Sprung zum Server lief. Ein verdeckter Wechsel fällt meist in eine Pause (der Nutzer
-  geht in ein anderes Netz); dann bewiese die erste Anfrage danach neu, bevor irgendetwas hinausgeht. Das
-  erste Fenster oben fiele nach einer Pause weg, das zweite schrumpfte von 10 min auf 60 s. Kosten: ein
-  Beweis nach jeder Pause über 60 s, also eine Antwortzeit mehr vor der ersten Anfrage. Dazu gehört eine
-  kürzere Dauer im Vorrat (90 s statt 5 min, unter den 2 min des Servers): Dann kostet die Pause genau diesen
-  einen Beweis und keinen Bruch. Die kürzere Dauer allein wäre ein Rückschritt, denn nach 90 s hielte die App
-  keine alte Verbindung mehr, an der ein verdeckter Wechsel auffällt. Das ist eine neue Regel und kein Teil
-  der drei Lücken; sie braucht Marcos Entscheid.
 - Eine eigene Wiederholung des Gates, die eine Anfrage nach dem neuen Beweis selbst noch einmal sendet. Das
   Gate müsste entscheiden, was sich wiederholen lässt; OkHttp weiss das schon.
 - Ein neuer Beweis für eine Anfrage, die über einen sichtbaren Netzwechsel hinweg unterwegs ist: Sie
   scheitert wie bisher.
+
+Den «Verfall nach Ruhe», den das Sicherheits-Review dieser Änderung vorschlug, regelt der dritte Teil.
+
+### Nachtrag 23. November 2026, dritter Teil: Verfall nach Ruhe
+
+Marco am 23. November 2026: bauen. Der Vorschlag kam aus dem Sicherheits-Review des zweiten Teils (Befund
+M-1): Was dort blieb, war vor allem die Pause. Ein verdeckter Netzwechsel fällt meist in eine Zeit, in der
+die App nichts sendet (der Nutzer geht in ein anderes Netz). Danach ging die erste Anfrage mit Token hinaus,
+auf einer alten Verbindung oder, nach 5 min, auf einer neuen, und der Beweis galt bis zu 10 min.
+
+| Punkt | Entscheid |
+|---|---|
+| Verfall nach Ruhe | Ein Beweis zählt nicht mehr, wenn 60 s lang kein Sprung zum Server hinausging (`SlouchcatHttp.PROOF_IDLE`). Die erste Anfrage nach einer solchen Pause beweist zuerst neu; scheitert der Beweis, geht nichts hinaus, auch nicht das erste Paket |
+| Was als Benutzung zählt | Ein Sprung, der mit gültigem Beweis hinausgeht. Nicht das Warten auf eine Antwort, nicht das Lesen eines langen Antwortkörpers, nicht die Frage, ob der Beweis gilt. Wer nur eine lange Antwort liest (ein Radiostrom), beweist mit der nächsten Anfrage neu |
+| Dauer im Vorrat | Der gemeinsame Client behält eine unbenutzte Verbindung 90 s (`SlouchcatHttp.KEEP_ALIVE`) statt der 5 min von OkHttp. Kürzer als die 2 min des Servers: Eine Pause endet nicht mehr an einer Verbindung, die der Server geschlossen hat, sie kostet genau den einen Beweis und keinen Bruch. Länger als die 60 s des Verfalls: Solange ein Beweis ohne neuen gilt, hält die App ihre alten Verbindungen noch, und an deren Bruch fällt ein verdeckter Wechsel auf. Ein Test hält beide Abstände fest |
+| Übrige Regeln | Unverändert: höchstens 10 min, je Netz, Bruch, Zweifel nach 1 min, Beweis unterwegs. Ein Sprung, dessen Beweis inzwischen verfallen ist, holt ihn wie jeder Sprung ohne Beweis |
+
+**Was es kostet.** Einen Beweis nach jeder Pause über 60 s, also eine Antwortzeit des Servers mehr vor der
+ersten Anfrage; alle Anfragen, die in dem Moment losgehen, teilen ihn. Mehr als einer je Minute kann daraus
+nicht werden. Die Kosten des zweiten Teils nach einer Pause von 2 bis 5 min (ein Beweis je gebrochene
+Verbindung, höchstens fünf) fallen weg.
+
+**Was es für die Sicherheit heisst**, in der bekannten Grenze:
+
+- Nach einer Pause über 60 s geht nichts mehr ohne neuen Beweis hinaus. Das Fenster «erste Anfrage auf einer
+  alten Verbindung» gibt es dann nicht mehr, und das Fenster «bis zu 10 min ohne jeden Bruch» ist auf 60 s
+  seit der letzten Anfrage geschrumpft.
+- Es bleibt der Wechsel mitten in der Benutzung, also weniger als 60 s nach der letzten Anfrage: Die nächste
+  Anfrage geht auf einer alten Verbindung hinaus, mit Token, und wer die Adresse des Servers hält, kann sie
+  lesen. Danach greifen Bruch und Zweifel wie im zweiten Teil.
+- Hält die App in diesen 60 s ausnahmsweise keine alte Verbindung (der Server hat sie mit `Connection: close`
+  beendet, oder alle fünf Plätze im Vorrat waren anders belegt), geht die Anfrage auf einer neuen Verbindung
+  an das fremde Gerät. Auch das höchstens 60 s nach der letzten Anfrage.
+
+Ganz schliessen kann die Grenze weiter nur HTTPS.
 
 ## Folgen
 
