@@ -1,25 +1,38 @@
 # shellcheck shell=bash
 # The helpers of the Android flows and the contract test, started and stopped in one place
-# (sourced by scripts/android-e2e.sh, scripts/android-tv-e2e.sh and task android:contract):
+# (sourced by scripts/android-e2e.sh, scripts/android-tv-e2e.sh and task android:contract), and
+# the machine-wide lock of the emulator.
 #
-#   pairing relay     relay/bin/pair     PAIR_PORT   (the caller's RELAY_PORT; stage 9, K26)
+#   pairing relay     relay/bin/pair     PAIR_PORT   (the caller's RELAY_PORT, default PORT+85; stage 9, K26)
 #   push relay        relay/bin/push     PUSH_PORT   (default PORT+83; stage 8)
 #   Google's push     relay/bin/fcmfake  FCM_PORT    (default PORT+84; stands in for FCM)
 #   Seerr mock        web/e2e/seerr-server.mjs   SEERR_PORT  (default PORT-11; wishes)
 #   TMDB mock         web/e2e/tmdb-server.mjs    TMDB_PORT   (default PORT-12; titles outside the library)
 #
-# All on the loopback only; an emulator reaches them as http://10.0.2.2:<port>. With PORT=8597 they
-# take 8181 (pair, as before), 8680, 8681, 8586 and 8585: no clash with android:e2e:tv (8697, pair
-# 8180) or the E2E_PORT series of the web suite (8197, 8297 …). Every helper is waited for; one that
-# does not come up stops the run with the tail of its log.
+# Ports: every default is a fixed distance from the server's PORT (PORT-12 to PORT+85), so two runs
+# whose PORTs lie at least 100 apart (android:e2e 8597, android:e2e:tv 8697, the web suite's
+# E2E_PORT series 8197, 8297 ...) never take the same helper port. A value set by hand (RELAY_PORT,
+# PUSH_PORT, FCM_PORT, SEERR_PORT, TMDB_PORT) goes first. All on the loopback only; an emulator
+# reaches them as http://10.0.2.2:<port>. Every helper is waited for, and each must still run
+# afterwards (an answer may come from another run's helper on a taken port); one that does not
+# come up stops the run with the tail of its log.
 #
 #   . ../scripts/android-helpers.sh
 #   helpers_start "$root" "$port" "$pair_port"   # exports SLOUCHCAT_TEST_TMDB_* and SLOUCHCAT_PUSH_RELAY
 #   ...                                          # start the server after this: it inherits them
+#   emulator_lock "$wait_max" "$root"            # before the emulator starts; held until emulator_unlock
 #   helpers_save_logs "$dir"                     # on a failure
-#   helpers_stop
+#   helpers_stop; emulator_unlock                # after the emulator is gone
 #
-# Needs relay/bin (task relay:build) and Node. Paths are relative to android/ (where the Taskfile runs).
+# The emulator lock: one emulator at a time on a shared machine. flock on EMULATOR_LOCK (default
+# ${XDG_RUNTIME_DIR:-/tmp}/slouchcat-emulator.lock) from before the emulator starts until it has
+# stopped; it waits up to wait_max seconds (WAIT_MAX of the callers; 0 gives up at once). A small
+# holder process keeps the lock, not the script: adb's server and Gradle's daemon, started by the
+# run and living on after it, must not inherit it. The holder ends with the run, also when the run
+# is killed. In CI one run per runner: the lock is free at once.
+#
+# Needs relay/bin (task relay:build), Node and flock (util-linux). Paths are relative to android/
+# (where the Taskfile runs).
 
 helper_pids=()
 helper_root=""
@@ -100,4 +113,39 @@ helpers_stop() {
     wait "$pid" 2>/dev/null || true
   done
   helper_pids=()
+}
+
+emulator_lock_pid=""
+
+emulator_lock() { # wait_max dir: takes the machine-wide lock of the emulator, waiting up to wait_max s
+  local wait_max=$1 dir=$2 lock=${EMULATOR_LOCK:-${XDG_RUNTIME_DIR:-/tmp}/slouchcat-emulator.lock}
+  local held="$dir/emulator-lock.held" parent=$BASHPID
+  rm -f "$held"
+  (
+    exec 9>>"$lock"
+    if ! flock -n 9; then
+      echo "android-helpers: another run holds the emulator ($lock); waiting up to ${wait_max} s" >&2
+      flock -w "$wait_max" 9 || exit 1
+    fi
+    : >"$held"
+    while kill -0 "$parent" 2>/dev/null; do sleep 1 9>&-; done
+  ) </dev/null >/dev/null &
+  emulator_lock_pid=$!
+  while [ ! -e "$held" ]; do
+    if ! kill -0 "$emulator_lock_pid" 2>/dev/null; then
+      emulator_lock_pid=""
+      echo "android-helpers: gave up after ${wait_max} s: another run still holds the emulator ($lock)" >&2
+      return 1
+    fi
+    sleep 0.5
+  done
+  echo "android-helpers: emulator lock taken ($lock)"
+}
+
+emulator_unlock() { # releases the lock of emulator_lock (the emulator must be gone)
+  if [ -n "$emulator_lock_pid" ]; then
+    kill "$emulator_lock_pid" 2>/dev/null || true
+    wait "$emulator_lock_pid" 2>/dev/null || true
+    emulator_lock_pid=""
+  fi
 }

@@ -10,14 +10,14 @@
 #
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
-# RELAY_PORT  port of the pairing relay (default 8181), on the loopback as well (TvLinkFlowTest)
+# RELAY_PORT  port of the pairing relay (default PORT+85), on the loopback as well (TvLinkFlowTest)
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580)
 # EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
 # CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
-# WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
+# WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
@@ -28,7 +28,7 @@
 set -euo pipefail
 
 port=${PORT:-8597}
-relay_port=${RELAY_PORT:-8181}
+relay_port=${RELAY_PORT:-$((port + 85))}
 avd=${AVD:-sc_phone}
 emu_port=${EMU_PORT:-5580}
 shots=${SHOTS:-}
@@ -70,6 +70,7 @@ cleanup() {
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
+  emulator_unlock
   rm -rf "$root"
 }
 trap cleanup EXIT
@@ -120,11 +121,13 @@ if [ -n "$media" ]; then
   echo "android-e2e: server seeded with the test media"
 fi
 
-# One emulator at a time: wait while another one runs (another agent's).
+# One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
+# for an emulator that a run without the lock started (an older script, by hand).
+emulator_lock "$wait_max" "$root" || fail "another run holds the emulator; one at a time on this machine"
 waited=0
 while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   [ "$waited" -lt "$wait_max" ] || fail "another emulator runs; one at a time on this machine"
-  echo "android-e2e: another emulator runs, waiting ($waited s)"
+  echo "android-e2e: another emulator runs without the lock, waiting ($waited s)"
   sleep 60
   waited=$((waited + 60))
 done

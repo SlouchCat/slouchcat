@@ -118,7 +118,7 @@ task android:contract     # erzeugter Client gegen einen frisch gestarteten Serv
 task android:e2e          # Ablauf im Emulator gegen einen frischen Server (PORT 8597, AVD sc_phone); vor jedem PR an den Apps lokal, der CI-Job «android-emulator» steht nicht im Gate (docs/perf/K27-android-ci.md)
 task android:e2e AVD=sc_tablet SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf, fotografiert jede Seite und jedes Blatt
 task android:e2e:tv        # TV-App im eigenen TV-Emulator (sc_tv, Port 5584): von Hand einrichten, Profil mit PIN, Einstellungen,
-                          # abmelden; per Scan gegen relay/bin/pair (8180), apicheck spielt das Handy; Server auf 8697
+                          # abmelden; per Scan gegen relay/bin/pair (PORT+85, also 8782), apicheck spielt das Handy; Server auf 8697
 task android:e2e:tv SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf mit Fotos jeder Seite und jedes Menüs
 task android:apk          # Debug- und Release-APKs nach android/app-mobile/ und android/app-tv/build/outputs/apk
 task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
@@ -153,7 +153,7 @@ Ziffern mit `KEYCODE_0` bis `KEYCODE_9`; ein geöffnetes Eingabefeld nimmt `inpu
 für einen lokalen Lauf (`relay/bin/pair` mit `RELAY_LISTEN=0.0.0.0:8180`) stellt «Vermittlung ändern» auf
 der Seite mit dem QR-Code oder «Einstellungen › Erweitert» ein: `http://10.0.2.2:8180`. Das Skript
 `scripts/android-tv-e2e.sh` (hinter `task android:e2e:tv`) startet Server, Vermittlung und nur den eigenen
-Emulator, wartet, solange ein fremder läuft, und räumt am Ende nur das Eigene weg.
+Emulator. Ein Emulator zugleich: Die Skripte nehmen eine maschinenweite Sperre (`flock` auf `${XDG_RUNTIME_DIR:-/tmp}/slouchcat-emulator.lock`, Wartezeit `WAIT_MAX`) und räumen am Ende nur das Eigene weg. Die Ports der Helfer leiten sich aus `PORT` ab (Kopf von `scripts/android-helpers.sh`).
 Der Emulator erreicht einen Testserver des Rechners unter `http://10.0.2.2:<Port>` (Ports ab 8597,
 nie 8096). Deutsch: `adb shell cmd locale set-app-locales com.slouchcat.app.dev --locales de-CH`.
 
