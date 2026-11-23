@@ -186,6 +186,11 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
             check(System.nanoTime() < deadline) { "the library $name did not go" }
             Thread.sleep(POLL_MS)
         }
+        // Its titles go after the library: until «Weiterschauen» of the start page has none of them.
+        while (call("GET", "home")!!.jsonObject["rows"]!!.jsonArray.any { it.jsonObject["key"]?.jsonPrimitive?.content == "continue" }) {
+            check(System.nanoTime() < deadline) { "the titles of $name did not go" }
+            Thread.sleep(POLL_MS)
+        }
     }
 
     fun ensureAudio(name: String, kind: String, folder: String, content: String) {
