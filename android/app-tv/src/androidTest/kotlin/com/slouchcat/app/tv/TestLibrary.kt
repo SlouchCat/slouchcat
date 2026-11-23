@@ -171,10 +171,6 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         runCatching { call("POST", "__reset", "{}", plain, seerrHere) }
     }
 
-    /**
-     * Stage 4: an audio library [name] of [kind] (`audiobooks`, `podcasts`) over [folder] with
-     * [content] (`audiobook`, `podcast`), local metadata only, scanned.
-     */
     /** Stage 4: the library [name] goes again, with its titles and their progress (another flow sees nothing of it). */
     fun remove(name: String) {
         signIn()
@@ -193,6 +189,10 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         }
     }
 
+    /**
+     * Stage 4: an audio library [name] of [kind] (`audiobooks`, `podcasts`) over [folder] with
+     * [content] (`audiobook`, `podcast`), local metadata only, scanned.
+     */
     fun ensureAudio(name: String, kind: String, folder: String, content: String) {
         signIn()
         if (library(name) == null) {
@@ -205,7 +205,7 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         waitForScan(name)
     }
 
-    /** Stage 4 with `RADIO=1`: the test stations (first catalog sync) and an offer of every country, as the phone's AudioFlowTest. */
+    /** Stage 4: the test stations of the test radio server (always started by the e2e script) (first catalog sync) and an offer of every country, as the phone's AudioFlowTest. */
     fun ensureRadio() {
         signIn()
         if (call("GET", "admin/radio/catalog")!!.jsonObject["stationsTotal"]!!.jsonPrimitive.int == 0) {

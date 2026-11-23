@@ -579,6 +579,13 @@ Abnahmeliste.
   Stopp (beendet die Sitzung), Spulen ±15/30 s, Vor/Zurück wie im Tonplayer.
 - **Prozess-Tod:** Keine Wiederaufnahme und keine letzte Meldung; die Sitzung bleibt bis zu ihrem Ablauf
   am Server in der Streamübersicht (bekannte Grenze).
+- **App schliessen, letzte Meldung:** `TvAudio.leave()` beendet den Ton sofort und wartet nicht auf die
+  letzte Fortschrittsmeldung und `stopPlayback` bzw. `endRadioListen`. Sie gehen im Scope der App hinaus
+  und kommen an, solange der Prozess noch einen Moment lebt (der Regelfall). Beendet das System den Prozess
+  gleich nach `finish()`, fehlen sie wie beim Prozess-Tod: Der Fortschritt steht auf der letzten regelmässigen
+  Meldung, die Sitzung läuft am Server ab (bekannte Grenze). Ein blockierendes
+  Warten in `onDestroy` würde den Hauptfaden anhalten (ANR-Gefahr) und ist darum nicht gebaut; Profilwechsel
+  und Abmelden warten weiterhin bis 3 s (`TvAudio.end()`).
 - **Tempo** mit 0,75× bis 2× wie im Mockup; kein Schlaftimer am Fernseher (Mockup und Papier nennen keinen).
 - **Webradio:** OK startet einen Sender, nochmals OK hält ihn an (Mockup). Die Länder wählt ein Seitenmenü
   wie das Blatt am Handy; «Meine Sender» und die Sender sind Reihen von Kacheln mit dem Herz darunter.

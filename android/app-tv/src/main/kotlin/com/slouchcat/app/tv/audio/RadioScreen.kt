@@ -120,6 +120,9 @@ object RadioKeys {
     const val CLEAR = "radio-clear"
     const val RETRY = "radio-retry"
     const val SEARCH_APPLY = "radio-search-apply"
+
+    /** The star of a station of «Meine Sender» on its tile (no control). */
+    const val STAR = "radio-star"
     fun station(row: String, id: Long) = "$row-$id"
     fun heart(row: String, id: Long) = "heart-$row-$id"
     fun country(code: String?) = "country-${code ?: "all"}"
@@ -314,30 +317,34 @@ private fun StationTile(station: RadioStation, playing: RadioState?, server: Htt
         else -> stringResource(R.string.radio_page_play, station.name)
     }
     Column(Modifier.width(A.Station), verticalArrangement = Arrangement.spacedBy(TvDimens.xs)) {
-        Box {
-            TvCard(
-                title = station.name,
-                image = stationLogo(server, station),
-                onClick = { events.onStation(station) },
-                modifier = modifier.semantics { contentDescription = action },
-                shape = CardShape.Square,
-                tag = when {
-                    running -> stringResource(R.string.radio_page_playing)
-                    chosen -> stringResource(R.string.radio_page_paused)
-                    else -> null
-                },
-                width = A.Station,
-            )
-            // A station of «Meine Sender»: the star at the top right (mockup photo 31); no control.
-            if (station.favorite) {
-                Box(
-                    Modifier.align(Alignment.TopEnd).padding(TvDimens.s).size(A.StationStar).clip(CircleShape).background(SlouchcatTokens.Color.Scrim.Solid),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    TvIcon(SlouchcatIcon.Star, TvDimens.Button.Icon, tint = c.accent)
+        TvCard(
+            title = station.name,
+            image = stationLogo(server, station),
+            onClick = { events.onStation(station) },
+            modifier = modifier.semantics { contentDescription = action },
+            shape = CardShape.Square,
+            tag = when {
+                running -> stringResource(R.string.radio_page_playing)
+                chosen -> stringResource(R.string.radio_page_paused)
+                else -> null
+            },
+            width = A.Station,
+            // A station of «Meine Sender»: the star at the top right (mockup photo 31), inside the
+            // card so the focused tile shows it too (verifier 4a); no control.
+            badge = if (station.favorite) {
+                {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(TvDimens.s).size(A.StationStar).clip(CircleShape)
+                            .background(SlouchcatTokens.Color.Scrim.Solid).testTag(RadioKeys.STAR),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        TvIcon(SlouchcatIcon.Star, TvDimens.Button.Icon, tint = c.accent)
+                    }
                 }
-            }
-        }
+            } else {
+                null
+            },
+        )
         Text(station.name, style = TvType.bodyStrong, color = c.tx, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TvDimens.xs))
         val line = listOfNotNull(station.country?.let { countryName(it) }, station.genres.take(GENRES).joinToString(stringResource(R.string.format_listSeparator)).ifBlank { null })
             .joinToString(stringResource(R.string.format_separator))

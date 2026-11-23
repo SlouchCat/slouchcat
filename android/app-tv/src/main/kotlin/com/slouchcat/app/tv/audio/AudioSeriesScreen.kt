@@ -112,7 +112,7 @@ fun AudioSeriesScreen(state: Loadable<AudioSeries>, images: ServerImages, links:
         ) {
             item(key = "head") {
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.s)) {
+                    Row(Modifier.clearOfNowPill(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.s)) {
                         TvIcon(SlouchcatIcon.Book, TvDimens.Browse.Icon, tint = c.accent)
                         KindLine(stringResource(R.string.audioSeries_kicker))
                     }

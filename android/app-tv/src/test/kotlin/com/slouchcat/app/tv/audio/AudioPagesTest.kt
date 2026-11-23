@@ -1,8 +1,10 @@
 package com.slouchcat.app.tv.audio
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.requestFocus
 import com.slouchcat.app.tv.shell.ShellTags
@@ -136,6 +138,30 @@ class AudioPagesTest {
         pages.waitFor("Harbour Tales 3")
         remote.back()
         pages.waitFor(s(R.string.item_audio_chapters))
+    }
+
+    /** The title of a detail page's head starts below «Läuft gerade» at the top right (verifier 4b). */
+    private fun assertTitleBelowThePill(title: String) {
+        val pill = compose.onNode(hasTestTag(NOW_PILL)).getUnclippedBoundsInRoot()
+        val head = compose.onNode(hasText(title) and isHeading()).getUnclippedBoundsInRoot()
+        assertTrue("title $head, pill $pill", head.top >= pill.bottom)
+    }
+
+    @Test
+    fun theHeadsOfTheBookAndTheSeriesKeepClearOfNowPlaying() {
+        sounds.series = ApiResult.Ok(com.slouchcat.core.browse.testing.audioSeries())
+        openBook()
+        focus(AudioItemKeys.chapter(1))
+        remote.ok()
+        pages.waitFor(s(R.string.player_seek))
+        remote.back()
+        pages.waitFor(s(R.string.item_audio_chapters))
+        // The page of the book (the same head as a podcast's and an episode's).
+        assertTitleBelowThePill(book.title)
+        focus(AudioItemKeys.SERIES)
+        remote.ok()
+        pages.waitFor("Harbour Tales 3")
+        assertTitleBelowThePill("Harbour Tales")
     }
 
     @Test

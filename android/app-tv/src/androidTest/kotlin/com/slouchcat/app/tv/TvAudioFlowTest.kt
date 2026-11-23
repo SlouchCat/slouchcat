@@ -46,7 +46,7 @@ import java.io.File
  * 5.6): the audiobook and the podcast of scripts/android-test-video.sh as libraries of their own;
  * the book plays in the audio player, Next of the remote changes the chapter, Home ends the
  * session and its progress is at the server, back in front it waits paused; an episode of the
- * podcast plays; with `slouchcatRadio` (RADIO=1) a test station starts from «Webradio», its page
+ * podcast plays; a test station of the test radio server starts from «Webradio», its page
  * shows it, «Radio beenden» ends it. Each test stands on its own: it sets the TV up when it is not
  * and signs it out at the end (one web session for the administration, [TestLibrary]).
  *
@@ -272,7 +272,7 @@ class TvAudioFlowTest {
         scenario.close()
     }
 
-    /** The radio (RADIO=1): a test station starts with OK, its page, «Radio beenden». */
+    /** The radio: a test station starts with OK, its page, «Radio beenden». */
     @Test
     fun radioStartsAndEnds() {
         if (!radio) return

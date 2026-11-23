@@ -209,7 +209,7 @@ fun Cover(images: ImageSet, size: Dp, modifier: Modifier = Modifier) {
 private fun Head(detail: ItemDetail) {
     val c = SlouchcatTheme.colors
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.s)) {
+        Row(Modifier.clearOfNowPill(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.s)) {
             TvIcon(if (detail.kind == ItemKind.AUDIOBOOK) SlouchcatIcon.Headphones else SlouchcatIcon.Mic, TvDimens.Browse.Icon, tint = c.accent)
             kindName(detail.kind)?.let { KindLine(it) }
         }

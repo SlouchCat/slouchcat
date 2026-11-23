@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -88,7 +89,8 @@ private val LocalRowFocused = compositionLocalOf { true }
  * `.tc`: an image card. In focus it grows by `--focus-scale` and gets a light ring with a dark gap
  * (the focus is visible on any image); without an image it shows its ground and [title]. [caption]
  * (title over a shade at the bottom), [tag] (top left) and [progress] (0..1, a bar at the bottom)
- * are optional. [title] is also what a screen reader says.
+ * are optional. [title] is also what a screen reader says. [badge] (stage 4) lies inside the card
+ * over its image, so it grows with the focus and stays visible on the focused card.
  */
 @Composable
 fun TvCard(
@@ -103,6 +105,7 @@ fun TvCard(
     progress: Float? = null,
     /** `null`: as wide as its cell (a grid of seven columns). */
     width: Dp? = shape.width,
+    badge: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val c = SlouchcatTheme.colors
     val corner = RoundedCornerShape(TvDimens.radiusCard)
@@ -170,6 +173,7 @@ fun TvCard(
                     Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(TvDimens.Card.Progress).background(c.accent))
                 }
             }
+            badge?.invoke(this)
             // `.rsec:not(:focus-within) .tc .im { filter: brightness(.82) }`
             if (!rowFocused) Box(Modifier.fillMaxSize().background(c.bg.copy(alpha = 1f - TvMotion.rowRest)))
         }

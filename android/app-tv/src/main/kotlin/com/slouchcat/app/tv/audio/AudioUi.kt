@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Border
@@ -175,6 +176,16 @@ fun NumberMark(number: Int) = Text(number.toString(), style = TvType.largeStrong
  * the radio page while the radio plays: it shows the station itself). No control: the rail has
  * «Läuft gerade».
  */
+/** The tag of [NowPill] (tests). */
+internal const val NOW_PILL = "audio-now-pill"
+
+/**
+ * The first line of a detail page's head (kind and icon) keeps the top right free for [NowPill]: it
+ * ends left of the pill and is as high as the pill reaches, so the title starts below it and may use
+ * the whole width (verifier 4b; the pill itself stays where it is).
+ */
+internal fun Modifier.clearOfNowPill(): Modifier = padding(end = A.NowWidth + A.NowEnd).heightIn(min = A.NowHeight - TvDimens.s)
+
 @Composable
 fun NowPill(now: AudioNow?, server: HttpUrl?) {
     val c = SlouchcatTheme.colors
@@ -211,7 +222,8 @@ fun NowPill(now: AudioNow?, server: HttpUrl?) {
                 .border(BorderStroke(TvDimens.borderThin, c.line), CircleShape)
                 .padding(start = TvDimens.xs, end = TvDimens.l)
                 // No live region: TalkBack would say every title of a station while one browses (review L-3).
-                .semantics(mergeDescendants = true) { },
+                .semantics(mergeDescendants = true) { }
+                .testTag(NOW_PILL),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(TvDimens.m),
         ) {
