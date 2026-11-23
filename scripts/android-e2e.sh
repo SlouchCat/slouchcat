@@ -13,6 +13,7 @@
 # RELAY_PORT  port of the pairing relay (default PORT+85), on the loopback as well (TvLinkFlowTest)
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580), an
 #             even number from 5554 to 5584: adb finds only those as emulator-EMU_PORT
+# EMU_GPU     renderer of the emulator (default swangle_indirect, see before boot)
 # EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
@@ -148,11 +149,18 @@ while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   waited=$((waited + 60))
 done
 
+# The renderer of the guest's graphics on the host (EMU_GPU overrides it). Not swiftshader_indirect:
+# with it the emulator process itself died (SIGSEGV) in 3 of 5 runs of AudioFlowTest, each time
+# while SystemUI built the media card of the notification; every core stopped on the same
+# instruction in code generated at run time, outside every library of the emulator (the renderer's
+# shader code). swangle_indirect (ANGLE over SwiftShader's Vulkan, also in software): 0 of 5
+# (docs/perf/K27-android-ci.md, «Absturz des Emulators»).
+emu_gpu=${EMU_GPU:-swangle_indirect}
 boot() {
   # EMU_OPTS: more options for the emulator, split at spaces (for example -feature -Vulkan).
   # shellcheck disable=SC2086
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
+    -gpu "$emu_gpu" ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 240); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1
