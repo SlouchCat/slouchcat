@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, Zweig `claude/wunsch-abgleich-folgen`)
+## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, PR #212, veröffentlicht)
 
 Marco meldete am 23. November 2026: «Strike Back» über die Android-App gewünscht, erscheint nicht in der Startreihe
 «Erfüllte Wünsche». Befund auf CT 190 (Release 1.43.0, nur gelesen): Der Wunsch über die Staffeln 1 und 2 stand auf
@@ -29,6 +29,14 @@ zeigt nur Wünsche im Zustand «verfügbar» (Marco, E-10); das bleibt so.
   `task check:fast`, `task server:lint` und `task ci` auf `4058b5ff` grün; unabhängige Prüfung in zwei Durchgängen.
   Keine Migration, Vertrag bleibt 1.43.0. Marco hat am 23. November 2026 «Ja, Patch 1.43.1» gewählt; der
   Versionscommit liegt auf demselben Zweig.
+- **Veröffentlicht am 23. November 2026:** PR #212 gemergt (Merge `744ec9c6`), Tag `v1.43.1` auf dem
+  Merge-Commit, Release-Lauf 45178154670 grün, `manifest.json` nennt 1.43.1. Der erste PR-Lauf (45163735384)
+  endete rot, ohne dass ein Test fehlschlug: Vier Jobs hingen in `sudo apt-get update` an den Ubuntu-Spiegeln bis
+  zu ihrem Zeitlimit; nach `gh run rerun --failed` war der Sammel-Check `ci` grün. `android-emulator (flow,
+  informational)` war rot wie in den Läufen davor und zählt nicht für `ci`. Der Zweig ist gelöscht.
+- **Beobachtet auf CT 190:** Der Stundenlauf stellte den Wunsch um 11:49 Ortszeit auf «verfügbar»; «Strike Back»
+  steht seither in der Reihe «Erfüllte Wünsche». Die Korrektur selbst ist dort nicht abgenommen: CT 190 lief dabei
+  auf 1.43.0, Marco hebt per Updater.
 
 ## Bau der Android-Apps (Konzept 27 und 26): Stand je Stufe (seit 21. November 2026)
 
