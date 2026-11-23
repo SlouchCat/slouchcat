@@ -84,10 +84,13 @@ class MessagesShowcaseData(private val wishesOff: Boolean = false, private val e
     }
 
     val requestedId = 9101L
+    /** A wish Seerr already approved: no «Zurückziehen» (code review M-1). */
+    val approvedId = 9102L
     val seriesId = 9103L
 
     private val wishes = if (emptyWishes) emptyList() else listOf(
         wish(0, WishState.PENDING),
+        wish(1, WishState.PROCESSING),
         wish(2, WishState.PARTIAL, seasons = listOf(1, 2)),
         wish(4, WishState.AVAILABLE),
         wish(6, WishState.DECLINED),
@@ -106,7 +109,7 @@ class MessagesShowcaseData(private val wishesOff: Boolean = false, private val e
     private fun title(id: Long): ExternalTitle? {
         val index = titles.indexOfFirst { it.first == id }.takeIf { it >= 0 } ?: return null
         val (_, name, media) = titles[index]
-        val open = wishes.firstOrNull { it.tmdbId == id && it.state == WishState.PENDING }
+        val open = wishes.firstOrNull { it.tmdbId == id && (it.state == WishState.PENDING || it.state == WishState.PROCESSING) }
         return ExternalTitle(
             media = media, tmdbId = id, title = name, images = images("t$id"), hasTrailer = false, canRequest = open == null,
             genres = listOf("Drama"), seasons = emptyList(), trailers = emptyList(),
@@ -179,9 +182,11 @@ class MessagesShowcaseData(private val wishesOff: Boolean = false, private val e
         override suspend fun unsubscribe(server: HttpUrl, id: Long) = ApiResult.Ok(Unit)
     }
 
-    /** This device's push, subscribed. */
+    /** This device's push, subscribed; the test sets other states. */
+    val pushState = MutableStateFlow<DevicePushState>(DevicePushState.On)
+
     val devicePush = object : DevicePush {
-        override val state = MutableStateFlow<DevicePushState>(DevicePushState.On)
+        override val state = pushState
         override suspend fun enable() = Unit
         override suspend fun disable() = Unit
         override suspend fun refresh() = Unit
