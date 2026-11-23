@@ -217,6 +217,16 @@ class ServerIdentityGateTest {
         chain.proceed(chain.request())
     }
 
+    /**
+     * A minute passes while the app goes on using the server: the proof gets a minute older and
+     * never lies unused for long (a proof no request used for a minute counts no more).
+     */
+    private fun aMinutePassesInUse(http: OkHttpClient) {
+        now += Duration.ofSeconds(31).toNanos()
+        assertEquals(200, get(http))
+        now += Duration.ofSeconds(30).toNanos()
+    }
+
     /** The app ends a call of [http], which carries [interrupting]. */
     private fun theAppEndsACall(http: OkHttpClient) {
         val error = onItsOwnThread { get(http, "/interrupted") }.get(5, TimeUnit.SECONDS).exceptionOrNull()
@@ -344,6 +354,70 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aProofUnusedForAMinuteCountsNoMore() {
+        // A change of the network that the device cannot see mostly falls into a pause: the user
+        // walks into another network. So after a minute without a request to the server the next
+        // one proves first. Requests that follow each other keep the proof for its ten minutes.
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        server.dispatcher = recording(log)
+        val signer = Signer(log = log)
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        repeat(3) {
+            now += Duration.ofSeconds(59).toNanos()
+            assertEquals(200, get(http))
+        }
+        assertEquals("a proof in use was renewed", 1, signer.calls.get())
+        now += Duration.ofSeconds(59).toNanos()
+        assertTrue(gate.isProvenNow())
+        now += Duration.ofSeconds(2).toNanos()
+        assertFalse("the proof still counts after a minute without a request (a look at it is none)", gate.isProvenNow())
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+        assertEquals(listOf("proof", "/api/v1/auth/session on 0 with token"), log.takeLast(2))
+    }
+
+    @Test
+    fun aForeignMachineAfterAPauseGetsNothing() {
+        // What the pause is for. In aForeignMachineBehindABrokenConnectionGetsNoSecondRequest the
+        // first request after the unseen change had left with the token; after a pause none does.
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        server.dispatcher = recording(log)
+        val foreign = AtomicBoolean()
+        val prover = ServerProver { _, nonce ->
+            log += "proof"
+            ProofAnswer(sign(if (foreign.get()) otherKeys else serverKeys, nonce), serverKey)
+        }
+        val http = client(gate(prover))
+        assertEquals(200, get(http))
+        now += Duration.ofSeconds(61).toNanos()
+        foreign.set(true)
+        val refused = assertRefused { get(http) }
+        assertTrue("$refused", refused is ServerNotProvenException)
+        assertEquals(listOf("proof", "/api/v1/auth/session on 0 with token", "proof"), log.toList())
+    }
+
+    @Test
+    fun aRequestOnItsWayWhenThePauseIsOverProvesBeforeItLeaves() {
+        // The pause is measured where a request leaves, at its hop.
+        val held = Held("/second")
+        val signer = Signer()
+        val http = client(gate(signer), OkHttpClient.Builder().addNetworkInterceptor(held))
+        assertEquals(200, get(http))
+        try {
+            val second = onItsOwnThread { get(http, "/second") }
+            assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
+            now += Duration.ofSeconds(61).toNanos()
+            held.release.countDown()
+            assertEquals(200, second.get(5, TimeUnit.SECONDS).getOrThrow())
+            assertEquals("the request left with a proof nobody had used for a minute", 2, signer.calls.get())
+        } finally {
+            held.release.countDown()
+        }
+    }
+
+    @Test
     fun aBrokenConnectionForgetsTheProof() {
         val signer = Signer()
         val gate = gate(signer)
@@ -461,7 +535,7 @@ class ServerIdentityGateTest {
         val signer = Signer()
         val http = client(gate(signer), OkHttpClient.Builder().addNetworkInterceptor(interrupting))
         assertEquals(200, get(http))
-        now += Duration.ofSeconds(61).toNanos()
+        aMinutePassesInUse(http)
         assertEquals(200, get(http))
         assertEquals("a proof nobody doubts was renewed before its ten minutes", 1, signer.calls.get())
 
@@ -490,9 +564,10 @@ class ServerIdentityGateTest {
         val signer = Signer()
         val gate = gate(signer)
         assertEquals(200, aRequestOnItsWayWhileACallIsCancelled(gate).getOrThrow())
-        assertEquals(1, signer.calls.get())
-        now += Duration.ofSeconds(61).toNanos()
-        assertEquals(200, get(client(gate)))
+        val http = client(gate)
+        aMinutePassesInUse(http)
+        assertEquals("a proof younger than a minute was renewed", 1, signer.calls.get())
+        assertEquals(200, get(http))
         assertEquals("a proof in doubt, a minute old, was not renewed", 2, signer.calls.get())
     }
 
@@ -515,7 +590,7 @@ class ServerIdentityGateTest {
         try {
             val second = onItsOwnThread { get(http, "/second") }
             assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
-            now += Duration.ofSeconds(61).toNanos()
+            aMinutePassesInUse(http)
             val third = onItsOwnThread { get(http) }
             assertTrue("the proof in doubt is not renewed", renewing.await(5, TimeUnit.SECONDS))
             held.release.countDown()
@@ -545,7 +620,7 @@ class ServerIdentityGateTest {
         try {
             val second = onItsOwnThread { get(http, "/second") }
             assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
-            now += Duration.ofSeconds(61).toNanos()
+            aMinutePassesInUse(http)
             foreign.set(true)
             val refused = assertRefused { get(http, "/third") }
             assertTrue("$refused", refused is ServerNotProvenException)
@@ -553,7 +628,7 @@ class ServerIdentityGateTest {
             held.release.countDown()
             val onItsWay = second.get(5, TimeUnit.SECONDS).exceptionOrNull()
             assertTrue("the request on its way left without a proof: $onItsWay", onItsWay is ServerNotProvenException)
-            assertEquals(listOf("/api/v1/auth/session on 0 with token"), log.toList())
+            assertTrue("a request left without a proof: $log", log.none { it.startsWith("/second") || it.startsWith("/third") })
         } finally {
             held.release.countDown()
         }
@@ -574,7 +649,7 @@ class ServerIdentityGateTest {
         val http = client(gate, OkHttpClient.Builder().addNetworkInterceptor(interrupting))
         assertEquals(200, get(http))
         theAppEndsACall(http)
-        now += Duration.ofSeconds(61).toNanos()
+        aMinutePassesInUse(http)
         val aborted = onItsOwnThread { get(http) }.get(5, TimeUnit.SECONDS).exceptionOrNull()
         assertTrue("not the interruption of the renewal: $aborted", aborted is InterruptedIOException && aborted !is SocketTimeoutException)
         assertEquals(2, calls.get())
@@ -1365,7 +1440,8 @@ class ServerIdentityGateTest {
         }
         assertTrue("an answer the app stopped reading cost the proof", gate.isProvenNow())
         assertEquals(1, signer.calls.get())
-        now += Duration.ofSeconds(61).toNanos()
+        aMinutePassesInUse(http)
+        assertEquals("a proof younger than a minute was renewed", 1, signer.calls.get())
         assertEquals(200, get(http))
         assertEquals("a proof in doubt, a minute old, was not renewed", 2, signer.calls.get())
     }

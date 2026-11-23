@@ -11,8 +11,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class SlouchcatHttpTest {
     private val server = MockWebServer()
@@ -28,6 +31,23 @@ class SlouchcatHttpTest {
         override val server = for_
         override val bearerToken = "secret-token"
         override val deviceId = "device-1"
+    }
+
+    @Test
+    fun idleConnectionsGoBeforeTheServerClosesThemAndAfterTheProofLapsed() {
+        // The server closes an idle connection after two minutes (`IdleTimeout` in
+        // server/cmd/slouchcat/main.go): one that stayed in the pool longer breaks under the next
+        // request. And while a proof still counts without a new one, the app must still hold its
+        // old connections, because where the network changed unseen it is their break that tells.
+        assertTrue(SlouchcatHttp.KEEP_ALIVE < Duration.ofMinutes(2))
+        assertTrue(SlouchcatHttp.PROOF_IDLE < SlouchcatHttp.KEEP_ALIVE)
+        val http = SlouchcatHttp.client(identity, keepAlive = Duration.ofMillis(200))
+        server.enqueue(MockResponse(body = "{}"))
+        http.newCall(Request.Builder().url(server.url("/")).build()).execute().close()
+        assertEquals(1, http.connectionPool.idleConnectionCount())
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (http.connectionPool.idleConnectionCount() > 0 && System.nanoTime() < deadline) Thread.sleep(20)
+        assertEquals("the pool kept an idle connection past its time", 0, http.connectionPool.idleConnectionCount())
     }
 
     @Test

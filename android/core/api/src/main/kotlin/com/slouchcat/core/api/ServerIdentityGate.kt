@@ -88,7 +88,9 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  * «Server weist sich aus» (concept 27 section 6, F-38, ADR 0040): for a server over plain HTTP,
  * every request of the shared client to it (API, images, later player and background fetch) waits
  * until the server has signed a fresh nonce with the key remembered at the setup, once per network
- * ([NetworkState]) and at most [maxAge] long. Until then nothing leaves the device: no token, no
+ * ([NetworkState]), at most [maxAge] long, and no longer than [idle] without a request to the
+ * server (a change of the network that the device cannot see mostly falls into a pause, and then
+ * the first request after it proves before anything leaves). Until then nothing leaves the device: no token, no
  * device id, no password. A wrong signature or no answer fails the request as «not reachable» (an
  * [IOException]). A valid signature under another key fails it as well and sets [newKey]; the app
  * shows that quietly and never offers to sign in by itself (ADR 0040, decision of the build).
@@ -124,6 +126,7 @@ class ServerIdentityGate(
     private val clock: () -> Long = System::nanoTime,
     private val renewAfter: Duration = Duration.ofMinutes(1),
     private val settle: Duration = SlouchcatHttp.READ_TIMEOUT,
+    private val idle: Duration = SlouchcatHttp.PROOF_IDLE,
 ) : Interceptor {
     private sealed interface Outcome {
         data object Proven : Outcome
@@ -144,6 +147,9 @@ class ServerIdentityGate(
     private class Proof(val generation: Long, val key: String, val at: Long) {
         /** The app ended a request since: it may have given up on a server that is no longer there. */
         var doubted = false
+
+        /** When a request last left with this proof; at first, when the server gave it. */
+        var usedAt = at
     }
 
     /**
@@ -231,7 +237,7 @@ class ServerIdentityGate(
         if (server == null || server.isHttps || !SlouchcatHttp.sameOrigin(server, request.url)) return@Interceptor chain.proceed(request)
         val call = chain.call()
         val pool = chain.connectionPool
-        if (!isProvenNow()) proveOnTheWay(server, call.tag(Trip::class))
+        if (!leaveWithTheProof()) proveOnTheWay(server, call.tag(Trip::class))
         val response = try {
             chain.proceed(request)
         } catch (e: IOException) {
@@ -275,7 +281,7 @@ class ServerIdentityGate(
     /**
      * A hop without a proof. As a rule the request had one when it left ([intercept]) and it is gone: a
      * connection broke (the request's own, and this hop is OkHttp's retry; or another request's),
-     * the proof ran out, or its renewal failed. After a network change the request fails; what
+     * the proof ran out or lay unused too long, or its renewal failed. After a network change the request fails; what
      * becomes of it in the new network is for the app to decide. In the network it left in, the hop
      * waits for a new proof, unless the request's own connection has broken twice: a machine that
      * signs and then breaks every connection costs a request one proof on its way and not one per
@@ -364,13 +370,19 @@ class ServerIdentityGate(
     /** Whether [e] is the report of an interrupted thread and not a timeout. */
     private fun interrupted(e: IOException): Boolean = e is InterruptedIOException && e !is SocketTimeoutException && Thread.currentThread().isInterrupted
 
-    /** Whether the current network has a valid proof of the key in use. */
+    /** Whether the current network has a valid proof of the key in use. Looking is no use of the proof. */
     fun isProvenNow(): Boolean = synchronized(lock) { validProof() != null }
+
+    /** Whether a hop may leave now; if so, the proof is in use from now. */
+    private fun leaveWithTheProof(): Boolean = synchronized(lock) { validProof()?.also { it.usedAt = clock() } != null }
 
     /** The proof of the key in use for the current network, under [lock]. */
     private fun validProof(): Proof? {
         val key = candidateKey ?: trusted.serverKey ?: return null
-        return proven?.takeIf { it.generation == network.generation() && it.key == key && clock() - it.at < maxAge.toNanos() }
+        val now = clock()
+        return proven?.takeIf {
+            it.generation == network.generation() && it.key == key && now - it.at < maxAge.toNanos() && now - it.usedAt < idle.toNanos()
+        }
     }
 
     /** Forgets the proof after a broken connection; whether there was one. */
