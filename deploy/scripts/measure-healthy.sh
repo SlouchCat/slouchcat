@@ -41,7 +41,14 @@ mkdir -p "$workdir/config" "$workdir/cache"
 chmod 0777 "$workdir/config" "$workdir/cache"
 
 start_ns="$(date +%s%N)"
+# No network: at its first start the server asks for the radio catalogue at once (job
+# radio.catalog.sync). With a fast line the download and its parsing fall into the measurement,
+# and "idle" read 77 to 118 MB at 136 % CPU instead of 52 MB (23 November 2026, pull requests
+# 205 to 207: same server, three readings). The gate guards the idle server, not that job, and
+# must not depend on how fast a foreign service answers. The health check runs inside the
+# container and needs no network.
 "$DOCKER" run -d --name "$name" \
+  --network none \
   --user "$(id -u):$(id -g)" \
   -v "$workdir/config:/config" \
   -v "$workdir/cache:/cache" \
@@ -77,8 +84,8 @@ rss_kb="$(awk '{print $2}' <<<"$rss_line")"
 echo "idle after ${IDLE_SECONDS} s: $(tr -s '[:space:]' ' ' <<<"$rss_line")"
 printf 'idle RSS: %d.%01d MB (limit %s MB)\n' $((rss_kb / 1024)) $(((rss_kb % 1024) * 10 / 1024)) "$MAX_RSS_MB"
 "$DOCKER" stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.PIDs}}' "$name"
-# What the RSS is made of, and what the host does with huge pages: the same container read 52 MB
-# and 77 MB on two runner images, so the log has to say which part moved. Diagnosis only, no gate.
+# What the RSS is made of and how busy the server is: when the gate trips, the log has to say
+# which part moved (anonymous memory of a job at work, or the size of the binary). No gate.
 "$DOCKER" exec "$name" grep -E '^(RssAnon|RssFile|RssShmem|VmHWM|Threads):' /proc/1/status | tr -s '[:space:]' ' ' || true
 echo
 "$DOCKER" exec "$name" grep -E '^(Rss|Pss|Anonymous|AnonHugePages|FilePmdMapped|Private_Dirty):' /proc/1/smaps_rollup | tr -s '[:space:]' ' ' || true
