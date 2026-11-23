@@ -360,9 +360,10 @@ class TvShowcaseTest {
         // The main search with «Noch nicht in der Bibliothek?» and the card «„…“ wünschen».
         rail(s(R.string.nav_search))
         focused("q")
-        "licht".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+        // A title only Seerr knows: no rows of the library above it (a lazy list draws only what is seen).
+        "eiszeit".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
         waitFor(s(R.string.app_wishes_missingTitle))
-        waitFor(s(R.string.app_wishes_searchCard, "licht"))
+        waitFor(s(R.string.app_wishes_searchCard, "eiszeit"))
         shot("c33-search-missing")
         scenario.close()
     }
