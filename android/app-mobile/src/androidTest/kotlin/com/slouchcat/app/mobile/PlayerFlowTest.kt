@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.slouchcat.app.mobile.player.CONTROLS_HIDE_MS
 import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
@@ -239,7 +240,14 @@ class PlayerFlowTest {
         showControls()
         shot("p01-player-controls")
         compose.waitUntil(30_000) { serverPosition(titles.film) >= 8_000 }
-        compose.waitUntil(10_000) { !present(close) }
+        // The controls hide after CONTROLS_HIDE_MS of the test's clock, not of the wall clock: a
+        // wait moves that clock on by one frame per look. With slow looks ten seconds of them were
+        // less than four seconds of it, and this wait ran out while the film played on (four runs
+        // in a row on the hosted runner). The wait moves the clock itself.
+        compose.waitUntil(15_000) {
+            compose.mainClock.advanceTimeBy(CONTROLS_HIDE_MS)
+            !present(close)
+        }
         shot("p02-player")
         tool(R.string.app_player_infoButton)
         waitForText(s(R.string.app_player_info_direct))
