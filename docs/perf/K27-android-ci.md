@@ -180,3 +180,15 @@ Handy-Ablauf ohne `CLASS` einmal durch (Ergebnis im Bericht der Stufe 7).
 
 `scripts/android-tv-e2e.sh` (TV-Emulator) nutzt weiter `swiftshader_indirect`; dort ist kein Absturz
 gemeldet.
+
+**Ergebnis auf dem Runner (PR #206, 23.11.2026):** Der Job `android-emulator` (AVD `ci_phone`,
+`-gpu swangle_indirect`) lief ohne Absturz des Emulators. 13 von 16 Fällen waren grün, 3 rot:
+
+| Fall                        | Befund                                                         |
+| --------------------------- | -------------------------------------------------------------- |
+| `AudioFlowTest`             | ein Warten von 30 s läuft ab                                   |
+| `MessagesFlowTest.kt:349`   | die Mitteilung steht nicht unter `activeNotifications`         |
+| `PlayerFlowTest.kt:242`     | ein Warten von 10 s läuft ab                                   |
+
+Auf der Entwicklungsmaschine sind dieselben 16 Fälle grün. Der Job bleibt informativ und steht nicht im
+Gate (Entscheid oben). Die drei Fälle auf dem Runner sind offen.
