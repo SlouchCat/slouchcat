@@ -1,5 +1,41 @@
 # Aktueller Stand
 
+## Korrektur: Die Handy-App meldet Push nicht mehr auf dem Haupt-Thread an (23. November 2026, Zweig `claude/android-push-main-thread`)
+
+Erste Probe von Push auf einem echten Gerät: Pixel 10a mit Android 17, signierter Release-Bau `play`
+1.0.0, Firebase-Projekt der App, Push-Weiterleitung unter `push.slouchcat.com`. Die App zeigte unter
+«Push-Meldungen»: «Der Server hat das Abo dieses Geräts abgelehnt». Der Server war nie gefragt worden.
+
+- **Ursache:** `PushRegistrar.subscribe` rief `RelayClient.register` direkt auf. Der Aufruf blockiert
+  (OkHttp `execute` in `PushRelay.register`), und der Registrar läuft im Scope der App auf
+  `Dispatchers.Main.immediate`. Android bricht einen Netzzugriff auf dem Haupt-Thread ab; im Log des
+  Geräts stand bei jedem Versuch `push failed kind=NetworkOnMainThreadException`. Die Push-Weiterleitung
+  bekam keine Anfrage.
+- **Korrektur:** Der Aufruf läuft in `withContext(io)`. Der Dispatcher ist ein Parameter des Registrars
+  (Vorgabe `Dispatchers.IO`), damit jeder `RelayClient` geschützt ist und der Test ihn setzen kann.
+- **Warum die Tests es nicht fanden:** `PushRegistrarTest` nutzt eine Attrappe der Weiterleitung, und der
+  Ablauf im Emulator (`MessagesFlowTest`) baut einen eigenen Registrar mit einer Attrappe für Googles
+  Token; keiner ging mit echtem Firebase durch den Scope der App.
+- **Geprüft:** Der neue Test `theRelayIsNeverAskedOnTheCallersThread` ist ohne die Korrektur rot («relay
+  asked on Test worker») und mit ihr grün. Die übrigen blockierenden `execute()`-Aufrufe in `android/`
+  laufen alle schon auf `Dispatchers.IO` (`ServerProbe`, `core/pairing/RelayClient`, `FileFetcher`).
+  **Auf dem Gerät:** nach dem Einspielen kein `push failed` mehr; eine Testmeldung aus der App kam bei der
+  Push-Weiterleitung an (`POST /v1/push/{address}`, 201, also an Google übergeben), und der
+  Mitteilungsdienst des Handys führte danach eine Mitteilung der App im Kanal `general`. Marco hat die
+  Testmeldung am Handy erhalten.
+- **Nicht geprüft:** Meldung bei geschlossener App und im Stromsparmodus (Doze), Wechsel des
+  Google-Tokens.
+- **Offen, nicht angefasst:**
+  - Der Sammel-`catch` in `PushRegistrar.locked` meldet jeden unerwarteten Fehler als
+    `PushFailure.Server`. Die App sagt dann «Der Server hat das Abo … abgelehnt», auch wenn der Server
+    nie gefragt wurde.
+  - Die Unit-Tests von `app-mobile` hängen an den Firebase-Werten des Rechners. Stehen
+    `slouchcat.firebase.*` in `~/.gradle/gradle.properties`, startet die Robolectric-App die
+    Push-Planung, und 459 Tests fallen mit «WorkManager is not initialized properly» (`task check:fast`,
+    `task android:test`). `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 5 empfiehlt genau diese Datei
+    und nennt die Folge nicht. Bis das behoben ist: die vier Werte nur für den Release-Bau als
+    Umgebungsvariablen `SLOUCHCAT_FIREBASE_*` setzen.
+
 ## Korrektur: das Zeichen der App sitzt in der Mitte (23. November 2026, Zweig `claude/logo-zentrierung`)
 
 Marco meldete nach dem ersten Release-Bau der Handy-App: «Das Logo ist nicht sauber zentriert, vermutlich
