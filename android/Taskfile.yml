@@ -48,6 +48,14 @@ tasks:
     cmds:
       - APPS="{{.APPS | default "app tv"}}" ../scripts/android-dist.sh
 
+  # The job "sign" of release-android.yml, locally: no Gradle, the key from SLOUCHCAT_SIGNING_*.
+  sign:
+    desc: >-
+      Signs the unsigned release files in android/dist/ (or DIR) with the upload key from the four SLOUCHCAT_SIGNING_*
+      environment variables (zipalign, apksigner, jarsigner) and writes SHA256SUMS again
+    cmds:
+      - ../scripts/android-sign.sh "{{.DIR | default "dist"}}"
+
   # The generated client against a real server: the server of this repository with fresh data and
   # the media tree of scripts/android-test-media.sh on its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
   contract:

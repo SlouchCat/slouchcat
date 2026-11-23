@@ -12,8 +12,10 @@ import org.gradle.api.Project
  * The values are never printed, only their names.
  */
 internal fun Project.configureReleaseSigning(android: ApplicationExtension) {
+    // Path and alias lose stray spaces; a password is taken as it is (a space may belong to it).
     val values = SIGNING.associate { (property, environment) ->
-        property to (providers.gradleProperty(property).orNull ?: providers.environmentVariable(environment).orNull).orEmpty().trim()
+        val value = (providers.gradleProperty(property).orNull ?: providers.environmentVariable(environment).orNull).orEmpty()
+        property to if (property == STORE_FILE || property == KEY_ALIAS) value.trim() else value
     }
     val missing = SIGNING.filter { (property, _) -> values.getValue(property).isEmpty() }
     if (missing.size == SIGNING.size) return
