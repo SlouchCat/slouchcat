@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The foreground layer of the launcher icon: the sign of web/public/icon.svg in
+     color.accent.ember.base of packages/design-tokens, the play triangle cut out (even-odd), so the
+     background shows through as in the web icon. The 512 x 512 of the web icon fill the 72 dp a
+     launcher shows of the 108 dp; the sign stays inside the 66 dp safe zone. LauncherIconTest
+     compares the colour with the tokens. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="18" android:scaleX="0.140625" android:scaleY="0.140625">
+        <path android:fillColor="#e8794a" android:fillType="evenOdd"
+            android:pathData="M136 400V136l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z M228 268v96l84-48z" />
+    </group>
+</vector>
