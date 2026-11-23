@@ -141,7 +141,7 @@ class StoreShotsTest {
     /**
      * A photo once the screen holds still: two screenshots in a row the same (pictures loaded, the
      * page settled), at most [settleMs] long; a screen that never holds still (a running clock) is
-     * taken as it is then.
+     * taken as it is then. Not `Showcase.shot`: that one is bound to `slouchcatShots` and `files/shots`.
      */
     private fun photo(name: String, settleMs: Long = SETTLE_MS) {
         compose.waitForIdle()
@@ -167,12 +167,15 @@ class StoreShotsTest {
         val items = SlouchcatApi.create(::ItemsApi, server, graph.http)
         var found: String? = null
         compose.waitUntil(SCAN_MS) {
-            found = items.listVisibleLibraries().orEmpty().firstNotNullOfOrNull { lib ->
-                items.listLibraryItems(lib.id)!!.items.firstOrNull { it.title == title }?.id
-            }
+            // A failed request or an empty answer is «not yet there», not the end of the wait.
+            found = runCatching {
+                items.listVisibleLibraries().orEmpty().firstNotNullOfOrNull { lib ->
+                    items.listLibraryItems(lib.id)?.items?.firstOrNull { it.title == title }?.id
+                }
+            }.getOrNull()
             found != null
         }
-        return found!!
+        return checkNotNull(found)
     }
 
     /** From the address to a chosen profile; [pickerPhoto] photographs the profile choice on the way. */
@@ -304,7 +307,7 @@ class StoreShotsTest {
         // The preview tiles of the film (library setting «Im Voraus»): ready before the player opens.
         val items = SlouchcatApi.create(::ItemsApi, server, graph.http)
         val file = items.getItem(tears)!!.mediaFiles.first().id
-        compose.waitUntil(TRICKPLAY_MS) { items.getTrickplay(tears, file)!!.state.value == "complete" }
+        compose.waitUntil(TRICKPLAY_MS) { runCatching { items.getTrickplay(tears, file)?.state?.value }.getOrNull() == "complete" }
         detail(tears)
         compose.onAllNodes(play).onFirst().performSemanticsAction(SemanticsActions.OnClick)
         val close = hasContentDescription(s(R.string.app_player_close)) and hasClickAction()
@@ -415,10 +418,19 @@ class StoreShotsTest {
         const val TEARS = "Tears of Steel"
         const val SINTEL = "Sintel"
         const val BOOK = "The Quiet Harbour"
+        /** The first scan of four films and an audiobook, probes included (seconds on this machine). */
         const val SCAN_MS = 120_000L
+
+        /** A film of 15 minutes converted in software for the download, then fetched (about 2 min here). */
         const val DOWNLOAD_MS = 600_000L
+
+        /** The preview tiles of the backfill in software encoding, behind the scan's own jobs (seconds here). */
         const val TRICKPLAY_MS = 900_000L
+
+        /** Long enough for the posters of a page to load from the local server. */
         const val SETTLE_MS = 15_000L
+
+        /** The sound player's clock runs every second: it never holds still, so a short wait. */
         const val AUDIO_SETTLE_MS = 3_000L
         const val STILL_MS = 500L
         const val STILL_MAX_MS = 3_000L

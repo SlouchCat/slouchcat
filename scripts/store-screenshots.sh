@@ -45,29 +45,49 @@ if [ "$#" -ne 1 ]; then
   exit 2
 fi
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
-target=$(realpath -m -- "$1")
-case "$target/" in
-  "$repo"/*)
-    echo "refusing $target: the store photos stay outside the repository ($repo)" >&2
+
+# A folder (resolved, symbolic links included) must lie neither in this repository nor in any
+# other git working tree (the main checkout, another worktree): photos and films never go there.
+outside_git() { # what path
+  local what=$1 path=$2 probe top
+  case "$path/" in
+    "$repo"/*)
+      echo "refusing $what=$path: it lies in the repository ($repo)" >&2
+      exit 1
+      ;;
+  esac
+  probe=$path
+  while [ ! -d "$probe" ]; do probe=$(dirname "$probe"); done
+  if top=$(git -C "$probe" rev-parse --show-toplevel 2>/dev/null); then
+    echo "refusing $what=$path: it lies in the git working tree $top" >&2
     exit 1
-    ;;
-esac
+  fi
+}
+
+target=$(realpath -m -- "$1")
+outside_git target "$target"
 
 port=${PORT:-8897}
 devices=${DEVICES:-phone tablet tv}
 langs=${LANGS:-de en}
 cache=$(realpath -m -- "${MEDIA_CACHE:-$HOME/.cache/slouchcat-demo}")
 wait_max=${WAIT_MAX:-2400}
-case "$cache/" in
-  "$repo"/*)
-    echo "refusing MEDIA_CACHE=$cache: the films stay outside the repository" >&2
+outside_git MEDIA_CACHE "$cache"
+
+# Every port the run takes: the helpers of android-helpers.sh (PORT-12, PORT-11, PORT+83 to
+# PORT+85) and one server per language (PORT, PORT+2, ...). 8096 belongs to another instance.
+taken=("$((port - 12))" "$((port - 11))" "$((port + 83))" "$((port + 84))" "$((port + 85))")
+n=0
+for _ in $langs; do
+  taken+=("$((port + 2 * n))")
+  n=$((n + 1))
+done
+for p in "${taken[@]}"; do
+  if [ "$p" = 8096 ]; then
+    echo "refusing PORT=$port: the run would take port 8096, which is not ours" >&2
     exit 1
-    ;;
-esac
-if [ "$port" = 8096 ] || [ "$((port + 2))" = 8096 ]; then
-  echo "refusing PORT=$port: 8096 is not ours" >&2
-  exit 1
-fi
+  fi
+done
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 app=com.slouchcat.app.dev
@@ -92,8 +112,21 @@ cd "$repo/android"
 
 adb_to() { timeout "${ADB_LIMIT:-120}" "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 
+# The display and the status bar as the AVD had them: the AVD keeps its data between boots, and the
+# next flow on it (android-e2e.sh) must not find 1080 × 1920, another density or the demo mode.
+# Every call with its own limit and never fatal: also on the way out of a failed run.
+display_reset() {
+  [ -n "$serial" ] || return 0
+  local a=(timeout 30 "$sdk/platform-tools/adb" -s "$serial" shell)
+  "${a[@]}" wm size reset >/dev/null 2>&1 || true
+  "${a[@]}" wm density reset >/dev/null 2>&1 || true
+  "${a[@]}" am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
+  "${a[@]}" settings delete global sysui_demo_allowed >/dev/null 2>&1 || true
+}
+
 emulator_stop() {
   [ -n "$emulator_pid" ] || return 0
+  display_reset
   timeout 30 "$sdk/platform-tools/adb" -s "$serial" emu kill >/dev/null 2>&1 || true
   for _ in $(seq 1 30); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
   kill "$emulator_pid" 2>/dev/null || true
@@ -205,7 +238,11 @@ for lang in $langs; do
   for dir in "$cache/media/Movies"/*/; do
     folder=$(basename "$dir")
     mkdir -p "$tree/Movies/$folder"
-    for file in "$dir"*; do ln -f "$file" "$tree/Movies/$folder/"; done
+    # Files only (a hard link to a folder is impossible); the films of films.tsv have no subfolders.
+    for file in "$dir"*; do
+      [ -f "$file" ] || fail "$file is no file: the folders of the films hold files only"
+      ln -f "$file" "$tree/Movies/$folder/"
+    done
   done
   cp -al "$(dirname "$book")" "$tree/Audiobooks/"
 done
@@ -314,6 +351,8 @@ boot() { # avd emu_port gpu
     sleep 1
   done
   [ "$(ADB_LIMIT=10 adb_to shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || fail "the emulator $avd did not boot"
+  # What an earlier run killed hard (SIGKILL, power) may have left on the AVD.
+  display_reset
   for setting in window_animation_scale transition_animation_scale animator_duration_scale; do
     adb_to shell settings put global "$setting" 0
   done
@@ -360,9 +399,11 @@ instrument() { # lang method-or-class...: runs the store photos of the app
     -e slouchcatRelay "http://10.0.2.2:$relay_port" -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" \
     -e slouchcatLibrary "${library_name[$lang]}" -e class "$classes" "$app.test/androidx.test.runner.AndroidJUnitRunner" 2>&1) || true
   printf '%s\n' "$out" >>"$run/instrument.log"
-  printf '%s\n' "$out" | grep -E "^(OK|FAILURES|Tests run)" | head -n 3
+  # Under pipefail a pipeline without a match would end the script here, silently: || true.
+  printf '%s\n' "$out" | grep -E "^(OK|FAILURES|Tests run)" | head -n 3 || true
   if ! printf '%s\n' "$out" | grep -q '^OK ('; then
-    printf '%s\n' "$out" | grep -E "Exception|Error|at com\.slouchcat" | head -n 20 >&2
+    printf '%s\n' "$out" | grep -E "Exception|Error|at com\.slouchcat" | head -n 20 >&2 || true
+    [ -n "$out" ] || echo "store-screenshots: the instrumentation gave no output (adb limit reached?)" >&2
     # What the screen showed: the photos so far and those of a failed wait (FlowWaits.kt).
     mkdir -p "$target/logs"
     adb_to pull "/sdcard/Android/data/$app/files/." "$target/logs/device-files" >/dev/null 2>&1 || true
@@ -448,8 +489,23 @@ done
 # ---- 4. format and check -----------------------------------------------------------------------
 
 # The screenshots carry an alpha channel; the store wants PNG with 24 bit RGB.
-find "$target" -path "$target/logs" -prune -o -name '*.png' -print | while read -r file; do
-  ffmpeg -nostdin -loglevel error -y -i "$file" -pix_fmt rgb24 "$file.rgb.png" && mv "$file.rgb.png" "$file"
+find "$target" -path "$target/logs" -prune -o -name '*.png' -print0 | while IFS= read -r -d '' file; do
+  if ! ffmpeg -nostdin -loglevel error -y -i "$file" -pix_fmt rgb24 "$file.rgb.png"; then
+    rm -f "$file.rgb.png"
+    fail "could not convert $file to 24 bit RGB"
+  fi
+  mv "$file.rgb.png" "$file"
 done
-python3 -I "$repo/scripts/store-screenshots-check.py" "$target"
+# The sets this run made must all be there, with every motif (store-screenshots-check.py).
+sets=()
+for device in $devices; do
+  case "$device" in
+    tablet) names="tablet7 tablet10" ;;
+    *) names=$device ;;
+  esac
+  for name in $names; do
+    for lang in $langs; do sets+=("$name-$lang"); done
+  done
+done
+python3 -I "$repo/scripts/store-screenshots-check.py" "$target" "${sets[@]}"
 say "done: photos in $target"

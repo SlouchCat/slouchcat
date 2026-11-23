@@ -1,11 +1,14 @@
 """Checks the store photos of scripts/store-screenshots.sh against docs/store/grafiken.md.
 
-    python3 scripts/store-screenshots-check.py <folder>
+    python3 scripts/store-screenshots-check.py <folder> [<set> ...]
 
-Every expected file must be there, a PNG with 24 bit RGB (no alpha channel) or a JPEG, at most
-8 MB, with the size and aspect ratio of its device: phone sides 320 to 3840 px with the long side
-at most 2.3 times the short one (the player in landscape), tablets 16:9 with sides 1080 to 7680 px,
-TV 1920 x 1080. Prints one line per file and exits non-zero on the first set with a fault.
+<set> is <device>-<language> (phone-de, tablet7-en, tv-de ...); without sets every set of the
+folder is checked. Each named set must exist with every motif of its device (MOTIFS); a missing
+set or motif is a fault. Every file must be a PNG with 24 bit RGB (no alpha channel; the script
+writes PNG only, the store would also take JPEG), at most 8 MB, with the size and aspect ratio of
+its device: phone sides 320 to 3840 px with the long side at most 2.3 times the short one and at
+least 1080 px on the short side (the player in landscape), tablets 16:9 with sides 1080 to 7680 px,
+TV 1920 x 1080. Prints one line per file and exits non-zero when any fault was found.
 """
 
 import os
@@ -64,9 +67,10 @@ def faults(device, motif, path):
     return out, (width, height, size)
 
 
-def main(root):
+def main(root, wanted):
     bad = 0
-    sets = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)) and d != "logs")
+    present = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)) and d != "logs")
+    sets = wanted or present
     if not sets:
         print(f"no photo sets in {root}")
         return 1
@@ -74,6 +78,10 @@ def main(root):
         device = name.rsplit("-", 1)[0]
         if device not in MOTIFS:
             print(f"{name}: unknown set")
+            bad += 1
+            continue
+        if name not in present:
+            print(f"{name}: missing set")
             bad += 1
             continue
         for motif in MOTIFS[device]:
@@ -93,7 +101,7 @@ def main(root):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("usage: store-screenshots-check.py <folder>", file=sys.stderr)
+    if len(sys.argv) < 2:
+        print("usage: store-screenshots-check.py <folder> [<set> ...]", file=sys.stderr)
         sys.exit(2)
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(sys.argv[1], sys.argv[2:]))
