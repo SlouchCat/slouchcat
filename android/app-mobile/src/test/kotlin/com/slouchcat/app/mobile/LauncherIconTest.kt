@@ -8,12 +8,12 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.xmlpull.v1.XmlPullParser
 import java.io.File
 
 /**
@@ -33,7 +33,14 @@ class LauncherIconTest {
         assertEquals("ic_launcher", context.resources.getResourceEntryName(icon))
         val drawable = context.packageManager.getApplicationIcon(context.applicationInfo)
         assertTrue("the icon is not adaptive: $drawable", drawable is AdaptiveIconDrawable)
-        assertNotNull("the icon has no monochrome layer", (drawable as AdaptiveIconDrawable).monochrome)
+        // The layers as compiled (Robolectric's drawable leaves the monochrome layer out).
+        val layers = buildList {
+            val xml = context.resources.getXml(icon)
+            while (xml.next() != XmlPullParser.END_DOCUMENT) {
+                if (xml.eventType == XmlPullParser.START_TAG) add(xml.name)
+            }
+        }
+        assertEquals(listOf("adaptive-icon", "background", "foreground", "monochrome"), layers)
     }
 
     @Test
