@@ -168,21 +168,39 @@ des Servers.
 Die Zeile «Netzwechsel» sagt, die App prüfe «nach jedem Verbindungsabbruch neu» (M-1). Gebaut war: nach
 jeder `IOException` einer Anfrage. Dazu zählte auch, was die App selbst beendet: ein abgebrochener Aufruf
 (das Bild einer verlassenen Seite, ein Segment beim Spulen) und ein Aufruf, dessen Thread unterbrochen wurde
-(eine abgebrochene Coroutine). Der verworfene Beweis liess Anfragen scheitern, die in dem Moment verbanden
+(eine abgebrochene Coroutine). Der verworfene Beweis liess Anfragen scheitern, die schon unterwegs waren
 («the network changed before the request left»), in einem Netz, das sich nicht geändert hatte. Gemessen in
-`docs/perf/K27-android-ci.md`, Abschnitt «Rote Fälle im Emulator-Job».
+`docs/perf/K27-android-ci.md`, Abschnitt «Rote Fälle im Emulator-Job: Ursachen», Unterabschnitt «Behoben: die
+App verwarf den Serverbeweis nach einem abgebrochenen Aufruf».
 
 | Punkt | Entscheid |
 |---|---|
-| Abbruch durch die App | Zählt nicht als Verbindungsabbruch, der Beweis bleibt. Erkannt wird er am abgebrochenen Aufruf (`Call.isCanceled`, sofern der Aufruf kein eigenes Zeitlimit hat) oder an einer `InterruptedIOException`, die kein `SocketTimeoutException` ist, auf einem unterbrochenen Thread |
-| Zeitlimit und Bruch | Unverändert: Ein Zeitlimit (`SocketTimeoutException`, auch das Zeitlimit eines ganzen Aufrufs, das OkHttp als Abbruch meldet), eine abgelehnte, zurückgesetzte oder geschlossene Verbindung verwerfen den Beweis |
+| Abbruch durch die App | Zählt nicht als Verbindungsabbruch, der Beweis bleibt. Erkannt wird er am abgebrochenen Aufruf (`Call.isCanceled`, sofern der Aufruf kein eigenes Zeitlimit hat) oder an einer `InterruptedIOException`, die keine `SocketTimeoutException` ist, auf einem unterbrochenen Thread |
+| Zeitlimit und Bruch | Unverändert: Ein Zeitlimit von OkHttp (`SocketTimeoutException`, auch das Zeitlimit eines ganzen Aufrufs, das OkHttp als Abbruch meldet), eine abgelehnte, zurückgesetzte oder geschlossene Verbindung verwerfen den Beweis, auch auf einem unterbrochenen Thread |
 | Netz und Alter | Unverändert: Jeder Sprung prüft das aktuelle Netz und das Alter des Beweises (10 min), bevor Token und Gerätekennung dazukommen |
+| Zeitlimit um einen Aufruf | Ein Zeitlimit, das als Verbindungsabbruch zählen soll, gehört in OkHttp (`readTimeout`, `callTimeout`). Ein Zeitlimit der Coroutine um den Aufruf (`withTimeout`) unterbricht den Thread wie ein Abbruch und lässt den Beweis stehen. Heute betrifft das eine Stelle: das Löschen der Downloads beim Abmelden (`OfflineEngine.beforeSignOut`, 5 s) |
 
-Was sich für die Sicherheit ändert: Bisher löste jeder Abbruch in der App nebenbei einen neuen Beweis aus,
-also bei jedem Blättern. Das war nicht entworfen, hat aber das Fenster der bekannten Grenze (ein
-Always-on-VPN verdeckt den WLAN-Wechsel) verkleinert. Das Fenster ist jetzt so gross, wie M-1 es
-beschreibt: bis zum nächsten Verbindungsabbruch, den eine Anfrage sieht, höchstens 10 min. Ohne gültigen
-Beweis des aktuellen Netzes geht weiterhin nichts hinaus.
+**Was die Änderung für die Sicherheit kostet.** Sie wirkt nur dort, wo sich das Netz ändert, ohne dass die
+App es sieht, also in der bekannten Grenze oben (ein Always-on-VPN verdeckt den WLAN-Wechsel). Dort war ein
+Abbruch durch die App mehr als eine Nebenwirkung des Blätterns: Hängt eine Anfrage nach dem verdeckten
+Wechsel und verlässt der Nutzer die Seite, bevor das Zeitlimit von OkHttp greift (10 s beim Verbinden, 30 s
+beim Lesen), hat bisher dieser Abbruch den Beweis verworfen, und die nächste Anfrage hat neu bewiesen. Jetzt
+bleibt der Beweis, und die nächste Anfrage geht mit Token an das Gerät unter der Adresse. Dasselbe gilt, wenn
+die App einen hängenden Aufruf über ein Zeitlimit der Coroutine aufgibt, und wenn ein Abbruch mit einem
+echten Fehler zusammenfällt: Ein Aufruf gilt beim Fang schon als abgebrochen, und eine Verbindung, die die
+Gegenstelle ordentlich schliesst, meldet Okio auf einem unterbrochenen Thread als Unterbrechung (ein Reset
+bleibt ein Bruch). Der Beweis gilt in diesen Fällen bis zum nächsten Verbindungsabbruch, den das Gate sieht,
+höchstens 10 min.
+
+**Offen, schon vor dieser Änderung** (am 23. November 2026 mit einem Test belegt): «Nach jedem
+Verbindungsabbruch» gilt nur für Brüche, die bis zur Anfrage durchdringen. Bricht eine Verbindung aus dem
+Vorrat, wiederholt OkHttp die Anfrage selbst auf einer neuen Verbindung, unterhalb der Stelle, an der das
+Gate den Bruch sähe. Die Wiederholung trägt Token und Gerätekennung mit dem alten Beweis. Das ist der
+häufigere Fall der bekannten Grenze: Das fremde Gerät beantwortet ein Paket der alten Verbindung mit einem
+Reset. Die Behebung ist eine eigene Änderung mit eigener Sicherheitsdurchsicht: den Bruch je Sprung erkennen,
+die Anfrage neu beweisen lassen und einmal wiederholen. Sie kann dabei auch den Abbruch durch die App wieder
+zum Anlass nehmen, dass neue Anfragen neu beweisen, ohne dass laufende scheitern. Bis dahin schliesst diese
+Lücke nur HTTPS.
 
 ## Folgen
 
