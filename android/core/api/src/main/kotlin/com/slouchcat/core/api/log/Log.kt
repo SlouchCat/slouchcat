@@ -72,8 +72,12 @@ object Redaction {
         "voucher", "pickup", "cookie", "bearer", "xslouchcatdevice",
     )
 
-    /** Short names that are secret only as the whole name (`st`, but not `host` or `list`). */
-    val SECRET_NAMES = setOf("dt", "st", "rt", "device", "key", "sig", "signature")
+    /**
+     * Short names that are secret only as the whole name (`st`, but not `host` or `list`). `auth` is
+     * the Web Push subscription secret (`keys.auth`, RFC 8291); as a whole name only, so `oauth`,
+     * `author` or `authState` stay readable (rule 10).
+     */
+    val SECRET_NAMES = setOf("dt", "st", "rt", "device", "key", "sig", "signature", "auth")
 
     fun isSecret(key: String): Boolean {
         val k = key.lowercase().replace("-", "").replace("_", "")

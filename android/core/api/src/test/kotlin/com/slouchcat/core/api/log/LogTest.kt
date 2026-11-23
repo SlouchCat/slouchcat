@@ -60,10 +60,12 @@ class LogTest {
             "token", "Bearer_Token", "X-Slouchcat-Device", "pickupSecret", "newPassword", "fcm_token",
             "accessToken", "appToken", "refreshToken", "push_endpoint", "apiKey", "pairingVoucher", "st", "deviceId",
             "pickup_hash", "pair_id", "meeting_point_id", "packet", "sealed_token", "slouchcat_device",
+            // The Web Push subscription secret (keys.auth), as a whole name only.
+            "auth", "AUTH",
         )) {
             assertTrue(key, Redaction.isSecret(key))
         }
-        for (key in listOf("version", "host", "list", "status", "encrypted")) {
+        for (key in listOf("version", "host", "list", "status", "encrypted", "oauth", "author", "authState")) {
             assertFalse(key, Redaction.isSecret(key))
         }
     }
