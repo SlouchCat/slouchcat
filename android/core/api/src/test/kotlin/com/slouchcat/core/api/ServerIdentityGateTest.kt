@@ -284,7 +284,8 @@ class ServerIdentityGateTest {
 
     /**
      * The app cancels a call that is on the server while a request to `/second` has its connection
-     * and has not left yet; [afterwards] runs before that request goes on. What it ended with.
+     * and has not left yet; [afterwards] runs before that request goes on. Returns what that request
+     * ended with.
      */
     private fun aRequestOnItsWayWhileACallIsCancelled(gate: ServerIdentityGate, afterwards: () -> Unit = {}): Result<Int> {
         val reached = CountDownLatch(1)
@@ -452,7 +453,8 @@ class ServerIdentityGateTest {
         val http = client(gate)
         try {
             assertEquals(200, get(http))
-            val call = http.newBuilder().readTimeout(Duration.ofSeconds(1)).build()
+            // Long enough for the interruption to land first, also on a busy runner.
+            val call = http.newBuilder().readTimeout(Duration.ofSeconds(3)).build()
                 .newCall(Request.Builder().url(server.url("/silent")).build())
             val (error, interrupted) = errorOnItsOwnThread(call, caller)
             assertTrue("the thread was not interrupted when the call ended", interrupted)
@@ -475,7 +477,11 @@ class ServerIdentityGateTest {
                 resetting.execute {
                     listener.accept().use { socket ->
                         val head = StringBuilder()
-                        while (!head.endsWith("\r\n\r\n")) head.append(socket.getInputStream().read().toChar())
+                        while (!head.endsWith("\r\n\r\n")) {
+                            val byte = socket.getInputStream().read()
+                            if (byte < 0) return@use
+                            head.append(byte.toChar())
+                        }
                         interruptInItsRead(caller.get())
                         socket.setSoLinger(true, 0)
                     }

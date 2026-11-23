@@ -176,7 +176,7 @@ App verwarf den Serverbeweis nach einem abgebrochenen Aufruf».
 | Punkt | Entscheid |
 |---|---|
 | Abbruch durch die App | Zählt nicht als Verbindungsabbruch, der Beweis bleibt. Erkannt wird er am abgebrochenen Aufruf (`Call.isCanceled`, sofern der Aufruf kein eigenes Zeitlimit hat) oder an einer `InterruptedIOException`, die keine `SocketTimeoutException` ist, auf einem unterbrochenen Thread |
-| Zeitlimit und Bruch | Unverändert: Ein Zeitlimit von OkHttp (`SocketTimeoutException`, auch das Zeitlimit eines ganzen Aufrufs, das OkHttp als Abbruch meldet), eine abgelehnte, zurückgesetzte oder geschlossene Verbindung verwerfen den Beweis, auch auf einem unterbrochenen Thread |
+| Zeitlimit und Bruch | Unverändert: Ein Zeitlimit von OkHttp (`SocketTimeoutException`, auch das Zeitlimit eines ganzen Aufrufs, das OkHttp als Abbruch meldet), eine abgelehnte, zurückgesetzte oder geschlossene Verbindung verwerfen den Beweis. Zeitlimit und Reset auch auf einem unterbrochenen Thread; die eine Ausnahme dort ist eine ordentlich geschlossene Verbindung (siehe unten) |
 | Netz und Alter | Unverändert: Jeder Sprung prüft das aktuelle Netz und das Alter des Beweises (10 min), bevor Token und Gerätekennung dazukommen |
 | Zeitlimit um einen Aufruf | Ein Zeitlimit, das als Verbindungsabbruch zählen soll, gehört in OkHttp (`readTimeout`, `callTimeout`). Ein Zeitlimit der Coroutine um den Aufruf (`withTimeout`) unterbricht den Thread wie ein Abbruch und lässt den Beweis stehen. Heute betrifft das eine Stelle: das Löschen der Downloads beim Abmelden (`OfflineEngine.beforeSignOut`, 5 s) |
 
