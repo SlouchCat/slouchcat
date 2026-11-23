@@ -115,6 +115,41 @@ func TestMatchedHookNotForEpisodeOfUnmatchedSeries(t *testing.T) {
 	}
 }
 
+// The episodes of a series about to merge into its deleted twin report nothing: the copy is gone
+// after the merge, and a wish reported for it would lose its title. Without the twin they do.
+func TestMatchedHookNotForEpisodeOfRelinkTwin(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.svc.relink = (&fakeRelink{twin: true}).relink
+	var calls matchedCalls
+	e.svc.WithMatched(func(_ context.Context, m MatchedTitle) { calls.got = append(calls.got, m) })
+	e.addTree(t, node{title: "Test Show", year: 2010})
+	twin := tid("SER", 2)
+	e.addNode(t, node{id: twin, kind: "series", title: "Test Show", year: 2010, tmdbID: 900, state: "matched"})
+	mustExec(t, e.db.Write, `UPDATE items SET deleted_at = 1 WHERE id = ?`, twin)
+	if err := e.svc.match(ctx, idSeries); err != nil {
+		t.Fatal(err)
+	}
+	// The series job stopped after the title: the copy is matched, its episodes are not.
+	if r := e.child(t, idSeries); r.State != "matched" || e.child(t, idE0101).State != "pending" {
+		t.Fatalf("copy %+v, episode %q", r, e.child(t, idE0101).State)
+	}
+	if err := e.svc.match(ctx, idE0101); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.child(t, idE0101); r.State != "matched" || len(calls.got) != 0 {
+		t.Fatalf("episode of a copy with a twin: %+v, hook calls %+v", r, calls.got)
+	}
+	mustExec(t, e.db.Write, `DELETE FROM items WHERE id = ?`, twin)
+	if err := e.svc.match(ctx, idE0102); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls.got) != 1 || calls.got[0].ItemID != idSeries {
+		t.Errorf("episode without the twin: hook calls %+v", calls.got)
+	}
+}
+
 // A title about to merge into its deleted twin gets no call: the twin's match makes it.
 func TestMatchedHookNotWithRelinkTwin(t *testing.T) {
 	t.Parallel()

@@ -376,8 +376,9 @@ type MatchedTitle struct {
 // seasons (concept 25, architecture 11: package wishes reconciles its wishes with the library).
 // A title with a twin gets no call; the twin's match makes it. A series is reported again after
 // the job of one of its episodes ended (matched or not): a later scan brought an episode the
-// series job did not write, so the playable episodes of the series changed. The hook must not
-// fail the match: it logs its own errors. Set it before the workers start.
+// series job did not write, so the playable episodes of the series changed; a series with a
+// soft-deleted twin is not reported this way (episodeHook). The hook must not fail the match: it
+// logs its own errors. Set it before the workers start.
 func (s *Service) WithMatched(fn func(ctx context.Context, m MatchedTitle)) { s.matched = fn }
 
 // matchedHook calls the hook of WithMatched with the written ids of item.

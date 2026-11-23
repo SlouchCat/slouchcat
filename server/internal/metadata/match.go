@@ -798,8 +798,27 @@ func (s *Service) matchEpisode(ctx context.Context, item systemq.Item) error {
 	// The episode came after the match of its series (a later scan, a season the download tool
 	// imports on its own): the series is reported again, whatever the provider knows of the
 	// episode, so that a wish waiting for this season is reconciled now and not by the hourly run.
-	s.matchedHook(ctx, series)
+	s.episodeHook(ctx, series)
 	return nil
+}
+
+// episodeHook reports the series of an episode to the hook of WithMatched, unless the series has
+// a soft-deleted twin: its match stopped after the title (relinkQueued) and library.relink merges
+// it into the twin, so a wish reported for the copy would lose its title with the merge. Any
+// deleted twin counts, also one the automatic relink does not take: a series reported too
+// seldom waits for the hourly reconcile, nothing more. A failed lookup is logged and reports
+// nothing, the hook must not fail the match.
+func (s *Service) episodeHook(ctx context.Context, series systemq.Item) {
+	if s.matched == nil {
+		return
+	}
+	_, err := s.read.FindDeletedTwin(ctx, systemq.FindDeletedTwinParams{LiveID: series.ID})
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		s.matchedHook(ctx, series)
+	case err != nil:
+		s.log.Warn("series of a matched episode not reported: twin lookup failed", "item_id", series.ID, "err", err)
+	}
 }
 
 // matchEpisodeOf fetches and writes one episode of a matched series.
