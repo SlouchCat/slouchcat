@@ -193,6 +193,26 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Regeln je Serie oder Podcast, Vorgabe «Qualität für neue Downloads», Lizenzfristen.
   - **Bekannte Grenzen (Papier 9.4, 9.5):** Die Dateien liegen unverschlüsselt im Speicher der App; ein
     Gerät ohne Kontakt zum Server behält seine Downloads ohne Frist.
+- **Konzept 27, Stufe 7 «Ton»:** Bibliotheken Hörbücher und Podcasts, Detailseiten Hörbuch, Reihe,
+  Podcast (Folgen in Seiten, Haken «gehört») und Folge, Webradio (Sender, Länder, Suche, «Meine Sender»,
+  «Jetzt läuft»), Tonplayer (Kapitel auf einer Zeitachse, −15/+30 s, Tempo 0,5 bis 3 je Titel,
+  Schlaftimer, Folgen und Kapitel als Blätter), kleiner Player über der Navigation auf allen Seiten,
+  Wiedergabe im Hintergrund als Mediendienst (`AudioService`, Sperrbildschirm, Kopfhörertasten,
+  Bluetooth), Ton-Downloads über `:core:offline`. Ein Video beendet den Ton; Abmelden, Profilwechsel und
+  ein anderes Profil im Offline-Betrieb ebenso.
+  - **Gemeinsam für die TV-App:** `AudioPlayback`, `RadioController`, `AudioRules`, `SleepTimer` in
+    `:core:player`; `AudioRepository`, `RadioRepository` in `:core:media`; ViewModels in `:core:browse`.
+  - **Unschärfe ohne `RenderEffect`:** Der weiche Hintergrund der Detailseiten wird auf der CPU gerechnet
+    (`CpuBlur`); der Emulator ohne Grafikkarte stürzte mit `RenderEffect` ab.
+  - **Geprüft:** Tests je Seite, Tests des Dienstes und der Wege (Video beendet Ton, Betrachterwechsel
+    beendet Ton), Vertragstest (16), ganzer Ablauf im Emulator auf Handy und Tablet (`task android:e2e`
+    ohne `CLASS` fährt jetzt alle Klassen samt Webradio gegen Teststationen), Schaubilder gegen das Mockup
+    angesehen, Code-Review und Sicherheits-Review mit Korrekturrunde, Verifier.
+  - **Nicht gebaut, weil der Vertrag es nicht hergibt:** Webradio «Zuletzt gespielt».
+  - **Offen (nur auf dem Gerät prüfbar):** eine Stunde Hörbuch im Hintergrund, Akku, Bluetooth, Anruf,
+    Prozess-Tod, Titelwechsel im Webradio ohne Aussetzer; die Gerätecheckliste (15 Punkte) steht in
+    `docs/perf/K27-android-handy.md`, «Stufe 7». Offline startet der Ton mit dem Tempo aus dem Stand des
+    Downloads (`LocalPosition` führt kein Tempo).
 - **Konzept 27, Stufe 8 «Wünsche und Meldungen»:** Bereich «Wünsche» über Seerr (Ziel der unteren Leiste;
   «Entdecken», «Meine Wünsche», Seite eines Titels ausserhalb der Bibliothek, Anfordern mit Staffelwahl,
   Zurückziehen; in der Suche «Noch nicht in der Bibliothek?»), Benachrichtigungen mit Glocke und Abzeichen
