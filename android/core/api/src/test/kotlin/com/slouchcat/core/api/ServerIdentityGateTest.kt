@@ -1022,6 +1022,70 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aConnectionThatBreaksWhileTheAnswerIsReadForgetsTheProof() {
+        // The player in a segment, a download in its file: the answer began and the connection
+        // breaks in its body. OkHttp does not retry that; whoever reads asks again with a new request.
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        server.dispatcher = recording(log) { request ->
+            if (request.url.encodedPath == "/cut") {
+                MockResponse.Builder().body("x".repeat(256 * 1024)).onResponseBody(SocketEffect.CloseSocket()).build()
+            } else {
+                MockResponse(body = "{}")
+            }
+        }
+        val signer = Signer(log = log)
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        http.newCall(Request.Builder().url(server.url("/cut")).build()).execute().use { answer ->
+            assertEquals(200, answer.code)
+            val body = answer.body.source()
+            val cut = assertRefused { body.readByteString() }
+            assertFalse("the gate held the request back: $cut", cut is ServerNotProvenException)
+            assertFalse("the proof survived a connection that broke in the answer", gate.isProvenNow())
+            assertEquals(200, get(http))
+            assertEquals(
+                listOf("proof", "/api/v1/auth/session on 0 with token", "/cut on 0 with token", "proof", "/api/v1/auth/session on 1 with token"),
+                log.toList(),
+            )
+            // A reader that tries the broken answer again meets the same break, not a new one.
+            assertRefused { body.readByteString() }
+            assertTrue("one break in an answer cost two proofs", gate.isProvenNow())
+        }
+    }
+
+    @Test
+    fun anAnswerTheAppStopsReadingKeepsTheProofAndPutsItInDoubt() {
+        // The player seeks and cancels the segment it is reading, a page is left while its image
+        // loads: the app ended the answer, the network did not.
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = if (request.url.encodedPath == "/long") {
+                MockResponse.Builder().body("x".repeat(256 * 1024)).throttleBody(64 * 1024, 2, TimeUnit.SECONDS).build()
+            } else {
+                MockResponse(body = "{}")
+            }
+        }
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        val call = http.newCall(Request.Builder().url(server.url("/long")).build())
+        call.execute().use { answer ->
+            assertEquals(200, answer.code)
+            val reading = onItsOwnThread { answer.body.string() }
+            Thread.sleep(100)
+            assertFalse("the answer was read to its end", reading.isDone)
+            call.cancel()
+            assertTrue("the cancelled answer was read to its end", reading.get(5, TimeUnit.SECONDS).exceptionOrNull() is IOException)
+        }
+        assertTrue("an answer the app stopped reading cost the proof", gate.isProvenNow())
+        assertEquals(1, signer.calls.get())
+        now += Duration.ofSeconds(61).toNanos()
+        assertEquals(200, get(http))
+        assertEquals("a proof in doubt, a minute old, was not renewed", 2, signer.calls.get())
+    }
+
+    @Test
     fun aHopAfterANetworkChangeFailsBeforeTheCredentialsAreAdded() {
         // The network changes while the first hop is on the server: OkHttp follows the redirect
         // (as it would retry) below the application interceptor; the hop check stops it.

@@ -12,9 +12,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import okhttp3.Call
+import okhttp3.ConnectionPool
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
@@ -93,8 +100,9 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  * request left; in the same network it proves again first, once per request.
  *
  * A connection that breaks forgets the proof, at the hop where it breaks: OkHttp's own retry of
- * that request is the next hop and waits for the new proof like every later request. The idle
- * connections go with the proof. A request the app itself ended (a cancelled call, an interrupted
+ * that request is the next hop and waits for the new proof like every later request. That holds
+ * while the answer is read as well (a segment of the player, a download). The idle connections go
+ * with the proof. A request the app itself ended (a cancelled call, an interrupted
  * thread) forgets nothing, the network had no part in it. It puts the proof in doubt: new requests
  * renew a proof in doubt once it is older than [renewAfter], the requests on their way go on with
  * it meanwhile, and a renewal that fails takes it away.
@@ -134,7 +142,10 @@ class ServerIdentityGate(
         var doubted = false
     }
 
-    /** What the gate remembers of one request on its way (a call runs its interceptors on one thread). */
+    /**
+     * What the gate remembers of one request on its way. A call runs its interceptors on one
+     * thread; only [noted] is also written by whoever reads the answer, on a thread of its own.
+     */
     private class Trip {
         /** The network the request left in. */
         var generation = 0L
@@ -143,7 +154,7 @@ class ServerIdentityGate(
         var provenAgain = false
 
         /** The error [hop] has taken note of, so that [intercept] does not count it again. */
-        var noted: IOException? = null
+        @Volatile var noted: IOException? = null
     }
 
     private val lock = Any()
@@ -193,7 +204,7 @@ class ServerIdentityGate(
             chain.proceed(request)
         } catch (e: IOException) {
             // What no hop saw: the connection never came about, or OkHttp ended the call.
-            note(chain, e)
+            note(chain.call(), chain.connectionPool, e)
             throw e
         }
     }
@@ -208,13 +219,45 @@ class ServerIdentityGate(
         val request = chain.request()
         val server = trusted.server
         if (server == null || server.isHttps || !SlouchcatHttp.sameOrigin(server, request.url)) return@Interceptor chain.proceed(request)
-        if (!isProvenNow()) proveOnTheWay(server, chain.call().tag(Trip::class))
-        try {
+        val call = chain.call()
+        val pool = chain.connectionPool
+        if (!isProvenNow()) proveOnTheWay(server, call.tag(Trip::class))
+        val response = try {
             chain.proceed(request)
         } catch (e: IOException) {
-            note(chain, e)
+            note(call, pool, e)
             throw e
         }
+        // The hop is not over with the head of the answer: whoever reads the body may meet the break.
+        response.newBuilder().body(Watched(response.body, call, pool)).build()
+    }
+
+    /**
+     * The body of an answer, which is read after its hop returned. A connection that breaks in it
+     * ends no request the gate could see: OkHttp does not retry, the reader (the player in a
+     * segment, a download) asks again with a new request, and that one must not find the old proof.
+     */
+    private inner class Watched(private val body: ResponseBody, private val call: Call, private val pool: ConnectionPool) : ResponseBody() {
+        /** One break per body: a reader that tries again meets the same broken connection, not a new one. */
+        @Volatile private var broken = false
+
+        private val source = object : ForwardingSource(body.source()) {
+            override fun read(sink: Buffer, byteCount: Long): Long = try {
+                super.read(sink, byteCount)
+            } catch (e: IOException) {
+                if (!broken) {
+                    broken = true
+                    note(call, pool, e)
+                }
+                throw e
+            }
+        }.buffer()
+
+        override fun contentType(): MediaType? = body.contentType()
+
+        override fun contentLength(): Long = body.contentLength()
+
+        override fun source(): BufferedSource = source
     }
 
     /**
@@ -239,9 +282,8 @@ class ServerIdentityGate(
      * proof is forgotten, and so are the idle connections, which are from before the break as well
      * (OkHttp's retry would take the next of them from the pool and break again).
      */
-    private fun note(chain: Interceptor.Chain, e: IOException) {
+    private fun note(call: Call, pool: ConnectionPool, e: IOException) {
         if (e is ServerNotProvenException) return
-        val call = chain.call()
         val trip = call.tag(Trip::class)
         if (trip?.noted === e) return
         trip?.noted = e
@@ -249,7 +291,7 @@ class ServerIdentityGate(
             doubt()
         } else {
             if (forget()) Log.i(TAG, "connection broke, proof forgotten", error = e)
-            chain.connectionPool.evictAll()
+            pool.evictAll()
         }
     }
 
