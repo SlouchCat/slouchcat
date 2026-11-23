@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## CI: Job `android-emulator` rund vier Minuten schneller (23. November 2026, PR #215)
+## CI: Job `android-emulator` rund 3,5 Minuten schneller (23. November 2026, PR #215)
 
 Marco am 23. November 2026: Der Job `android-emulator (flow, informational)` dauert viel zu lange. Gemessen an
 drei Pull-Request-Läufen: 15,2 bis 15,6 min. Davon waren 8 min der Ablauf am Gerät, 4 min der Gradle-Bau und
@@ -13,7 +13,7 @@ knapp 2 min das Einrichten.
   Kerne und 720 × 1616 Pixel bei 280 dpi, also dieselben dp wie bisher. `scripts/android-e2e.sh` baut die beiden
   APKs im Hintergrund, während der Server eingerichtet wird und der Emulator startet; das gilt auch lokal.
 - **Gemessen:** zehn Jobs in zwei Läufen eines Wegwerf-Workflows (45182593516, 45185868418; der Zweig ist
-  gelöscht). Mit allen drei Änderungen 10,7 bis 11,9 min. Der Gradle-Bau dauert 81 bis 119 s statt 4 bis 6 min,
+  gelöscht). Mit allen drei Änderungen 11,7 bis 11,9 min (drei Jobs). Der Gradle-Bau dauert 81 bis 119 s statt 4 bis 6 min,
   die Fälle laufen ein Viertel bis ein Drittel schneller. Tabellen: `docs/perf/K27-android-ci.md`, «Laufzeit des
   Emulator-Jobs».
 - **Bleibt:** Der Job ist weiter rot und steht nicht im Gate. `AudioFlowTest` war in zehn von zehn Jobs rot
