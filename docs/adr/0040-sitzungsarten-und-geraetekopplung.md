@@ -205,8 +205,8 @@ derselben Art. Geändert ist nur `ServerIdentityGate` (`android/core/api`).
    der Stelle, an der das Gate den Bruch sah. Die Wiederholung trug Token und Gerätekennung mit dem alten
    Beweis. Das ist der Fall, den M-1 meint: Das fremde Gerät unter der Adresse beantwortet die alte Verbindung
    mit einem Reset und nimmt die neue an. Selten ist der Weg nicht: Der Server schliesst unbenutzte
-   Verbindungen nach 2 min, OkHttp behält sie 5 min, also trifft nach jeder Pause über 2 min die erste Anfrage
-   eine tote Verbindung.
+   Verbindungen nach 2 min, OkHttp behält sie 5 min, also trifft nach einer Pause von 2 bis 5 min die erste
+   Anfrage eine tote Verbindung.
 2. Bricht die Verbindung, während die Antwort gelesen wird (ein Segment im Player, eine Datei beim
    Herunterladen), endete keine Anfrage, die das Gate sah. Wer liest, fragt mit einer neuen Anfrage nach, und
    die fand den alten Beweis. Beim Bau dieser Änderung gefunden.
@@ -218,45 +218,67 @@ derselben Art. Geändert ist nur `ServerIdentityGate` (`android/core/api`).
 | Punkt | Entscheid |
 |---|---|
 | Bruch je Sprung | Der Netzwerk-Interceptor merkt sich selbst, wie sein Sprung endet, auch während die Antwort gelesen wird. Ein Bruch verwirft den Beweis dort, also bevor OkHttp wiederholt. Was als Bruch zählt und was als Abbruch durch die App, regelt weiter der erste Teil |
-| Verbindungen im Vorrat | Mit dem Beweis schliesst das Gate die unbenutzten Verbindungen der App (`ConnectionPool.evictAll`), wie die App es beim sichtbaren Netzwechsel tut. Sie stammen alle aus der Zeit vor dem Bruch; OkHttp nähme sonst die nächste und bräche wieder |
-| Beweis unterwegs | Ein Sprung ohne gültigen Beweis holt einen neuen und geht dann weiter, wenn das Netz noch das ist, in dem die Anfrage losging. Einmal je Anfrage: Fehlt der Beweis ein zweites Mal, endet die Anfrage. Scheitert der Beweis, endet sie als «nicht erreichbar», bevor Token und Gerätekennung dazukommen. So bleibt eine tote Verbindung des echten Servers unsichtbar, und ein fremdes Gerät bekommt nichts |
+| Verbindungen im Vorrat | Mit dem Beweis schliesst das Gate die unbenutzten Verbindungen der App (`ConnectionPool.evictAll`), wie die App es beim sichtbaren Netzwechsel tut. Sie stammen alle aus der Zeit vor dem Bruch; OkHttp nähme sonst die nächste und bräche wieder. Das trifft die unbenutzten Verbindungen zu jedem Host des gemeinsamen Clients, enger kann der Vorrat es nicht; es kostet dort einen neuen Verbindungsaufbau |
+| Beweis unterwegs | Ein Sprung ohne gültigen Beweis holt einen neuen und geht dann weiter, wenn das Netz noch das ist, in dem die Anfrage losging. Die Grenze ist der zweite eigene Bruch: Bricht auch die Verbindung nach dem neuen Beweis, endet die Anfrage. Ein Beweis, den der Bruch einer anderen Anfrage gekostet hat, zählt dabei nicht mit (brechen mehrere alte Verbindungen nacheinander, verliert eine Anfrage den Beweis zuerst an den fremden und dann an den eigenen Bruch). Scheitert der Beweis, endet sie als «nicht erreichbar», bevor Token und Gerätekennung dazukommen. So bleibt eine tote Verbindung des echten Servers unsichtbar, und an ein fremdes Gerät geht nach dem Bruch keine Anfrage mehr |
 | Wiederholung | Bleibt bei OkHttp. Das Gate sendet keine Anfrage selbst ein zweites Mal; es lässt die Wiederholung von OkHttp erst nach dem neuen Beweis hinaus |
 | Netzwechsel | Unverändert: Hat sich das Netz geändert, seit die Anfrage losging, scheitert der Sprung sofort und ohne neuen Beweis. Was aus der Anfrage wird, entscheidet die App |
+| Bruch aus einem alten Netz | Wie eine Anfrage endet, die in einem Netz losging, das es nicht mehr gibt, sagt nichts über das Netz von jetzt: kein Verwerfen, kein Zweifel. Nach einem Netzwechsel brechen die alten Verbindungen oft mehrere zugleich; das neue Netz hat seinen eigenen Beweis |
 | Beweis von vor dem Bruch | Ein Beweis, der begonnen hat, bevor eine Verbindung brach, zählt nicht, auch wenn er danach gültig endet: Der Server hat vor dem Bruch unterschrieben |
 | Abgebrochener Beweis | Unterbricht die App den Thread der Anfrage, die den Beweis holt, ist das kein Urteil über den Server: kein Fehlschlag, keine Sperre, und ein Beweis, der erneuert werden sollte, bleibt, wie er war. Wartende beginnen eine neue Runde. Ein Zeitlimit oder ein Verbindungsfehler des Beweises bleibt ein Fehlschlag, auch auf einem unterbrochenen Thread |
 | Zweifel | Ein Abbruch durch die App lässt den Beweis stehen und setzt ihn in Zweifel. Ist ein Beweis im Zweifel 1 min alt, beweist die nächste neue Anfrage zuerst neu. Anfragen, die schon unterwegs sind, laufen mit dem alten weiter. Scheitert die Erneuerung, ist der Beweis weg, auch für sie |
+| Gescheiterte Erneuerung | Jeder Fehlschlag nimmt den Beweis weg, auch ein Verbindungsfehler oder eine Antwort 429 oder 500: Ein fremdes Gerät antwortet genau so wie ein Server, dem es kurz schlecht geht. Das kostet im eigenen Netz im seltenen Fall 5 s «nicht erreichbar». Nur der Beweis desselben Schlüssels geht weg: Scheitert ein neuer Schlüssel, den der Nutzer gerade bestätigt, bleibt der Beweis des gemerkten |
+| «Server wechseln» | `reset` zählt wie ein Bruch: Ein Beweis, der davor begonnen hat, zählt nicht |
 
 **Wie viele Beweise das kostet.** Der Server erlaubt 30 Beweise je Minute und Adresse. Ein Abbruch durch die
 App löst nie selbst einen Beweis aus; ein Beweis im Zweifel wird höchstens einmal je Minute erneuert, wie oft
-die App auch abbricht. Ein Bruch kostet einen Beweis, nach einer Pause über 2 min also einen je
-Wiederaufnahme. Brechen dabei mehrere Verbindungen kurz nacheinander (eine Seite lädt ihre Bilder auf fünf
-toten Verbindungen), zählt jeder Bruch für sich, und es werden höchstens so viele Beweise, wie Verbindungen
-brachen. Eine Gegenstelle, die unterschreibt und dann jede Verbindung abbricht, kostet je Anfrage zwei
-Beweise statt einen; bei 30 je Minute antwortet der Server mit 429, das gilt als Fehlschlag, und das Gate
-antwortet 5 s lang selbst.
+die App auch abbricht. Ein Bruch kostet einen Beweis, nach einer Pause von 2 bis 5 min also einen je
+Wiederaufnahme. Brechen mehrere Verbindungen kurz nacheinander (eine Seite lädt nach der Pause fünf Dinge
+zugleich, oder der Server kam von einem Update zurück), zählt jeder Bruch für sich, und es werden höchstens
+so viele Beweise, wie Verbindungen brachen; nach einer Pause sind das höchstens die fünf, die OkHttp
+unbenutzt behält. Keine Anfrage scheitert daran. Eine Gegenstelle, die unterschreibt und dann jede Verbindung abbricht, kostet je Anfrage
+zwei Beweise statt einen; bei 30 je Minute antwortet der Server mit 429, das gilt als Fehlschlag, und das
+Gate antwortet 5 s lang selbst.
 
 **Was es für die Sicherheit heisst**, in der bekannten Grenze (ein Always-on-VPN verdeckt den WLAN-Wechsel):
 
+- Die erste Anfrage nach dem verdeckten Wechsel geht auf einer alten Verbindung hinaus, mit Token. Wer die
+  Adresse des Servers hält, kann sie lesen, auch wenn sein Gerät die Verbindung nicht kennt und mit einem
+  Reset antwortet; wer im fremden Netz mitliest, ebenso. **Das Gate nimmt das nicht zurück.** Der Bruch
+  schützt alles, was danach käme, und damit vor einem fremden Gerät, das nicht gezielt mitliest. Gegen eines,
+  das es tut, ist das Token mit dieser einen Anfrage weg. Das war immer so.
 - Antwortet das fremde Gerät auf eine alte Verbindung mit einem Reset oder schliesst es sie, verwirft der
-  Bruch den Beweis, bevor eine Anfrage eine neue Verbindung zu ihm benutzt. Bisher ging die Wiederholung mit
-  Token an das fremde Gerät.
+  Bruch den Beweis, bevor eine Anfrage eine neue Verbindung zu ihm benutzt. Bisher ging auch die Wiederholung
+  mit Token an das fremde Gerät, auf einer Verbindung, die es angenommen hatte.
 - Schweigt das fremde Gerät zu alten Verbindungen (eine Firewall verwirft Pakete, die zu keiner Verbindung
   gehören) und nimmt neue an, hängt die Anfrage. Wartet die App das Zeitlimit von OkHttp ab (30 s beim Lesen),
   ist es ein Bruch. Gibt der Nutzer vorher auf, ist der Beweis im Zweifel: War er 1 min alt, beweist die
   nächste Anfrage neu und scheitert; war er jünger, gilt er, bis er 1 min alt ist. Vor dem ersten Teil hat
   hier jeder Abbruch den Beweis verworfen, mit dem ersten Teil galt er bis zu 10 min.
-- Die erste Anfrage nach dem verdeckten Wechsel geht weiter auf einer alten Verbindung hinaus, mit Token. Das
-  fremde Gerät kennt die Verbindung nicht und nimmt die Anfrage nicht an; wer im fremden Netz mitliest, sieht
-  sie. Das war immer so.
+- Hält die App beim verdeckten Wechsel keine Verbindung (nach 5 min ohne Verkehr), bricht nichts. Dann gilt
+  der Beweis, bis er 10 min alt ist, und die nächste Anfrage geht mit Token auf einer neuen Verbindung an das
+  fremde Gerät. Das war immer so; die Prüfung nach Zeit ist die einzige, die hier greift.
 - Zwischen der Prüfung im Sprung und dem Senden liegen wenige Befehle. Ein Bruch, den eine andere Anfrage
   genau dort bemerkt, kommt für diesen Sprung zu spät. Das war immer so.
 
-Was bleibt, ist die bekannte Grenze selbst mit den zwei Fenstern: das erste Paket auf der alten Verbindung
-und bis zu 1 min nach einem Abbruch, wenn das fremde Gerät schweigt. Ganz schliessen kann sie nur HTTPS.
+Was bleibt, ist die bekannte Grenze selbst mit drei Fenstern: die erste Anfrage auf einer alten Verbindung,
+bis zu 10 min ohne jeden Bruch, wenn die App beim Wechsel keine Verbindung hielt, und bis zu 1 min nach einem
+Abbruch, wenn das fremde Gerät schweigt. Ganz schliessen kann sie nur HTTPS.
 
-Nicht gebaut: eine eigene Wiederholung des Gates, die eine Anfrage nach dem neuen Beweis selbst noch einmal
-sendet. Das Gate müsste entscheiden, was sich wiederholen lässt; OkHttp weiss das schon. Und ein neuer Beweis
-für eine Anfrage, die über einen sichtbaren Netzwechsel hinweg unterwegs ist: Sie scheitert wie bisher.
+Nicht gebaut:
+
+- **Verfall nach Ruhe** (Vorschlag des Sicherheits-Reviews dieser Änderung): Ein Beweis zählt nicht mehr,
+  wenn 60 s lang kein Sprung zum Server lief. Ein verdeckter Wechsel fällt meist in eine Pause (der Nutzer
+  geht in ein anderes Netz); dann bewiese die erste Anfrage danach neu, bevor irgendetwas hinausgeht. Das
+  erste Fenster oben fiele nach einer Pause weg, das zweite schrumpfte von 10 min auf 60 s. Kosten: ein
+  Beweis nach jeder Pause über 60 s, also eine Antwortzeit mehr vor der ersten Anfrage. Dazu gehört eine
+  kürzere Dauer im Vorrat (90 s statt 5 min, unter den 2 min des Servers): Dann kostet die Pause genau diesen
+  einen Beweis und keinen Bruch. Die kürzere Dauer allein wäre ein Rückschritt, denn nach 90 s hielte die App
+  keine alte Verbindung mehr, an der ein verdeckter Wechsel auffällt. Das ist eine neue Regel und kein Teil
+  der drei Lücken; sie braucht Marcos Entscheid.
+- Eine eigene Wiederholung des Gates, die eine Anfrage nach dem neuen Beweis selbst noch einmal sendet. Das
+  Gate müsste entscheiden, was sich wiederholen lässt; OkHttp weiss das schon.
+- Ein neuer Beweis für eine Anfrage, die über einen sichtbaren Netzwechsel hinweg unterwegs ist: Sie
+  scheitert wie bisher.
 
 ## Folgen
 
