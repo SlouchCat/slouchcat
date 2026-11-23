@@ -408,13 +408,18 @@ jobs:
   # profile with PIN, browsing, the player, sign-out, against bin/slouchcat with the test media.
   #
   # NOT part of the gate "ci", and it may fail (continue-on-error): on the hosted runner the
-  # emulator (37.3.10, the version that runs the same flow on the development machine) died with a
-  # segmentation fault in each of three runs, about 80 s into the flow, with and without Vulkan in
-  # the guest (docs/perf/K27-android-ci.md, «Emulator auf dem Runner»). Concept 27 section 5.7
-  # leaves it to this measurement whether the flow runs here. Until the emulator holds, the flow
-  # is run on the development machine before every pull request that touches the apps
-  # (docs/dev/SETUP.md); this job stays to show when the runner's emulator holds. The AVD is made
-  # here from the SDK's system image; no third-party action.
+  # emulator died with a segmentation fault until it was started with swangle_indirect, and since
+  # it holds, cases still fail here that are green on the development machine (AudioFlowTest in
+  # every run, others in some; docs/perf/K27-android-ci.md, «Emulator auf dem Runner» and
+  # «Laufzeit des Emulator-Jobs»). Concept 27 section 5.7 leaves it to this measurement whether the
+  # flow runs here. Until the flow holds, it is run on the development machine before every pull
+  # request that touches the apps (docs/dev/SETUP.md); this job stays to show when it holds on the
+  # runner. The AVD is made here from the SDK's system image; no third-party action.
+  #
+  # What the job's time depends on (measured, same document): the Gradle caches of the job
+  # "android" (the APK build takes 1.5 to 2 min with them and 4 to 6 min without), and a guest
+  # with all four cores of the runner and a smaller screen (the guest is drawn in software; the
+  # cases run a quarter to a third faster than with two cores and 1080 x 2424).
   # ---------------------------------------------------------------------------------------------
   android-emulator:
     name: android-emulator (flow, informational)
@@ -467,18 +472,30 @@ jobs:
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$image" >"$log" 2>&1 || { cat "$log"; exit 1; }
-          # A phone of the mockup's size (412 dp wide), as sc_phone on the development machine.
-          printf '%s\n' hw.lcd.width=1080 hw.lcd.height=2424 hw.lcd.density=420 hw.ramSize=4096 hw.keyboard=yes \
+          # A phone of the mockup's size in dp (412 x 923), as sc_phone on the development machine,
+          # with fewer pixels: 720 x 1616 at 280 dpi instead of 1080 x 2424 at 420. The runner draws
+          # the guest in software, so every pixel costs time, and the flow takes no photos here.
+          # Four cores: avdmanager's default of two leaves half of the runner to the guest unused.
+          # Only both together made the cases faster (docs/perf/K27-android-ci.md).
+          printf '%s\n' hw.lcd.width=720 hw.lcd.height=1616 hw.lcd.density=280 hw.ramSize=4096 hw.keyboard=yes hw.cpu.ncore=4 \
             >> "$ANDROID_AVD_HOME/ci_phone.avd/config.ini"
 
-      - name: Gradle caches
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The Gradle caches of the job "android", read only. That job builds the same debug variant,
+      # so its cache holds the dependencies and most of the compiled modules; the cache this job
+      # shared with "android-contract" (gradle-e2e-…) held only what the contract test builds, and
+      # the APKs were built almost from nothing (197 of 251 tasks, 4 min). Path list and key are
+      # those of the step in "android": the cache is found only under exactly the same paths.
+      # Nothing is saved here: the job would save only when green, and a second copy of 2 GB does
+      # not fit into the repository's 10 GB of caches.
+      - name: Gradle caches (those of the job android, read only)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
-          restore-keys: gradle-e2e-${{ runner.os }}-
+            ~/.m2/repository/org/robolectric
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       # The test media (cached under the same key as the server tests, generated on a miss): with
       # them the emulator flow browses a real library (docs/perf/K27-android-ci.md).
