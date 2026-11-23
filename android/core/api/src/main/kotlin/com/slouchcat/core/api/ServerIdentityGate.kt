@@ -388,7 +388,8 @@ class ServerIdentityGate(
         // keeps changing and owners that keep being interrupted. Breaks do not count as rounds:
         // connections from before break one after the other while the server proves again and
         // again (it came back from an update and a page loads in waves), and none of those rounds
-        // says anything against the server. They end with [timeout], by the clock of the device.
+        // says anything against the server. They end with [timeout], by the clock of the device;
+        // no round of any kind begins after it (one that has begun runs to its end).
         val deadline = System.nanoTime() + timeout.toNanos()
         var rounds = 0
         while (rounds < ROUNDS && System.nanoTime() - deadline < 0) {
@@ -427,7 +428,7 @@ class ServerIdentityGate(
             }
             throw failureOf(outcome)
         }
-        throw ServerNotProvenException("the proof kept starting over")
+        throw ServerNotProvenException(if (rounds < ROUNDS) "the proof ran out of time" else "the proof kept starting over")
     }
 
     /**

@@ -1017,7 +1017,8 @@ class ServerIdentityGateTest {
             }
             ProofAnswer(sign(serverKeys, nonce), serverKey)
         }
-        val http = client(gate(prover))
+        // The rounds end with the gate's timeout; a slow machine must not get there.
+        val http = client(gate(prover, timeout = Duration.ofSeconds(30)))
         assertEquals(200, get(http))
         try {
             val unretried = http.newBuilder().retryOnConnectionFailure(false).build()
@@ -1077,6 +1078,7 @@ class ServerIdentityGateTest {
             finish.countDown()
             val refused = request.get(5, TimeUnit.SECONDS).exceptionOrNull()
             assertTrue("$refused", refused is ServerNotProvenException)
+            assertEquals("the proof ran out of time", refused?.message)
             assertEquals("a round began after the time was up", 2, calls.get())
         } finally {
             answer.countDown()
