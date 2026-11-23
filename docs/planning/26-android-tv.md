@@ -14,13 +14,13 @@
   wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Umsetzung:** Der Bau aller Stufen beider Papiere ist mit dem Auftrag vom 21. November 2026 bestellt
   (Zitat oben) und vom 21. bis 23. November 2026 ausgeführt worden. Stand je Stufe in Abschnitt 10
-  unter der Tabelle. In `main` sind die Stufen 0 bis 3 und 5; Stufe 4 (PR #208) und die Ausgabe der
-  Dateien für Stufe 6 (PR #209) sind offen. Nicht oder abweichend gebaut, mit Grund:
+  unter der Tabelle. In `main` sind die Stufen 0 bis 5 und von Stufe 6 die Unterlagen, die Ausgabe der
+  Dateien (PR #209) und der Foto-Lauf (PR #211); Tag `tv-v1.0.0`. Nicht oder abweichend gebaut, mit Grund:
   `docs/dev/CURRENT_STATUS.md`, Abschnitt «Bau der Android-Apps», «Eigene Entscheide des Baus» (A-1
-  bis A-17 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Offen bleiben
-  alles auf den drei Fernsehern und an Tonanlagen, die Vermittlung auf Marcos Infrastruktur, die Play
-  Console mit der TV-Spur, Store-Banner als Bild und Bildschirmfotos und die Abnahme auf CT 190 (dort
-  «Offen»). Was Marco tun muss: `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9.
+  bis A-18 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Der Bau selbst hat
+  nur im Emulator und gegen Nachbauten geprüft. Offen bleiben die Abnahmen auf den drei Fernsehern und
+  an Tonanlagen, der Betrieb der Vermittlung, die Play Console mit der TV-Spur und die Abnahme auf CT 190
+  (dort «Offen»). Was Marco tun muss: `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
   die Rückfrage, was damit gemeint ist, hat er «Konzept starten» gewählt.
@@ -792,11 +792,11 @@ ist jede Stufe eine Ausgabe der TV-App.
 - **2b Seiten:** in `main` (PR #202); Abnahme auf den drei Geräten offen.
 - **3 Videoplayer:** in `main` (PR #202); Abnahmeliste je Gerät und Tonanlage und Vorab-Ausgabe über die
   interne Testspur offen.
-- **4 Ton:** PR #208 offen; Abnahme auf den Geräten offen.
+- **4 Ton:** in `main` (PR #208); Abnahme auf den Geräten offen.
 - **5 Wünsche:** in `main` (PR #205); Abnahme mit echtem Seerr offen.
 - **6 Öffentlich:** Unterlagen für die TV-Geräteart in `main` (PR #200, `docs/store/VEROEFFENTLICHEN.md`
-  Abschnitt 9), Banner der App im Manifest, Ausgabe der Dateien PR #209 (offen); TV-Spur, Store-Banner als
-  Bild und Bildschirmfotos offen.
+  Abschnitt 9), Banner der App im Manifest, Ausgabe der Dateien (PR #209) und Foto-Lauf (PR #211) in `main`,
+  Tag `tv-v1.0.0`; TV-Spur in der Play Console offen.
 
 Zur Reihenfolge innerhalb dieses Papiers:
 

@@ -13,12 +13,14 @@
   nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Umsetzung:** Der Bau aller Stufen beider Papiere ist mit dem Auftrag vom 21. November 2026 bestellt
   (Zitat oben) und vom 21. bis 23. November 2026 ausgeführt worden. Stand je Stufe in Abschnitt 13
-  unter der Tabelle. Gebaut sind die Stufen 0 bis 9 (in `main`) und von Stufe 10 die Vorbereitung
-  (in `main`) und die Ausgabe der Dateien (PR #209, offen). Nicht oder abweichend gebaut, mit Grund:
+  unter der Tabelle. In `main` sind die Stufen 0 bis 9 und von Stufe 10 die Vorbereitung, die Ausgabe
+  der Dateien (PR #209), die Übersetzungen (PR #210) und der Foto-Lauf (PR #211); Tag `app-v1.0.0`.
+  Nicht oder abweichend gebaut, mit Grund:
   `docs/dev/CURRENT_STATUS.md`, Abschnitt «Bau der Android-Apps», «Eigene Entscheide des Baus» (A-1
-  bis A-17 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Offen bleiben
-  alles auf echten Geräten, die zwei Dienste auf Marcos Infrastruktur, das Firebase-Projekt, die Play
-  Console, die Bildschirmfotos und die Abnahmen auf CT 190 (dort «Offen»). Was Marco tun muss:
+  bis A-18 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Der Bau selbst hat
+  nur in Emulatoren und gegen Nachbauten geprüft. Offen bleiben die Abnahmen auf echten Geräten, der
+  Betrieb der zwei Dienste, Push über Google, die Play Console und die Abnahmen auf CT 190 (dort
+  «Offen»). Was Marco tun muss:
   `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
@@ -1470,8 +1472,9 @@ der zwei Dienste; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
 - **7 Ton:** in `main` (PR #206); eine Stunde Hörbuch bei ausgeschaltetem Bildschirm offen.
 - **8 Wünsche und Meldungen:** in `main` (PR #204); Abnahme mit echtem Seerr und Push über Google offen.
 - **9 Fernseher verbinden:** in `main` (PR #203); Kopplung gegen CT 190 und mit zwei echten Geräten offen.
-- **10 Öffentlich:** Vorbereitung in `main` (PR #200), Ausgabe der Dateien PR #209 (offen); Play Console,
-  geschlossener Test, Bildschirmfotos offen.
+- **10 Öffentlich:** Vorbereitung (PR #200), Ausgabe der Dateien (PR #209), Übersetzungen (PR #210) und
+  Foto-Lauf (PR #211) in `main`, Tag `app-v1.0.0`; Play Console, geschlossener Test und Fotos gegen den
+  Vorführserver hinter HTTPS offen.
 
 Zur Reihenfolge:
 

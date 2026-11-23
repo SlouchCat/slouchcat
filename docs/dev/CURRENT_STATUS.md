@@ -59,7 +59,7 @@ steht je Stufe dabei und gesammelt unten; die gesammelte Anleitung ist `docs/dev
 | K27 7 Ton | in main | #206 (`30b61111`) | – |
 | K27 8 Wünsche und Meldungen | in main | #204 (`c261f325`) | – |
 | K27 9 Fernseher verbinden | in main | #203 (`1b267daf`) | – |
-| K27 10 Öffentlich | Vorbereitung, Ausgabe und Foto-Lauf in main; Rest offen (Play Console, Fotos gegen den Vorführserver hinter HTTPS) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 | – |
+| K27 10 Öffentlich | Vorbereitung, Ausgabe und Foto-Lauf in main; Rest offen (Play Console, Fotos gegen den Vorführserver hinter HTTPS) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 (`00b8bbb6`) | `app-v1.0.0` |
 | K26 0 Messung | in main | #196 (`1cc6d95e`) | – |
 | K26 1 Server: Ton und Fähigkeiten | in main, Release 1.43.0 | #199 (`f1f0f493`) | `v1.43.0` |
 | K26 2a Gerüst | in main | #201 (`8d08f4ea`) | – |
@@ -67,13 +67,19 @@ steht je Stufe dabei und gesammelt unten; die gesammelte Anleitung ist `docs/dev
 | K26 3 Videoplayer | in main | #202 (`a22a45dc`) | – |
 | K26 4 Ton | in main | #208 (`ea676878`) | – |
 | K26 5 Wünsche | in main | #205 (`80bec7a3`) | – |
-| K26 6 Öffentlich | TV-Teil der Store-Unterlagen, Ausgabe und Foto-Lauf in main; Rest offen (TV-Spur in der Play Console) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 | – |
+| K26 6 Öffentlich | TV-Teil der Store-Unterlagen, Ausgabe und Foto-Lauf in main; Rest offen (TV-Spur in der Play Console) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 (`00b8bbb6`) | `tv-v1.0.0` |
 | Ausgabe (Symbol, Signatur, Bundles, Release-Weg, Anleitung) | in main | #209 (`9dce65e8`) | – |
 | Übersetzungen der App-Texte (20 Sprachen) | in main | #210 (`f7f237d3`) | – |
-| Bildschirmfotos für den Store (Skript; Bilder nicht im Repo) | in main | #211 | – |
+| Bildschirmfotos für den Store (Skript; Bilder nicht im Repo) | in main | #211 (`00b8bbb6`) | – |
 | Messkorrektur der RSS-Latte | in main | #207 (`ba7ea8c9`) | – |
 
-@@TAGS@@
+**Tags der Apps:** `app-v1.0.0` und `tv-v1.0.0` stehen seit dem 23. November 2026 auf `00b8bbb6` (main nach
+PR #211). Der Workflow `release-android.yml` lief für beide durch (Läufe 45168391941 und 45168390943: bauen,
+signieren, veröffentlichen). Die GitHub-Releases «Slouchcat phone app 1.0.0» und «Slouchcat TV app 1.0.0»
+tragen die unsignierten Release-Dateien (APK, AAB, `SHA256SUMS`; im Repo liegen keine Signatur-Secrets) und
+sind nicht «latest»: «Latest» blieb das Server-Release. Das sind keine Store-Ausgaben; die Regel aus
+`docs/dev/VERTRAEGLICHKEIT.md` wird erst mit der ersten Ausgabe im Play Store verbindlich. Einen Tag
+`relay-v1.0.1` gibt es nicht (A-18).
 
 ### Eigene Entscheide des Baus
 
@@ -157,13 +163,13 @@ bis A-9.)
 
 | Was | Steht in |
 |---|---|
-| Vermittlung und Push-Weiterleitung auf Marcos Infrastruktur: Container hinter dem Reverse-Proxy, DNS, Überwachung, Umzugsprobe auf einer zweiten Maschine | `docs/relay/BETRIEB.md` Abschnitt 9 |
+| Vermittlung und Push-Weiterleitung: Der Bau hat sie nur lokal und gegen Nachbauten geprüft. Betrieb, Überwachung und die Umzugsprobe liegen ausserhalb dieses Baus; die Abnahme nach der Betriebsanleitung ist offen | `docs/relay/BETRIEB.md` Abschnitt 9 |
 | Firebase-Projekt und echte Zustellung von Push (geschlossene App, Stromsparmodus) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 5; `docs/perf/K27-android-handy.md` Stufe 8 |
 | Echte Geräte: Gerätechecklisten der Handy-App, Abnahmeliste der TV-App je Gerät und Tonanlage | `docs/perf/K27-android-handy.md` Stufe 5 bis 9 und «Auf einem echten Gerät …»; `docs/perf/K26-android-tv.md` «Auf den drei Geräten nachzumessen», Stufe 3 und 4 |
 | Abnahme mit echtem Seerr an Handy und Fernseher | `docs/planning/27-android-handy-app.md` Abschnitt 13 (Stufe 8); `docs/planning/26-android-tv.md` Abschnitt 10 (Stufe 5) |
 | CT 190 hat der Bau nicht berührt: Abnahme von 1.42.0 und 1.43.0 auf CT 190, Kopplung gegen CT 190 mit dem Prüfprogramm als Fernseher | `docs/planning/27-android-handy-app.md` Abschnitt 13 (Stufen 1 und 9); `docs/planning/26-android-tv.md` Abschnitt 10 (Stufe 1) |
 | Play Console: App anlegen, Upload-Schlüssel, interne Testspur, geschlossener Test, Produktion, TV-Spur; Platzhalter in den Unterlagen | `docs/store/VEROEFFENTLICHEN.md`, Abschnitt «Noch einzutragen» |
-| GitHub: Environment `android-release`, Tag-Ruleset, erster Lauf von `release-android.yml`; die ersten App-Tags | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7 (mit PR #209) |
+| GitHub: Environment `android-release` mit Pflicht-Reviewer und Tag-Regel, Tag-Ruleset, Signatur-Secrets (der erste Lauf von `release-android.yml` lief ohne sie und lieferte unsignierte Dateien) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.1 |
 | Bildschirmfotos für den Store gegen den Vorführserver hinter HTTPS neu aufnehmen (der Lauf vom 23. November 2026 zeigt HTTP-Hinweise und `10.0.2.2`); Bilder liegen nicht im Repo | `docs/store/grafiken.md`, `scripts/store-screenshots.sh`, `scripts/store-graphics.sh` |
 | Prüfsummen der Gradle-Abhängigkeiten (`android/gradle/verification-metadata.xml`, A-16) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.2, «Restrisiko» |
 | Emulator auf dem Runner: seit `-gpu swangle_indirect` kein Absturz, aber 13 von 16 Fällen grün; der Job bleibt ausserhalb des Gates | `docs/perf/K27-android-ci.md`, «Absturz des Emulators (23.11.2026)» |
