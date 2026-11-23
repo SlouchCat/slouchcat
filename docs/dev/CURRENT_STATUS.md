@@ -21,17 +21,18 @@ steht je Stufe dabei und gesammelt unten; die gesammelte Anleitung ist `docs/dev
 | K27 7 Ton | in main | #206 (`30b61111`) | – |
 | K27 8 Wünsche und Meldungen | in main | #204 (`c261f325`) | – |
 | K27 9 Fernseher verbinden | in main | #203 (`1b267daf`) | – |
-| K27 10 Öffentlich | Vorbereitung in main; Ausgabe PR offen; Rest offen (Play Console, Bildschirmfotos) | #200 (`64ae5bcd`), #209 offen | – |
+| K27 10 Öffentlich | Vorbereitung, Ausgabe und Foto-Lauf in main; Rest offen (Play Console, Fotos gegen den Vorführserver hinter HTTPS) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 | – |
 | K26 0 Messung | in main | #196 (`1cc6d95e`) | – |
 | K26 1 Server: Ton und Fähigkeiten | in main, Release 1.43.0 | #199 (`f1f0f493`) | `v1.43.0` |
 | K26 2a Gerüst | in main | #201 (`8d08f4ea`) | – |
 | K26 2b Seiten | in main | #202 (`a22a45dc`) | – |
 | K26 3 Videoplayer | in main | #202 (`a22a45dc`) | – |
-| K26 4 Ton | PR offen | #208 offen | – |
+| K26 4 Ton | in main | #208 (`ea676878`) | – |
 | K26 5 Wünsche | in main | #205 (`80bec7a3`) | – |
-| K26 6 Öffentlich | TV-Teil der Store-Unterlagen in main, Ausgabe PR offen; Rest offen (TV-Spur, Store-Banner als Bild, Bildschirmfotos) | #200 (`64ae5bcd`), #209 offen | – |
-| Ausgabe (Symbol, Signatur, Bundles, Release-Weg, Anleitung) | PR offen | #209 offen | – |
-| Übersetzungen der App-Texte | auf dem Zweig `claude/android-uebersetzungen`, noch kein PR | – | – |
+| K26 6 Öffentlich | TV-Teil der Store-Unterlagen, Ausgabe und Foto-Lauf in main; Rest offen (TV-Spur in der Play Console) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 | – |
+| Ausgabe (Symbol, Signatur, Bundles, Release-Weg, Anleitung) | in main | #209 (`9dce65e8`) | – |
+| Übersetzungen der App-Texte (20 Sprachen) | in main | #210 (`f7f237d3`) | – |
+| Bildschirmfotos für den Store (Skript; Bilder nicht im Repo) | in main | #211 | – |
 | Messkorrektur der RSS-Latte | in main | #207 (`ba7ea8c9`) | – |
 
 App-Tags (`app-v*`, `tv-v*`) gibt es noch keine. Der Tag `relay-v1.0.1` steht aus: Nach `relay-v1.0.0` hat
