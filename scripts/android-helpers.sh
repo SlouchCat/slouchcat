@@ -66,6 +66,16 @@ helpers_start() {
   helper_wait push "http://127.0.0.1:$HELPER_PUSH_PORT/v1/healthz" || return 1
   helper_wait seerr "http://127.0.0.1:$HELPER_SEERR_PORT/api/v1/status" || return 1
   helper_wait tmdb "http://127.0.0.1:$HELPER_TMDB_PORT/3/configuration" || return 1
+  # An answer may come from another run's helper on a taken port while ours died at its bind:
+  # every own helper must still be running.
+  local pid
+  for pid in "${helper_pids[@]}"; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "android-helpers: a helper exited (port taken?); its logs are in $root" >&2
+      grep -h "address already in use" "$root"/*.log >&2 || true
+      return 1
+    fi
+  done
 
   # The server started after this inherits them: TMDB (only asked with a key, --dev only) and the
   # local push relay (http and the loopback only with --dev).
