@@ -71,6 +71,7 @@ class NotificationsViewModel(
         repository.page(server, offset, limit).also { result ->
             if (offset == 0 && result is ApiResult.Ok) {
                 local.update { it.copy(unread = result.value.unread, read = emptySet()) }
+                loaded = true
                 publishBadge()
             }
         }.map { Page(it.notifications, it.total) }
@@ -82,8 +83,19 @@ class NotificationsViewModel(
     private val _messages = Channel<NotificationsMessage>(Channel.BUFFERED)
     val messages: Flow<NotificationsMessage> = _messages.receiveAsFlow()
 
+    /** The first page has arrived; before that the bell's number says nothing about this list. */
+    private var loaded = false
+
     init {
         refresh()
+        // The bell reads a higher number than this list shows (a push came while the page is open,
+        // the start page read the bell again): the list is old, read it again. The web app does the
+        // same on focus and with its 30 s poll of the bell.
+        viewModelScope.launch {
+            badge.count.collect { count ->
+                if (loaded && count != null && count > local.value.unread + local.value.announcements.size) refresh()
+            }
+        }
     }
 
     fun refresh() {

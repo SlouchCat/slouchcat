@@ -37,8 +37,10 @@ import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.generated.apis.NotifyApi
 import com.slouchcat.core.api.generated.apis.SetupApi
 import com.slouchcat.core.api.generated.apis.WishesApi
+import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Channel
 import com.slouchcat.core.api.generated.models.ChannelSettingUpdate
+import com.slouchcat.core.api.generated.models.Notification
 import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.api.push.RelayResult
 import com.slouchcat.core.browse.notifications.badge
@@ -292,11 +294,16 @@ class MessagesFlowTest {
         // A second wish Seerr declines: the inbox gets it, the bell shows it, opening reads it.
         val second = wishFromSearch("Kupfer", listOf("Kupfermond", "Copper Moon"))
         declineOpen()
-        open("start", HomeRoute)
+        // The sync answers 202 and runs as a job: wait until the server has written the entry
+        // (the profile's inbox through the API) before the app reads it. Any unread entry is not
+        // enough: the podcast's new episode is one, too.
+        val address = graph.session.server!!
         compose.waitUntil(30_000) {
-            runBlocking { graph.session.server?.let { address -> graph.media.unreadCount.refresh { graph.media.notifications.badge(address) } } }
-            (graph.media.unreadCount.count.value ?: 0) > 0
+            val page = runBlocking { graph.media.notifications.page(address, 0, 50) } as? ApiResult.Ok
+            page?.value?.notifications.orEmpty().any { it.kind == Notification.Kind.WISH_DECLINED }
         }
+        runBlocking { graph.media.unreadCount.refresh { graph.media.notifications.badge(address) } }
+        open("start", HomeRoute)
         open("start", HomeRoute, NotificationsRoute)
         waitFor(hasText(s(R.string.notifications_title)) and isHeading())
         waitFor(hasContentDescription(s(R.string.notifications_wish_declined), substring = true) and hasClickAction())

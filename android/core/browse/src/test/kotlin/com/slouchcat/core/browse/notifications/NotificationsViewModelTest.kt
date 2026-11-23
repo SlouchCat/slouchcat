@@ -73,6 +73,26 @@ class NotificationsViewModelTest {
     }
 
     @Test
+    fun aHigherBellWhileOpenReadsTheListAgain() = runTest(dispatcher) {
+        val repository = sample()
+        val badge = LiveCount()
+        val vm = inbox(repository, badge)
+        assertEquals(3, badge.count.value)
+        // A push while the page is open: the server has a new entry, the bell reads 4.
+        repository.entries.add(0, notification(4))
+        badge.set(4)
+        settle()
+        assertEquals(4, vm.state.value.entries.loaded.size)
+        assertEquals(3, vm.state.value.unread)
+        assertEquals(4, badge.count.value)
+        // A lower number (an entry read elsewhere) loads nothing more.
+        val pages = repository.calls.count { it == "page:0" }
+        badge.set(1)
+        settle()
+        assertEquals(pages, repository.calls.count { it == "page:0" })
+    }
+
+    @Test
     fun openingAnEntryMarksItReadAndSaysWhereItLeads() = runTest(dispatcher) {
         val repository = sample()
         val badge = LiveCount()
