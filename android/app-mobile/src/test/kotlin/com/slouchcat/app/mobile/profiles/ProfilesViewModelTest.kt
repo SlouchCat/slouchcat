@@ -76,6 +76,19 @@ class ProfilesViewModelTest {
         assertTrue(ready.profile.isPrimary)
     }
 
+    /** Stage 7 M-2: the sound's last progress and its end go out before the server opens another profile. */
+    @Test
+    fun anotherProfileWaitsForTheHooksBeforeTheChange() = runTest(dispatcher) {
+        hooks.onBeforeProfileChange { auth.calls += "flush" }
+        val session = session(backgroundScope)
+        settle()
+        val vm = ProfilesViewModel(session, auth, actions(session, auth, hooks), clock = { testScheduler.currentTime })
+        settle()
+        vm.onPick(summary(2, "Child"))
+        settle()
+        assertEquals(listOf("flush", "select:2:-"), auth.calls.filter { it != "profiles" })
+    }
+
     @Test
     fun thePinPadTakesFourToEightDigits() = runTest(dispatcher) {
         val (vm, _) = model()

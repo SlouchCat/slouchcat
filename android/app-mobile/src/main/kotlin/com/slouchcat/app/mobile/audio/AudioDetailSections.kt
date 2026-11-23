@@ -18,7 +18,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -153,7 +152,17 @@ private fun Episodes(ui: EpisodesUi, links: AudioDetailLinks) {
                     EpisodeRow(episode, episode.id in ui.busy, links, ui.onHeard)
                 }
             }
-            if (ui.episodes.hasMore) LaunchedEffect(list.size) { ui.onNearEnd() }
+            // The next page only on request (web `PodcastEpisodes`, code review M-4): the detail page
+            // is no lazy list, a podcast of a thousand episodes would otherwise load them all at once.
+            if (ui.episodes.hasMore && ui.episodes.more == com.slouchcat.core.media.MoreState.Idle) {
+                SlouchcatButton(
+                    stringResource(R.string.app_audio_loadMore),
+                    onClick = ui.onNearEnd,
+                    kind = ButtonKind.Secondary,
+                    block = true,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
             PagingFooter(ui.episodes.more, onRetry = ui.onNearEnd)
         }
     }

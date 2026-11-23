@@ -7,26 +7,25 @@
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
 # (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
-# resume, an episode up to the countdown, «Wiedergabe» of the settings.
+# resume, an episode up to the countdown, «Wiedergabe» of the settings; (d) the sound of stage 4
+# (TvAudioFlowTest): the audiobook and the podcast of scripts/android-test-video.sh as libraries of
+# their own, the audio player, Home, and the test stations of the radio (radio_start of
+# scripts/android-helpers.sh, always started).
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
 # PORT        port of the test server (default 8697); 127.0.0.1 only, the emulator reaches it as
 #             http://10.0.2.2:PORT
-# RELAY_PORT  port of the relay (default 8180), the same way
+# RELAY_PORT  port of the relay (default PORT+85), the same way
 # AVD         emulator to start (default sc_tv); EMU_PORT its console port (default 5584)
 # SHOTS=DIR   or --shots DIR: photograph every page and menu and copy the photos to DIR
 # LOCALE      language of the app (de-CH, en …; default: the device's)
 # EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
-# WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
-# RADIO=1     the web radio without internet (stage 4, TvAudioFlowTest), as scripts/android-e2e.sh:
-#             the server built with the tag radiotest (bin/slouchcat-e2e) and the test stations of
-#             web/e2e/radio-server.mjs on PORT-9
+# WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
+# PHONE       who plays the phone: apicheck (default, Go) or kotlin (the phone app's own Kotlin of
+#             :core:pairing as a JVM program, :core:pairing:phoneCheck; task android:e2e:pair)
 # TESTS       only these test classes (`am instrument -e class`, comma separated, for example
 #             com.slouchcat.app.tv.TvAudioFlowTest); default every class
-#
-# (d) The sound of stage 4 (TvAudioFlowTest): the audiobook and the podcast of
-# scripts/android-test-video.sh as libraries of their own, the audio player, Home, the radio.
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
 # emulator-EMU_PORT), waits while another emulator runs, and on exit stops that emulator, the
@@ -35,7 +34,7 @@
 set -euo pipefail
 
 port=${PORT:-8697}
-relay_port=${RELAY_PORT:-8180}
+relay_port=${RELAY_PORT:-$((port + 85))}
 avd=${AVD:-sc_tv}
 emu_port=${EMU_PORT:-5584}
 shots=${SHOTS:-}
@@ -52,10 +51,10 @@ app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-tv-e2e-XXXXXX)
 logs=app-tv/build/e2e-logs
 server_pid=""
-relay_pid=""
-radio_pid=""
 emulator_pid=""
 instrument_pid=""
+# shellcheck source=android-helpers.sh
+. ../scripts/android-helpers.sh
 # The account of the test (TvFlowTest's defaults): the phone of apicheck signs in with it.
 email=e2e-owner@example.test
 password=e2e-password-0123
@@ -66,26 +65,27 @@ cleanup() {
   if [ -n "$instrument_pid" ]; then kill "$instrument_pid" 2>/dev/null || true; fi
   if [ "$status" -ne 0 ]; then
     mkdir -p "$logs"
-    for f in server.log relay.log radio.log emulator.log instrument.txt apicheck.log; do
+    for f in server.log emulator.log instrument.txt apicheck.log; do
       [ -f "$root/$f" ] && cp "$root/$f" "$logs/"
     done
+    helpers_save_logs "$logs"
     if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
-  for pid in "$server_pid" "$relay_pid" "$radio_pid"; do
-    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
-  done
+  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+  helpers_stop
   if [ -n "$emulator_pid" ]; then
     adb_brief emu kill >/dev/null 2>&1 || true
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
+  emulator_unlock
   rm -rf "$root"
 }
 trap cleanup EXIT
 
 fail() {
   echo "android-tv-e2e: $1" >&2
-  for f in server.log relay.log apicheck.log; do
+  for f in server.log pair.log apicheck.log; do
     if [ -f "$root/$f" ]; then
       echo "--- $f, last 30 lines ---" >&2
       tail -n 30 "$root/$f" >&2
@@ -103,39 +103,29 @@ mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
 # Real video for the player of stage 3 (a film, a series of two episodes; needs ffmpeg).
 ../scripts/android-test-video.sh "$root/media"
-binary=../server/bin/slouchcat
-radio_env=()
-if [ "${RADIO:-}" = "1" ]; then
-  # The test stations (Icecast MP3, Shoutcast, AAC, one unreachable) loop tones of testdata/radio.
-  radio_port=$((port - 9))
-  (cd ../server && go build -tags radiotest -o bin/slouchcat-e2e ./cmd/slouchcat)
-  node --input-type=module -e "const m = await import('$(cd ../web/e2e && pwd)/radio-server.mjs'); await m.startRadioServer({ port: $radio_port });" \
-    >"$root/radio.log" 2>&1 &
-  radio_pid=$!
-  binary=../server/bin/slouchcat-e2e
-  radio_env=(SLOUCHCAT_TEST_RADIO_CATALOG_URL="http://127.0.0.1:$radio_port" SLOUCHCAT_TEST_RADIO_WIKIDATA_URL="http://127.0.0.1:$radio_port/sparql"
-    SLOUCHCAT_RADIO_DIR="$root/radio" SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1)
-fi
-env "${radio_env[@]}" SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= "$binary" serve \
+# The helpers of scripts/android-helpers.sh (the pairing relay on RELAY_PORT among them) first.
+helpers_start "$root" "$port" "$relay_port" || fail "a helper did not come up"
+# The radio's test stations (stage 4): the server built with the tag radiotest reads them.
+radio_start "$root" "$port" || fail "the radio stations did not come up"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= "$HELPER_RADIO_SERVER" serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
 server_pid=$!
-RELAY_LISTEN="127.0.0.1:$relay_port" ../relay/bin/pair >"$root/relay.log" 2>&1 &
-relay_pid=$!
 for _ in $(seq 1 120); do
   kill -0 "$server_pid" 2>/dev/null || fail "the server stopped while starting (port $port taken?)"
-  kill -0 "$relay_pid" 2>/dev/null || fail "the relay stopped while starting (port $relay_port taken?)"
-  if grep -q 'msg=listening' "$root/server.log" && curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1; then break; fi
+  if grep -q 'msg=listening' "$root/server.log"; then break; fi
   sleep 0.5
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
 
-# One emulator at a time: wait while another one runs (another agent's).
+# One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
+# for an emulator that a run without the lock started (an older script, by hand).
+emulator_lock "$wait_max" "$root" || fail "another run holds the emulator; one at a time on this machine"
 waited=0
 while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   [ "$waited" -lt "$wait_max" ] || fail "another emulator runs; one at a time on this machine"
-  echo "android-tv-e2e: another emulator runs, waiting ($waited s)"
+  echo "android-tv-e2e: another emulator runs without the lock, waiting ($waited s)"
   sleep 60
   waited=$((waited + 60))
 done
@@ -176,13 +166,15 @@ for _ in $(seq 1 60); do
 done
 
 ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-tv:assembleDebug :app-tv:assembleDebugAndroidTest
+# PHONE=kotlin: the phone's program compiled before the TV shows its code (the code lives 5 minutes).
+if [ "${PHONE:-apicheck}" = kotlin ]; then ./gradlew --console=plain -q :core:pairing:testClasses; fi
 adb install -r -t app-tv/build/outputs/apk/debug/app-tv-debug.apk >/dev/null
 adb install -r -t app-tv/build/outputs/apk/androidTest/debug/app-tv-debug-androidTest.apk >/dev/null
 if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
 
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
-if [ "${RADIO:-}" = "1" ]; then extra+=(-e slouchcatRadio 1); fi
+extra+=(-e slouchcatRadio 1)
 if [ -n "${TESTS:-}" ]; then extra+=(-e class "$TESTS"); fi
 # The run itself may take long (a transcode in software): its own limit.
 ADB_LIMIT=3600 adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
@@ -225,10 +217,18 @@ if [ -z "$code" ]; then
   photos
   fail "the TV showed no code"
 fi
-../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
-  -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
-  -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
-grep '^apicheck:' "$root/apicheck.log"
+if [ "${PHONE:-apicheck}" = kotlin ]; then
+  # The phone app's own Kotlin (:core:pairing) as a JVM program (task android:e2e:pair).
+  SLOUCHCAT_PAIR_PASSWORD=$password SLOUCHCAT_PAIR_PIN=$pin ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port \
+packetServer=http://10.0.2.2:$port relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email" \
+    >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "the phone's Kotlin could not pair"; }
+  grep '^phonecheck:' "$root/apicheck.log"
+else
+  ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
+    -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
+    -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
+  grep '^apicheck:' "$root/apicheck.log"
+fi
 
 wait "$instrument_pid" || true
 instrument_pid=""

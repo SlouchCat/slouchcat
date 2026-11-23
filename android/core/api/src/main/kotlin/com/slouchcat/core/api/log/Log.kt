@@ -72,8 +72,12 @@ object Redaction {
         "voucher", "pickup", "cookie", "bearer", "xslouchcatdevice",
     )
 
-    /** Short names that are secret only as the whole name (`st`, but not `host` or `list`). */
-    val SECRET_NAMES = setOf("dt", "st", "rt", "device", "key", "sig", "signature")
+    /**
+     * Short names that are secret only as the whole name (`st`, but not `host` or `list`). `auth` is
+     * the Web Push subscription secret (`keys.auth`, RFC 8291); as a whole name only, so `oauth`,
+     * `author` or `authState` stay readable (rule 10).
+     */
+    val SECRET_NAMES = setOf("dt", "st", "rt", "device", "key", "sig", "signature", "auth")
 
     fun isSecret(key: String): Boolean {
         val k = key.lowercase().replace("-", "").replace("_", "")
@@ -84,6 +88,8 @@ object Redaction {
         Regex("""(?i)(Bearer\s+)[^\s,;"']+""") to "$1$REDACTED",
         Regex("""(?i)(Pickup\s+)[^\s,;"']+""") to "$1$REDACTED",
         Regex("""(?i)(X-Slouchcat-Device\s*[:=]\s*)[^\s,;"']+""") to "$1$REDACTED",
+        // The push address holds the sealed Google token (stage 8, security review L-2).
+        Regex("""(/v1/push/)[^\s?#"']+""") to "$1$REDACTED",
         // The query parameters of the server's list (logging.go, sensitiveQuery), and `voucher`.
         Regex(
             """(?i)((?:^|[?&;])(?:api_key|apikey|key|client_key|st|dt|rt|auth|token|access_token|secret|sig|signature|voucher)=)[^&;#\s"']*""",

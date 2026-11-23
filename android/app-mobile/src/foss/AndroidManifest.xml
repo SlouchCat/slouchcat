@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The build `foss` reads the QR code of a TV with its own camera page (concept 27 5.2, F-33):
+     the camera permission, asked when the scanner opens. The build `play` uses Google's code
+     scanner and needs no camera permission. A phone without a camera installs the app as well. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+</manifest>

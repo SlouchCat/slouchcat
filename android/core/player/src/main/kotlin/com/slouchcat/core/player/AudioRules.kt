@@ -27,7 +27,7 @@ object AudioRules {
     /** The step of «Langsamer» and «Schneller». */
     const val SPEED_STEP = 0.1f
 
-    /** [speed] within the range, on a tenth (the server keeps 0.5 to 3.0). */
+    /** [speed] within the range, on a hundredth (1.25 and 1.75 are presets; the server keeps 0.5 to 3.0). */
     fun clampSpeed(speed: Float): Float = ((speed.coerceIn(MIN_SPEED, MAX_SPEED) * 100).roundToInt() / 100f)
 
     /** The chapter [positionMs] lies in; `null` without chapters or before the first. */

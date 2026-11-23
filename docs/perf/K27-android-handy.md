@@ -476,10 +476,10 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
 
-## Stufe 7: Ton (22. November 2026)
+## Stufe 7: Ton (22. November 2026, nach der Korrekturrunde am 23. November neu gemessen)
 
 **Emulator-Messung**, nicht auf einem Gerät: `AudioFlowTest` (`RADIO=1 task android:e2e
-CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5594`, dazu `AVD=sc_tablet`) gegen den
+CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5574`, dazu `AVD=sc_tablet`) gegen den
 Server dieses Zweigs. Die Testmedien kommen aus `scripts/android-test-video.sh`: das Hörbuch «The Quiet
 Harbour» aus zwei AAC-Dateien zu 60 s (eine HLS-Zeitachse) und der Podcast-Ordner «Night Shift
 Stories». Das Radio läuft über die Teststationen der Web-App (`web/e2e/radio-server.mjs`, Server mit
@@ -487,9 +487,9 @@ Tag `radiotest`). Die Werte stehen in `audio-measures.txt` neben den Fotos.
 
 | Messung | `sc_phone` (API 36) | `sc_tablet` (API 36) |
 |---|---|---|
-| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 687 ms | 306 ms |
-| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 82'012 ms | 80'158 ms |
-| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'417 ms | 72'670 ms |
+| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 372 ms | 319 ms |
+| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 74'683 ms | 77'184 ms |
+| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'668 ms | 72'651 ms |
 
 Weitere Ergebnisse des Ablaufs:
 
@@ -497,7 +497,8 @@ Weitere Ergebnisse des Ablaufs:
 - Die Mitteilung zeigt Titel, Autor, −15 s, +30 s und Pause (Foto `a04-notification`).
 - Eine Podcast-Folge spielt, nachdem das Buch mit seiner letzten Meldung beendet wurde.
 - Ein Sender spielt länger als ein Herzschlag (30 s) ohne Fehler und endet mit dem Kreuz des
-  kleinen Players (`endRadioListen`).
+  kleinen Players (`endRadioListen`). Das Skript prüft danach im Log des Servers, dass mindestens ein
+  Herzschlag mit 200 ankam; ohne ihn schlägt der Lauf fehl.
 
 Der Server liegt um höchstens eine Meldung (10 s Spielzeit) hinter dem Gerät. Beim Beenden geht die
 letzte Meldung mit. **Akku lässt sich im Emulator nicht messen**: Das bleibt ein Gerätepunkt (Liste
@@ -527,3 +528,78 @@ unten, Punkt 1).
 9. Ein Hörbuch herunterladen, dann den Flugmodus einschalten: Das Buch spielt aus «Downloads» im
    Tonplayer, Kapitel und Tempo gehen.
 10. Schlaftimer «Ende des Kapitels»: Der Ton hält am Kapitelende an.
+11. «Abspielen» tippen und das Handy sofort sperren, auch bei einem Titel, der erst umgewandelt wird:
+    Der Ton beginnt, die Mitteilung erscheint. Erscheint sie nicht, steht im Log
+    «foreground service not allowed» (Android verweigert den Vordergrunddienst nach dem Verlassen
+    der App); dann diesen Fall melden.
+12. Beim ersten Ton fragt Android 13 und neuer nach Mitteilungen. Abgelehnt: Der Ton spielt trotzdem.
+
+## Stufe 8: Wünsche und Meldungen (22. November 2026)
+
+### Push von der Meldung am Server bis zur Anzeige (lokaler Aufbau, ohne Google)
+
+Aufbau: Server mit `--dev` und `SLOUCHCAT_PUSH_RELAY=http://127.0.0.1:9680`, `relay/bin/push` auf 9680,
+`relay/bin/fcmfake` auf 9681 statt Google (`task android:contract CONTRACT_PORT=9597`, Test
+`MessagesContractTest.pushEndToEndThroughTheRelayWithoutGoogle`).
+
+| Strecke | Messwert |
+|---|---|
+| `testMyChannel(push)` bis die Nachricht bei `fcmfake` liegt (Server verschlüsselt, VAPID, Weiterleitung prüft und reicht weiter) | 22 ms |
+| Grösse des Körpers für die Weiterleitung | 2700 Byte (Satzgrösse aus Stufe 0) |
+| Entschlüsseln von `data.wp` mit dem Code der App (JVM) | unter 5 ms, im Lauf nicht getrennt gemessen |
+| Emulator: Nachricht aus `fcmfake` an die Empfangsklasse bis zur Mitteilung (`MessagesFlowTest`) | im Ablauf ohne eigene Zeitmessung; Mitteilung im Ablauf sofort vorhanden |
+
+Ohne Firebase-Projekt gibt es kein echtes FCM: Der Weg Google → Gerät ist nicht gemessen.
+
+### Auf einem echten Gerät noch zu messen (braucht das Firebase-Projekt)
+
+1. Meldung bei **geschlossener App** (weggewischt): Testmeldung aus der Web-App, Zeit bis zur
+   Mitteilung.
+2. Meldung im **Doze**: `adb shell dumpsys deviceidle force-idle`, Testmeldung; Die Weiterleitung
+   sendet mit `Urgency` des Servers (normal → `NORMAL`): erwartet ist Zustellung im nächsten
+   Wartungsfenster. Danach `adb shell dumpsys deviceidle unforce`.
+3. Token-Wechsel: App-Daten von Google-Play-Diensten löschen oder App neu installieren, App öffnen:
+   der Server listet genau ein Abo dieses Geräts.
+
+## Stufe 9: Fernseher verbinden (22. November 2026)
+
+**Im Emulator und auf dem Host geprüft**, nicht mit echten Geräten:
+
+| Prüfung | Handy | Fernseher | Ergebnis |
+|---|---|---|---|
+| `TvLinkFlowTest` (`task android:e2e CLASS=…TvLinkFlowTest`) | Handy-App in `sc_phone` und `sc_tablet`, Scan über eine Test-Naht | `TvPairing` aus `:core:pairing` (dieselbe Logik wie die TV-App) | koppelt über `relay/bin/pair` in rund 2 s nach «Verbinden»; 410, 404 und «Vermittlung weg» mit echten Antworten; Handy und Tablet grün |
+| `task android:e2e:pair` | Kotlin der Handy-App als JVM-Programm (`:core:pairing:phoneCheck`) | TV-App in `sc_tv` | koppelt (`TvFlowTest` 3 Tests grün, `phonecheck: the TV is listed under «Meine Geräte»`) |
+| Host | `phoneCheck` (Kotlin) | `apicheck -pair-tv` (Go) | koppelt; Go öffnet das Paket aus Kotlin |
+
+Zwei Emulatoren zugleich (echte TV-App und echte Handy-App) passen nicht auf die Maschine; die zwei Hälften
+oben decken je eine Seite mit der echten App ab.
+
+**Gerätecheckliste Stufe 9 (nur Marco, echtes Handy, echter Fernseher, echte Vermittlung):**
+
+1. Fernseher: «Mit dem Handy einrichten». Handy (Hauptprofil): «Mehr › Fernseher verbinden › Scanner
+   öffnen». Der Scanner von Google öffnet sich ohne Frage nach der Kamera und liest den Code auch bei
+   Spiegelung am Bildschirm.
+2. Die Frage zeigt Konto, Server und «(Hauptprofil)»; bei einem Server über HTTP die Warnung.
+3. «Verbinden»: drei Zeilen, dann «Verbunden» mit dem Namen des Fernsehers innerhalb weniger Sekunden. Der
+   Fernseher zeigt Server und Konto, dann die Profilwahl. Die Meldung «Neues Gerät verbunden» kommt per
+   E-Mail/Telegram und (Stufe 8) als Push.
+4. Unter «Meine Geräte» steht der Fernseher; dort abmelden: Der Fernseher kehrt zur Einrichtung zurück.
+5. Denselben Code ein zweites Mal scannen: Warnung «Am Treffpunkt liegt schon ein Paket».
+6. Ein Kinderprofil: Die Seite zeigt den Hinweis «nur das Hauptprofil» und «Profil wechseln», keinen Scanner.
+7. Während «Fernseher meldet sich an …» die App verlassen: Zurück in der App steht «Du hast die Seite
+   verlassen …» mit dem Weg zu «Meine Geräte».
+8. Den Code eines Fernsehers mit einer anderen Vermittlung scannen: Ablehnung mit dem Namen der Vermittlung.
+9. Ohne Internet am Handy (nur WLAN zum Server): «Die Vermittlung antwortet nicht» mit dem Hinweis auf
+   «Von Hand einrichten».
+10. Bauart `foss` (von Hand installiert): Der Scanner fragt nach der Kamera; ablehnen zeigt den Hinweis und
+    «Einstellungen öffnen»; erlauben liest den Code. Ein anderer QR-Code im Bild (WLAN, Verpackung) beendet
+    den Scanner nicht.
+11. Bauart `foss`, Kaltstart: «Scanner öffnen» und sofort «Scanner schliessen». Das Kamera-Symbol von
+    Android erlischt sofort und bleibt aus, solange die Einleitung sichtbar ist.
+12. Erster Scan auf einem Handy, auf dem noch keine App Googles Code-Scanner benutzt hat (oder nach
+    «Daten löschen» der Play-Dienste): «Scanner wird geladen …», danach öffnet der Scanner von selbst.
+    Klappt das Laden nicht, sagt die Seite «wird noch geladen, gleich nochmals», nicht «keine Kamera».
+13. Auf «Verbunden»: «Nicht mein Fernseher – abmelden»; der Fernseher fällt zurück auf die Einrichtung.
+14. Während Googles Scanner offen ist, den Dunkelmodus umschalten oder die App vom System beenden lassen
+    (Entwickleroption «Aktivitäten nicht speichern»): Zurück in der App steht die Einleitung ohne
+    Meldung; ein neuer Scan klappt (bekannte Grenze, Code-Review L-6).

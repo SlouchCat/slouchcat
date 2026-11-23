@@ -1,6 +1,5 @@
 package com.slouchcat.app.mobile.collections
 
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.pluralStringResource
@@ -140,6 +138,8 @@ fun CollectionScreen(
     onOpen: (String) -> (() -> Unit)?,
     onPlay: (String) -> (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Stage 7: an audiobook or podcast episode plays in the audio player (`null`: [onPlay] for all). */
+    onListen: ((String) -> (() -> Unit)?)? = null,
 ) {
     val c = SlouchcatTheme.colors
     Box(modifier.fillMaxSize().background(c.bg)) {
@@ -150,7 +150,7 @@ fun CollectionScreen(
                     page.items,
                     key = { it.id },
                     header = {
-                        fullWidth("head") { Head(page, state, images, onListAll, onWatched, onOpen, onPlay) }
+                        fullWidth("head") { Head(page, state, images, onListAll, onWatched, onOpen, onPlay, onListen) }
                         fullWidth("members") {
                             Text(
                                 stringResource(R.string.app_collections_members),
@@ -234,13 +234,20 @@ private fun Head(
     onWatched: () -> Unit,
     onOpen: (String) -> (() -> Unit)?,
     onPlay: (String) -> (() -> Unit)?,
+    onListen: ((String) -> (() -> Unit)?)?,
 ) {
     val c = SlouchcatTheme.colors
     val wide = isWideLayout()
     val collection = page.collection
     val poster = remember(collection.image, page.parts, images) { collectionPoster(images, collection.image, page.parts.firstOrNull()) }
     val next = collection.next
-    val play = next?.let { if (CollectionViewModel.playsFromOwnPage(it)) onOpen(it.id) else onPlay(it.id) }
+    val play = next?.let {
+        when {
+            CollectionViewModel.playsFromOwnPage(it) -> onOpen(it.id)
+            onListen != null && com.slouchcat.core.media.isAudio(it.kind) -> onListen(it.id)
+            else -> onPlay(it.id)
+        }
+    }
     val label = playLabel(collection)
     val text: @Composable (Alignment.Horizontal, TextAlign) -> Unit = { align, textAlign ->
         Column(horizontalAlignment = align, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -288,14 +295,9 @@ private fun Head(
         }
     }
     Box(Modifier.fillMaxWidth()) {
-        // The blurred poster behind the head (`.colp-bg`); without blur before Android 12 the shade carries it.
+        // The blurred poster behind the head (`.colp-bg`), blurred on the CPU (no RenderEffect, stage 7).
         Box(Modifier.matchParentSize().clip(RoundedCornerShape(0.dp))) {
-            MediaImage(
-                poster,
-                collection.name,
-                Modifier.matchParentSize().then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(40.dp) else Modifier),
-                placeholder = false,
-            )
+            com.slouchcat.app.mobile.media.BlurredImage(poster, Modifier.matchParentSize())
             Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(c.scrim, c.bg))))
         }
         if (wide) {

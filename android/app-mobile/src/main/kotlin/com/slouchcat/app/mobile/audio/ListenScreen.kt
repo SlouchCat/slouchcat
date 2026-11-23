@@ -1,6 +1,19 @@
 package com.slouchcat.app.mobile.audio
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,8 +35,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -111,7 +122,15 @@ enum class ListenSheet { Speed, Sleep, Chapters }
  * buttons for speed, sleep timer and chapters. From 700 dp the cover stands left of the controls.
  */
 @Composable
-fun ListenScreen(ui: ListenUi, events: ListenEvents, initialSheet: ListenSheet? = null) {
+fun ListenScreen(
+    ui: ListenUi,
+    events: ListenEvents,
+    initialSheet: ListenSheet? = null,
+    /** «Zum Titel» at the top right (mockup: the info button); `null`: no page for it. */
+    onDetails: (() -> Unit)? = null,
+    /** «Laden»: the download of the title with its dialog (stage 6); `null`: no download here. */
+    download: (@Composable () -> Unit)? = null,
+) {
     val c = SlouchcatTheme.colors
     var sheet by rememberSaveable { mutableStateOf(initialSheet) }
     val wide = isWideLayout()
@@ -122,7 +141,7 @@ fun ListenScreen(ui: ListenUi, events: ListenEvents, initialSheet: ListenSheet? 
             .safeDrawingPadding(),
     ) {
         Column(Modifier.fillMaxSize()) {
-            Header(ui, events)
+            Header(ui, events, onDetails)
             if (wide) {
                 Row(
                     Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp),
@@ -130,7 +149,7 @@ fun ListenScreen(ui: ListenUi, events: ListenEvents, initialSheet: ListenSheet? 
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Cover(ui, Modifier.weight(1f).widthIn(max = 460.dp))
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { Controls(ui, events) { sheet = it } }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { Controls(ui, events, download) { sheet = it } }
                 }
             } else {
                 Column(
@@ -138,7 +157,7 @@ fun ListenScreen(ui: ListenUi, events: ListenEvents, initialSheet: ListenSheet? 
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Cover(ui, Modifier.fillMaxWidth(0.82f).widthIn(max = 420.dp))
-                    Controls(ui, events) { sheet = it }
+                    Controls(ui, events, download) { sheet = it }
                 }
             }
         }
@@ -154,7 +173,7 @@ fun ListenScreen(ui: ListenUi, events: ListenEvents, initialSheet: ListenSheet? 
 
 /** «Hörbuch · Kapitel 8 von 20» between the close button and the end (mockup `.lp-top`). */
 @Composable
-private fun Header(ui: ListenUi, events: ListenEvents) {
+private fun Header(ui: ListenUi, events: ListenEvents, onDetails: (() -> Unit)?) {
     val c = SlouchcatTheme.colors
     val state = ui.state
     val chapters = state?.chapters.orEmpty()
@@ -174,8 +193,9 @@ private fun Header(ui: ListenUi, events: ListenEvents) {
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(end = 48.dp),
+            modifier = Modifier.weight(1f).padding(end = if (onDetails == null) 48.dp else 0.dp),
         )
+        onDetails?.let { SlouchcatIconButton(SlouchcatIcon.Info, contentDescription = stringResource(R.string.app_audio_details), onClick = it) }
     }
 }
 
@@ -191,7 +211,7 @@ private fun Cover(ui: ListenUi, modifier: Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Controls(ui: ListenUi, events: ListenEvents, openSheet: (ListenSheet) -> Unit) {
+private fun Controls(ui: ListenUi, events: ListenEvents, download: (@Composable () -> Unit)?, openSheet: (ListenSheet) -> Unit) {
     val c = SlouchcatTheme.colors
     val state = ui.state
     val item = state?.item
@@ -223,7 +243,7 @@ private fun Controls(ui: ListenUi, events: ListenEvents, openSheet: (ListenSheet
             if (error.retryable) SlouchcatButton(stringResource(R.string.app_state_retry), onClick = events::onRetry, kind = ButtonKind.Secondary, block = true)
         }
     }
-    Timeline(position, duration, state?.bufferedMs ?: 0, enabled = state != null && !state.loading && error == null, onSeek = events::onSeekTo)
+    Timeline(position, duration, chapters, enabled = state != null && !state.loading && error == null, onSeek = events::onSeekTo)
     if (duration > 0) {
         val percent = (position * 100 / duration).toInt()
         Text(
@@ -254,37 +274,98 @@ private fun Controls(ui: ListenUi, events: ListenEvents, openSheet: (ListenSheet
         if (chapters.isNotEmpty()) {
             SlouchcatButton(stringResource(R.string.player_chapters_button), onClick = { openSheet(ListenSheet.Chapters) }, kind = ButtonKind.Ghost, leadingIcon = SlouchcatIcon.List)
         }
+        download?.invoke()
     }
 }
 
-/** The bar with the time played and the time left (`.lp-bar`); TalkBack hears «27:46 von 1:06:25». */
+/**
+ * The timeline (`.lp-bar`, mockup photo 37): a thin line, the played part in the accent colour, a
+ * round knob, the chapter starts as gaps; tap or drag to jump. TalkBack hears «27:46 von 1:06:25»
+ * and can set the position.
+ */
 @Composable
-private fun Timeline(position: Long, duration: Long, buffered: Long, enabled: Boolean, onSeek: (Long) -> Unit) {
+private fun Timeline(position: Long, duration: Long, chapters: List<Chapter>, enabled: Boolean, onSeek: (Long) -> Unit) {
     val c = SlouchcatTheme.colors
+    val total = duration.coerceAtLeast(1)
     var dragging by remember { mutableStateOf<Float?>(null) }
-    val shown = dragging?.toLong() ?: position
+    var width by remember { mutableFloatStateOf(1f) }
+    val played = dragging ?: (position.toFloat() / total).coerceIn(0f, 1f)
+    val shown = (played * total).toLong()
     val label = stringResource(R.string.player_seek)
     val time = stringResource(R.string.player_time, timecode(shown), timecode(duration))
+    val density = LocalDensity.current
     Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
-        Slider(
-            value = shown.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat()),
-            onValueChange = { dragging = it },
-            onValueChangeFinished = {
-                dragging?.let { onSeek(it.toLong()) }
-                dragging = null
-            },
-            valueRange = 0f..duration.coerceAtLeast(1).toFloat(),
-            enabled = enabled && duration > 0,
-            colors = SliderDefaults.colors(thumbColor = c.tx, activeTrackColor = c.accent, inactiveTrackColor = c.s3),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics {
-                contentDescription = label
-                stateDescription = time
-            },
-        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+                .then(
+                    if (!enabled || duration <= 0) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .pointerInput(total) { detectTapGestures { offset -> onSeek(((offset.x / width).coerceIn(0f, 1f) * total).toLong()) } }
+                            .pointerInput(total) {
+                                var last = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { offset ->
+                                        last = (offset.x / width).coerceIn(0f, 1f)
+                                        dragging = last
+                                    },
+                                    onDragEnd = {
+                                        onSeek((last * total).toLong())
+                                        dragging = null
+                                    },
+                                    onDragCancel = { dragging = null },
+                                ) { change, _ ->
+                                    last = (change.position.x / width).coerceIn(0f, 1f)
+                                    dragging = last
+                                }
+                            }
+                    },
+                )
+                .semantics {
+                    contentDescription = label
+                    stateDescription = time
+                    progressBarRangeInfo = ProgressBarRangeInfo(played, 0f..1f)
+                    if (enabled) {
+                        setProgress { target ->
+                            onSeek((target.coerceIn(0f, 1f) * total).toLong())
+                            true
+                        }
+                    }
+                },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.s3))
+            Box(Modifier.fillMaxWidth(played).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.accent))
+            chapters.filter { it.startMs > 0 && it.startMs < total }.forEach { chapter ->
+                val x = with(density) { (width * chapter.startMs / total).toDp() }
+                Box(Modifier.offset(x = x - 1.dp).width(2.dp).height(8.dp).background(c.bg))
+            }
+            val knob = with(density) { (width * played).toDp() }
+            Box(Modifier.offset(x = knob - 9.dp).size(if (dragging != null) 22.dp else 18.dp).clip(CircleShape).background(c.tx))
+        }
         Row(Modifier.fillMaxWidth()) {
             Text(timecode(shown), style = SlouchcatType.caption, color = c.tx2, modifier = Modifier.weight(1f))
             Text(stringResource(R.string.app_player_remaining, timecode(duration - shown)), style = SlouchcatType.caption, color = c.tx2)
         }
+    }
+}
+
+/** A jump of [seconds] (mockup: the circling arrow with the number inside). */
+@Composable
+private fun JumpButton(icon: SlouchcatIcon, seconds: Long, label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = SlouchcatTheme.colors
+    Box(contentAlignment = Alignment.Center) {
+        SlouchcatIconButton(icon, label, onClick, enabled = enabled, modifier = Modifier.size(56.dp))
+        Text(
+            NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(seconds),
+            style = SlouchcatType.label.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+            color = if (enabled) c.tx else c.tx3,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }
 
@@ -306,7 +387,7 @@ private fun Transport(ui: ListenUi, events: ListenEvents) {
         } else if (state?.previous != null) {
             SlouchcatIconButton(SlouchcatIcon.Prev, stringResource(R.string.app_audio_previousEpisode), events::onPreviousEpisode, enabled = ready)
         }
-        SlouchcatIconButton(SlouchcatIcon.Rew, stringResource(R.string.player_audio_back15), events::onBack, enabled = ready)
+        JumpButton(SlouchcatIcon.Rew, AudioRules.BACK_MS / 1000, stringResource(R.string.player_audio_back15), ready, events::onBack)
         val playing = state?.let { it.playing || (it.buffering && !it.ended) } == true
         val label = stringResource(if (playing) R.string.player_pause else R.string.player_play)
         Box(
@@ -320,7 +401,7 @@ private fun Transport(ui: ListenUi, events: ListenEvents) {
         ) {
             SlouchcatIconImage(if (playing) SlouchcatIcon.Pause else SlouchcatIcon.Play, contentDescription = null, size = 34.dp, tint = c.bg)
         }
-        SlouchcatIconButton(SlouchcatIcon.Fwd, stringResource(R.string.player_audio_forward30), events::onForward, enabled = ready)
+        JumpButton(SlouchcatIcon.Fwd, AudioRules.FORWARD_MS / 1000, stringResource(R.string.player_audio_forward30), ready, events::onForward)
         if (chapters.isNotEmpty()) {
             SlouchcatIconButton(SlouchcatIcon.Next, stringResource(R.string.player_audio_nextChapter), events::onNextChapter, enabled = ready && AudioRules.nextChapterStart(chapters, position) != null)
         } else if (state?.next != null) {
@@ -334,10 +415,13 @@ private fun Transport(ui: ListenUi, events: ListenEvents) {
 fun chapterTitle(chapter: Chapter, index: Int): String =
     chapter.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.player_chapters_untitled, (index + 1).toString())
 
-/** «1,0×» in the format of the language (web `player.audio.rate`). */
+/**
+ * «1,0×» in the format of the language (web `player.audio.rate`): the language without its region, as
+ * the web app and the sizes of the downloads write it (Swiss German with the decimal comma too).
+ */
 @Composable
 fun rateText(speed: Float): String {
-    val format = NumberFormat.getNumberInstance(LocalConfiguration.current.locales[0]).apply {
+    val format = NumberFormat.getNumberInstance(java.util.Locale.forLanguageTag(LocalConfiguration.current.locales[0].language)).apply {
         minimumFractionDigits = 1
         maximumFractionDigits = 2
     }

@@ -12,7 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.tv.TvGraph
-import com.slouchcat.app.tv.common.MemoryRelaySettings
+import com.slouchcat.core.session.MemoryRelaySettings
 import com.slouchcat.app.tv.testing.FakeAuth
 import com.slouchcat.app.tv.testing.FakeProbe
 import com.slouchcat.app.tv.testing.TV

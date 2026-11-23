@@ -96,7 +96,14 @@ data object NotificationsRoute
  * download of stage 6.
  */
 @Serializable
-data class ListenRoute(val itemId: String, val startAtMs: Long = PlayerRoute.NO_POSITION, val fromStart: Boolean = false, val offline: Boolean = false)
+data class ListenRoute(
+    val itemId: String,
+    val startAtMs: Long = PlayerRoute.NO_POSITION,
+    val fromStart: Boolean = false,
+    val offline: Boolean = false,
+    /** `false`: only open the player (the mini player, «Zuletzt gehört»); nothing starts or resumes (code review M-1). */
+    val play: Boolean = true,
+)
 
 /** The series of an audiobook (web `/libraries/$libraryId/series/$seriesId`). */
 @Serializable

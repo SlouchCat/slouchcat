@@ -10,4 +10,13 @@
             <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <!-- The push relay of the project (stage 8, security review L-1): HTTPS with a certificate of the
+         system only, never plain HTTP, never a user-installed authority. A build with its own relay
+         (slouchcat.pushRelay) names it here too. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">push.slouchcat.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

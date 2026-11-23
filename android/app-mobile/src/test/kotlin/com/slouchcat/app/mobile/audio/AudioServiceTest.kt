@@ -1,6 +1,9 @@
 package com.slouchcat.app.mobile.audio
 
 import android.app.Application
+import android.content.Intent
+import android.media.AudioManager
+import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import com.slouchcat.core.player.AudioPlayback
@@ -13,6 +16,7 @@ import com.slouchcat.core.player.DisplayInfo
 import com.slouchcat.core.player.EngineKind
 import com.slouchcat.core.player.Media3Engine
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
+import com.slouchcat.core.player.TrustedControllers
 import com.slouchcat.core.player.testing.FakeRadioServer
 import com.slouchcat.core.player.testing.FakeServer
 import com.slouchcat.core.player.testing.audioInfo
@@ -25,6 +29,7 @@ import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,7 +47,7 @@ class AudioTestApp : Application(), AudioHost {
     val engines = mutableListOf<Media3Engine>()
     private val facts = DeviceFacts(listOf(DecoderInfo("audio/mp4a-latm")), emptySet(), 2, DisplayInfo(1080, 2400), DeviceType.Phone, "Test")
 
-    override val audioHttp = OkHttpClient()
+    val audioHttp = OkHttpClient()
 
     @androidx.annotation.OptIn(UnstableApi::class)
     override val audioPlayback: AudioPlayback by lazy {
@@ -106,20 +111,68 @@ class AudioServiceTest {
     }
 
     @Test
-    fun swipedAwayWhilePausedEndsTheService() {
+    fun swipedAwayWhilePausedEndsTheSoundAndTheService() {
         app.audioPlayback.playTitle("book", app.online)
         idle()
         val service = Robolectric.buildService(AudioService::class.java).create().get()
         app.engines.single().pause()
         service.onTaskRemoved(null)
+        idle()
+        // Code review m-3: not only the service, the sound too, with its end at the server.
         assertTrue(shadowOf(service).isStoppedBySelf)
+        assertNull(app.audioPlayback.now.value)
+        assertTrue(app.titles.stops.isNotEmpty())
+        assertTrue(service.sessions.isEmpty())
+    }
+
+    @Test
+    fun swipedAwayWhilePlayingPlaysOn() {
+        app.audioPlayback.playTitle("book", app.online)
+        idle()
+        val service = Robolectric.buildService(AudioService::class.java).create().get()
+        app.engines.single().play()
+        service.onTaskRemoved(null)
+        idle()
+        assertFalse(shadowOf(service).isStoppedBySelf)
+        assertNotNull(app.audioPlayback.now.value)
+        assertTrue(app.titles.stops.isEmpty())
+        assertEquals(1, service.sessions.size)
+    }
+
+    @Test
+    fun headphonesPulledOutPauseTheSound() {
+        app.audioPlayback.playTitle("book", app.online)
+        idle()
+        val player = app.engines.single().player
+        player.play()
+        idle()
+        app.sendBroadcast(Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        idle()
+        assertFalse(player.playWhenReady)
     }
 
     @Test
     fun theSessionTurnsAwayStrangersAndTakesNoMedia() {
-        assertTrue(com.slouchcat.core.player.TrustedControllers.accepts("com.slouchcat.app", "com.slouchcat.app", notification = false, trusted = false))
-        assertFalse(com.slouchcat.core.player.TrustedControllers.accepts("com.slouchcat.app", "org.example.listener", notification = false, trusted = false))
-        assertFalse(com.slouchcat.core.player.TrustedControllers.COMMANDS.contains(androidx.media3.common.Player.COMMAND_SET_MEDIA_ITEM))
+        val own = 10_123
+        // By UID, not by the package a connection names (security review L-1).
+        assertEquals(TrustedControllers.Level.Own, TrustedControllers.level(own, own, notification = false, trusted = false))
+        assertEquals(TrustedControllers.Level.Own, TrustedControllers.level(own, 1_000, notification = true, trusted = true))
+        assertEquals(TrustedControllers.Level.Trusted, TrustedControllers.level(own, 10_456, notification = false, trusted = true))
+        assertEquals(TrustedControllers.Level.None, TrustedControllers.level(own, 10_456, notification = false, trusted = false))
+        assertFalse(TrustedControllers.COMMANDS.contains(Player.COMMAND_SET_MEDIA_ITEM))
+        // A trusted app (also one with access to the notifications) plays, pauses, jumps and stops.
+        listOf(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD, Player.COMMAND_STOP).forEach {
+            assertTrue(TrustedControllers.TRUSTED_COMMANDS.contains(it))
+        }
+        listOf(Player.COMMAND_SET_MEDIA_ITEM, Player.COMMAND_CHANGE_MEDIA_ITEMS, Player.COMMAND_SET_SPEED_AND_PITCH, Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM).forEach {
+            assertFalse(TrustedControllers.TRUSTED_COMMANDS.contains(it))
+        }
         assertNotNull(EngineKind.Speech)
+    }
+
+    @Test
+    fun theServiceIsNotExported() {
+        val info = app.packageManager.getServiceInfo(android.content.ComponentName(app, AudioService::class.java), 0)
+        assertFalse(info.exported)
     }
 }

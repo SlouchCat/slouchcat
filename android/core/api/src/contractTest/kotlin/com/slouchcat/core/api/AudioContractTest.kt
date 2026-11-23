@@ -175,6 +175,13 @@ class AudioContractTest {
             assertEquals(2, page.total)
             assertEquals(1, page.episodes.size)
             val episode = page.episodes.single().id
+            // Newest first (code review stage 7 L-6): «Neueste Folge» of the download dialog takes
+            // episodes[0] of the detail; the pages and the detail agree, the dates fall.
+            val all = items.listPodcastEpisodes(podcast.id, 0, 10)!!.episodes
+            assertEquals(episode, all.first().id)
+            assertEquals(all.first().id, items.getItem(podcast.id)!!.episodes!!.first().id)
+            val dates = all.mapNotNull { it.publishedAt }
+            assertEquals(dates.sortedDescending(), dates)
             items.setItemWatched(episode, ItemWatchedRequest(true))
             assertTrue(items.getItem(episode)!!.progress?.watchedAt != null)
             items.setItemWatched(episode, ItemWatchedRequest(false))

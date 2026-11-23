@@ -63,7 +63,7 @@ import java.io.File
  * adds its own two libraries over the shared web session (`DetailFlowTest.Admin`), signs the app
  * in and plays the audiobook (chapter, speed), sends the app to the background (the media session
  * plays on), comes back and reads the progress at the server; then a podcast episode; with
- * `slouchcatRadio` (RADIO=1) a station of the test stream for longer than a heartbeat, and its end.
+ * `slouchcatRadio` (every run of the script) a station of the test stream for longer than a heartbeat, and its end.
  * At the end it removes its libraries again. With `slouchcatShots` it photographs every page (prefix `a`).
  */
 @RunWith(AndroidJUnit4::class)
@@ -256,6 +256,8 @@ class AudioFlowTest {
 
     @Test
     fun audiobookInTheBackgroundEpisodeAndRadio() {
+        // The first sound asks for the notifications (security review L-7); granted, no dialog in the flow.
+        instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         prepareServer()
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         signIn()
@@ -340,7 +342,8 @@ class AudioFlowTest {
             shot("a08-radio")
             compose.onAllNodes(hasText("Testradio Eins")).onFirst().performClick()
             compose.waitUntil(30_000) { (now() as? AudioNow.Radio)?.state?.playing == true }
-            // Longer than a heartbeat (30 s): the server keeps the listen and counts the time.
+            // Longer than a heartbeat (30 s): the server keeps the listen and counts the time. The
+            // script checks in the server's log that a heartbeat arrived (code review m-8).
             val listening = SystemClock.elapsedRealtime()
             compose.waitUntil(45_000) { SystemClock.elapsedRealtime() - listening > HEARTBEAT_MS || (now() as? AudioNow.Radio)?.state?.error != null }
             assertEquals(null, (now() as? AudioNow.Radio)?.state?.error)

@@ -20,12 +20,27 @@ android {
     // Google's libraries. Today both are the same; only `play` is ever published.
     flavorDimensions += "distribution"
     productFlavors {
-        create("play") { dimension = "distribution" }
+        // Push (stage 8, concept 27 7.3): Firebase from four Gradle properties or environment
+        // variables, never from a checked-in google-services.json. Empty values build `play`
+        // without push; the app says so in «Einstellungen › Benachrichtigungen». The hand-over of
+        // stage 8 names the values; nothing real is ever checked in.
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(setting("slouchcat.firebase.projectId", "SLOUCHCAT_FIREBASE_PROJECT_ID")))
+            buildConfigField("String", "FIREBASE_APP_ID", quoted(setting("slouchcat.firebase.appId", "SLOUCHCAT_FIREBASE_APP_ID")))
+            buildConfigField("String", "FIREBASE_API_KEY", quoted(setting("slouchcat.firebase.apiKey", "SLOUCHCAT_FIREBASE_API_KEY")))
+            buildConfigField("String", "FIREBASE_SENDER_ID", quoted(setting("slouchcat.firebase.senderId", "SLOUCHCAT_FIREBASE_SENDER_ID")))
+        }
         // Its own id, so both builds can sit side by side on one device.
         create("foss") {
             dimension = "distribution"
             applicationIdSuffix = ".foss"
         }
+    }
+    defaultConfig {
+        // The push relay of this build (concept 27, 7.3): fixed in the app (F-21: not changeable
+        // in the app); a build with its own Firebase project names its own relay here.
+        buildConfigField("String", "PUSH_RELAY", quoted(setting("slouchcat.pushRelay", "SLOUCHCAT_PUSH_RELAY").ifEmpty { "https://push.slouchcat.com" }))
     }
     // R8 from the start, so a page that needs a keep rule shows it in `task android:apk` and
     // not first in the store build. Unsigned here; signing comes with the release (11.2).
@@ -39,6 +54,8 @@ android {
 }
 
 dependencies {
+    // Google's push only in `play` (F-33): `foss` has no Firebase on its class path.
+    "playImplementation"(libs.firebase.messaging)
     implementation(project(":core:api"))
     implementation(project(":core:session"))
     implementation(project(":core:design"))
@@ -48,6 +65,15 @@ dependencies {
     implementation(project(":core:browse"))
     testImplementation(project(":core:browse-testing"))
     implementation(project(":core:offline"))
+    // «Fernseher verbinden» (stage 9): the phone's side of the pairing, the relay setting, the scanner.
+    implementation(project(":core:pairing"))
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.zxing.core)
+    "playImplementation"(libs.play.code.scanner)
+    "playImplementation"(libs.play.services.base)
+    "fossImplementation"(libs.camerax.camera2)
+    "fossImplementation"(libs.camerax.lifecycle)
+    "fossImplementation"(libs.camerax.view)
     implementation(libs.media3.ui)
     // Stage 7: covers of the media notification through the shared OkHttp client (token, gate).
     implementation(libs.media3.datasource.okhttp)
@@ -60,6 +86,9 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    // The check of the push subscription in the background (stage 8, concept 27 7.3).
+    implementation(libs.work.runtime)
+    testImplementation(libs.work.testing)
     testImplementation(project(":core:player-testing"))
     testImplementation(libs.coroutines.test)
     androidTestImplementation(platform(libs.compose.bom))
@@ -70,4 +99,35 @@ dependencies {
     // Stage 7: the showcase of the sound plays fake players over made-up titles and stations.
     androidTestImplementation(project(":core:player-testing"))
     androidTestImplementation(project(":core:browse-testing"))
+}
+
+/** A Gradle property, else an environment variable, else empty (the Firebase values of stage 8). */
+fun setting(property: String, environment: String): String =
+    (providers.gradleProperty(property).orNull ?: providers.environmentVariable(environment).orNull).orEmpty().trim()
+
+fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+// The two flavours stay apart (code review m-9, docs/store/datensicherheit.md 1.3): the merged
+// manifest of `play` declares no camera permission (Google's code scanner needs none), and `foss`
+// carries no library of Google's Play services, ML Kit or Firebase. Part of `ciCheck`.
+tasks.register("checkFlavourSeparation") {
+    group = "verification"
+    description = "The merged manifest of play has no CAMERA, foss has no Google Play services, ML Kit or Firebase"
+    val play = layout.buildDirectory.file("intermediates/merged_manifest/playRelease/processPlayReleaseMainManifest/AndroidManifest.xml")
+    val foss = layout.buildDirectory.file("intermediates/merged_manifest/fossRelease/processFossReleaseMainManifest/AndroidManifest.xml")
+    val fossModules = configurations.named("fossReleaseRuntimeClasspath").map { classpath ->
+        classpath.incoming.resolutionResult.allComponents.mapNotNull { (it.id as? ModuleComponentIdentifier)?.let { m -> "${m.group}:${m.module}" } }.sorted()
+    }
+    dependsOn("processPlayReleaseMainManifest", "processFossReleaseMainManifest")
+    inputs.file(play)
+    inputs.file(foss)
+    inputs.property("fossModules", fossModules)
+    doLast {
+        val playManifest = play.get().asFile.readText()
+        check("android.permission.CAMERA" !in playManifest) { "the merged manifest of play declares the camera permission" }
+        val fossManifest = foss.get().asFile.readText()
+        check("com.google.android.gms" !in fossManifest && "com.google.mlkit" !in fossManifest) { "the merged manifest of foss names Google Play services or ML Kit" }
+        val google = fossModules.get().filter { it.startsWith("com.google.android.gms:") || it.startsWith("com.google.mlkit:") || it.startsWith("com.google.firebase:") }
+        check(google.isEmpty()) { "foss carries Google's libraries: $google" }
+    }
 }

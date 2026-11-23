@@ -63,6 +63,14 @@ class ServerImages(private val server: HttpUrl) {
     /** The title logo (only on the detail and the spotlight). */
     fun logo(images: ItemImages?): ImageSet = single(images?.logo)
 
+    /** The poster sizes of a title outside the library (`getExternalTitleImage`, stage 8: wishes). */
+    fun externalPosters(images: com.slouchcat.core.api.generated.models.ExternalTitleImages?): ImageSet =
+        set(images?.posterSmall, images?.poster, images?.posterLarge)
+
+    /** The backdrop sizes of a title outside the library. */
+    fun externalBackdrops(images: com.slouchcat.core.api.generated.models.ExternalTitleImages?): ImageSet =
+        set(images?.backdropSmall, images?.backdrop, images?.backdropLarge)
+
     private val base: String = SlouchcatApi.basePath(server)
 
     private fun source(ref: ImageRef?): ImageSource? = ref?.let { r -> url(r)?.let { ImageSource(it, r.width) } }

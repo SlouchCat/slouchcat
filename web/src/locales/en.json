@@ -540,7 +540,9 @@
       "failed": "That did not work. Please try again.",
       "audiobooks": "Audiobooks",
       "podcasts": "Podcasts",
-      "noLibrary": "This profile sees no such library."
+      "noLibrary": "This profile sees no such library.",
+      "loadMore": "Load more episodes",
+      "details": "Go to the title"
     },
     "radio": {
       "title": "Web radio",
@@ -560,11 +562,169 @@
         "ended": "Playback was ended.",
         "network": "No connection to the server.",
         "failed": "This station cannot be played right now."
-      }
+      },
+      "searchClear": "Clear the search"
     },
-    "wishes": {},
-    "notifications": {},
-    "tv": {}
+    "wishes": {
+      "discoverIntro": "Titles that are not in the library yet. Your wish goes to Seerr.",
+      "off": {
+        "title": "Wishes are not set up",
+        "body": "The main user connects Seerr in the administration under Integrations and switches the wishes on there. Until then no title can be requested here."
+      },
+      "caption": "{{year}} · {{kind}}",
+      "steps": {
+        "label": "State of the wish",
+        "requested": "Requested",
+        "approved": "Approved",
+        "loading": "Downloading",
+        "available": "Available",
+        "current": "{{step}}, current step",
+        "done": "{{step}}, done",
+        "open": "{{step}}, still open"
+      },
+      "requestedOn": "wished on {{date}}",
+      "keep": "Keep",
+      "request": "Request",
+      "requestNote": "Seerr gets the wish. Once the title is here, the app lets you know.",
+      "allSeasons": "All seasons",
+      "seasonsCount_one": "{{count}} season",
+      "seasonsCount_other": "{{count}} seasons",
+      "searchCard": "Wish for “{{query}}”",
+      "searchCardHint": "Search Seerr and send a wish",
+      "missingTitle": "Not in the library yet?",
+      "toMine": "My wishes",
+      "available": "Available: open the title",
+      "stale": "Seerr does not answer. You see what it sent last.",
+      "withdrawBody": "“{{title}}” is deleted in Seerr. You can request the title again later.",
+      "failed": "That did not work. Try again.",
+      "badge": "{{count}} open wishes"
+    },
+    "notifications": {
+      "settings": "Notification settings",
+      "settingsHint": "Push, e-mail and Telegram",
+      "bell_one": "Notifications, {{count}} new",
+      "bell_other": "Notifications, {{count}} new",
+      "unreadDot": "unread",
+      "device": "On this device",
+      "accountChannels": "Channels of the account",
+      "push": "Push notifications",
+      "pushHint": "Notifications appear on this device",
+      "pushNotInBuild": "This edition of the app has no push notifications. You find what is new here under “Notifications”, by e-mail or Telegram.",
+      "pushServerOff": "The server has no push set up. The main user does that in the administration under Integrations.",
+      "pushChannelOff": "Push is off for the account: this device is registered but gets nothing until the primary profile switches the channel “Push” on below.",
+      "pushBlocked": "Android does not show Slouchcat's notifications. Allow them so push notifications appear.",
+      "pushAllow": "Allow notifications",
+      "pushSystemSettings": "Open Android settings",
+      "pushBusy": "Registering …",
+      "pushFailed": {
+        "offline": "The server does not answer. The app tries again at the next start.",
+        "relay": "The push relay cannot be reached. The app tries again at the next start; the list here, e-mail and Telegram keep working.",
+        "google": "The device got no push token from Google. Check that Google Play services run.",
+        "server": "The server refused the subscription of this device."
+      },
+      "channelState": "{{channel}}, {{state}}",
+      "onlyPrimaryNote": "The channels apply to the whole account; only the primary profile can change them.",
+      "channelSheet": "Channel: {{channel}}",
+      "sendTest": "Send a test message",
+      "telegramCode": "Code: {{code}}",
+      "system": {
+        "content": "New episodes",
+        "wishes": "Wishes",
+        "account": "Account and devices",
+        "general": "Messages of the server"
+      },
+      "pushChannel": "Push",
+      "publicText": "New notification",
+      "pushOffPending": "Switched off. The server has not confirmed the removal yet: the app does it at the next contact. This device can no longer read a notification."
+    },
+    "tv": {
+      "title": "Connect a TV",
+      "moreHint": "Scan the QR code on the TV",
+      "intro": {
+        "title": "Connect a TV with your phone",
+        "lede": "No typing with the remote: the phone gives the TV its access.",
+        "step1": "Open the Slouchcat app on the TV. It shows a QR code.",
+        "step2": "Scan the code with this phone.",
+        "step3": "Confirm here. The TV signs in with your account.",
+        "scan": "Open scanner",
+        "cameraHint": "The app asks for the camera the first time.",
+        "googleHint": "The scanner of Google Play services reads the code. The app itself gets no access to the camera.",
+        "primaryOnly": "Only the primary profile can connect a TV. That way nobody adds a device to your account from a child profile.",
+        "linked": "Connected",
+        "since": "since {{date}}"
+      },
+      "scan": {
+        "title": "Scan QR code",
+        "close": "Close scanner",
+        "aim": "Point the camera at the code on the TV.",
+        "denied": "Without the camera the app cannot read the code. Allow the camera in the app's settings.",
+        "settings": "Open settings",
+        "loading": "Loading the scanner …"
+      },
+      "problem": {
+        "notACode": "This is not a code of the Slouchcat TV app. Scan the QR code the TV shows under “Set up with your phone”.",
+        "otherVersion": "This code comes from a newer TV app. Update the app on this phone.",
+        "otherRelay": "This code belongs to another relay. If you do not run a relay of your own, it is not a code of your TV app.",
+        "loading": "The scanner of Google Play services is still loading. Try again in a moment.",
+        "noPlayServices": "Google Play services are missing on this device or too old. Without them there is no scanner.",
+        "noCamera": "This device has no camera the app can read the code with.",
+        "scannerFailed": "The scanner could not be opened. Try again."
+      },
+      "confirm": {
+        "title": "Connect this TV to your account?",
+        "lede": "Only do this if the code is on your own TV.",
+        "account": "Account",
+        "server": "Server",
+        "by": "Confirmed by",
+        "primary": "{{name}} (primary profile)",
+        "profile": "{{name}} (profile)",
+        "hint": "The TV gets access to the profiles of this account, but not to the administration. It stays signed in until you sign it out under “My devices”.",
+        "plainHttp": "The connection to the server is not encrypted (HTTP). The TV then sends its access in the clear as well. Set up HTTPS for the server.",
+        "go": "Connect"
+      },
+      "run": {
+        "title": "Connecting …",
+        "failedTitle": "Not connected",
+        "voucher": "Voucher fetched from the server",
+        "handedOver": "Handed to the TV, encrypted",
+        "waiting": "TV is signing in …",
+        "done": "Done",
+        "busy": "Running",
+        "failed": "Failed",
+        "pending": "Waiting"
+      },
+      "fail": {
+        "occupied": "A packet is already waiting at the meeting point. The TV may be connected to someone else's server. Check which server and account the TV shows.",
+        "lapses": "Your voucher expires unused.",
+        "timedOut": "That did not work. Show a new code on the TV.",
+        "expired": "The code has expired. Show a new code on the TV.",
+        "relay": "The relay does not answer. Set the TV up by hand: choose “Set up by hand” on the TV and sign in with your account.",
+        "server": "The server does not answer. Check the connection and scan the code again.",
+        "notAllowed": "This sign-in cannot connect a TV.",
+        "leftBefore": "You left the page before the TV got its access. Scan the code again.",
+        "leftAfter": "You left the page. Whether the TV is connected, you see under “My devices”.",
+        "ok": "Got it",
+        "again": "Scan again",
+        "tooMany_one": "Too many attempts. Wait {{count}} second, then scan the code again.",
+        "tooMany_other": "Too many attempts. Wait {{count}} seconds, then scan the code again."
+      },
+      "done": {
+        "title": "Connected",
+        "lede": "The TV now shows the profile choice. It is listed under “My devices”. The message “New device connected” goes out over the notification channels that are set up.",
+        "finish": "Done",
+        "named": "The TV calls itself “{{name}}”",
+        "several": "A new TV is connected. Another device joined at the same moment: check under “My devices” which one is yours.",
+        "notMine": "Not my TV – sign out"
+      },
+      "relay": {
+        "primaryOnly": "Only the primary profile changes the relay."
+      },
+      "notMine": {
+        "title": "Sign out “{{name}}”?",
+        "body": "The TV loses its access to this account at once. Afterwards it is no longer listed under “My devices”.",
+        "done": "“{{name}}” is signed out."
+      }
+    }
   },
   "common": {
     "back": "Back",

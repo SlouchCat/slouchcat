@@ -11,6 +11,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
 import com.slouchcat.core.browse.testing.audiobook
@@ -85,4 +88,23 @@ class AudioDetailSectionsTest {
 
     @Test @Config(qualifiers = TABLET)
     fun episodesTablet() = episodes()
+
+    /** Code review M-4: more episodes only on request, never because a page arrived. */
+    @Test @Config(qualifiers = PHONE)
+    fun moreEpisodesLoadOnlyOnRequest() {
+        val show = podcast()
+        var asked = 0
+        val list = show.episodes!!
+        var paged by androidx.compose.runtime.mutableStateOf(Paged(Loadable.Ready(list.take(1)), list.size + 50))
+        compose.setContent {
+            val ui = EpisodesUi(paged, emptySet(), { asked++ }, {}, {})
+            SlouchcatTheme { Column(Modifier.verticalScroll(rememberScrollState())) { AudioDetailSections(show, links, ui) } }
+        }
+        compose.waitForIdle()
+        paged = Paged(Loadable.Ready(list), list.size + 50)
+        compose.waitForIdle()
+        assertEquals(0, asked)
+        compose.onNode(hasText(s(R.string.app_audio_loadMore)) and hasClickAction()).performScrollTo().performClick()
+        assertEquals(1, asked)
+    }
 }

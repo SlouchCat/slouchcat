@@ -5,14 +5,13 @@ import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSourceBitmapLoader
-import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.collect.ImmutableList
 import com.slouchcat.app.mobile.MainActivity
+import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.player.AudioPlayback
 import com.slouchcat.core.player.Media3Engine
 import com.slouchcat.core.player.PlayerEngine
@@ -38,9 +37,6 @@ import kotlinx.coroutines.launch
 /** The application that holds the one [AudioPlayback] of the process (the app; a test application). */
 interface AudioHost {
     val audioPlayback: AudioPlayback
-
-    /** The shared HTTP client (covers of the notification). */
-    val audioHttp: okhttp3.Call.Factory
 }
 
 @OptIn(UnstableApi::class)
@@ -52,6 +48,15 @@ class AudioService : MediaSessionService() {
         super.onCreate()
         setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).setChannelName(R.string.app_audio_channel).build())
         val playback = (application as AudioHost).audioPlayback
+        // A start that answers only after the app left the foreground: Android 12 and later refuse
+        // the foreground service then (code review m-5). The sound plays on without it; the log says so.
+        setListener(
+            object : Listener {
+                override fun onForegroundServiceStartNotAllowedException() {
+                    Log.w(TAG, "foreground service not allowed, sound without notification")
+                }
+            },
+        )
         follow(playback.engine.value)
         scope.launch { playback.engine.collect(::follow) }
     }
@@ -84,9 +89,8 @@ class AudioService : MediaSessionService() {
         return MediaSession.Builder(this, player)
             .setId("$SESSION_ID-${SESSIONS.incrementAndGet()}")
             .setCallback(TrustedControllers(packageName))
+            // The cover comes as bytes (AudioData, security review L-1); the default loader decodes them.
             .setSessionActivity(open)
-            // Covers through the one HTTP client of the app (token, gate «Server weist sich aus»).
-            .setBitmapLoader(DataSourceBitmapLoader.Builder(this).setDataSourceFactory(OkHttpDataSource.Factory((application as AudioHost).audioHttp)).build())
             .setMediaButtonPreferences(
                 ImmutableList.of(
                     CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
@@ -106,10 +110,17 @@ class AudioService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
-    /** Swiped away while paused: nothing keeps the service; playing on is the point of the service. */
+    /**
+     * Swiped away while paused: the sound ends (its session at the server, the listen of the station,
+     * the notification) and the service with it (code review m-3); «Zuletzt gehört» stays. Playing
+     * on is the point of the service: while it plays, the swipe changes nothing.
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = session?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) stopSelf()
+        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
+            (application as AudioHost).audioPlayback.stop(forget = false)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -122,6 +133,7 @@ class AudioService : MediaSessionService() {
 
     private companion object {
         const val SESSION_ID = "slouchcat-audio"
+        const val TAG = "audio"
 
         /** Media3 keeps the ids of the process; a new session of a new service takes the next one. */
         val SESSIONS = java.util.concurrent.atomic.AtomicInteger()

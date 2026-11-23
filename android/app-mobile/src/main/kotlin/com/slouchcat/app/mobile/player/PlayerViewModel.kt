@@ -55,7 +55,9 @@ class PlayerViewModel(
 
     fun onForeground() = controller.resumeFromBackground()
 
-    override fun onCleared() = controller.close()
+    override fun onCleared() {
+        controller.close()
+    }
 
     override fun onBack() = leave()
     override fun onTogglePlay() = controller.togglePlay()

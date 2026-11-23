@@ -14,6 +14,8 @@ import com.slouchcat.core.api.log.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -343,13 +345,22 @@ class PlaybackController(
     }
 
     /** The page is left: the last progress and the end of the session, even after the page is gone. */
-    fun close() {
-        startJob?.cancel()
+    /**
+     * The page is left: the last progress and the end of the session, even after the page is gone.
+     * Returns the job of that end (`null` without a session), so a sign-out can wait for it (stage 7
+     * M-2). A start on its way is not cut off: its session ends when the answer comes (m-4).
+     */
+    fun close(): Job? {
+        closed = true
         reconnectJob?.cancel()
-        leaveCurrent()
+        val last = leaveCurrent()
         itemId = null
         engine.release()
+        return last
     }
+
+    /** [close] was called: a start that answers now ends its session at once. */
+    private var closed = false
 
     // ---- the start ----------------------------------------------------------------------------
 
@@ -424,7 +435,14 @@ class PlaybackController(
                     return@launch
                 }
                 val request = request(caps, positionMs)
-                when (val result = server.start(id, request)) {
+                // The request runs to its end even when this start is cancelled (a new start, the
+                // controller closed): a session the server opened must not stay open (m-4).
+                val result = withContext(NonCancellable) { server.start(id, request) }
+                if (!isActive || closed) {
+                    (result as? ApiResult.Ok)?.value?.let { late -> endSession(late.playbackSessionId, null) }
+                    return@launch
+                }
+                when (result) {
                     is ApiResult.Ok -> {
                         onStarted(result.value, caps, play, switching)
                         return@launch
@@ -901,23 +919,24 @@ class PlaybackController(
      * Ends [session] after the page or the title is gone: first the [last] progress, then the stop,
      * one after the other (the server records the event before the session closes).
      */
-    private fun endSession(session: String, last: ProgressEvent?) {
+    private fun endSession(session: String, last: ProgressEvent?): Job {
         val id = itemId
-        finalScope.launch {
+        return finalScope.launch {
             if (last != null && id != null) server.progress(id, last)
             server.stop(session)
         }
     }
 
     /** Leaves the playing title: the last progress and the end of its session. */
-    private fun leaveCurrent() {
+    private fun leaveCurrent(): Job? {
         // Without a session (ended by the server, or in the background) the last progress went out already.
-        sessionId?.let { endSession(it, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null) }
+        val last = sessionId?.let { endSession(it, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null) }
         sessionId = null
         stopLoops()
         engine.stop()
         loadId = NO_LOAD
         info = null
+        return last
     }
 
     companion object {

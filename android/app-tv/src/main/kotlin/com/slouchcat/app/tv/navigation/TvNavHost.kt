@@ -242,7 +242,7 @@ private fun NavGraphBuilder.setupDestinations(graph: TvGraph, navigator: TvNavig
             onStopOrDispose { vm.onHidden() }
         }
         val state by vm.state.collectAsStateWithLifecycle()
-        val relay by graph.relaySettings.relay.collectAsStateWithLifecycle(com.slouchcat.app.tv.common.RelaySettings.DEFAULT)
+        val relay by graph.relaySettings.relay.collectAsStateWithLifecycle(com.slouchcat.core.session.RelaySettings.DEFAULT)
         var relayMenu by rememberSaveable { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         PairScreen(
