@@ -140,7 +140,9 @@ private fun Group(content: @Composable () -> Unit) {
 private fun DeviceRow(state: ChannelSettingsUiState, blocked: Boolean, events: ChannelSettingsEvents) {
     val device = state.device
     val possible = device != DevicePushState.NotInBuild && device != DevicePushState.ServerOff
-    val on = (device == DevicePushState.On || device == DevicePushState.Busy || device is DevicePushState.Failed) && !blocked
+    // The switch shows what the device wants, not whether Android shows the notifications; that is
+    // the note below (code review m-5).
+    val on = device == DevicePushState.On || device == DevicePushState.Busy || device is DevicePushState.Failed
     SwitchRow(
         stringResource(R.string.app_notifications_push),
         checked = on,
@@ -156,6 +158,7 @@ private fun DeviceNote(state: ChannelSettingsUiState, blocked: Boolean, events: 
     when (val device = state.device) {
         DevicePushState.NotInBuild -> Note(stringResource(R.string.app_notifications_pushNotInBuild))
         DevicePushState.ServerOff -> Note(stringResource(R.string.app_notifications_pushServerOff))
+        DevicePushState.OffPending -> Note(stringResource(R.string.app_notifications_pushOffPending), warning = true)
         is DevicePushState.Failed -> Note(
             stringResource(
                 when (device.failure) {
@@ -169,7 +172,7 @@ private fun DeviceNote(state: ChannelSettingsUiState, blocked: Boolean, events: 
         )
         else -> Unit
     }
-    if (blocked && state.device != DevicePushState.NotInBuild && state.device != DevicePushState.ServerOff) {
+    if (blocked && (state.device == DevicePushState.On || state.device == DevicePushState.Busy || state.device is DevicePushState.Failed)) {
         Note(stringResource(R.string.app_notifications_pushBlocked), warning = true)
         SlouchcatButton(stringResource(R.string.app_notifications_pushAllow), onClick = events::onAllowNotifications, kind = ButtonKind.Secondary, leadingIcon = SlouchcatIcon.Bell)
     }

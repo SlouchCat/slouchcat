@@ -36,6 +36,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -344,7 +345,7 @@ private fun Mine(state: WishesUiState, events: WishesEvents) {
 private fun WishRow(card: WishCard, busy: Boolean, onOpen: () -> Unit, onWithdraw: () -> Unit) {
     val c = SlouchcatTheme.colors
     val separator = stringResource(R.string.format_separator)
-    val seasons = if (card.seasons.isEmpty()) null else pluralCount(R.plurals.wishes_seasons, card.seasons.size, card.seasons.joinToString(stringResource(R.string.format_listSeparator)))
+    val seasons = if (card.seasons.isEmpty()) null else pluralStringResource(R.plurals.wishes_seasons, card.seasons.size, card.seasons.joinToString(stringResource(R.string.format_listSeparator)))
     val requested = stringResource(R.string.app_wishes_requestedOn, card.createdAt.atZoneSameInstant(ZoneId.systemDefault()).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)))
     Row(
         Modifier

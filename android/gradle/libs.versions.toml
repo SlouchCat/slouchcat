@@ -45,6 +45,10 @@ work = "2.12.0"
 # Push of the bundle `play` (concept 27, 7.3, stage 8): Firebase Cloud Messaging, set up by hand from
 # Gradle properties (no google-services.json, no Google services plugin). Apache-2.0.
 firebaseMessaging = "26.0.2"
+# The QR scanner of «Fernseher verbinden» (concept 27 section 10, 5.2, stage 9): Google's code scanner in
+# the build play (Play services, no camera permission), CameraX in the build foss (with ZXing above).
+playCodeScanner = "16.1.0"
+camerax = "1.7.0"
 
 [libraries]
 # Build logic (compile-only in build-logic; the plugins themselves come in through the root build).
@@ -106,6 +110,10 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
+play-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playCodeScanner" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

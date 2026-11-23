@@ -11,7 +11,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.slouchcat.app.mobile.MainActivity
 import com.slouchcat.app.mobile.R as AppR
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.push.PushKeys
@@ -33,7 +32,7 @@ enum class PushChannel(val id: String) {
         /** By the path the server links to: an episode, a wish, «Meine Geräte», everything else. */
         fun of(path: String?): PushChannel = when {
             path == null -> General
-            path.startsWith("/wishes") -> Wishes
+            path.startsWith("/wishes") || path.startsWith("/titles/") -> Wishes
             path.startsWith("/items/") -> Content
             path.startsWith("/settings/devices") -> Account
             else -> General
@@ -53,9 +52,8 @@ object PushNotifier {
     /** The extra of the activity's intent: the in-app path a notification leads to. */
     const val EXTRA_PATH = "com.slouchcat.app.PUSH_PATH"
 
-    /** Decrypts [wp] for [keys]; `null` when it is no message to this device. */
-    fun open(wp: String, keys: PushKeys, server: HttpUrl?): Pair<PushMessage, String?>? {
-        val body = PushMessage.body(wp) ?: return null
+    /** Decrypts [body] (the decoded `data.wp`) for [keys]; `null` when it is no message to this device. */
+    fun open(body: ByteArray, keys: PushKeys, server: HttpUrl?): Pair<PushMessage, String?>? {
         val plain = try {
             WebPush.decrypt(body, keys)
         } catch (e: WebPushException) {
@@ -93,9 +91,13 @@ object PushNotifier {
     fun show(context: Context, message: PushMessage, path: String?): Int? {
         ensureChannels(context)
         if (!allowed(context)) return null
-        val id = (System.currentTimeMillis() and 0x7fffffff).toInt()
-        val intent = Intent(context, MainActivity::class.java)
-            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        // One id per message (a repeat replaces, two messages never do; code review L-7).
+        val id = (message.hashCode() and 0x7fffffff)
+        // The tap goes to an activity of the app that nothing outside it can start (not exported,
+        // no intent filter): the path of a message the app decrypted itself, never of an extra
+        // someone else set (security review M-1).
+        val intent = Intent(context, PushTapActivity::class.java)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra(EXTRA_PATH, path ?: "/")
         val tap = PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notification = NotificationCompat.Builder(context, PushChannel.of(path).id)
@@ -105,6 +107,15 @@ object PushNotifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(message.body))
             .setAutoCancel(true)
             .setContentIntent(tap)
+            // The lock screen shows only that there is something (security review L-5).
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, PushChannel.of(path).id)
+                    .setSmallIcon(AppR.drawable.ic_notification)
+                    .setContentTitle(context.getString(R.string.app_name))
+                    .setContentText(context.getString(R.string.app_notifications_publicText))
+                    .build(),
+            )
             .build()
         return try {
             NotificationManagerCompat.from(context).notify(id, notification)

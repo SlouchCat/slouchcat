@@ -125,6 +125,10 @@ class WishesScreenTest {
         show(mineState())
         compose.onNodeWithText(s(R.string.wishes_state_pending)).assertIsDisplayed()
         compose.onNodeWithText("Verity").performScrollTo().assertIsDisplayed()
+        // The row names the wished seasons, not their number.
+        val list = "1" + s(R.string.format_listSeparator) + "2"
+        val seasons = ApplicationProvider.getApplicationContext<Context>().resources.getQuantityString(R.plurals.wishes_seasons, 2, list)
+        compose.onNode(hasText(seasons, substring = true)).assertExists()
         compose.assertEveryControlLabelledAndTappableWhenScrolled()
         compose.reveal(compose.onNode(hasText(s(R.string.wishes_page_filters_open)) and hasClickAction())).performClick()
         compose.reveal(compose.onNodeWithContentDescription(s(R.string.wishes_row_withdrawLabel, "1984"))).performClick()
@@ -140,6 +144,9 @@ class WishesScreenTest {
 
     @Test @Config(qualifiers = PHONE, fontScale = 2f)
     fun minePhoneLargeFont() = mine()
+
+    @Test @Config(qualifiers = TABLET, fontScale = 2f)
+    fun mineTabletLargeFont() = mine()
 
     @Test @Config(qualifiers = PHONE)
     fun withdrawAsksFirst() {

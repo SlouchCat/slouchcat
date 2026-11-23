@@ -23,19 +23,5 @@ class MainActivity : ComponentActivity() {
                 SlouchcatNavHost(graph)
             }
         }
-        if (savedInstanceState == null) openPushLink(intent)
-    }
-
-    /** A tapped notification while the app runs (stage 8). */
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        openPushLink(intent)
-    }
-
-    /** The path of a tapped notification, opened inside the app (concept 27, 7.3 point 6). */
-    private fun openPushLink(intent: android.content.Intent?) {
-        val path = intent?.getStringExtra(com.slouchcat.app.mobile.push.PushNotifier.EXTRA_PATH) ?: return
-        intent.removeExtra(com.slouchcat.app.mobile.push.PushNotifier.EXTRA_PATH)
-        com.slouchcat.app.mobile.push.PushLinks.open(this, (application as SlouchcatApplication).graph, path)
     }
 }

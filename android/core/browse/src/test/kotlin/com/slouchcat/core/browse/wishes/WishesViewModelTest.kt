@@ -324,6 +324,35 @@ class WishTitleViewModelTest {
     }
 
     @Test
+    fun withdrawingNeedsTheServersWord() = runTest(dispatcher) {
+        // Approved in Seerr (processing): no «Zurückziehen» (code review M-1).
+        val approved = FakeWishes(titles = mutableMapOf(1079L to externalTitle(1079, "1984")), wishList = mutableListOf(wish(79, "1984", WishState.PROCESSING)))
+        val vm = page(approved, ExternalMedia.MOVIE, 1079)
+        assertEquals(79L, vm.state.value.ownWish?.id)
+        assertFalse(vm.state.value.canWithdraw)
+        vm.onWithdraw()
+        settle()
+        assertNull(vm.state.value.sheet)
+        // Still open for an approval: it can go.
+        val pending = page(FakeWishes(titles = mutableMapOf(1079L to externalTitle(1079, "1984")), wishList = mutableListOf(wish(79, "1984"))), ExternalMedia.MOVIE, 1079)
+        assertTrue(pending.state.value.canWithdraw)
+    }
+
+    @Test
+    fun aTitleInTheLibraryMeanwhileLeadsThere() = runTest(dispatcher) {
+        val repository = FakeWishes().apply {
+            failure = ApiResult.Failed(409, "already_available").apply {
+                problem = kotlinx.serialization.json.buildJsonObject {
+                    put("code", kotlinx.serialization.json.JsonPrimitive("already_available"))
+                    put("item", kotlinx.serialization.json.buildJsonObject { put("id", kotlinx.serialization.json.JsonPrimitive("01JITEM")) })
+                }
+            }
+        }
+        val vm = page(repository, ExternalMedia.MOVIE, 603)
+        assertEquals("01JITEM", vm.state.value.inLibrary)
+    }
+
+    @Test
     fun aTitleTheProfileCannotSeeIsNotFound() = runTest(dispatcher) {
         val vm = page(FakeWishes(), ExternalMedia.MOVIE, 5)
         assertEquals(Loadable.Failed(LoadError.NotFound), vm.state.value.title)

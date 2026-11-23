@@ -69,8 +69,8 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * Stage 8 in the emulator (scripts/android-e2e-messages.sh starts the Seerr and TMDB mocks of
- * web/e2e eleven and twelve below the server's port, the push relay 83 and `fcmfake` 84 above it):
+ * Stage 8 in the emulator (scripts/android-helpers.sh starts the Seerr and TMDB mocks of web/e2e
+ * eleven and twelve below the server's port, the push relay 83 and `fcmfake` 84 above it):
  * a wish from the search's «Noch nicht in der Bibliothek?», its state, «Zurückziehen»; a second
  * wish Seerr declines lands in the inbox, the bell shows it, opening it marks it read and leads to
  * «Meine Wünsche»; the account's push channel on, this device's subscription through the local
@@ -93,11 +93,13 @@ class MessagesFlowTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val identity = ClientIdentity(ClientIdentity.Kind.MOBILE, BuildConfig.VERSION_NAME)
 
-    // The helpers of the run, by the server's port (as task android:contract places them).
-    private val seerrForServer = "http://127.0.0.1:${server.port - 11}"
-    private val seerrFromHere = server.newBuilder().port(server.port - 11).encodedPath("/").build()
-    private val relayFromHere = server.newBuilder().port(server.port + 83).encodedPath("/").build()
-    private val fcmFromHere = server.newBuilder().port(server.port + 84).encodedPath("/").build()
+    // The helpers of scripts/android-helpers.sh: their ports come as arguments, the defaults as there.
+    private fun port(name: String, default: Int) = args.getString(name)?.toIntOrNull() ?: default
+    private val seerrPort = port("slouchcatSeerrPort", server.port - 11)
+    private val seerrForServer = "http://127.0.0.1:$seerrPort"
+    private val seerrFromHere = server.newBuilder().port(seerrPort).encodedPath("/").build()
+    private val relayFromHere = server.newBuilder().port(port("slouchcatPushPort", server.port + 83)).encodedPath("/").build()
+    private val fcmFromHere = server.newBuilder().port(port("slouchcatFcmPort", server.port + 84)).encodedPath("/").build()
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 

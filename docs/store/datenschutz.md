@@ -108,9 +108,14 @@ Push-Dienst weiter. Der Dienst sieht dabei:
 
 Er sieht nicht Titel und Text einer Meldung und nicht dein Konto. Er speichert nichts davon.
 
-Die App meldet sich bei jedem Start mit einer Sitzung, nach einem neuen Push-Token und nach einer
-Passwortänderung erneut an; schaltest du Push-Meldungen auf diesem Gerät aus, löscht sie das Abo bei
-deinem Server.
+Die App prüft bei jedem Start mit einer Sitzung und etwa alle zwölf Stunden im Hintergrund (nur mit
+Netz), ob ihr Abo bei deinem Server noch gilt. Beim Dienst meldet sie sich nur neu an, wenn das
+Push-Token oder der Schlüssel deines Servers gewechselt hat oder das Abo fehlt, etwa nach einer
+Passwortänderung; jedes neue Abo bekommt einen neuen Schlüssel. Schaltest du Push-Meldungen auf
+diesem Gerät aus, löscht die App sofort ihren Schlüssel und das Push-Token bei Google und meldet das
+Abo bei deinem Server ab. Ist dein Server gerade nicht erreichbar, holt sie das Abmelden beim
+nächsten Kontakt nach und zeigt das in den Einstellungen; bis dahin kann dein Server noch Meldungen
+schicken, die das Gerät nicht mehr lesen kann und verwirft.
 
 > **Am Bau bestätigt (Stufe 8):** Die App selbst ruft `POST /v1/register` auf; der Dienst sieht
 > dabei die Internet-Adresse des Handys. Konzept 27 Abschnitt 7.6 nennt nur die des Servers.
@@ -121,7 +126,9 @@ deinem Server.
   den Zeitpunkt und die verschlüsselte Meldung, nicht deren Inhalt und nicht die Adresse deines
   Servers. Die Bibliothek von Google auf dem Gerät tauscht dafür Daten mit Google aus: Für das
   Push-Token meldet sie eine Installationskennung von Firebase und die Kennung der App bei Google
-  an. Die App schaltet die Analyse von Firebase ab und bindet keine weitere Firebase-Bibliothek ein. Es gilt die
+  an. Die Bibliothek spricht erst mit Google, wenn du angemeldet bist und Push-Meldungen auf diesem
+  Gerät eingeschaltet sind (ab Werk eingeschaltet), und hört beim Ausschalten wieder auf. Die App schaltet die Analyse von Firebase und den Export von Zustellzahlen ab
+  und bindet keine weitere Firebase-Bibliothek ein. Es gilt die
   Datenschutzerklärung von Google (<https://policies.google.com/privacy>) und die Angaben zu
   Firebase (<https://firebase.google.com/support/privacy>). Google kann Daten in den USA
   verarbeiten. Die Bauart ohne Google-Bibliotheken (`foss`, nicht im Play Store) nutzt diesen Weg

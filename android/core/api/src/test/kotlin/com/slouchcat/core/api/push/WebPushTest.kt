@@ -13,6 +13,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -106,6 +107,14 @@ class WebPushTest {
         assertNull(PushMessage.path("//evil.example.test/x", server))
         assertNull(PushMessage.path("javascript:alert(1)", server))
         assertNull(PushMessage.path(null, server))
+        // A sub path is cut at «/» only; scheme counts; no backslash, control character or encoded slash.
+        assertNull(PushMessage.path("https://media.example.test/subway/x", "https://media.example.test/sub/".toHttpUrl()))
+        assertEquals("/", PushMessage.path("https://media.example.test/sub", "https://media.example.test/sub/".toHttpUrl()))
+        assertNull(PushMessage.path("https://192.0.2.10:8096/items/42", server))
+        assertNull(PushMessage.path("/\\evil.example.test", server))
+        assertNull(PushMessage.path("/%2fevil.example.test", server))
+        assertNull(PushMessage.path("/%5Cevil", server))
+        assertNull(PushMessage.path("/items/1\n2", server))
     }
 
     @Test
@@ -114,13 +123,29 @@ class WebPushTest {
             relay.start()
             val base = relay.url("/")
             val client = PushRelay(base, OkHttpClient())
-            relay.enqueue(MockResponse(code = 200, body = """{"endpoint":"${base}v1/push/1.abc"}"""))
-            assertEquals(RelayResult.Registered("${base}v1/push/1.abc"), client.register("token", "BKEY"))
+            val sealed = "1.AbCdEfGhIjKlMnOpQrStUv_-0123"
+            relay.enqueue(MockResponse(code = 200, body = """{"endpoint":"${base}v1/push/$sealed"}"""))
+            val registered = client.register("token", "BKEY")
+            assertEquals(RelayResult.Registered("${base}v1/push/$sealed"), registered)
+            // The address holds the sealed token: never in a log (rule 10).
+            assertFalse(registered.toString().contains(sealed))
             val request = relay.takeRequest()
             assertEquals("/v1/register", request.url.encodedPath)
             assertTrue(request.body!!.utf8().contains("\"fcmToken\":\"token\""))
-            relay.enqueue(MockResponse(code = 200, body = """{"endpoint":"https://elsewhere.example.test/v1/push/1.abc"}"""))
-            assertTrue(client.register("token", "BKEY") is RelayResult.Failed)
+            // Another host, another port, another path, a query, a too large answer, no JSON: refused, no crash.
+            val other = base.newBuilder().port(base.port + 1).build()
+            for (answer in listOf(
+                """{"endpoint":"https://elsewhere.example.test/v1/push/$sealed"}""",
+                """{"endpoint":"${other}v1/push/$sealed"}""",
+                """{"endpoint":"${base}v1/other/$sealed"}""",
+                """{"endpoint":"${base}v1/push/$sealed?x=1"}""",
+                """{"endpoint":"${base}v1/push/1.short"}""",
+                """{"endpoint":"${base}v1/push/$sealed","pad":"${"x".repeat(9000)}"}""",
+                "not json",
+            )) {
+                relay.enqueue(MockResponse(code = 200, body = answer))
+                assertEquals(answer.take(40), RelayResult.Failed(null), client.register("token", "BKEY"))
+            }
             relay.enqueue(MockResponse(code = 503))
             assertEquals(RelayResult.Failed(503), client.register("token", "BKEY"))
         }

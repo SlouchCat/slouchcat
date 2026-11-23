@@ -8,8 +8,7 @@
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
 # (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
 # resume, an episode up to the countdown, «Wiedergabe» of the settings; (d) «Wünsche» and
-# «Benachrichtigungen» of stage 5 through the Seerr and TMDB mocks of web/e2e, which this script
-# starts itself 11 and 12 below PORT (as task android:contract places them; needs Node).
+# «Benachrichtigungen» of stage 5 through the Seerr and TMDB mocks of scripts/android-helpers.sh.
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -21,6 +20,8 @@
 # LOCALE      language of the app (de-CH, en …; default: the device's)
 # EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
+# PHONE       who plays the phone: apicheck (default, Go) or kotlin (the phone app's own Kotlin of
+#             :core:pairing as a JVM program, :core:pairing:phoneCheck; task android:e2e:pair)
 #
 # Like scripts/android-e2e.sh it only ever touches the emulator it started itself (adb -s
 # emulator-EMU_PORT), waits while another emulator runs, and on exit stops that emulator, the
@@ -46,13 +47,10 @@ app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-tv-e2e-XXXXXX)
 logs=app-tv/build/e2e-logs
 server_pid=""
-relay_pid=""
-seerr_pid=""
-tmdb_pid=""
-seerr_port=$((port - 11))
-tmdb_port=$((port - 12))
 emulator_pid=""
 instrument_pid=""
+# shellcheck source=android-helpers.sh
+. ../scripts/android-helpers.sh
 # The account of the test (TvFlowTest's defaults): the phone of apicheck signs in with it.
 email=e2e-owner@example.test
 password=e2e-password-0123
@@ -63,14 +61,14 @@ cleanup() {
   if [ -n "$instrument_pid" ]; then kill "$instrument_pid" 2>/dev/null || true; fi
   if [ "$status" -ne 0 ]; then
     mkdir -p "$logs"
-    for f in server.log relay.log emulator.log instrument.txt apicheck.log seerr.log tmdb.log; do
+    for f in server.log emulator.log instrument.txt apicheck.log; do
       [ -f "$root/$f" ] && cp "$root/$f" "$logs/"
     done
+    helpers_save_logs "$logs"
     if [ -n "$emulator_pid" ]; then adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true; fi
   fi
-  for pid in "$server_pid" "$relay_pid" "$seerr_pid" "$tmdb_pid"; do
-    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
-  done
+  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+  helpers_stop
   if [ -n "$emulator_pid" ]; then
     adb_brief emu kill >/dev/null 2>&1 || true
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
@@ -82,7 +80,7 @@ trap cleanup EXIT
 
 fail() {
   echo "android-tv-e2e: $1" >&2
-  for f in server.log relay.log apicheck.log; do
+  for f in server.log pair.log apicheck.log; do
     if [ -f "$root/$f" ]; then
       echo "--- $f, last 30 lines ---" >&2
       tail -n 30 "$root/$f" >&2
@@ -100,27 +98,16 @@ mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
 # Real video for the player of stage 3 (a film, a series of two episodes; needs ffmpeg).
 ../scripts/android-test-video.sh "$root/media"
-# Stage 5: the Seerr and TMDB mocks of web/e2e; TvFlowTest connects the server to Seerr itself
-# (d_wishesAndNotifications) and puts everything back. The server reaches the TMDB mock with --dev.
-SLOUCHCAT_E2E_SEERR_PORT=$seerr_port node ../web/e2e/seerr-server.mjs >"$root/seerr.log" 2>&1 &
-seerr_pid=$!
-SLOUCHCAT_E2E_TMDB_PORT=$tmdb_port node ../web/e2e/tmdb-server.mjs >"$root/tmdb.log" 2>&1 &
-tmdb_pid=$!
-SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= \
-  SLOUCHCAT_TEST_TMDB_BASE_URL="http://127.0.0.1:$tmdb_port/3" SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL="http://127.0.0.1:$tmdb_port/t/p" \
-  ../server/bin/slouchcat serve \
+# The helpers of scripts/android-helpers.sh (the pairing relay on RELAY_PORT among them) first.
+helpers_start "$root" "$port" "$relay_port" || fail "a helper did not come up"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
 server_pid=$!
-RELAY_LISTEN="127.0.0.1:$relay_port" ../relay/bin/pair >"$root/relay.log" 2>&1 &
-relay_pid=$!
 for _ in $(seq 1 120); do
   kill -0 "$server_pid" 2>/dev/null || fail "the server stopped while starting (port $port taken?)"
-  kill -0 "$relay_pid" 2>/dev/null || fail "the relay stopped while starting (port $relay_port taken?)"
-  kill -0 "$seerr_pid" 2>/dev/null || fail "the Seerr mock stopped while starting (port $seerr_port taken?)"
-  kill -0 "$tmdb_pid" 2>/dev/null || fail "the TMDB mock stopped while starting (port $tmdb_port taken?)"
-  if grep -q 'msg=listening' "$root/server.log" && curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1; then break; fi
+  if grep -q 'msg=listening' "$root/server.log"; then break; fi
   sleep 0.5
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
@@ -170,6 +157,8 @@ for _ in $(seq 1 60); do
 done
 
 ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-tv:assembleDebug :app-tv:assembleDebugAndroidTest
+# PHONE=kotlin: the phone's program compiled before the TV shows its code (the code lives 5 minutes).
+if [ "${PHONE:-apicheck}" = kotlin ]; then ./gradlew --console=plain -q :core:pairing:testClasses; fi
 adb install -r -t app-tv/build/outputs/apk/debug/app-tv-debug.apk >/dev/null
 adb install -r -t app-tv/build/outputs/apk/androidTest/debug/app-tv-debug-androidTest.apk >/dev/null
 if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
@@ -207,10 +196,18 @@ if [ -z "$code" ]; then
   photos
   fail "the TV showed no code"
 fi
-../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
-  -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
-  -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
-grep '^apicheck:' "$root/apicheck.log"
+if [ "${PHONE:-apicheck}" = kotlin ]; then
+  # The phone app's own Kotlin (:core:pairing) as a JVM program (task android:e2e:pair).
+  ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port packetServer=http://10.0.2.2:$port \
+relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email password=$password pin=$pin" \
+    >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "the phone's Kotlin could not pair"; }
+  grep '^phonecheck:' "$root/apicheck.log"
+else
+  ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -pair-phone "$code" \
+    -relay "http://127.0.0.1:$relay_port" -pair-server "http://10.0.2.2:$port" \
+    -pair-email "$email" -pair-password "$password" -pair-pin "$pin" >"$root/apicheck.log" 2>&1 || fail "apicheck could not play the phone"
+  grep '^apicheck:' "$root/apicheck.log"
+fi
 
 wait "$instrument_pid" || true
 instrument_pid=""

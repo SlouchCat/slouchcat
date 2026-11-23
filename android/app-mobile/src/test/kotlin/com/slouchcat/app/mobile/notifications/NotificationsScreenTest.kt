@@ -164,8 +164,9 @@ class ChannelSettingsScreenTest {
 
     @Test @Config(qualifiers = PHONE)
     fun anotherProfileOnlyReadsAndThePermissionIsMissing() {
-        show(ChannelSettingsUiState(Loadable.Ready(channelSettings(pushEnabled = false)), canChange = false, device = DevicePushState.Off), blocked = true)
-        compose.onNode(hasText(s(R.string.app_notifications_push)) and isToggleable()).assertIsOff()
+        // The switch follows this device's state, not Android's permission (code review m-5).
+        show(ChannelSettingsUiState(Loadable.Ready(channelSettings(pushEnabled = false)), canChange = false, device = DevicePushState.On), blocked = true)
+        compose.onNode(hasText(s(R.string.app_notifications_push)) and isToggleable()).assertIsOn()
         compose.onNodeWithText(s(R.string.settings_notifications_onlyPrimary_title)).assertIsDisplayed()
         compose.assertEveryControlLabelledAndTappableWhenScrolled()
         compose.reveal(compose.onNode(hasText(s(R.string.app_notifications_pushAllow)) and hasClickAction())).performClick()

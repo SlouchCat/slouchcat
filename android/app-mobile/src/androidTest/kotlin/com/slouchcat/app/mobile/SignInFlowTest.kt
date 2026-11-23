@@ -340,6 +340,8 @@ class SignInFlowTest {
             field(s(R.string.app_account_newPassword)).performTextInput(new)
             field(s(R.string.app_account_repeatPassword)).performTextInput(new)
             button(s(R.string.app_account_save)).performScrollTo().performClick()
+            // The message of the first round may still show: wait for the sheet to close, too.
+            compose.waitUntil(20_000) { compose.onAllNodes(hasText(s(R.string.app_account_currentPassword))).fetchSemanticsNodes().isEmpty() }
             waitForText(s(R.string.app_account_passwordChanged))
         }
         button(email).performClick()

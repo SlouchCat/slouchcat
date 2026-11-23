@@ -84,16 +84,24 @@ notification encrypted to that address, and the service passes it on to Google's
 The service sees: when registering, your device's internet address and the push token; with every
 notification, your server's internet address, the time, the frequency and the encrypted
 notification. It does not see the title or text of a notification or your account. It stores none
-of it. The app registers again at every start with a session, after a new push token and after a
-password change; switching push off on this device deletes the subscription at your server.
+of it. The app checks at every start with a session and about every twelve hours in the background (only
+with a network) whether its subscription at your server still holds. It registers with the service
+again only when the push token or your server's key changed or the subscription is gone, for
+example after a password change; every new subscription gets a new key. Switching push off on this
+device deletes the app's key and the push token at Google at once and removes the subscription at
+your server. If your server cannot be reached, the app does the removal at the next contact and
+shows this in the settings; until then your server may still send notifications that the device
+can no longer read and drops.
 
 ## 7. Google
 
 - **Push (Firebase Cloud Messaging):** Google delivers the notifications. Google sees the push
   token, the time and the encrypted notification, not its content and not your server's address.
   Google's library on the device exchanges data with Google for this: for the push token it
-  registers a Firebase installation ID and the app's ID with Google. The app switches Firebase's
-  analytics off and includes no other Firebase library. Google's privacy policy
+  registers a Firebase installation ID and the app's ID with Google. The library talks to Google only
+  while you are signed in and push is on for this device (on by default), and stops when you
+  switch it off. The app switches Firebase's analytics
+  and the export of delivery figures off and includes no other Firebase library. Google's privacy policy
   (<https://policies.google.com/privacy>) and the Firebase information
   (<https://firebase.google.com/support/privacy>) apply. Google may process data in the United
   States. The build without Google libraries (`foss`, not in the Play Store) does not use this.
