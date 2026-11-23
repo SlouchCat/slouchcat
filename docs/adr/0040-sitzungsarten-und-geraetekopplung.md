@@ -163,6 +163,27 @@ Sicherung ohne Geheimnis kommt, kennt die Hashes noch; ein fremdes Gerät nicht.
 Schlüssel ohne Passwort bestätigen. Es braucht eine neue Server-Operation und gehört in eine spätere Stufe
 des Servers.
 
+### Nachtrag 23. November 2026: was als Verbindungsabbruch zählt
+
+Die Zeile «Netzwechsel» sagt, die App prüfe «nach jedem Verbindungsabbruch neu» (M-1). Gebaut war: nach
+jeder `IOException` einer Anfrage. Dazu zählte auch, was die App selbst beendet: ein abgebrochener Aufruf
+(das Bild einer verlassenen Seite, ein Segment beim Spulen) und ein Aufruf, dessen Thread unterbrochen wurde
+(eine abgebrochene Coroutine). Der verworfene Beweis liess Anfragen scheitern, die in dem Moment verbanden
+(«the network changed before the request left»), in einem Netz, das sich nicht geändert hatte. Gemessen in
+`docs/perf/K27-android-ci.md`, Abschnitt «Rote Fälle im Emulator-Job».
+
+| Punkt | Entscheid |
+|---|---|
+| Abbruch durch die App | Zählt nicht als Verbindungsabbruch, der Beweis bleibt. Erkannt wird er am abgebrochenen Aufruf (`Call.isCanceled`, sofern der Aufruf kein eigenes Zeitlimit hat) oder an einer `InterruptedIOException`, die kein `SocketTimeoutException` ist, auf einem unterbrochenen Thread |
+| Zeitlimit und Bruch | Unverändert: Ein Zeitlimit (`SocketTimeoutException`, auch das Zeitlimit eines ganzen Aufrufs, das OkHttp als Abbruch meldet), eine abgelehnte, zurückgesetzte oder geschlossene Verbindung verwerfen den Beweis |
+| Netz und Alter | Unverändert: Jeder Sprung prüft das aktuelle Netz und das Alter des Beweises (10 min), bevor Token und Gerätekennung dazukommen |
+
+Was sich für die Sicherheit ändert: Bisher löste jeder Abbruch in der App nebenbei einen neuen Beweis aus,
+also bei jedem Blättern. Das war nicht entworfen, hat aber das Fenster der bekannten Grenze (ein
+Always-on-VPN verdeckt den WLAN-Wechsel) verkleinert. Das Fenster ist jetzt so gross, wie M-1 es
+beschreibt: bis zum nächsten Verbindungsabbruch, den eine Anfrage sieht, höchstens 10 min. Ohne gültigen
+Beweis des aktuellen Netzes geht weiterhin nichts hinaus.
+
 ## Folgen
 
 - Vertrag 1.42.0 ist zusätzlich. Neu sind `appLogin`, `AppLoginRequest`, `AppLogin`, `SessionKind`,

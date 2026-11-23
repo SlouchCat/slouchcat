@@ -16,6 +16,8 @@ import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -88,9 +90,10 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  * Two places in the shared client: as the first application interceptor it waits for the proof;
  * [hop], a network interceptor before the credentials, fails every hop to the server (a retry of
  * OkHttp, a redirect) when the network changed after the proof. A request that loses its
- * connection forgets the proof. Concurrent requests share one proof; a proof that finishes after
- * the network changed counts for nothing. After a failure the gate answers at once for [backoff]
- * (the server allows 30 proofs a minute per address).
+ * connection forgets the proof; a request the app itself ended (a cancelled call, an interrupted
+ * thread) does not, the network had no part in it. Concurrent requests share one proof; a proof
+ * that finishes after the network changed counts for nothing. After a failure the gate answers at
+ * once for [backoff] (the server allows 30 proofs a minute per address).
  */
 class ServerIdentityGate(
     private val trusted: TrustedServer,
@@ -158,9 +161,27 @@ class ServerIdentityGate(
             chain.proceed(request)
         } catch (e: IOException) {
             // The connection broke: maybe the network went with it. The next request proves again.
-            if (e !is ServerNotProvenException) forget()
+            // Not when the app ended the request itself: forgetting then fails the requests that
+            // are connecting right now in [hop], in a network that never changed.
+            if (e !is ServerNotProvenException && !endedByTheApp(chain.call(), e)) forget()
             throw e
         }
+    }
+
+    /**
+     * Whether the app ended the request and not the network: the call was cancelled (a page left
+     * cancels its images, the player a segment when it seeks), or its thread was interrupted (a
+     * cancelled coroutine around a blocking call; Okio then throws [InterruptedIOException] and
+     * leaves the thread interrupted). A timeout is no such thing: [SocketTimeoutException] is an
+     * [InterruptedIOException] as well and counts as a broken connection, interrupted or not. And
+     * OkHttp ends a call that ran into its call timeout by cancelling it: where a call has such a
+     * limit (the shared client sets none), a cancelled call may be a server that stopped answering
+     * and counts as broken too.
+     */
+    private fun endedByTheApp(call: Call, e: IOException): Boolean {
+        val limit = call.timeout()
+        val cancelled = call.isCanceled() && limit.timeoutNanos() == 0L && !limit.hasDeadline()
+        return cancelled || (e is InterruptedIOException && e !is SocketTimeoutException && Thread.currentThread().isInterrupted)
     }
 
     /** The network half: every hop to the server over HTTP needs a proof of the current network. */
