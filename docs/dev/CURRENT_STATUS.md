@@ -33,10 +33,19 @@ Marco meldete nach dem ersten Release-Bau der Handy-App: «Das Logo ist nicht sa
   `scripts/store-graphics.sh <Ordner>` neu laufen lassen und Symbol, Feature-Grafik und TV-Banner in
   der Play Console ersetzen, falls schon hochgeladen. Die Web-App zeigt es mit dem nächsten
   Server-Release; eine installierte PWA holt das neue Symbol erst nach erneutem Installieren.
-- **Offen, nicht Teil der Korrektur:** Das Logo der Web-App hat links 8,5 px unsichtbaren Rand (die
-  leere Fläche um das Zeichen). Auf Anmelde- und Einrichtungsseite steht das Zeichen darum 8,5 px
-  rechts von der linken Kante der Überschrift, und der Abstand zum Namen ist 16,5 statt 8 px. Das zu
-  ändern verschiebt den Namen in jeder Kopfzeile und ist eine Gestaltungsfrage.
+- **Nachtrag, der unsichtbare Rand im Web-Logo (Marco am 23. November 2026: «Mach, was du für richtig
+  hältst»):** Um das Zeichen lagen links und rechts je 8,5 px leere Fläche. Auf Anmelde- und
+  Einrichtungsseite stand es darum 8,5 px rechts von der Kante der Überschrift, der Abstand zum Namen
+  war 16,5 statt der vorgesehenen 8 px. `Logo` schneidet die Fläche jetzt auf die Breite des Zeichens
+  (`LOGO_SIGN_VIEW_BOX`), die Höhe von 32 px bleibt. Der Link in der Kopfzeile (`.brand`) behält auf
+  schmalen Schirmen, wo der Name ausgeblendet ist, ein Quadrat von 32 px zum Antippen. Nebenbei sitzt
+  das Logo in der Kopfzeile jetzt auf der Mittellinie (Mitte bei 32,2 statt 29,2 von 64 px): Der Link
+  war vorher eine Textzeile mit Platz für Unterlängen. Gemessen in Chromium und Firefox. WebKit läuft
+  lokal nicht (`libavif16` fehlt); die Breite des Zeichens ist darum ausdrücklich gesetzt (Höhe mal
+  Seitenverhältnis), kein Browser muss sie errechnen. Neun Storybook-Bilder nachgezogen
+  (`ui-logo--*`, `ui-appheader--*`).
+- **Offen:** Der Startbildschirm des Systems in der Handy-App ist grau (`Theme.Material.NoActionBar`),
+  die App danach dunkel.
 
 ## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, PR #212, veröffentlicht)
 
