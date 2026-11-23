@@ -406,6 +406,14 @@ einen eigenen Ablauf, damit Dependabot-Updates sie mitführen.
 - Beide Apps: Einrichten, Anmelden, Profil mit PIN, Abmelden (`task android:e2e`, `task android:e2e:tv`);
   Koppeln von Handy und Fernseher über eine lokale Vermittlung, je eine Seite mit der echten App
   (`docs/perf/K27-android-handy.md`, Stufe 9).
+- Handy-App, alle Bereiche in einem Ablauf (`task android:e2e`, 16 Fälle auf `sc_phone` und `sc_tablet`):
+  Stöbern, Detailseiten, Videoplayer mit echter Wiedergabe, Downloads samt Wiedergabe ohne Server, Hörbuch
+  im Hintergrund, Podcast-Folge und Webradio gegen Teststationen, Wünsche gegen eine Attrappe von Seerr,
+  Benachrichtigungen, «Fernseher verbinden».
+- TV-App (`task android:e2e:tv`, 12 Fälle auf `sc_tv`): Start, Bibliotheken, Detailseiten, Suche,
+  Videoplayer, Tonplayer und Webradio, Wünsche gegen die Attrappe von Seerr, Benachrichtigungen.
+- Auf den Runnern von GitHub läuft derselbe Ablauf nur zur Information und ist dort nicht ganz grün
+  (`docs/perf/K27-android-ci.md`); im Gate steht der Vertragstest `android-contract`.
 - Krypto auf API 28 und 36, Download-Wiedergabe über die lokale HLS-Liste, Abruf im Hintergrund mit
   gebremstem Server auf dem Rechner (`docs/perf/K27-android-handy.md`, «Nur im Emulator geprüft»).
 - Push nur mit der Attrappe `fcmfake` statt Google (`docs/perf/K27-android-handy.md`, Stufe 8).
