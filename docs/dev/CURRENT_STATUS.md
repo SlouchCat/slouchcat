@@ -1,5 +1,35 @@
 # Aktueller Stand
 
+## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, Zweig `claude/wunsch-abgleich-folgen`)
+
+Marco meldete am 23. November 2026: «Strike Back» über die Android-App gewünscht, erscheint nicht in der Startreihe
+«Erfüllte Wünsche». Befund auf CT 190 (Release 1.43.0, nur gelesen): Der Wunsch über die Staffeln 1 und 2 stand auf
+«teilweise», obwohl beide Staffeln in der Bibliothek lagen. Sonarr importierte Staffel 1, der Scan fand sie, der
+Serienjob ordnete die Serie zu und löste über `WithMatched` den Abgleich des Titels aus (Staffel 1 verfügbar).
+Staffel 2 kam 80 Sekunden später. Ihre zehn Folgen liefen je einen eigenen `metadata.match`-Job, und der löste den
+Abgleich nicht aus. Der Wunsch wartete auf den stündlichen `wishes.reconcile`, also bis zu 60 Minuten. Die Reihe
+zeigt nur Wünsche im Zustand «verfügbar» (Marco, E-10); das bleibt so.
+
+- **Korrektur:** Der Job einer Folge unter einer zugeordneten Serie meldet die Serie nach seinem Ende erneut
+  (`matchEpisode`, `episodeHook` in `server/internal/metadata/match.go`), ob der Anbieter die Folge kennt oder nicht:
+  Gezählt werden abspielbare Folgen. `TitleMatched` reiht den Abgleich des Titels unter seinem Idempotenz-Schlüssel
+  ein. Keine Meldung gibt es für eine Folge, die der Serienjob schrieb, und für eine Folge einer Serie ohne
+  Zuordnung.
+- **Zwilling (Befund der unabhängigen Prüfung, behoben):** Eine Serie mit einem weich gelöschten Zwilling melden
+  ihre Folgen nicht (`FindDeletedTwin`, nur lesend, jedes Alter). Die Kopie geht mit `library.relink` im Zwilling
+  auf; ein für sie gemeldeter Wunsch verlöre mit dem Verschmelzen seinen Titel. Danach meldet wie bisher der
+  Serienjob des Zwillings.
+- **Restgrenzen, der Stundenlauf fängt sie:** Die Meldung der letzten Folge kann in einem gerade laufenden Abgleich
+  untergehen (Fenster von Millisekunden). Scheitert nach dem Schreiben der Folge das Einreihen des Bild-Jobs,
+  entfällt die Meldung. Eine Serie mit einem alten Zwilling, der nie verschmilzt, melden ihre Folgen nie.
+- **Schon vorher so, nicht angefasst:** Verschmilzt eine Kopie, an der ein erfüllter Wunsch hängt (Reihenfolge
+  «neuen Ordner hinzufügen, scannen, alten entfernen»), fällt `wishes.item_id` auf NULL und der Wunsch verliert
+  seinen Titel.
+- **Geprüft:** Beide neuen Tests in `server/internal/metadata/matched_test.go` sind ohne den jeweiligen Aufruf rot;
+  `task check:fast`, `task server:lint` und `task ci` auf `4058b5ff` grün; unabhängige Prüfung in zwei Durchgängen.
+  Keine Migration, Vertrag bleibt 1.43.0. Marco hat am 23. November 2026 «Ja, Patch 1.43.1» gewählt; der
+  Versionscommit liegt auf demselben Zweig.
+
 ## Bau der Android-Apps (Konzept 27 und 26): Stand je Stufe (seit 21. November 2026)
 
 Marco hat am 21. November 2026 den Bau beider Konzepte bestellt (Frage 34 und 35). Dieser Abschnitt wächst
