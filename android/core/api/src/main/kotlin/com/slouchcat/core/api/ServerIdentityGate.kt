@@ -12,9 +12,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import okhttp3.Call
+import okhttp3.ConnectionPool
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
@@ -88,12 +95,24 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  * Over HTTPS the gate does nothing.
  *
  * Two places in the shared client: as the first application interceptor it waits for the proof;
- * [hop], a network interceptor before the credentials, fails every hop to the server (a retry of
- * OkHttp, a redirect) when the network changed after the proof. A request that loses its
- * connection forgets the proof; a request the app itself ended (a cancelled call, an interrupted
- * thread) does not, the network had no part in it. Concurrent requests share one proof; a proof
- * that finishes after the network changed counts for nothing. After a failure the gate answers at
- * once for [backoff] (the server allows 30 proofs a minute per address).
+ * [hop], a network interceptor before the credentials, checks every hop to the server again (a
+ * retry of OkHttp, a redirect). A hop without a proof fails when the network changed since the
+ * request left; in the same network it proves again first, until the request's own connection
+ * broke a second time.
+ *
+ * A connection that breaks forgets the proof, at the hop where it breaks: OkHttp's own retry of
+ * that request is the next hop and waits for the new proof like every later request. That holds
+ * while the answer is read as well (a segment of the player, a download). The idle connections go
+ * with the proof. A request the app itself ended (a cancelled call, an interrupted
+ * thread) forgets nothing, the network had no part in it. It puts the proof in doubt: new requests
+ * renew a proof in doubt once it is older than [renewAfter], the requests on their way go on with
+ * it meanwhile, and a renewal that fails takes it away.
+ *
+ * Concurrent requests share one proof; a proof that began before the network changed or before a
+ * connection broke counts for nothing. After a failure the gate answers at once for [backoff] (the
+ * server allows 30 proofs a minute per address). A proof the app aborted is no failure. For
+ * [settle] after a network change, a request that left before it ends without consequence: the
+ * connections of the old network break then, and that is no news about the new one.
  */
 class ServerIdentityGate(
     private val trusted: TrustedServer,
@@ -103,6 +122,8 @@ class ServerIdentityGate(
     private val backoff: Duration = Duration.ofSeconds(5),
     private val maxAge: Duration = Duration.ofMinutes(10),
     private val clock: () -> Long = System::nanoTime,
+    private val renewAfter: Duration = Duration.ofMinutes(1),
+    private val settle: Duration = SlouchcatHttp.READ_TIMEOUT,
 ) : Interceptor {
     private sealed interface Outcome {
         data object Proven : Outcome
@@ -110,19 +131,49 @@ class ServerIdentityGate(
         data class KeyChanged(val key: String) : Outcome
 
         data object Failed : Outcome
+
+        /** No verdict on the server: an interruption or an Error ended the attempt. */
+        data object Aborted : Outcome
     }
 
-    private class Attempt(val generation: Long, val key: String) {
+    /** A proof on its way; [breaks] is the number of broken connections when it began. */
+    private class Attempt(val generation: Long, val key: String, val breaks: Long) {
         val result = CompletableFuture<Outcome>()
     }
 
-    private data class Proof(val generation: Long, val key: String, val at: Long)
+    private class Proof(val generation: Long, val key: String, val at: Long) {
+        /** The app ended a request since: it may have given up on a server that is no longer there. */
+        var doubted = false
+    }
+
+    /**
+     * What the gate remembers of one request on its way. A call runs its interceptors on one
+     * thread; [noted] and [broken] are also written by whoever reads the answer, on a thread of
+     * its own, when the request itself is over.
+     */
+    private class Trip {
+        /** The network the request left in. */
+        var generation = 0L
+
+        /** How often a connection of this request broke. */
+        @Volatile var broken = 0
+
+        /** The error [hop] has taken note of, so that [intercept] does not count it again. */
+        @Volatile var noted: IOException? = null
+    }
 
     private val lock = Any()
     private var proven: Proof? = null
     private var inFlight: Attempt? = null
     private var failure: Triple<Long, String, Outcome>? = null
     private var failedAt = 0L
+
+    /** Broken connections so far; a proof that began before the latest of them counts for nothing. */
+    private var breaks = 0L
+
+    /** The newest network the gate has seen, and when it saw it first. */
+    private var sighted = Long.MIN_VALUE
+    private var sightedAt = 0L
 
     /** Requests waiting for another request's proof (tests wait for them). */
     internal val waiting = AtomicInteger()
@@ -143,11 +194,12 @@ class ServerIdentityGate(
      */
     val newKey: StateFlow<String?> = _newKey.asStateFlow()
 
-    /** Forget every proof and the new key (a new server, a confirmed key). */
+    /** Forget every proof and the new key (a new server, a confirmed key); a proof on its way counts for nothing. */
     fun reset() {
         synchronized(lock) {
             proven = null
             failure = null
+            breaks++
         }
         _newKey.value = null
     }
@@ -156,16 +208,135 @@ class ServerIdentityGate(
         val request = chain.request()
         val server = trusted.server
         if (server == null || server.isHttps || !SlouchcatHttp.sameOrigin(server, request.url)) return chain.proceed(request)
-        awaitProof(server)
+        val trip = chain.call().tag(Trip::class) { Trip() }
+        trip.generation = awaitProof(server)
         return try {
             chain.proceed(request)
         } catch (e: IOException) {
-            // The connection broke: maybe the network went with it. The next request proves again.
-            // Not when the app ended the request itself: forgetting then fails the requests on
-            // their way to [hop], in a network that never changed.
-            if (e !is ServerNotProvenException && !endedByTheApp(chain.call(), e)) forget()
+            // What no hop saw: the connection never came about, or OkHttp ended the call.
+            note(chain.call(), chain.connectionPool, e)
             throw e
         }
+    }
+
+    /**
+     * The network half: every hop to the server over HTTP needs a proof of the current network,
+     * and takes note of how it ended. Here and not only in [intercept], because OkHttp sends a
+     * request again by itself when its connection broke, below [intercept]: that retry is the next
+     * hop, and by then the proof has to be gone (security review M-1).
+     */
+    val hop: Interceptor = Interceptor { chain ->
+        val request = chain.request()
+        val server = trusted.server
+        if (server == null || server.isHttps || !SlouchcatHttp.sameOrigin(server, request.url)) return@Interceptor chain.proceed(request)
+        val call = chain.call()
+        val pool = chain.connectionPool
+        if (!isProvenNow()) proveOnTheWay(server, call.tag(Trip::class))
+        val response = try {
+            chain.proceed(request)
+        } catch (e: IOException) {
+            note(call, pool, e)
+            throw e
+        }
+        // The hop is not over with the head of the answer: whoever reads the body may meet the break.
+        response.newBuilder().body(Watched(response.body, call, pool)).build()
+    }
+
+    /**
+     * The body of an answer, which is read after its hop returned. A connection that breaks in it
+     * ends no request the gate could see: OkHttp does not retry, the reader (the player in a
+     * segment, a download) asks again with a new request, and that one must not find the old proof.
+     * A body without a length that is not chunked ends where its connection ends, so there a
+     * connection closed too early looks like the end; the server sends no such answers.
+     */
+    private inner class Watched(private val body: ResponseBody, private val call: Call, private val pool: ConnectionPool) : ResponseBody() {
+        /** One break per body: a reader that tries again meets the same broken connection, not a new one. */
+        @Volatile private var broken = false
+
+        private val source = object : ForwardingSource(body.source()) {
+            override fun read(sink: Buffer, byteCount: Long): Long = try {
+                super.read(sink, byteCount)
+            } catch (e: IOException) {
+                if (!broken) {
+                    broken = true
+                    note(call, pool, e)
+                }
+                throw e
+            }
+        }.buffer()
+
+        override fun contentType(): MediaType? = body.contentType()
+
+        override fun contentLength(): Long = body.contentLength()
+
+        override fun source(): BufferedSource = source
+    }
+
+    /**
+     * A hop without a proof. As a rule the request had one when it left ([intercept]) and it is gone: a
+     * connection broke (the request's own, and this hop is OkHttp's retry; or another request's),
+     * the proof ran out, or its renewal failed. After a network change the request fails; what
+     * becomes of it in the new network is for the app to decide. In the network it left in, the hop
+     * waits for a new proof, unless the request's own connection has broken twice: a machine that
+     * signs and then breaks every connection costs a request one proof on its way and not one per
+     * retry of OkHttp. A proof lost to the break of another request does not count against that:
+     * when several connections from before break one after the other, a request loses the proof
+     * to another's break first and to its own next.
+     */
+    private fun proveOnTheWay(server: HttpUrl, trip: Trip?) {
+        // No trip: the request came to the server by a redirect from elsewhere and never waited for a proof.
+        if (trip == null) throw ServerNotProvenException("no proof for a request that did not set out for the server")
+        if (trip.generation != network.generation()) throw ServerNotProvenException("the network changed before the request left")
+        if (trip.broken >= OWN_BREAKS) throw ServerNotProvenException("the connection broke again after a new proof")
+        // The proof may be one of a newer network by now.
+        if (awaitProof(server) != trip.generation) throw ServerNotProvenException("the network changed before the request left")
+    }
+
+    /**
+     * Takes note of how a request ended, once per error. The app's own doing puts the proof in
+     * doubt. Anything else is a connection that broke, and maybe the network went with it: the
+     * proof is forgotten, and so are the idle connections, which are from before the break as well
+     * (OkHttp's retry would take the next of them from the pool and break again; they go for every
+     * host of the shared client, the pool has no narrower way).
+     *
+     * Not for a request that left in a network that has just gone: after a network change its
+     * connections break, often several at once, and that is no news about the network of now,
+     * which has its own proof or gets one. So for [settle] such a request neither forgets nor
+     * counts nor doubts. Later it does again: a connection that outlived the change (not every
+     * change takes them along, mobile data may come while the Wi-Fi stays) breaks for a reason of
+     * its own.
+     */
+    private fun note(call: Call, pool: ConnectionPool, e: IOException) {
+        if (e is ServerNotProvenException) return
+        val trip = call.tag(Trip::class)
+        if (trip != null && leftBeforeAChangeJustNow(trip)) return
+        if (trip?.noted === e) return
+        trip?.noted = e
+        if (endedByTheApp(call, e)) {
+            doubt()
+        } else {
+            if (trip != null) trip.broken++
+            if (forget()) Log.i(TAG, "connection broke, proof forgotten", error = e)
+            pool.evictAll()
+        }
+    }
+
+    private fun leftBeforeAChangeJustNow(trip: Trip): Boolean = synchronized(lock) {
+        val generation = network.generation()
+        trip.generation != generation && knownFor(generation) < settle.toNanos()
+    }
+
+    /**
+     * How long the gate has known the network [generation], under [lock]. It learns of a change
+     * with the first request or break after it, so never before the change and never after the
+     * first proof in the new network.
+     */
+    private fun knownFor(generation: Long): Long {
+        if (generation > sighted) {
+            sighted = generation
+            sightedAt = clock()
+        }
+        return clock() - sightedAt
     }
 
     /**
@@ -181,101 +352,146 @@ class ServerIdentityGate(
      *
      * What this cannot tell apart: a page that was left, and an app that gave up on a server that
      * hangs (a coroutine timeout around a call interrupts the thread just the same). Both keep the
-     * proof (ADR 0040, addendum of 23 November 2026). A limit that should count as a broken
-     * connection belongs to OkHttp (`readTimeout`, `callTimeout`), not around the call.
+     * proof and put it in doubt (ADR 0040, addenda of 23 November 2026). A limit that should count
+     * as a broken connection belongs to OkHttp (`readTimeout`, `callTimeout`), not around the call.
      */
     private fun endedByTheApp(call: Call, e: IOException): Boolean {
         val limit = call.timeout()
         val cancelled = call.isCanceled() && limit.timeoutNanos() == 0L && !limit.hasDeadline()
-        return cancelled || (e is InterruptedIOException && e !is SocketTimeoutException && Thread.currentThread().isInterrupted)
+        return cancelled || interrupted(e)
     }
 
-    /** The network half: every hop to the server over HTTP needs a proof of the current network. */
-    val hop: Interceptor = Interceptor { chain ->
-        val request = chain.request()
-        val server = trusted.server
-        if (server != null && !server.isHttps && SlouchcatHttp.sameOrigin(server, request.url) && !isProvenNow()) {
-            throw ServerNotProvenException("the network changed before the request left")
-        }
-        chain.proceed(request)
-    }
+    /** Whether [e] is the report of an interrupted thread and not a timeout. */
+    private fun interrupted(e: IOException): Boolean = e is InterruptedIOException && e !is SocketTimeoutException && Thread.currentThread().isInterrupted
 
     /** Whether the current network has a valid proof of the key in use. */
-    fun isProvenNow(): Boolean = synchronized(lock) {
-        val key = candidateKey ?: trusted.serverKey ?: return false
-        val proof = proven ?: return false
-        proof.generation == network.generation() && proof.key == key && clock() - proof.at < maxAge.toNanos()
+    fun isProvenNow(): Boolean = synchronized(lock) { validProof() != null }
+
+    /** The proof of the key in use for the current network, under [lock]. */
+    private fun validProof(): Proof? {
+        val key = candidateKey ?: trusted.serverKey ?: return null
+        return proven?.takeIf { it.generation == network.generation() && it.key == key && clock() - it.at < maxAge.toNanos() }
     }
 
-    private fun forget() = synchronized(lock) { proven = null }
+    /** Forgets the proof after a broken connection; whether there was one. */
+    private fun forget(): Boolean = synchronized(lock) {
+        breaks++
+        (proven != null).also { proven = null }
+    }
 
-    private fun awaitProof(server: HttpUrl) {
-        // A proof that finished in a network that is gone by now counts for nothing; a few rounds
-        // cover a network that changes while the proof runs.
-        repeat(ROUNDS) {
+    private fun doubt() = synchronized(lock) { proven?.doubted = true }
+
+    /** Returns with a valid proof of the server, and the generation of the network it is for. */
+    private fun awaitProof(server: HttpUrl): Long {
+        // A proof counts for nothing when the network changed or a connection broke while it ran,
+        // and it is no verdict when its owner was interrupted. A few rounds cover a network that
+        // keeps changing and owners that keep being interrupted. Breaks do not count as rounds:
+        // connections from before break one after the other while the server proves again and
+        // again (it came back from an update and a page loads in waves), and none of those rounds
+        // says anything against the server. They end with [timeout], by the clock of the device;
+        // no round of any kind begins after it (one that has begun runs to its end).
+        val deadline = System.nanoTime() + timeout.toNanos()
+        var rounds = 0
+        while (rounds < ROUNDS && System.nanoTime() - deadline < 0) {
             val generation = network.generation()
             val key = candidateKey ?: trusted.serverKey ?: throw ServerNotProvenException("no key remembered")
             var mine = false
             val attempt = synchronized(lock) {
-                if (isProvenNow()) return
+                knownFor(generation)
+                val proof = validProof()
+                // A proof in doubt goes on counting for the requests on their way ([hop]); a new
+                // request renews it once it is old enough.
+                if (proof != null && !(proof.doubted && clock() - proof.at >= renewAfter.toNanos())) return proof.generation
                 val failed = failure
                 if (failed != null && failed.first == generation && failed.second == key && clock() - failedAt < backoff.toNanos()) {
                     throw failureOf(failed.third)
                 }
-                inFlight?.takeIf { it.generation == generation && it.key == key } ?: Attempt(generation, key).also {
+                inFlight?.takeIf { it.generation == generation && it.key == key && it.breaks == breaks } ?: Attempt(generation, key, breaks).also {
                     inFlight = it
                     mine = true
                 }
             }
-            val outcome = try {
-                if (mine) run(server, attempt) else wait(attempt) ?: throw ServerNotProvenException("the proof took too long")
-            } finally {
-                // Also when the proof threw an Error: the next request starts a new one.
-                if (mine) synchronized(lock) { if (inFlight === attempt) inFlight = null }
+            val outcome = if (mine) own(server, attempt) else wait(attempt) ?: throw ServerNotProvenException("the proof took too long")
+            val (moved, broke) = synchronized(lock) { (network.generation() != generation) to (breaks != attempt.breaks) }
+            if (outcome == Outcome.Aborted || moved) {
+                rounds++
+                continue
             }
+            if (broke) continue
+            when (outcome) {
+                Outcome.Proven -> {
+                    if (key == trusted.serverKey) _newKey.value = null
+                    return generation
+                }
+                is Outcome.KeyChanged -> _newKey.value = outcome.key
+                else -> Unit
+            }
+            throw failureOf(outcome)
+        }
+        throw ServerNotProvenException(if (rounds < ROUNDS) "the proof ran out of time" else "the proof kept starting over")
+    }
+
+    /**
+     * Runs [attempt] on the thread of the request that began it and records what it found, before
+     * any request waiting for it goes on. What aborts the attempt is thrown on to that request.
+     */
+    private fun own(server: HttpUrl, attempt: Attempt): Outcome {
+        var outcome: Outcome = Outcome.Aborted
+        var recorded = false
+        try {
+            outcome = run(server, attempt.key)
             synchronized(lock) {
-                if (network.generation() != generation) return@repeat
-                if (mine) {
+                // Not when the network changed or a connection broke meanwhile: the server signed before that.
+                if (network.generation() == attempt.generation && breaks == attempt.breaks) {
                     if (outcome == Outcome.Proven) {
-                        proven = Proof(generation, key, clock())
+                        proven = Proof(attempt.generation, attempt.key, clock())
                         failure = null
+                        recorded = true
                     } else {
-                        failure = Triple(generation, key, outcome)
+                        // Also a proof in doubt that was to be renewed: whoever answers now did not
+                        // prove to be the server, and a foreign machine answers just like a server
+                        // that is briefly unwell. Not the proof of another key (the remembered one,
+                        // while a new key the user is confirming fails).
+                        if (proven?.key == attempt.key) proven = null
+                        failure = Triple(attempt.generation, attempt.key, outcome)
                         failedAt = clock()
                     }
                 }
             }
-            when (outcome) {
-                Outcome.Proven -> {
-                    if (key == trusted.serverKey) _newKey.value = null
-                    return
-                }
-                is Outcome.KeyChanged -> _newKey.value = outcome.key
-                Outcome.Failed -> Unit
-            }
-            throw failureOf(outcome)
+        } finally {
+            // Also after an Error: the next request starts a new proof, and nobody may wait for
+            // one that never ends (security review L-5).
+            synchronized(lock) { if (inFlight === attempt) inFlight = null }
+            attempt.result.complete(outcome)
         }
-        throw ServerNotProvenException("the network kept changing")
+        if (recorded) Log.i(TAG, "server proven")
+        return outcome
     }
 
-    private fun run(server: HttpUrl, attempt: Attempt): Outcome {
-        var outcome: Outcome = Outcome.Failed
-        try {
+    private fun run(server: HttpUrl, key: String): Outcome {
+        val outcome = try {
             val nonce = ServerProof.nonce()
             val answer = prover.prove(server, nonce)
-            outcome = when {
+            when {
                 answer == null -> Outcome.Failed
-                ServerProof.valid(attempt.key, nonce, answer.signature) -> Outcome.Proven
-                answer.serverKey != attempt.key && ServerProof.valid(answer.serverKey, nonce, answer.signature) -> Outcome.KeyChanged(answer.serverKey)
+                ServerProof.valid(key, nonce, answer.signature) -> Outcome.Proven
+                answer.serverKey != key && ServerProof.valid(answer.serverKey, nonce, answer.signature) -> Outcome.KeyChanged(answer.serverKey)
                 else -> Outcome.Failed
             }
         } catch (e: IOException) {
+            // The app gave the request up while it proved (a cancelled coroutine interrupts the
+            // thread): that says nothing about the server, so no failure and no backoff. While the
+            // proof still connects, OkHttp lets an InterruptedException through instead; it passes
+            // here as it is and counts the same.
+            if (interrupted(e)) {
+                Log.i(TAG, "proof aborted")
+                throw e
+            }
             Log.i(TAG, "no proof", error = e)
+            Outcome.Failed
         } catch (e: RuntimeException) {
             Log.w(TAG, "proof broke", error = e)
-        } finally {
-            // Also after an Error: nobody may wait for a proof that never ends (security review L-5).
-            attempt.result.complete(outcome)
+            Outcome.Failed
         }
         if (outcome != Outcome.Proven) Log.w(TAG, "server not proven", "outcome" to outcome::class.simpleName)
         return outcome
@@ -289,10 +505,12 @@ class ServerIdentityGate(
         } catch (e: TimeoutException) {
             null
         } catch (e: ExecutionException) {
+            // Never today: the owner completes the future with an outcome, also after an Error.
             Outcome.Failed
         } catch (e: InterruptedException) {
+            // As Okio reports it, so that it counts as the app's own doing where a hop waited.
             Thread.currentThread().interrupt()
-            throw IOException("interrupted while the server proved itself")
+            throw InterruptedIOException("interrupted while the server proved itself")
         } finally {
             waiting.decrementAndGet()
         }
@@ -306,5 +524,8 @@ class ServerIdentityGate(
     private companion object {
         const val TAG = "identity"
         const val ROUNDS = 3
+
+        /** The break of its own connection that ends a request; before it, a hop proves again. */
+        const val OWN_BREAKS = 2
     }
 }

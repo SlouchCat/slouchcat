@@ -1,5 +1,64 @@
 # Aktueller Stand
 
+## Serverbeweis: jeder Sprung merkt seinen Bruch, Zweifel nach einem Abbruch (23. November 2026, PR #220)
+
+Die drei Lücken im `ServerIdentityGate` (`android/core/api`), die PR #219 und ADR 0040 offen liessen, sind
+geschlossen, dazu eine vierte, die beim Bau auffiel. PR #220 baut auf #219 auf (Zweig
+`claude/android-beweis-drei-luecken`), offen, nicht gemergt. Betroffen sind nur Server über HTTP.
+
+- **1. Wiederholung von OkHttp (Sicherheit, M-1).** Bricht eine Verbindung aus dem Vorrat, wiederholt OkHttp
+  die Anfrage selbst auf einer neuen; diese Wiederholung trug Token und Gerätekennung mit dem alten Beweis.
+  Jetzt merkt sich der Netzwerk-Interceptor (`hop`) selbst, wie sein Sprung endet: Ein Bruch verwirft den
+  Beweis und schliesst die unbenutzten Verbindungen, bevor OkHttp wiederholt. Der nächste Sprung holt im
+  selben Netz zuerst einen neuen Beweis und geht dann weiter. Eine tote Verbindung des echten Servers bleibt
+  so unsichtbar; an ein fremdes Gerät geht nach dem Bruch nichts mehr. Die Wiederholung bleibt bei OkHttp,
+  das Gate sendet nichts selbst ein zweites Mal. Grenze: der zweite eigene Bruch einer Anfrage.
+- **2. Abgebrochener Beweis.** Bricht die App die Anfrage ab, die gerade den Beweis holt, ist das kein
+  Fehlschlag mehr: keine Sperre von 5 s, Wartende beginnen eine neue Runde.
+- **3. Zweifel nach einem Abbruch.** Ein Abbruch durch die App lässt den Beweis stehen (PR #219) und setzt
+  ihn jetzt in Zweifel: Ist er 1 min alt, beweist die nächste neue Anfrage zuerst neu; Anfragen, die
+  unterwegs sind, laufen weiter; scheitert die Erneuerung, ist der Beweis weg. Damit sind die Kosten von
+  PR #219 von 10 min auf 1 min begrenzt.
+- **4. Bruch beim Lesen der Antwort (beim Bau gefunden, eigener Commit `a844e861`).** Brach die Verbindung in
+  einem Segment des Players oder in einem Download, sah das Gate nichts, und die nächste Anfrage fand den alten
+  Beweis. Der Antwortkörper wird jetzt beobachtet. Lässt sich einzeln zurücknehmen, falls Marco das nicht in
+  dieser Änderung will.
+- **Aus den Reviews dazugekommen:** Ein Bruch aus einem Netz, das gerade gegangen ist, zählt 30 s lang nicht
+  (nach einem Netzwechsel brechen die alten Verbindungen im Bündel und verwarfen sonst den frischen Beweis).
+  `reset` («Server wechseln») zählt wie ein Bruch. Ein Beweis, den ein Bruch überholt hat, verbraucht keine
+  der drei Runden mehr. Scheitert ein neuer Schlüssel, den der Nutzer bestätigt, bleibt der Beweis des
+  gemerkten. Zwei neue Logzeilen: «server proven», «connection broke, proof forgotten».
+- **Ein Fehler im eigenen Entwurf, vom Wiederholungslauf gefunden:** Die erste Grenze («ein Nachbeweis je
+  Anfrage») liess eine Anfrage scheitern, die den Beweis erst an den Bruch einer anderen und dann an ihren
+  eigenen verlor (`manyConnectionsThatBreakAtOnceFailNoRequest`, einmal in zehn Läufen rot). Jetzt gilt der
+  zweite eigene Bruch als Grenze; der Fall hat einen eigenen Test, danach 20 und 12 Läufe ohne Fehler.
+- **Tests:** `ServerIdentityGateTest` hat 54 Fälle (vorher 25). Vor der Änderung 14 von 39 rot, darunter die
+  Wiederholung ohne Beweis (`… /dropped on 0 with token, /dropped on 1 with token` ohne `proof` dazwischen);
+  jeder später ergänzte Fall war vor seiner Korrektur rot. Ein alter Fall ist geändert:
+  `aServerThatHangsUpForgetsTheProof` erwartet jetzt den einen neuen Beweis unterwegs und den Fehler, den die
+  App sieht; die anderen 24 sind unverändert. Jede neue Bedingung einzeln entfernt: je ein Test rot (32
+  Entfernungen).
+- **Geprüft:** `task check:fast BASE=origin/main` grün. `task ci:android -- --no-daemon` grün auf `3fe70263`
+  (5 min 5 s; 13 Testaufgaben, 1840 Fälle, 0 rot, 0 übersprungen; `SetupBackTest` grün), danach nur noch eine
+  Fehlermeldung, ein Kommentar, drei Testzeilen und Dokumente. `task android:e2e` auf `515079f8`: 16 von 16
+  grün, 322 s. In den 16 Logcats: «the network changed before the request left» 0-mal; «the server did not
+  prove itself» 11-mal, alle in `OfflineFlowTest` (3, Netz aus) und `TvLinkShowcaseTest` (8, Adresse
+  `192.0.2.10`); die neue Meldung «the proof kept starting over» 1-mal, ebenfalls gegen `192.0.2.10` (drei
+  Runden: zweimal brach die Seite den Beweis ab, einmal änderte sich das Netz). «server proven» 8-mal im
+  ganzen Lauf, «connection broke, proof forgotten» 0-mal.
+- **Reviews:** Sicherheits-Review und Code-Review je dreimal gelesen, kein offener Befund. Der mittlere Befund
+  des Sicherheits-Reviews ist die bekannte Grenze selbst und steht jetzt deutlich in ADR 0040: Die erste
+  Anfrage nach einem verdeckten Netzwechsel geht mit Token hinaus, und wer die Adresse des Servers hält, kann
+  sie lesen. Das Gate nimmt das nicht zurück.
+- **Offen, Marcos Entscheid:** «Verfall nach Ruhe» (Vorschlag des Sicherheits-Reviews, nicht gebaut): Ein
+  Beweis zählt nicht mehr, wenn 60 s kein Sprung zum Server lief, dazu eine kürzere Haltedauer der
+  Verbindungen (90 s). Es schlösse das Fenster «erste Anfrage nach einer Pause» und kostet einen Beweis nach
+  jeder Pause über 60 s. Begründung und Kosten in ADR 0040, «Nachtrag 23. November 2026, zweiter Teil»,
+  «Nicht gebaut».
+- **Kosten, die bleiben:** Nach einer Pause von 2 bis 5 min trifft die erste Anfrage eine Verbindung, die der
+  Server geschlossen hat; das kostet einen Beweis je gebrochene Verbindung, höchstens fünf, und der Nutzer
+  merkt nichts.
+
 ## Korrektur: Ein Abbruch in der App kostet den Serverbeweis nicht mehr (23. November 2026, PR #219)
 
 Der App-Fehler aus PR #218 ist behoben. `ServerIdentityGate` (`android/core/api`) verwarf den Beweis des
@@ -37,13 +96,13 @@ Server über HTTP.
   Lauf grün; kein Speicherdruck im Käfig. Der Test startet die App ohne gespeicherten Server, also ohne Anfrage
   durch das Gate. Die Ursache ist nicht gefunden.
 - **Offen, alle schon vor dieser Änderung:**
-  - **OkHttps eigene Wiederholung nimmt den alten Beweis mit (Sicherheit).** Bricht eine Verbindung aus dem
+  - **OkHttps eigene Wiederholung nimmt den alten Beweis mit (Sicherheit). Behoben mit PR #220.** Bricht eine Verbindung aus dem
     Vorrat, wiederholt OkHttp die Anfrage auf einer neuen, unterhalb der Stelle, an der das Gate den Bruch sähe.
     Belegt mit einem Wegwerf-Test: Antwort 200, ein einziger Beweis, die Wiederholung auf der zweiten Verbindung
     trägt das Token. Das ist der Fall, den M-1 mildern soll (das fremde Gerät beantwortet die alte Verbindung
     mit einem Reset). Die Behebung braucht eine eigene Änderung mit Sicherheitsdurchsicht: den Bruch je Sprung
     erkennen, neu beweisen, einmal wiederholen.
-  - **Ein unterbrochener Beweis sperrt 5 s.** Wird der Thread der Anfrage unterbrochen, die gerade den Beweis
+  - **Ein unterbrochener Beweis sperrt 5 s. Behoben mit PR #220.** Wird der Thread der Anfrage unterbrochen, die gerade den Beweis
     holt, gilt er als gescheitert, und jede Anfrage scheitert 5 s lang sofort mit «the server did not prove
     itself». Belegt mit einem Wegwerf-Test; in den Messläufen und im Emulator-Lauf kam es nicht vor.
   - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen.
