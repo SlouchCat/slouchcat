@@ -39,6 +39,11 @@ weiteren Sprachen sind so entstanden (Konzept 22, Abschnitt 4.6; F-5):
 4. **Stichproben durch Marco** in Deutsch (Deutschland) und Englisch (F-15). Die übrigen Sprachen liest
    er nicht; für sie gilt, was die Agenten geprüft haben.
 
+**Die Texte der Android-Apps** (`app.*` und `tv.*`, Konzept 26 und 27; 782 Texte) wurden am 23. November
+2026 nach demselben Weg wie die Runde von Konzept 25 in allen zwanzig Sprachen übersetzt und zweitgelesen:
+je Sprache ein Übersetzer, je zwei Sprachen ein Zweitleser (266 Korrekturen). Die dabei geprägten Begriffe
+(Vermittlung, Treffpunkt, Gutschein, Tonanlage und weitere) stehen im Glossar, Abschnitt 9.
+
 **Claudes Texte erscheinen in Weblate als fertig übersetzt.** Das Format i18next JSON kennt kein Merkmal
 «ungeprüft». Wer eine der zwanzig Sprachen als Muttersprache spricht, findet also Texte, die noch kein
 Mensch gelesen hat. **Korrekturen sind sehr willkommen.** Der Weg führt über Weblate
