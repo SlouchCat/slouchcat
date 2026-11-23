@@ -38,24 +38,31 @@ baut und legt nach `android/dist/` (nicht im Repo). `<v>` ist der `versionName` 
 | `SHA256SUMS` | Prüfsummen aller Dateien: `cd android/dist && sha256sum -c SHA256SUMS` |
 
 `-unsigned` im Namen heisst: ohne Upload-Schlüssel gebaut. Ein unsigniertes APK lässt sich nicht
-installieren. Das Skript (`scripts/android-dist.sh`) prüft jede Debug-APK mit `apksigner verify` und
-`aapt2 dump badging`: Paketname, Version, Symbol, bei der TV-App dazu Starter für den
-TV-Startbildschirm (`leanback-launchable-activity`) und Banner. Bricht eine Prüfung, gibt es keine
-`SHA256SUMS`.
+installieren; `task android:sign` signiert es nachträglich (Abschnitt 6.3). Das Skript
+(`scripts/android-dist.sh`) prüft jede Debug-APK mit `apksigner verify` und `aapt2 dump badging`:
+Paketname, Version, Symbol, bei der TV-App dazu Starter für den TV-Startbildschirm
+(`leanback-launchable-activity`) und Banner. Bei den Release-APKs prüft es die Gerätefilter von
+Google Play: Die TV-App verlangt `android.software.leanback` und keinen Touchscreen (sie erreicht nur
+Fernseher), die Handy-App verlangt `leanback` nicht. Bricht eine Prüfung, gibt es keine `SHA256SUMS`.
+Ein GitHub-Release (Abschnitt 7) enthält nur die Release-Dateien, keine Debug-APKs.
 
-**Debug-Bauten tragen `.dev`** in der Kennung (`com.slouchcat.app.dev`, `foss`:
-`com.slouchcat.app.foss.dev`) und sind mit dem Debug-Schlüssel des Rechners signiert, der sie gebaut
-hat. Folgen:
+**Für echte Geräte das signierte Release-APK nehmen** (`…-release.apk`, Abschnitt 6; den
+Upload-Schlüssel zu erzeugen dauert wenige Minuten). Es heisst `com.slouchcat.app` und verhält sich wie
+die spätere App. Die App aus dem Play Store trägt aber Googles Schlüssel (Play App Signing, K27 11.2):
+Über eine selbst eingespielte App installiert der Store nicht. Vor dem Wechsel auf die Store-Ausgabe
+die selbst eingespielte deinstallieren; Anmeldung und Downloads sind dann weg.
 
-- Eine Debug-App und die spätere App aus dem Store (`com.slouchcat.app`) sind zwei verschiedene Apps:
-  Sie stehen nebeneinander, teilen keine Daten, und die eine wird nie zum Update der anderen. Die
-  Debug-App löschst du von Hand, wenn du sie nicht mehr brauchst.
-- Ein Debug-APK von einem anderen Rechner hat eine andere Signatur. Darüber spielt `adb install -r`
-  nicht ein (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`): erst deinstallieren
-  (`adb uninstall com.slouchcat.app.dev`), dann einspielen. Anmeldung und Downloads sind dann weg.
-- Ein Release-APK mit deinem Upload-Schlüssel heisst `com.slouchcat.app`. Die App aus dem Play Store
-  trägt Googles Schlüssel (Play App Signing, K27 11.2): Darüber installiert der Store nicht. Vor dem
-  Wechsel auf die Store-Ausgabe die selbst eingespielte deinstallieren.
+**Der schnelle Weg mit dem Debug-APK** geht ohne Schlüssel, hat aber Folgen:
+
+- **Debuggbar:** Wer das Gerät per USB oder Netz-Debugging erreicht, liest mit `adb shell run-as
+  com.slouchcat.app.dev` die Daten der App, auch die gespeicherte Anmeldung. Nur auf eigenen Geräten,
+  Debugging danach wieder aus (Abschnitte 2 und 3).
+- **Anderer Paketname:** `com.slouchcat.app.dev` (`foss`: `com.slouchcat.app.foss.dev`). Debug-App und
+  Store-App stehen nebeneinander, teilen keine Daten, und die eine wird nie zum Update der anderen.
+- **Andere Signatur je Rechner:** Ein Debug-APK ist mit dem Debug-Schlüssel des Rechners signiert, der
+  es gebaut hat. Über ein Debug-APK eines anderen Rechners spielt `adb install -r` nicht ein
+  (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`): erst `adb uninstall com.slouchcat.app.dev`.
+- **Push** braucht im Debug-Bau die Firebase-App-ID von `com.slouchcat.app.dev` (Abschnitt 5).
 
 Handy-APK (`play`, Debug) und TV-APK (Debug) haben dieselbe Kennung `com.slouchcat.app.dev`; sie
 landen auf verschiedenen Geräten und stören sich nicht.
@@ -84,21 +91,31 @@ Nicht geprüft auf einem echten Handy; die Abläufe selbst laufen im Emulator (`
    Die Namen der Menüs unterscheiden sich je Hersteller.
 2. **USB-Debugging:** Einstellungen › System › Entwickleroptionen › «USB-Debugging» an. Handy per USB
    an den Rechner, auf dem Handy «USB-Debugging zulassen» für diesen Rechner bestätigen.
-3. **Gerät sehen:** `adb devices` (nach `source …/android-env.sh` oder mit `platform-tools` im
-   `PATH`) zeigt das Gerät mit `device`, nicht `unauthorized`.
-4. **Einspielen:**
+3. **Gerät sehen:** `adb` liegt in den Platform-Tools des Android-SDK
+   (`scripts/install-android-tools.sh` legt sie nach `~/.local/share/android-sdk/platform-tools`):
 
    ```bash
-   adb install -r android/dist/slouchcat-app-1.0.0-play-debug.apk
+   export PATH="$HOME/.local/share/android-sdk/platform-tools:$PATH"
+   adb devices
    ```
 
-   `-r` ersetzt eine frühere Fassung derselben Kennung und Signatur. Ohne Google-Play-Dienste auf dem
-   Handy die `foss`-Datei nehmen.
-5. **Erster Start:** Die App heisst «Slouchcat» (Debug-Bau ebenso). «Mit deinem Server verbinden»:
+   Das Gerät steht mit `device` da, nicht `unauthorized`.
+4. **Einspielen** (empfohlen das signierte Release-APK, Abschnitt 1.1):
+
+   ```bash
+   adb install -r android/dist/slouchcat-app-1.0.0-play-release.apk
+   ```
+
+   Ohne Schlüssel der schnelle Weg mit `slouchcat-app-1.0.0-play-debug.apk` (Folgen in 1.1). `-r`
+   ersetzt eine frühere Fassung derselben Kennung und Signatur. Ohne Google-Play-Dienste auf dem Handy
+   die `foss`-Datei nehmen.
+5. **USB-Debugging wieder aus:** Einstellungen › System › Entwickleroptionen › «USB-Debugging» aus
+   (oder die Entwickleroptionen ganz aus). Für das nächste Einspielen wieder ein.
+6. **Erster Start:** Die App heisst «Slouchcat» (Debug-Bau ebenso). «Mit deinem Server verbinden»:
    Adresse eingeben, «Verbinden». Die App zeigt Adresse, Version und ob verschlüsselt; «Weiter».
-6. **Anmelden** mit E-Mail und Passwort des Kontos. Das Handy erscheint danach unter «Meine Geräte»
+7. **Anmelden** mit E-Mail und Passwort des Kontos. Das Handy erscheint danach unter «Meine Geräte»
    (Web-App und App).
-7. **Profil wählen**, bei einem Profil mit PIN die PIN eingeben.
+8. **Profil wählen**, bei einem Profil mit PIN die PIN eingeben.
 
 **Was zu prüfen ist** (je Liste die Punkte abarbeiten, Ergebnis im Bericht ergänzen):
 
@@ -127,14 +144,17 @@ Nicht geprüft auf einem echten Fernseher; die Abläufe laufen im TV-Emulator (`
    adb devices
    ```
 
-   Am Fernseher die Frage «USB-Debugging zulassen?» bestätigen; danach zeigt `adb devices` das Gerät
-   mit `device`. Neuere Geräte mit Google TV bieten statt Port 5555 «Kabelloses Debugging» mit
-   Kopplungscode: dort `adb pair <Adresse>:<Port der Kopplung>` mit dem angezeigten Code, dann
-   `adb connect <Adresse>:<Port>` mit dem Port, den das Gerät nennt.
-4. **Einspielen:**
+   `adb` wie in Abschnitt 2, Schritt 3, im `PATH`. Am Fernseher die Frage «USB-Debugging zulassen?»
+   bestätigen; danach zeigt `adb devices` das Gerät mit `device`. **Vorbehalt:** Ob Port 5555 so offen
+   ist, hängt vom Gerät ab (nicht geprüft). Neuere Geräte mit Google TV bieten statt Port 5555
+   «Kabelloses Debugging» mit Kopplungscode: dort `adb pair <Adresse>:<Port der Kopplung>` mit dem
+   angezeigten Code, dann `adb connect <Adresse>:<Port>` mit dem Port, den das Gerät nennt. Nur im
+   eigenen Netz, nie über ein fremdes WLAN.
+4. **Einspielen** (empfohlen das signierte Release-APK, Abschnitt 1.1; ohne Schlüssel
+   `slouchcat-tv-1.0.0-debug.apk`):
 
    ```bash
-   adb -s <Adresse des Geräts>:5555 install -r android/dist/slouchcat-tv-1.0.0-debug.apk
+   adb -s <Adresse des Geräts>:5555 install -r android/dist/slouchcat-tv-1.0.0-release.apk
    ```
 
    Die App erscheint auf dem Startbildschirm mit dem Banner «Slouchcat» (bei Google TV unter «Apps»).
@@ -199,7 +219,8 @@ Push-Meldungen».
    | Sender-ID | `project_info.project_number` | `slouchcat.firebase.senderId` | `SLOUCHCAT_FIREBASE_SENDER_ID` |
 
 3. Die vier Werte in `~/.gradle/gradle.properties` eintragen (nicht ins Repo) oder als
-   Umgebungsvariablen beim Bau setzen, in GitHub als Secrets gleichen Namens (Abschnitt 7). Dann
+   Umgebungsvariablen beim Bau setzen, in GitHub als Variablen des Repos gleichen Namens
+   (Abschnitt 7.1). Alle vier oder keiner. Dann
    `task android:dist`.
 4. **Push im Debug-Bau:** Die App-ID gehört zu einem Paketnamen. Ein Debug-Bau heisst
    `com.slouchcat.app.dev`; für Push dort im selben Projekt eine zweite Android-App
@@ -256,38 +277,36 @@ task android:dist
 Die Release-Dateien heissen dann ohne `-unsigned`. Fehlt einer der vier Werte, bricht der Bau ab und
 nennt die fehlenden Namen (nie die Werte); fehlen alle vier, bleibt `release` unsigniert. Im
 PKCS12-Keystore aus `keytool` gilt ein Passwort für Keystore und Schlüssel: beide Passwort-Werte
-gleich setzen.
+gleich setzen. Sind Signaturwerte gesetzt, ruft `task android:dist` Gradle mit
+`--no-configuration-cache` auf: So landet nichts vom Schlüssel im Konfigurations-Cache unter
+`android/.gradle/`. Wer Gradle selbst aufruft, gibt die Option für signierte Bauten selbst mit.
 
-### 6.3 Von Hand signieren
+### 6.3 Nachträglich signieren
 
-Für eine unsignierte Datei aus `android/dist/` oder aus einem GitHub-Release. Die Build-Tools liegen
-unter `~/.local/share/android-sdk/build-tools/<Version>` (heute `37.0.0`):
-
-```bash
-BT=~/.local/share/android-sdk/build-tools/37.0.0
-cd android/dist
-"$BT/zipalign" -P 16 -f 4 slouchcat-app-1.0.0-play-release-unsigned.apk aligned.apk
-"$BT/apksigner" sign --ks ~/.config/slouchcat/upload.jks --ks-key-alias upload \
-  --out slouchcat-app-1.0.0-play-release.apk aligned.apk
-"$BT/apksigner" verify --print-certs slouchcat-app-1.0.0-play-release.apk
-rm aligned.apk
-```
-
-`zipalign` vor `apksigner`, nie danach (die Signatur deckt die Ausrichtung). `-P 16` richtet
-eingebettete Bibliotheken auf 16-KB-Seiten aus. Das Bundle signiert `jarsigner` aus dem JDK:
+Für unsignierte Dateien aus `android/dist/` oder aus einem GitHub-Release. Dasselbe Skript nutzt der
+Job «sign» des Workflows (Abschnitt 7): ohne Gradle, nur `zipalign` und `apksigner` aus den
+Build-Tools und `jarsigner` aus dem JDK. Die Passwörter kommen aus der Umgebung, nie als Argument
+(sie stünden sonst in der Prozessliste):
 
 ```bash
-jarsigner -keystore ~/.config/slouchcat/upload.jks \
-  -signedjar slouchcat-app-1.0.0-play-release.aab \
-  slouchcat-app-1.0.0-play-release-unsigned.aab upload
-jarsigner -verify slouchcat-app-1.0.0-play-release.aab
+export JAVA_HOME=~/.local/share/jdk/current ANDROID_HOME=~/.local/share/android-sdk
+export SLOUCHCAT_SIGNING_STORE_FILE=~/.config/slouchcat/upload.jks SLOUCHCAT_SIGNING_KEY_ALIAS=upload
+read -rs -p "Passwort: " SLOUCHCAT_SIGNING_STORE_PASSWORD; echo
+export SLOUCHCAT_SIGNING_STORE_PASSWORD SLOUCHCAT_SIGNING_KEY_PASSWORD="$SLOUCHCAT_SIGNING_STORE_PASSWORD"
+task android:sign                    # Ordner android/dist/
+task android:sign DIR=/pfad/zum/ordner   # anderer Ordner (relativ zu android/)
 ```
 
-`jarsigner -verify` meldet «jar verified.» (deutsch: «JAR-Datei verifiziert.»). Die Warnungen
-danach (selbstsigniertes Zertifikat, kein Zeitstempel) sind bei einem Upload-Schlüssel normal.
-Geprüft mit einem Wegwerf-Schlüssel: `apksigner verify` nennt den Signierer, `zipalign -c -P 16 4`
-bestätigt die Ausrichtung. Hochladen in die Play Console:
-`docs/store/VEROEFFENTLICHEN.md` ab Abschnitt 3.
+Das Skript (`scripts/android-sign.sh`) macht je `*-release-unsigned.apk` daraus ein `*-release.apk`:
+`zipalign -P 16 -f 4` (eingebettete Bibliotheken auf 16-KB-Seiten), `apksigner sign` mit
+`--ks-pass env:…`, `apksigner verify` und `zipalign -c -P 16 4`. Je `*-release-unsigned.aab` signiert
+es mit `jarsigner -storepass:env … -keypass:env …`, prüft mit `jarsigner -verify` und dem
+Signaturblock unter `META-INF/`. Die unsignierte Datei geht weg, `SHA256SUMS` entsteht neu. Fehlt
+einer der vier Werte, bricht es ab und nennt die fehlenden Namen. Geprüft mit einem
+Wegwerf-Schlüssel. `zipalign` kommt vor `apksigner`, nie danach: Die Signatur deckt die Ausrichtung.
+`jarsigner -verify` von Hand meldet «jar verified.» (deutsch: «JAR-Datei verifiziert.»); die
+Warnungen danach (selbstsigniertes Zertifikat, kein Zeitstempel) sind bei einem Upload-Schlüssel
+normal. Hochladen in die Play Console: `docs/store/VEROEFFENTLICHEN.md` ab Abschnitt 3.
 
 ## 7. Ausgabe taggen
 
@@ -304,7 +323,47 @@ Apps sind ein Eintrag im Store mit derselben Kennung, und jedes hochgeladene Bun
 eigenen `versionCode`. Die Bauskripte brechen ab, wenn ein Code den Bereich verlässt. Erste Ausgabe:
 Handy `1.0.0`/`1`, Fernseher `1.0.0`/`1000001`.
 
-Ablauf (nicht geprüft, der Workflow lief noch nie):
+**Das TV-Bundle gehört nur in die Spur «Android TV».** Die TV-App verlangt `android.software.leanback`
+und erreicht darum nur Fernseher (`scripts/android-dist.sh` prüft das in jedem Bau). Trotzdem nie das
+TV-Bundle in eine Spur des Handys laden und nie das Handy-Bundle in die TV-Spur: Google Play liefert je
+Gerät das Artefakt mit dem höchsten `versionCode`, das zum Gerät passt.
+
+### 7.1 Einmal in GitHub einrichten
+
+Nicht geprüft (ohne Zugang zum Repo bei GitHub geschrieben); die Menünamen können sich ändern.
+
+1. **Environment `android-release`:** Repo › Settings › Environments › «New environment», Name
+   `android-release`. Darin:
+   - «Required reviewers»: dich selbst eintragen. Jeder Signierlauf wartet dann auf deine Freigabe
+     unter Actions › der Lauf › «Review deployments».
+   - «Deployment branches and tags» › «Selected branches and tags» › «Add deployment branch or tag
+     rule» › Typ «Tag», Muster `app-v*`; ein zweites Mal mit `tv-v*`.
+2. **Secrets des Environments** (nur der Job «sign» sieht sie). Im Terminal, ohne den Keystore oder ein
+   Passwort anzuzeigen (`gh secret set` liest den Wert aus der Pipe bzw. fragt verdeckt):
+
+   ```bash
+   base64 -w0 ~/.config/slouchcat/upload.jks | gh secret set SLOUCHCAT_SIGNING_KEYSTORE_BASE64 --env android-release
+   gh secret set SLOUCHCAT_SIGNING_STORE_PASSWORD --env android-release
+   gh secret set SLOUCHCAT_SIGNING_KEY_PASSWORD --env android-release
+   printf upload | gh secret set SLOUCHCAT_SIGNING_KEY_ALIAS --env android-release
+   ```
+
+   Ohne diese vier baut der Workflow unsigniert und schreibt das in den Text des Releases; mit einem
+   bis drei davon bricht der Job «sign» ab. Wer den Upload-Schlüssel nicht bei GitHub ablegen will,
+   lässt sie weg und signiert die Dateien des Releases nach 6.3.
+3. **Firebase-Werte als Variablen des Repos** (keine Geheimnisse, sie stehen in jeder APK; nur für die
+   Handy-App): Settings › Secrets and variables › Actions › Reiter «Variables», oder
+   `gh variable set SLOUCHCAT_FIREBASE_PROJECT_ID --body <Wert>`, ebenso `SLOUCHCAT_FIREBASE_APP_ID`,
+   `SLOUCHCAT_FIREBASE_API_KEY`, `SLOUCHCAT_FIREBASE_SENDER_ID`. Alle vier oder keine: Bei einem bis
+   drei bricht der Lauf ab.
+4. **Tag-Ruleset:** Settings › Rules › Rulesets › «New ruleset» › «New tag ruleset». Name
+   `App-Tags`, «Enforcement status» Active, «Target tags» › «Add target» › «Include by pattern»
+   `app-v*` und `tv-v*`. Regeln «Restrict creations», «Restrict updates», «Restrict deletions»; unter
+   «Bypass list» «Repository admin». Dann setzt nur du solche Tags.
+
+### 7.2 Ablauf
+
+Nicht geprüft, der Workflow lief noch nie.
 
 1. `versionCode` und `versionName` in der Datei der App erhöhen, committen, über einen Pull Request nach
    `main`.
@@ -315,26 +374,20 @@ Ablauf (nicht geprüft, der Workflow lief noch nie):
    git push origin app-v1.0.0
    ```
 
-3. Der Workflow `.github/workflows/release-android.yml` prüft den Tag gegen die Datei
-   (`scripts/android-tag-check.sh`), fährt `task android:check` und `task android:test` ohne Secrets,
-   baut dann mit `task android:dist APPS=app` bzw. `APPS=tv` und hängt APKs, Bundle und `SHA256SUMS`
-   an ein GitHub-Release des Tags. Dieses Release wird **nie «latest»**: Der Server und sein Updater
-   lesen das neueste Release (`releases/latest/download/manifest.json`); ein App-Release darf das
-   Server-Release dort nicht verdrängen. Die Workflows des Servers (`v*.*.*`) und der Dienste
-   (`relay-v*.*.*`) laufen bei App-Tags nicht.
-
-**Secrets** (GitHub › Settings › Secrets and variables › Actions). Ohne sie baut der Workflow
-unsigniert und ohne Push und schreibt das in den Text des Releases:
-
-| Secret | Inhalt |
-|---|---|
-| `SLOUCHCAT_SIGNING_KEYSTORE_BASE64` | der Keystore als Base64: `base64 -w0 ~/.config/slouchcat/upload.jks` |
-| `SLOUCHCAT_SIGNING_STORE_PASSWORD`, `SLOUCHCAT_SIGNING_KEY_ALIAS`, `SLOUCHCAT_SIGNING_KEY_PASSWORD` | wie in 6.2 |
-| `SLOUCHCAT_FIREBASE_PROJECT_ID`, `SLOUCHCAT_FIREBASE_APP_ID`, `SLOUCHCAT_FIREBASE_API_KEY`, `SLOUCHCAT_FIREBASE_SENDER_ID` | wie in Abschnitt 5 (nur für die Handy-App) |
-
-Wer den Upload-Schlüssel nicht bei GitHub ablegen will, lässt die vier Signatur-Secrets weg und
-signiert die Dateien des Releases von Hand (6.3). Eine Tag-Schutzregel für `app-v*` und `tv-v*`
-verhindert, dass andere den Workflow auslösen.
+3. Der Workflow `.github/workflows/release-android.yml` läuft in drei Jobs:
+   - **build** (nur Leserecht, ohne Secrets): prüft den Tag gegen die Datei
+     (`scripts/android-tag-check.sh`) und dass der Commit in `main` liegt, fährt `task android:check`
+     und `task android:test`, baut `task android:dist APPS=app` bzw. `APPS=tv` unsigniert.
+   - **sign** (Environment `android-release`, wartet auf deine Freigabe): signiert mit
+     `scripts/android-sign.sh`, ohne pnpm und ohne Gradle. Ohne Secrets reicht er unsigniert durch.
+   - **publish** (Schreibrecht, ohne Secrets): hängt Release-APKs, Bundle und `SHA256SUMS` an ein
+     GitHub-Release des Tags; die Debug-APKs nicht. Läuft derselbe Tag ein zweites Mal, ersetzt er die
+     Dateien.
+4. Das Release wird **nie «latest»**: Der Server und sein Updater lesen das neueste Release
+   (`releases/latest/download/manifest.json`); ein App-Release darf das Server-Release dort nicht
+   verdrängen. Die Workflows des Servers (`v*.*.*`) und der Dienste (`relay-v*.*.*`) laufen bei
+   App-Tags nicht. Wird das «latest»-Release des Servers gelöscht oder zur Vorabversion, kann GitHub auf
+   ein App-Release zurückfallen: dann `gh release edit vX.Y.Z --latest` mit dem neuesten Server-Release.
 
 ## 8. Nur im Emulator geprüft, nur auf echten Geräten möglich
 
@@ -350,8 +403,9 @@ Stand dieser Anleitung; der Koordinator ergänzt ihn am Schluss des Baus.
 - Push nur mit der Attrappe `fcmfake` statt Google (`docs/perf/K27-android-handy.md`, Stufe 8).
 - Ton der TV-App: Erkennung, Kanalzahl, Abwählen ohne Decoder; nur Software-Decoder, nur PCM Stereo
   (`docs/perf/K26-android-tv.md`, «Nur im Emulator geprüft»).
-- Die Dateien aus `task android:dist`: Signatur der Debug-APKs (`apksigner verify`) und `aapt2 dump
-  badging` (Paket, Version, Symbol, TV-Starter, Banner).
+- Die Dateien aus `task android:dist`: Signatur der Debug-APKs (`apksigner verify`), `aapt2 dump
+  badging` (Paket, Version, Symbol, TV-Starter, Banner, `leanback` verlangt nur bei der TV-App);
+  Signieren mit `task android:sign` und einem Wegwerf-Schlüssel.
 
 **Nur auf echten Geräten oder mit fremden Diensten:**
 
@@ -372,14 +426,14 @@ Stand dieser Anleitung; der Koordinator ergänzt ihn am Schluss des Baus.
 |---|---|---|
 | 1 | Server auf 1.43.0 oder neuer heben | 1.2 |
 | 2 | `task android:dist` laufen lassen (oder die Dateien eines GitHub-Releases nehmen) | 1.1, 7 |
-| 3 | Am Handy Entwickleroptionen und USB-Debugging einschalten, Handy-App einspielen, einrichten | 2 |
+| 3 | Am Handy Entwickleroptionen und USB-Debugging einschalten, Handy-App einspielen, Debugging wieder aus, einrichten | 2 |
 | 4 | Gerätechecklisten der Handy-App abarbeiten | 2 |
 | 5 | An jedem Fernseher Entwickleroptionen und Debugging einschalten, TV-App einspielen, von Hand und per Scan einrichten | 3 |
 | 6 | Abnahmeliste der TV-App je Gerät und Tonanlage abarbeiten | 3 |
 | 7 | Vermittlung und Push-Weiterleitung einrichten, `pair.slouchcat.com` und `push.slouchcat.com` darauf zeigen lassen | 4 |
 | 8 | Firebase-Projekt anlegen, die vier Werte setzen, den Dienstkonto-Schlüssel der Push-Weiterleitung geben | 5 |
 | 9 | Upload-Schlüssel erzeugen und sichern | 6.1 |
-| 10 | Die vier Signatur-Werte setzen oder von Hand signieren | 6.2, 6.3 |
-| 11 | Secrets bei GitHub eintragen (oder bewusst weglassen) und Tag-Schutz für `app-v*` und `tv-v*` | 7 |
-| 12 | Version erhöhen, taggen, Release prüfen | 7 |
-| 13 | Bundle in die Play Console laden | 6.3, `docs/store/VEROEFFENTLICHEN.md` |
+| 10 | Die vier Signatur-Werte setzen oder nachträglich signieren | 6.2, 6.3 |
+| 11 | In GitHub: Environment `android-release` mit Pflicht-Reviewer und Tag-Regel, seine Signatur-Secrets (oder bewusst weglassen), Firebase-Variablen, Tag-Ruleset für `app-v*` und `tv-v*` | 7.1 |
+| 12 | Version erhöhen, taggen, Signierlauf freigeben, Release prüfen | 7.2 |
+| 13 | Bundle in die Play Console laden, das TV-Bundle nur in die Spur «Android TV» | 7, `docs/store/VEROEFFENTLICHEN.md` |

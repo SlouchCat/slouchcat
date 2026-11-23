@@ -136,6 +136,10 @@ cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tm
 ```bash
 git tag -a v1.43.0 -F /pfad/zu/release-notes-1.43.0.txt <merge-commit> && git push origin v1.43.0
 ```
+- **Server-Release bleibt «latest»:** Update-Prüfung und Updater lesen `releases/latest`. Die Releases der
+  Apps (`app-v…`, `tv-v…`) werden nie «latest». Wird das «latest»-Release des Servers gelöscht oder zur
+  Vorabversion, kann GitHub auf ein App-Release zurückfallen; dann das neueste Server-Release wieder
+  setzen: `gh release edit vX.Y.Z --latest` (`docs/dev/ANDROID-INBETRIEBNAHME.md`, Abschnitt 7).
 - oh-my-claudecode (OMC) 5.7.5 ist als Plugin für den Linux-Benutzer installiert (`~/.claude`), gilt also
   auch für einen anderen Claude-Account auf diesem Rechner. Skills: `execute`, `ralph`, `team`, `verify`,
   `review`, `plan`, `deep-interview`.

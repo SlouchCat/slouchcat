@@ -73,7 +73,8 @@ dieselbe.
 ## 3. App-Bundle bauen und signieren
 
 **Was:** baut das Bundle der Bauart `play` (FCM, Google code scanner) und signiert es. **Wo:** im
-Repo unter `android/`, nach `source …/android-env.sh` oder mit eigenem JDK 21 und Android-SDK.
+Repo, mit JDK 21 und Android-SDK aus `scripts/install-android-tools.sh` (unter `~/.local/share`,
+`docs/dev/SETUP.md`, Abschnitt «Die Android-Apps: `android/`»).
 
 1. `versionCode` und `versionName` in `android/app-mobile/version.properties` hochzählen
    (`versionCode` steigt bei jedem Hochladen um 1; Regel und Bereiche von Handy und TV:
@@ -230,6 +231,16 @@ ohne Anmeldung als Tester erscheint.
    Upload-Schlüssel). Der `versionCode` der TV-App zählt ab 1000001, der der Handy-App bleibt unter
    1000000, damit sich die zwei nicht in die Quere kommen (`docs/dev/ANDROID-INBETRIEBNAHME.md`,
    Abschnitt 7). Zuerst in die interne TV-Spur, dann in die Produktion der TV-Spur.
+   **Das TV-Bundle nur in die TV-Spur, das Handy-Bundle nie dorthin.** Google Play liefert je Gerät das
+   passende Artefakt mit dem höchsten `versionCode`. Die TV-App verlangt darum
+   `android.software.leanback` (`required="true"`: «Google Play will only make your app available on
+   Android TV OS», developer.android.com, «Create and run a TV app», Abschnitt «Declare TV device
+   support», gelesen am 23. November 2026); `scripts/android-dist.sh` prüft es in jedem Bau.
+   **Ziel-API 34 reicht für die TV-App:** «Android TV and Android XR apps, which must target Android
+   14 (API level 34) or higher» für neue Apps und Updates ab 31. August 2026
+   (<https://developer.android.com/google/play/requirements/target-sdk>, gelesen am 23. November
+   2026). Bestehende TV-Apps mit Ziel-API 33 oder tiefer sind auf neueren Geräten nicht mehr
+   erhältlich; 34 liegt darüber.
 5. Der Anleitung für die Prüfer (App-Zugriff) den TV-Absatz beilassen: Einrichten von Hand mit dem
    Prüfkonto (`datensicherheit.md` Abschnitt 5).
 6. Die TV-Prüfung abwarten. Google prüft gegen die TV-Qualitätsliste; Ablehnungen kommen mit
@@ -246,6 +257,7 @@ der Rechercheur gelesen, nicht nachgeprüft):
 - [ ] kein Bildschirmschoner während der Wiedergabe
 - [ ] keine Funktion, die Touch, Kamera oder GPS voraussetzt, als Pflicht im Manifest
 - [ ] App-Bundle (AAB), Ziel-API mindestens 34, `minSdk` höchstens 31
+- [ ] `android.software.leanback` verlangt (nur Fernseher), Touchscreen nicht verlangt (prüft `task android:dist`)
 - [ ] 32 und 64 Bit sowie 16-KB-Speicherseiten unterstützt
 - [ ] Test-Zugangsdaten für Googles Prüfer eingetragen (Vorführserver)
 

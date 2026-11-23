@@ -124,6 +124,7 @@ task android:e2e:tv SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf mit Fotos je
 task android:apk          # Debug- und Release-APKs nach android/app-mobile/ und android/app-tv/build/outputs/apk
 task android:bundle       # die zwei Bundles (AAB) für den Store: play der Handy-App und die TV-App
 task android:dist         # APKs und Bundles mit Version im Namen nach android/dist/, geprüft, mit SHA256SUMS (APPS=app oder tv)
+task android:sign         # unsignierte Release-Dateien in android/dist/ mit dem Upload-Schlüssel aus SLOUCHCAT_SIGNING_* signieren
 task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
 ```
 
