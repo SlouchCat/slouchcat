@@ -36,6 +36,7 @@ import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.offline.Contact
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -194,6 +195,12 @@ class OfflineFlowTest {
     fun cleanUp() = runBlocking {
         network(true)
         if (graph.session.state.value is SessionState.Ready) {
+            // A flow that failed with the network switched off: the sign-out below must reach the
+            // server. Unconfirmed, it leaves the download there, and the server goes on listing
+            // this phone under «Meine Geräte» for the flows after this one (SignInFlowTest then
+            // found «the phone is still signed in»).
+            val deadline = System.nanoTime() + 30_000 * 1_000_000L
+            while (engine.sync() != Contact.Online && System.nanoTime() < deadline) delay(500)
             // The server as this flow found it: the film without the progress of its playback.
             filmId?.let { id -> runCatching { resetProgress(SlouchcatApi.create(::ItemsApi, server, graph.http), id) } }
             graph.sessionActions.signOut()
