@@ -267,12 +267,30 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Attrappe, die sich wie Media3 verhält, Ablauf im TV-Emulator mit echter Wiedergabe, Code-Review mit
     Korrekturrunde (4 Major, zwei davon im gemeinsamen Player: Positionsverlust bei zwei Neustarts
     hintereinander, ungewolltes Losspielen nach einer Pause).
-  - **Offen:** Kapitelmarken auf der Zeitleiste des TV-Players (Papier 5.1 nennt Kapitel; die Daten
-    kommen an, die Leiste zeigt sie noch nicht); folgt mit Stufe 4.
+  - **Kapitelmarken** auf der Zeitleiste des TV-Players (Papier 5.1) sind mit Stufe 5 nachgezogen:
+    ausgedünnte Marken, der Kapitelname steht beim Spulen und in der Ansage der Leiste.
   - **Nicht geprüft, weil der Emulator es nicht kann:** Dolby Digital und Dolby Digital Plus (dekodieren
     und durchreichen), Mehrkanal-PCM, HDR10, HLG, Dolby Vision, der Wechsel des Tonausgangs an echter
     Hardware. Die Abnahmeliste je Gerät und Tonanlage (28 Schritte) steht in `docs/perf/K26-android-tv.md`,
     «Stufe 3».
+- **Konzept 26, Stufe 5 «Wünsche» (TV-App):** Bereich «Wünsche» in der Leiste mit «Entdecken», «Suchen»
+  (eigene Tastatur und Spracheingabe) und «Meine Wünsche» (Filter, Zahl der offenen Wünsche), Titelseite
+  ausserhalb der Bibliothek mit Anfordern (Serien mit Staffeln), Zurückziehen und «Nicht mehr
+  mitwünschen», Limit; die Hauptsuche zeigt «Noch nicht in der Bibliothek?». Dazu Benachrichtigungen
+  (Eingang und Ankündigungen, Abzeichen an der Leiste) und Einstellungen › Benachrichtigungen. Die Logik
+  kommt aus `:core:browse` und `:core:media` (dieselbe wie in der Handy-App); die Wörter der Wünsche
+  liegen gemeinsam in `WishWords`.
+  - **Nicht auf dem Fernseher:** Kanäle und Push (`x-clients: [app]`, F-18), nichts aus der Verwaltung von
+    Seerr (Regel 11).
+  - **Geprüft:** je Seite ein Test mit dem Steuerkreuz (Fokus nie verloren, auch wenn die fokussierte Zeile
+    verschwindet), Test über das echte Register, Ablauf im TV-Emulator gegen die Seerr-Attrappe
+    (`task android:e2e:tv`, 8 Tests), Schaubilder gegen das Mockup angesehen, Code-Review mit
+    Korrekturrunde (2 Major), Verifier.
+  - **Abweichungen:** «Filme» und «Serien» sind Reihen in «Entdecken», die am Ende nachladen, keine
+    eigenen Seiten, und Genres fehlen (Papier Abschnitt 6 nennt sie; das TV-Mockup zeigt Reihen). «Suchen»
+    ist ein dritter Reiter statt eines Blatts. Seite, Zeile der Einstellungen und Leiste zählen Einträge
+    plus Ankündigungen (das Mockup zählt auf der Seite nur die Einträge).
+  - **Offen:** Abnahme mit echtem Seerr auf einem Fernseher.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 
