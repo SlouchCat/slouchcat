@@ -174,6 +174,30 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Code-Review mit Korrekturrunde (3 Major, darunter: Die Kopplung lief nach Verlassen der Seite weiter).
   - **Offen:** die Seiten der TV-App (Stufe 2 Teil b), der Scan mit der echten Handy-App (K27 Stufe 9),
     alles auf einem echten Fernseher.
+- **Ausgabe der Apps (Konzept 27 Stufe 10 und Konzept 26 Stufe 6, was ohne Google und ohne Marco geht):**
+  - **Starter-Symbol** der Handy-App (adaptiv, mit einfarbiger Ebene), Versionsdateien beider Apps
+    (`app-mobile/version.properties`, `app-tv/version.properties`, beide `1.0.0`; `versionCode` der Handy-App
+    unter 1 000 000, der TV-App ab 1 000 001, weil beide ein Store-Eintrag sind).
+  - **Die TV-App verlangt `android.software.leanback`** (`required="true"`): Ihr Bundle erreicht nur
+    Fernseher. Vorher hätte es auch auf Handys gepasst und mit dem höheren Code die Handy-App verdrängt.
+  - **Signieren:** Release-Bauten signiert Gradle nur, wenn vier Werte gesetzt sind (`slouchcat.signing.*`
+    oder `SLOUCHCAT_SIGNING_*`); kein Schlüssel im Repo. `task android:bundle`, `task android:dist`
+    (APK für `adb install`, Release-APK, AAB und `SHA256SUMS` nach `android/dist/`), `task android:sign`
+    (fertige Dateien von Hand signieren).
+  - **Release-Weg:** `.github/workflows/release-android.yml` für die Tags `app-v*` und `tv-v*`, in drei
+    Jobs (bauen ohne Secrets, signieren im Environment `android-release` ohne Gradle und ohne npm,
+    veröffentlichen). Das GitHub-Release wird nie «latest», damit der Updater des Servers es nicht sieht
+    (Nachtrag zu ADR 0039).
+  - **Store-Grafiken** als SVG-Quellen in `docs/store/grafiken/` und `scripts/store-graphics.sh`; die
+    Bilder selbst liegen nicht im Repo.
+  - **Anleitung für den Auftraggeber:** `docs/dev/ANDROID-INBETRIEBNAHME.md` (Apps auf Handy und Fernseher
+    bringen, die zwei Dienste, Push mit Firebase, signieren, taggen, was nur im Emulator geprüft ist, Liste
+    «Das muss Marco tun»).
+  - **Geprüft:** Code-Review und Sicherheits-Review mit Korrekturrunde, Verifier; Signieren mit einem
+    Wegwerf-Schlüssel über Gradle und von Hand; `aapt2`-Prüfung der fertigen Dateien; actionlint.
+  - **Nicht geprüft:** alles bei GitHub (Environment, Ruleset, erster Lauf des Workflows), Play Console,
+    Firebase, echte Geräte. **Offen:** Prüfsummen für Gradle-Abhängigkeiten (`verification-metadata.xml`),
+    Bildschirmfotos für den Store.
 - **Konzept 27, Stufe 6 «Downloads» (ADR 0043):** neues Modul `:core:offline` (Room; Datenbank und Dateien
   ausserhalb jeder Sicherung), Download-Dialog auf den Detailseiten, Seite «Downloads» (Ziel der unteren
   Leiste), Abruf im Hintergrund (ab Android 14 als Übertragungsauftrag des Systems, davor als
