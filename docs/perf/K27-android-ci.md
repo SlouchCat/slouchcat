@@ -297,7 +297,8 @@ Was die Zahlen zeigen:
   `SHOTS`. Bricht das Skript vorher ab, beendet es die Prozessgruppe des Baus.
 
 **Ergebnis:** 11,7 bis 11,9 min (die drei Jobs mit vier Kernen, 720 × 1616 und dem Cache von `android`) statt
-15,2 bis 15,6 min, also rund 3,5 Minuten oder knapp ein Viertel weniger. Der Rest verteilt sich so (Variante «final b»): Einrichten rund 3,5 min, bis zum ersten Fall 2,7 min, Ablauf 5,6 min.
+15,2 bis 15,6 min, also rund 3,5 Minuten oder knapp ein Viertel weniger. Der erste Lauf des Pull Requests
+(45190586671) brauchte 12,4 min: Gradle-Bau 85 s, Ablauf am Gerät 391 s, SDK-Pakete 70 s. Der Rest verteilt sich so (Variante «final b»): Einrichten rund 3,5 min, bis zum ersten Fall 2,7 min, Ablauf 5,6 min.
 
 **Nicht gemacht, mit Grund:**
 

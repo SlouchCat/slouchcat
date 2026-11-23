@@ -16,6 +16,9 @@ knapp 2 min das Einrichten.
   gelöscht). Mit allen drei Änderungen 11,7 bis 11,9 min (drei Jobs). Der Gradle-Bau dauert 81 bis 119 s statt 4 bis 6 min,
   die Fälle laufen ein Viertel bis ein Drittel schneller. Tabellen: `docs/perf/K27-android-ci.md`, «Laufzeit des
   Emulator-Jobs».
+- **Im Lauf des Pull Requests** (45190586671, Job 137748063267): 12,4 min. Der Gradle-Bau dauerte 85 s, die
+  APKs waren 124 s nach dem Start des Skripts bereit, der Ablauf am Gerät dauerte 391 s. Das Einrichten war
+  langsamer als in der Messung (SDK-Pakete 70 s, apt 39 s).
 - **Bleibt:** Der Job ist weiter rot und steht nicht im Gate. `AudioFlowTest` war in zehn von zehn Jobs rot
   (das Radio spielt nicht innert 30 s), vier weitere Fälle gelegentlich; die Ursachen sind nicht untersucht.
   Die Wartezeit eines Pull Requests bestimmt der Job nicht: Am längsten laufen `server tests (2)` (22 min) und
