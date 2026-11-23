@@ -1,5 +1,37 @@
 # Aktueller Stand
 
+## Emulator-Job: sechs Testfehler behoben, ein App-Fehler gefunden (23. November 2026, PR #218)
+
+Marco am 23. November 2026: die roten Tests des Jobs `android-emulator` untersuchen. Der Job war in jedem der
+17 ausgewerteten Läufe rot. Sechs Ursachen lagen in den Tests, eine liegt in der App.
+
+- **Behoben (nur Testquellen unter `android/app-mobile/src/androidTest`):**
+  - `AudioFlowTest.kt:341`, in jedem Lauf rot: Die Radioseite öffnet mit dem Land des Profils, und das leitet
+    der Server aus seiner Zeitzone ab. Die Testsender sind Schweizer Sender, der Runner läuft in UTC und bekam
+    DE. Der Ablauf speichert jetzt CH, wie der Web-Ablauf.
+  - `OfflineFlowTest.kt:247`/`:253`, 7 von 17: Die Warteschleife tippte bei jedem Blick aufs Bild; zwei schnelle
+    Tipps sind ein Doppeltipp und spulen 10 s vor, bis der Film am Ende steht.
+  - `SignInFlowTest.kt:368`, 3 von 17: Folgefehler. Das Aufräumen von `OfflineFlowTest` meldete ohne Netz ab, der
+    Download blieb am Server, und «Meine Geräte» listete das Handy weiter.
+  - `MessagesShowcaseTest`, 4 von 17: Die Zurück-Taste des Tests davor schloss die Seite des nächsten.
+  - `PlayerFlowTest.kt:242`: Das Ausblenden der Bedienleiste läuft auf der Uhr des Tests, nicht auf der echten.
+  - `MessagesFlowTest.kt:349`: Die Mitteilung wurde geprüft, bevor das System sie listete.
+- **Offen, Fehler der App:** `ServerIdentityGate` verwirft den Beweis des Servers nach jeder gescheiterten
+  Anfrage, auch wenn die App sie selbst abgebrochen hat (ein Bild beim Verlassen einer Seite, ein Segment beim
+  Spulen). Eine gleichzeitig laufende Anfrage scheitert dann mit «the network changed before the request left».
+  Gemessen in fünf Jobs: 80-mal verworfen, davon 75-mal nach einem Abbruch in der App; viermal traf es eine
+  laufende Anfrage sichtbar, einmal scheiterte daran `MessagesFlowTest`. Betroffen sind nur Server über HTTP.
+  Die Behebung braucht eine eigene Änderung mit JVM-Test und Sicherheitsdurchsicht.
+- **Gemessen:** Lauf 45221096541, fünf gleiche Jobs mit den korrigierten Tests: vier grün, einer rot (der
+  App-Fehler). Es sind die ersten grünen Läufe des Ablaufs auf dem Runner. Der Job bleibt ausserhalb des Gates,
+  bis der App-Fehler behoben ist. Einzelheiten: `docs/perf/K27-android-ci.md`, «Rote Fälle im Emulator-Job».
+- **Geprüft:** `task ci:android` und `task check:fast BASE=origin/main` auf `8951fb1e` grün (Lint samt
+  Testquellen, JVM-Tests; nach dem Nachziehen von main). Lokal im Emulator
+  (`sc_phone`, Server mit `TZ=UTC`, 12 GB und 8 Kerne): `AudioFlowTest` vor der Korrektur rot an `:341`, danach
+  grün; der ganze Ablauf 16 von 16 grün (318 s, Stand mit den ersten vier Korrekturen); `PlayerFlowTest` und
+  `MessagesFlowTest` mit den letzten beiden grün. Unabhängige Durchsicht des Diffs ohne Befund. Kein ganzes
+  `task ci`: Der Pull Request ändert nur Testquellen der Handy-App und Dokumente.
+
 ## Korrektur: Die Handy-App meldet Push nicht mehr auf dem Haupt-Thread an (23. November 2026, Zweig `claude/android-push-main-thread`)
 
 Erste Probe von Push auf einem echten Gerät: Pixel 10a mit Android 17, signierter Release-Bau `play`

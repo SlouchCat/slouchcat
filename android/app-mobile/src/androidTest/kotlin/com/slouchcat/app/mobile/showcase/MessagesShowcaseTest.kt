@@ -130,7 +130,16 @@ class MessagesShowcaseTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
         InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(500, 5_000)
         show.shot("w19-notification")
-        InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        // The shade goes without a key where the system can do that. A Back that still waits for
+        // a window when this test ends lands on the activity of the next one and closes it
+        // («Cannot run onActivity since Activity has been destroyed already»).
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+        } else {
+            automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        }
+        runCatching { automation.waitForIdle(500, 5_000) }
     }
 
     @Test

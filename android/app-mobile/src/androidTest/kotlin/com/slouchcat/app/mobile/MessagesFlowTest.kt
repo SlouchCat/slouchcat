@@ -346,7 +346,8 @@ class MessagesFlowTest {
         val id = runBlocking { PushReceiver.receive(context, graph, wp) }
         assertTrue("the notification shows", id != null)
         val manager = context.getSystemService(NotificationManager::class.java)
-        assertTrue(manager.activeNotifications.any { it.id == id })
+        // notify() hands the notification to the system and returns: it is listed a moment later.
+        compose.waitUntil(5_000) { manager.activeNotifications.any { it.id == id } }
         shot("w08-settings-push-on")
         // A tap opens the app at the message's path (the test message links to the start).
         manager.activeNotifications.single { it.id == id }.notification.contentIntent.send()

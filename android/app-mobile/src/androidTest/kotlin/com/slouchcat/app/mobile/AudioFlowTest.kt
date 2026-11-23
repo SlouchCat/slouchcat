@@ -171,6 +171,11 @@ class AudioFlowTest {
             listOf("""{"op":"chooseCountry","country":"$code"}""", """{"op":"markAll","country":"$code"}""")
         }
         call("POST", "admin/radio/offer/apply", """{"version":${offer["version"]},"steps":[${steps.joinToString(",")}]}""")
+        // The page opens with the profile's country, and a profile without one gets the country of
+        // the server's time zone, else Germany (R-9). The test stations are Swiss: on a host in UTC
+        // (the hosted runner) the list showed the German stations and «Testradio Eins» never came.
+        // As the web flow does (web/e2e/radio.ts, resetRadioPreferences).
+        call("PUT", "radio/preferences", """{"defaultCountry":"CH","lastFilter":{},"lastSort":"popular"}""")
     }
 
     private fun prepareServer() {

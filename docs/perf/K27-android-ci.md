@@ -330,3 +330,56 @@ Fälle ist nicht untersucht.
 (`task android:e2e`, `sc_phone`, 8 Kerne, 12 GB) war der Fall rot und die übrigen 15 grün, die Wiederholung
 allein (`CLASS=…OfflineFlowTest`) war grün. Der Fall spult im Offline-Player auf die Hälfte und wartet 30 s
 darauf, dass wieder «Pause» zu sehen ist.
+
+## Rote Fälle im Emulator-Job: Ursachen (23. November 2026)
+
+Der Job war in jedem Lauf rot. Untersucht an den Berichten von sieben Läufen (45132700824, 45158493082,
+45163735384, 45193438086, 45190586671, 45200252730, 45215280317) und den zehn Jobs der Laufzeitmessung,
+zusammen 17 Läufe. Sechs Ursachen liegen in den Tests und sind behoben, eine liegt in der App und ist offen.
+
+| Fall                                                     | wie oft rot                         | Ursache                                                                                                                                                                                                                                 | Beleg                                                                                                                                                                                             | Behebung                                                                                              |
+| -------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `AudioFlowTest.kt:341`                                   | 17 von 17                           | Die Radioseite öffnet mit dem Land des Profils. Ohne eigenes Land nimmt der Server das seiner Zeitzone, sonst DE (R-9). Die Testsender sind Schweizer Sender; der Runner läuft in UTC.                                                  | `server.log`: `GET /api/v1/radio/stations … country=DE`. Lokal mit `TZ=UTC task android:e2e CLASS=…AudioFlowTest`: rot an derselben Stelle, mit der Korrektur grün.                                  | Der Ablauf speichert CH als Land des Profils, wie der Web-Ablauf (`web/e2e/radio.ts`).                |
+| `OfflineFlowTest.kt:247`, `:252`, `:253`                 | 7 von 17, lokal 1 von 2             | Die Warteschleife tippte bei jedem Blick aufs Bild, solange «Pause» fehlte. Zwei schnelle Tipps sind ein Doppeltipp, und der spult 10 s vor. Der 60-s-Film stand am Ende, wo «Pause» nie kommt.                                         | Logcat: Position 30010, 40010, 50054, 60020 in 1,3 s, danach im Kreis `STOPPED`, `BUFFERING`, `PLAYING` bei 60020 bis zum Zeitlimit.                                                               | Die Schleife nutzt die eigene Aktion des Bilds, die es nur gibt, solange die Bedienleiste verborgen ist. |
+| `SignInFlowTest.kt:368` («the phone is still signed in») | 3 von 17                            | Folgefehler. «Meine Geräte» listet ein Gerät mit Sitzung oder mit Download (`server/queries/app/access.sql`). Nach einem roten `OfflineFlowTest` meldete dessen Aufräumen ohne Netz ab; der Download blieb am Server.                   | Logcat: `logout not confirmed result=Offline`. `server.log`: `DELETE /downloads/… 204` erst nach der Prüfung. In allen drei Läufen war `OfflineFlowTest` davor rot.                                    | Das Aufräumen wartet bis zu 30 s, bis ein Abgleich den Server erreicht, und meldet erst dann ab.       |
+| `MessagesShowcaseTest.wishesEmptyAndNotSetUp`            | 4 von 17                            | Der Test davor schloss die Mitteilungsleiste mit der Zurück-Taste und wartete nicht. Die Taste traf die Seite des nächsten Tests und schloss sie.                                                                                       | Logcat: `InputDispatcher: Waiting because no window has focus`, 2 s später schliesst die Aufgabe; kein Start einer anderen Seite davor. Dass es die Taste war, zeigt die Reihenfolge, kein eigener Logeintrag. | Die Leiste schliesst mit der Aktion des Systems (ab API 31), danach wartet der Test auf Ruhe.          |
+| `PlayerFlowTest.kt:242`                                  | 4 von 4 vor PR #216, danach 0 von 13 | Die Bedienleiste blendet nach einem `delay` aus. Im Compose-Test läuft der auf der Uhr des Tests; ein Warten stellt sie je Blick um ein Bild vor. Sind die Blicke langsam, sind 10 s Blicke weniger als 4 s dieser Uhr.                 | Lauf 45132700824: 22 s ununterbrochen `PLAYING`, die Leiste blieb. Warum der Fall seit PR #216 nicht mehr rot war (auch mit zwei Kernen nicht), ist nicht belegt; schnellere Blicke liegen nahe. | Das Warten stellt die Uhr selbst vor.                                                                 |
+| `MessagesFlowTest.kt:349`                                | 1 von 17                            | `notify()` kehrt zurück, bevor das System die Mitteilung listet. Der Test prüfte sofort.                                                                                                                                                | Logcat: `received notification posted event` 0,3 s nach der Prüfung.                                                                                                                               | Der Test wartet bis zu 5 s auf die Mitteilung.                                                        |
+| `MessagesFlowTest` (`FlowWaits.kt:45`, ein Text fehlt)   | 4 von 17                            | **App, offen:** siehe unten.                                                                                                                                                                                                            |                                                                                                                                                                                                   | keine                                                                                                 |
+
+**Danach gemessen:** Lauf 45221096541, fünf gleiche Jobs mit den korrigierten Tests (Wegwerf-Workflow, Zweig
+gelöscht): vier grün, einer rot (`MessagesFlowTest`, der offene App-Fehler). Es sind die ersten grünen Läufe
+dieses Ablaufs auf dem Runner. Lokal (`sc_phone`, Server mit `TZ=UTC`, 8 Kerne, 12 GB): der ganze Ablauf mit 16
+von 16 Fällen grün, 318 s; der Worktree hatte keine Testmedien, der Ablauf richtete sein Konto also selbst ein.
+
+**Nicht geändert:** `StoreShotsTest.kt:319` und `:325` haben dieselbe Tipp-Schleife wie `OfflineFlowTest`. Der
+Test gehört nicht zum Ablauf (`scripts/store-screenshots.sh`), eine Änderung dort ist nicht geprüft.
+
+### Offen: die App verwirft den Serverbeweis nach einem abgebrochenen Aufruf
+
+`ServerIdentityGate.intercept` (`android/core/api`) verwirft nach jeder `IOException` einer Anfrage den Beweis
+des Servers («The connection broke: maybe the network went with it»). Eine Anfrage, die gleichzeitig schon
+unterwegs ist, scheitert dann in `hop` mit `ServerNotProvenException: the network changed before the request
+left`, obwohl sich das Netz nicht geändert hat. Die Seite zeigt einen Fehler oder ein leeres Ergebnis und
+versucht es nicht neu. Betroffen sind nur Server über HTTP; bei HTTPS prüft das Gate nicht.
+
+Gemessen im Lauf 45221096541 mit einer zusätzlichen Logzeile an dieser Stelle (nur im Wegwerf-Zweig), fünf Jobs:
+
+| Anlass des Verwerfens                                            | Anzahl |
+| ---------------------------------------------------------------- | ------ |
+| abgebrochener Aufruf eines Bilds (`IOException: Canceled`)       | 51     |
+| unterbrochener API-Aufruf (`InterruptedIOException: interrupted`) | 21     |
+| abgebrochener Aufruf eines Videosegments                         | 3      |
+| echter Netzfehler (`OfflineFlowTest` schaltet das Netz ab)       | 5      |
+
+75 von 80 Malen war der Anlass also ein Abbruch in der App selbst (eine Seite wird verlassen, der Player
+spult), kein Ereignis im Netz. Viermal traf es eine laufende Anfrage sichtbar (`Slouchcat/wishes`, `player`,
+`home`, `libraries`: «no answer … the network changed before the request left»). Einmal scheiterte daran
+`MessagesFlowTest`: Zwei Plakate der Wunschsuche wurden um 16:59:22.679 abgebrochen, 0,5 s später scheiterte
+die Suche selbst.
+
+Das ist ein Fehler der App, kein Fehler des Tests, und er trifft Benutzer mit einem Server über HTTP. Die
+Behebung gehört in eine eigene Änderung mit einem JVM-Test in `ServerIdentityGateTest` und einer
+Sicherheitsdurchsicht: Das Verwerfen nach einem Verbindungsbruch ist Absicht (`aBrokenConnectionForgetsTheProof`),
+falsch ist nur, dass auch ein Abbruch in der App als Verbindungsbruch zählt und dass eine laufende Anfrage
+danach scheitert statt neu zu beweisen. Solange das offen ist, bleibt der Job ausserhalb des Gates.
