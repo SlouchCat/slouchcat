@@ -74,6 +74,26 @@ const val TYPING_START = "k-1-0"
 private const val DEVICE_KEYBOARD = "kbd"
 private const val DELETE = 0x7f
 
+/**
+ * The voice input of the device (paper 3.4: the search gets it where the TV has it): starts the
+ * recogniser and hands the first result to [onText]; `null` where no app on the TV offers it.
+ */
+@Composable
+fun rememberVoiceInput(onText: (String) -> Unit): (() -> Unit)? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val speech = remember {
+        android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+    }
+    val canSpeak = remember { context.packageManager.queryIntentActivities(speech, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY).isNotEmpty() }
+    val current by androidx.compose.runtime.rememberUpdatedState(onText)
+    val listen = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        val said = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (result.resultCode == android.app.Activity.RESULT_OK && !said.isNullOrBlank()) current(said)
+    }
+    return if (canSpeak) ({ listen.launch(speech) }) else null
+}
+
 /** Whether the device's own input has the field (then a plugged-in keyboard types there, not through [hardwareTyping]). */
 class TypingMode(initial: Boolean = false) {
     var system by mutableStateOf(initial)

@@ -77,6 +77,8 @@ class NotificationsScreenTest {
         badgeSays(unreadLabel(3))
         open()
         pages.waitFor("Maintenance Nine")
+        // The page counts as the rail and the row: two entries and the announcement (code review m-6).
+        pages.waitFor(pages.context.resources.getQuantityString(R.plurals.notifications_summary, 3, 3))
         remote.assertFocused(pages.s(R.string.announcements_acknowledge))
         remote.assertFocused("Maintenance Nine")
         remote.assertEveryControlReachable(pages.page)
@@ -105,6 +107,12 @@ class NotificationsScreenTest {
         remote.ok()
         pages.waitFor(pages.s(R.string.wishes_page_empty_title))
         remote.assertFocused(pages.s(R.string.wishes_area_mine))
+        // Back returns to the entry, as from a title (code review m-7); the rail's «Einstellungen» opens its own first page.
+        remote.back()
+        pages.waitFor("Wished Two")
+        remote.assertFocused("Wished Two")
+        pages.openRail(pages.s(R.string.tv_settings_title))
+        pages.waitFor(pages.s(R.string.tv_settings_switchPane))
     }
 
     @Test
@@ -145,6 +153,22 @@ class NotificationsScreenTest {
         remote.ok()
         pages.waitFor("Pilot Five")
         remote.assertFocused("Pilot Five")
+    }
+
+    @Test
+    fun aRefusedAcknowledgementKeepsTheCardAndTheFocus() {
+        show()
+        notes.changeFailure = ApiResult.Offline
+        open()
+        pages.waitFor("Maintenance Nine")
+        remote.ok()
+        compose.waitUntil(5_000) { notes.calls.contains("ack:9") }
+        pages.waitFor(pages.s(R.string.app_state_failed))
+        // The card stays, the focus is on the next control, not lost.
+        pages.waitFor("Maintenance Nine")
+        remote.assertFocused(pages.s(R.string.notifications_markAllRead))
+        remote.up()
+        remote.assertFocused(pages.s(R.string.announcements_acknowledge))
     }
 
     private companion object {

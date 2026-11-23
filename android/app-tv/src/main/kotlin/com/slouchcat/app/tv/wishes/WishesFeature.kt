@@ -20,6 +20,7 @@ import com.slouchcat.app.tv.shell.TvNavigator
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.api.generated.models.ExternalMedia
 import com.slouchcat.core.api.generated.models.WishCreate
+import com.slouchcat.core.browse.wishes.wishErrorRes
 import com.slouchcat.core.browse.wishes.WishTitleMessage
 import com.slouchcat.core.browse.wishes.WishTitleViewModel
 import com.slouchcat.core.browse.wishes.WishesMessage
@@ -33,9 +34,13 @@ import com.slouchcat.core.media.data.WishesRepository
 import com.slouchcat.core.strings.R
 import kotlinx.serialization.Serializable
 
-/** The area «Wünsche» (mockup `/wishes`); [tab] `mine` opens «Meine Wünsche» (a notification about a wish, «Meine Wünsche» of a title). */
+/**
+ * The area «Wünsche» (mockup `/wishes`); [tab] `mine` opens «Meine Wünsche» (a notification about a
+ * wish, «Meine Wünsche» of a title), `search` its search with [query] (the card «„…“ wünschen» of the
+ * main search, code review m-5).
+ */
 @Serializable
-data class WishesRoute(val tab: String? = null)
+data class WishesRoute(val tab: String? = null, val query: String? = null)
 
 /** A title outside the library (mockup `/wish/:i`, web `/titles/:media/:tmdbId`); [fromSearch]: a request counts as from the search. */
 @Serializable
@@ -62,13 +67,18 @@ class WishesFeature(
         val navigator = app.navigator
         composable<WishesRoute> { entry ->
             val route = entry.toRoute<WishesRoute>()
-            val mine = route.tab == MINE
+            val start = when (route.tab) {
+                MINE -> TvWishesTab.Mine
+                SEARCH -> TvWishesTab.Search
+                else -> TvWishesTab.Discover
+            }
             val vm = viewModel {
                 WishesViewModel(
                     graph.session,
                     repository(graph),
                     graph.media.openWishesCount,
-                    if (mine) WishesTab.Mine else WishesTab.Discover,
+                    if (start == TvWishesTab.Mine) WishesTab.Mine else WishesTab.Discover,
+                    route.query,
                     withQuota = true,
                     searchPauseMs = SEARCH_PAUSE_MS,
                 )
@@ -79,7 +89,7 @@ class WishesFeature(
                 vm.messages.collect { message ->
                     when (message) {
                         is WishesMessage.Withdrawn -> graph.toasts.show(R.string.titles_done_withdrawn)
-                        is WishesMessage.Failed -> graph.toasts.show(wishErrorId(message.code))
+                        is WishesMessage.Failed -> graph.toasts.show(wishErrorRes(message.code))
                     }
                 }
             }
@@ -93,7 +103,7 @@ class WishesFeature(
                     home = navigator.openerOf(graph.registry.home.key),
                 )
             }
-            WishesScreen(state, images, links, vm, startMine = mine)
+            WishesScreen(state, images, links, vm, start = start)
         }
         composable<WishTitleRoute> { entry ->
             val route = entry.toRoute<WishTitleRoute>()
@@ -115,9 +125,14 @@ class WishesFeature(
                     when (message) {
                         is WishTitleMessage.Requested -> graph.toasts.show(if (message.joined) R.string.titles_done_joined else R.string.titles_done_requested)
                         WishTitleMessage.Withdrawn -> graph.toasts.show(R.string.titles_done_withdrawn)
-                        is WishTitleMessage.Failed -> graph.toasts.show(wishErrorId(message.code))
+                        is WishTitleMessage.Failed -> graph.toasts.show(wishErrorRes(message.code))
                     }
                 }
+            }
+            // In the library meanwhile (409 `already_available`, code review m-3): its title instead of this page.
+            LaunchedEffect(state.inLibrary) {
+                val item = state.inLibrary ?: return@LaunchedEffect
+                if (navigator.canOpen(ItemRoute::class)) navigator.replace(ItemRoute(item))
             }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
@@ -125,7 +140,8 @@ class WishesFeature(
                 state = state,
                 images = images,
                 actions = vm,
-                onMine = { navigator.openTarget(KEY, WishesRoute(tab = MINE)) },
+                // Above this page (code review m-7): Back returns here; the rail keeps its own pages.
+                onMine = { navigator.navigate(WishesRoute(tab = MINE)) },
                 onBack = { navigator.back() },
             )
         }
@@ -134,6 +150,7 @@ class WishesFeature(
     companion object {
         const val KEY = "wishes"
         const val MINE = "mine"
+        const val SEARCH = "search"
 
         /** Below «Suche» … above «Einstellungen» (50): the place the rail keeps for it (mockup `NAV`). */
         const val ORDER = 40
@@ -144,7 +161,7 @@ class WishesFeature(
 }
 
 /** A tile: its title in the library when the profile sees it there, else its page outside the library. */
-private fun openCard(navigator: TvNavigator, card: ExternalCard, fromSearch: Boolean) {
+internal fun openCard(navigator: TvNavigator, card: ExternalCard, fromSearch: Boolean) {
     val item = card.itemId
     if (item != null && navigator.canOpen(ItemRoute::class)) navigator.navigate(ItemRoute(item)) else navigator.navigate(WishTitleRoute(card.media.value, card.tmdbId, fromSearch))
 }

@@ -60,6 +60,7 @@ import com.slouchcat.app.tv.search.TYPING_START
 import com.slouchcat.app.tv.search.TvTyping
 import com.slouchcat.app.tv.search.hardwareTyping
 import com.slouchcat.app.tv.search.rememberTypingMode
+import com.slouchcat.app.tv.search.rememberVoiceInput
 import com.slouchcat.app.tv.shell.LocalContentStart
 import com.slouchcat.app.tv.ui.BadgeTone
 import com.slouchcat.app.tv.ui.CardInfo
@@ -136,9 +137,9 @@ internal val W = SlouchcatTokens.Tv.Size.Wishes
  * as the web app does. OK on a tab opens it; the focus starts on the open tab.
  */
 @Composable
-fun WishesScreen(state: WishesUiState, images: ServerImages, links: WishesLinks, vm: WishesViewModel, startMine: Boolean = false) {
+fun WishesScreen(state: WishesUiState, images: ServerImages, links: WishesLinks, vm: WishesViewModel, start: TvWishesTab = TvWishesTab.Discover) {
     val focus = rememberFocusMemory()
-    var tab by rememberSaveable { mutableStateOf(if (startMine) TvWishesTab.Mine else TvWishesTab.Discover) }
+    var tab by rememberSaveable { mutableStateOf(start) }
     // «Entdecken» and «Suche» are not for this profile: «Meine Wünsche» alone (the model's shownTab).
     val shown = if (state.shownTab == WishesTab.Mine) TvWishesTab.Mine else tab
     val choose = { next: TvWishesTab ->
@@ -177,13 +178,38 @@ fun WishesScreen(state: WishesUiState, images: ServerImages, links: WishesLinks,
             ) {}
         }
     }
-    val fallback = when (state.rights) {
-        is Loadable.Ready -> if (state.discover) WishesKeys.tab(shown) else firstMineKey(state)
+    // A wish row that had the focus and is gone (withdrawn, left with «Nicht mehr mitwünschen», out
+    // of the filter, changed on its page; code review M-2): its neighbour of before, else the first
+    // row, else the filter. The list of before is kept until the new one is drawn.
+    val loadedIds = state.mine.loaded.map { it.id }
+    var before by remember { mutableStateOf(loadedIds) }
+    val rowFallback = if (shown == TvWishesTab.Mine) wishOf(focus.last)?.let { id ->
+        if (id in loadedIds) WishesKeys.wish(id) else neighbourOf(id, before, loadedIds)?.let(WishesKeys::wish) ?: loadedIds.firstOrNull()?.let(WishesKeys::wish) ?: firstMineKey(state)
+    } else {
+        null
+    }
+    LaunchedEffect(loadedIds) { before = loadedIds }
+    val fallback = rowFallback ?: when (state.rights) {
+        is Loadable.Ready -> when {
+            !state.discover -> firstMineKey(state)
+            shown == TvWishesTab.Search -> TYPING_START
+            else -> WishesKeys.tab(shown)
+        }
         Loadable.Empty -> WishesKeys.HOME
         else -> WishesKeys.RETRY
     }
-    focus.StartFocus(fallback, state.rights::class, shown, fallback)
+    focus.StartFocus(fallback, state.rights::class, shown, fallback, loadedIds)
     Withdraw(state, vm, focus)
+}
+
+/** The wish of a focus key of a row or its «Zurückziehen»; `null` for any other key. */
+private fun wishOf(key: String?): Long? = key?.takeIf { it.startsWith("wl-") || it.startsWith("wd-") }?.drop(3)?.toLongOrNull()
+
+/** The first of [before]'s wishes after [id], else before it, that is still in [now]. */
+private fun neighbourOf(id: Long, before: List<Long>, now: List<Long>): Long? {
+    val at = before.indexOf(id)
+    if (at < 0) return null
+    return (before.drop(at + 1) + before.take(at).reversed()).firstOrNull { it in now }
 }
 
 /** The first control of «Meine Wünsche» without the tabs: the filter «Alle». */
@@ -258,7 +284,7 @@ private fun rowTitle(key: DiscoverRowKey): String = stringResource(
 
 /** A tile of a title outside the library: the poster, the state on top (`.tc` with tag). */
 @Composable
-private fun ExternalTile(card: ExternalCard, onClick: () -> Unit, modifier: Modifier) {
+internal fun ExternalTile(card: ExternalCard, onClick: () -> Unit, modifier: Modifier) {
     val mark = cardMark(card)
     val said = listOfNotNull(card.title, externalCaption(card.year, card.media), mark).joinToString(stringResource(R.string.format_listSeparator))
     TvCard(title = said, image = card.posters.forWidth(CardShape.Poster.width), onClick = onClick, modifier = modifier, tag = mark)
@@ -266,7 +292,7 @@ private fun ExternalTile(card: ExternalCard, onClick: () -> Unit, modifier: Modi
 
 /** What the line under a row says about a tile: «2024 · Film · nicht in der Bibliothek». */
 @Composable
-private fun ExternalCard.info(): CardInfo = CardInfo(title, listOf(externalCaption(year, media), cardMark(this) ?: stringResource(R.string.titles_missing)).joinToString(stringResource(R.string.format_separator)))
+internal fun ExternalCard.info(): CardInfo = CardInfo(title, listOf(externalCaption(year, media), cardMark(this) ?: stringResource(R.string.titles_missing)).joinToString(stringResource(R.string.format_separator)))
 
 /** «Entdecken»: the note, then Seerr's rows (films and series; the genre rows stay in the web app). */
 @Composable
@@ -293,7 +319,10 @@ private fun Discover(state: WishesUiState, links: WishesLinks, vm: WishesViewMod
                     focus = focus,
                     rowKey = "r-${row.key.value}",
                     info = { infos[it.key] },
-                ) { card, m -> ExternalTile(card, { links.title(card) }, m) }
+                ) { card, m ->
+                    // The end of a row asks Seerr for its next page (code review m-4).
+                    ExternalTile(card, { links.title(card) }, m.onFocusChanged { if (it.isFocused && row.cards.indexOf(card) >= row.cards.size - NEAR_END) vm.onMoreRow(row.key) })
+                }
             }
             Loadable.Empty -> item(key = "empty") {
                 EmptyState(SlouchcatIcon.Wish.vector, stringResource(R.string.wishes_discover_empty), null, Modifier.padding(start = LocalContentStart.current))
@@ -346,6 +375,7 @@ private fun Search(state: WishesUiState, links: WishesLinks, vm: WishesViewModel
             focus = focus,
             mode = mode,
             placeholder = stringResource(R.string.wishes_search_placeholder),
+            voice = rememberVoiceInput(vm::onText),
         )
         CompositionLocalProvider(LocalContentStart provides 0.dp) {
             LazyColumn(Modifier.weight(1f).fillMaxSize(), contentPadding = PaddingValues(top = TvDimens.l, bottom = TvDimens.Browse.DetailTop)) {
@@ -362,14 +392,14 @@ private fun Search(state: WishesUiState, links: WishesLinks, vm: WishesViewModel
                             item(key = "hits-${media.value}") {
                                 val infos = group.associate { it.key to it.info() }
                                 TvCardRow(
-                                    title = "${stringResource(label)} · ${group.size}",
+                                    title = stringResource(label),
                                     items = group,
                                     key = { it.key },
                                     focus = focus,
                                     rowKey = "s-${media.value}",
                                     info = { infos[it.key] },
                                 ) { card, m ->
-                                    ExternalTile(card, { links.hit(card) }, m.onFocusChanged { if (it.isFocused && cards.indexOf(card) >= cards.size - NEAR_END) vm.onMoreResults() })
+                                    ExternalTile(card, { links.hit(card) }, m.onFocusChanged { if (it.isFocused && group.indexOf(card) >= group.size - NEAR_END) vm.onMoreResults() })
                                 }
                             }
                         }
@@ -424,7 +454,8 @@ private fun Mine(state: WishesUiState, links: WishesLinks, vm: WishesViewModel, 
                         card,
                         focus,
                         onOpen = { links.wish(card) },
-                        onWithdraw = { vm.onAskWithdraw(card) },
+                        // On its way already (code review L-5): the button stays for the focus, a second OK does nothing.
+                        onWithdraw = { if (card.id !in state.busy) vm.onAskWithdraw(card) },
                         modifier = Modifier.onFocusChanged { if (it.hasFocus && loaded.indexOf(card) >= loaded.size - NEAR_END) vm.onMoreWishes() },
                     )
                 }

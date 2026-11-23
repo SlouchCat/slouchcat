@@ -98,6 +98,7 @@ fun NotificationsScreen(state: NotificationsUiState, images: ServerImages, links
     val c = SlouchcatTheme.colors
     val focus = rememberFocusMemory()
     val entries = (state.entries.items as? Loadable.Ready)?.value.orEmpty()
+    val unread = state.unread + state.announcements.size
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = LocalContentStart.current, end = TvDimens.safeX, top = TvDimens.safeY, bottom = TvDimens.Browse.DetailTop),
@@ -108,7 +109,8 @@ fun NotificationsScreen(state: NotificationsUiState, images: ServerImages, links
                 Text(stringResource(R.string.notifications_title), style = TvType.h1, modifier = Modifier.semantics { heading() })
                 if (state.entries.items is Loadable.Ready || state.entries.items is Loadable.Empty) {
                     Text(
-                        if (state.unread > 0) pluralCount(R.plurals.notifications_summary, state.unread) else stringResource(R.string.tv_notifications_allRead),
+                        // The same count as the rail and the row of the settings (code review m-6): unread entries and open announcements.
+                        if (unread > 0) pluralCount(R.plurals.notifications_summary, unread) else stringResource(R.string.tv_notifications_allRead),
                         style = TvType.large,
                         color = c.tx2,
                         modifier = Modifier.padding(top = TvDimens.xs),

@@ -6,6 +6,7 @@ import com.slouchcat.core.api.generated.models.WishCreate
 import com.slouchcat.core.api.generated.models.WishSeasonOffer
 import com.slouchcat.core.api.generated.models.WishState
 import com.slouchcat.core.browse.testing.FakeWishes
+import com.slouchcat.core.browse.testing.externalRef
 import com.slouchcat.core.browse.testing.externalTitle
 import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.browse.testing.rights
@@ -157,6 +158,52 @@ class WishesViewModelTest {
         phone.onText("found")
         settle()
         assertNull(phone.state.value.results)
+    }
+
+    @Test
+    fun aKeyAndItsDeletionDoNotSearchAgainAndALateAnswerIsDropped() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        val s = session(backgroundScope)
+        settle()
+        val vm = WishesViewModel(s, repository, LiveCount(), searchPauseMs = PAUSE)
+        settle()
+        vm.onText("found")
+        advanceTimeBy(PAUSE + 1)
+        settle()
+        // «x» and its deletion within the pause: the planned search goes, nothing is asked again.
+        vm.onText("foundx")
+        vm.onText("found")
+        advanceTimeBy(PAUSE * 2)
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("search:") })
+        // «fo» answers slowly, «found» at once: the hits of «found» stay.
+        repository.searchDelayMs = { if (it == "fo") PAUSE * 10 else 0 }
+        repository.searchHits = listOf(externalRef(9, "Found Nine"))
+        vm.onText("fo")
+        advanceTimeBy(PAUSE + 1)
+        vm.onText("found!")
+        advanceTimeBy(PAUSE * 20)
+        settle()
+        assertEquals(listOf("Found Nine"), (vm.state.value.results!!.items as Loadable.Ready).value.map { it.title })
+        assertEquals("found!", vm.state.value.text)
+    }
+
+    @Test
+    fun aRowOfDiscoverLoadsItsNextPagesUntilSeerrHasNoMore() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        repository.rows[0] = repository.rows[0].copy(nextPage = 2)
+        repository.rowPages[com.slouchcat.core.api.generated.models.DiscoverRowKey.TRENDING] = listOf(listOf(externalRef(3, "Trend Three"), externalRef(1, "Trend One")))
+        val vm = area(repository)
+        val key = com.slouchcat.core.api.generated.models.DiscoverRowKey.TRENDING
+        vm.onMoreRow(key)
+        settle()
+        val row = (vm.state.value.rows as Loadable.Ready).value.single()
+        // The new tile only once (Seerr's pages overlap), and page 2 was the last.
+        assertEquals(listOf("Trend One", "Trend Two", "Trend Three"), row.cards.map { it.title })
+        assertNull(row.nextPage)
+        vm.onMoreRow(key)
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("row:") })
     }
 
     @Test

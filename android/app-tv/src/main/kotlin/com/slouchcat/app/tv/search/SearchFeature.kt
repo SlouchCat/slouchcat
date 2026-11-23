@@ -1,14 +1,7 @@
 package com.slouchcat.app.tv.search
 
-import android.app.Activity
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.speech.RecognizerIntent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
@@ -25,6 +18,8 @@ import com.slouchcat.app.tv.shell.RailEntry
 import com.slouchcat.app.tv.shell.RailSection
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
+import com.slouchcat.app.tv.wishes.MissingTitles
+import com.slouchcat.app.tv.wishes.WishTitleRoute
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.browse.search.SearchViewModel
 import com.slouchcat.core.design.SlouchcatIcon
@@ -47,14 +42,7 @@ object SearchFeature : TvFeature {
             val state by vm.state.collectAsStateWithLifecycle()
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
-            val context = LocalContext.current
-            // The voice input of the device (paper 3.4), where an app on the TV offers it.
-            val speech = remember { Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM) }
-            val canSpeak = remember { context.packageManager.queryIntentActivities(speech, PackageManager.MATCH_DEFAULT_ONLY).isNotEmpty() }
-            val listen = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                val said = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-                if (result.resultCode == Activity.RESULT_OK && !said.isNullOrBlank()) vm.onText(said)
-            }
+            val voice = rememberVoiceInput(vm::onText)
             val libraries by graph.librariesSource.libraries.collectAsStateWithLifecycle()
             val tiles = (libraries as? Loadable.Ready)?.value.orEmpty().filter { it.kind == LibraryKind.VIDEO }.map { library ->
                 SearchLibrary(library.name, libraryIcon(library)) { navigator.openerOf("library-${library.id}")?.invoke() ?: navigator.navigate(LibraryRoute(library.id)) }
@@ -64,7 +52,9 @@ object SearchFeature : TvFeature {
                 person = if (navigator.canOpen(PersonRoute::class)) ({ navigator.navigate(PersonRoute(it)) }) else null,
                 collection = if (navigator.canOpen(CollectionRoute::class)) ({ navigator.navigate(CollectionRoute(it)) }) else null,
                 libraries = if (navigator.canOpen(LibraryRoute::class)) tiles else emptyList(),
-                voice = if (canSpeak) ({ listen.launch(speech) }) else null,
+                voice = voice,
+                // Stage 5: «Noch nicht in der Bibliothek?» once the wishes' pages are there.
+                missing = if (navigator.canOpen(WishTitleRoute::class)) ({ query, focus -> MissingTitles(graph, navigator, query, focus) }) else null,
             )
             SearchScreen(state, images, links, vm)
         }

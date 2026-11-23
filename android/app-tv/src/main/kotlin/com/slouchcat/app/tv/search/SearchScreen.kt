@@ -54,6 +54,11 @@ class SearchLinks(
     val libraries: List<SearchLibrary>,
     /** The voice input of the device (`RecognizerIntent`); `null` where the TV has none. */
     val voice: (() -> Unit)?,
+    /**
+     * «Noch nicht in der Bibliothek?» for the query (stage 5, code review m-5): titles to wish and
+     * the card «„…“ wünschen»; `null` without the wishes' pages. Draws nothing the profile may not request.
+     */
+    val missing: (@Composable (query: String, focus: FocusMemory) -> Unit)? = null,
 )
 
 private const val RETRY = "retry"
@@ -190,6 +195,12 @@ private fun Results(state: SearchUiState, images: ServerImages, links: SearchLin
                 }
             }
             else -> item(key = "failed") { LoadableContent(hits, onRetry = events::retry, retryModifier = Modifier.focusKey(focus, RETRY)) {} }
+        }
+        // After the hits, also after «nichts gefunden»: what is not in the library yet (code review m-5).
+        val missing = links.missing
+        val hits = state.hits
+        if (missing != null && state.query.isNotEmpty() && (hits is Loadable.Ready || hits is Loadable.Empty)) {
+            item(key = "missing") { missing(state.query, focus) }
         }
     }
 }

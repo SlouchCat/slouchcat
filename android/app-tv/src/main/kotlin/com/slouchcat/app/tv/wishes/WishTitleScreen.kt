@@ -72,7 +72,9 @@ import com.slouchcat.app.tv.ui.focusKey
 import com.slouchcat.app.tv.ui.rememberFocusMemory
 import com.slouchcat.core.api.generated.models.ExternalMedia
 import com.slouchcat.core.api.generated.models.ExternalTitle
+import com.slouchcat.core.api.generated.models.Wish
 import com.slouchcat.core.api.generated.models.WishSeasonOffer
+import com.slouchcat.core.browse.wishes.wishErrorRes
 import com.slouchcat.core.browse.wishes.WishSheet
 import com.slouchcat.core.browse.wishes.WishTitleUiState
 import com.slouchcat.core.browse.wishes.WishTitleViewModel
@@ -120,7 +122,7 @@ fun WishTitleScreen(state: WishTitleUiState, images: ServerImages, actions: Wish
                 LoadableContent(state.title, onRetry = actions::retry, modifier = Modifier.tvPage(), retryModifier = Modifier.focusKey(focus, WishTitleKeys.RETRY)) {}
             }
         } else {
-            Page(title, images, actions, onMine, focus)
+            Page(title, state, images, actions, onMine, focus)
         }
     }
     val first = when {
@@ -129,20 +131,20 @@ fun WishTitleScreen(state: WishTitleUiState, images: ServerImages, actions: Wish
         else -> WishTitleKeys.MINE
     }
     // The actions change with the wish (requested, withdrawn): the focus goes to the first one there.
-    focus.StartFocus(first, state.title::class, title?.wish?.state, title?.canRequest, first)
+    focus.StartFocus(first, state.title::class, title?.wish?.state, title?.canRequest, state.canWithdraw, first)
     // A side menu or the question closed: back to the element of before (2b review M-4).
     LaunchedEffect(state.sheet == null) { if (state.sheet == null) focus.restore() }
     if (title != null) {
         when (state.sheet) {
             WishSheet.Request -> RequestMenu(title, state, images, actions)
-            WishSheet.Withdraw -> WithdrawDialog(title, state, actions)
+            WishSheet.Withdraw -> WithdrawDialog(title, state, actions, joined = state.ownWish?.role == Wish.Role.JOINED)
             null -> Unit
         }
     }
 }
 
 @Composable
-private fun Page(title: ExternalTitle, images: ServerImages, actions: WishTitleViewModel, onMine: () -> Unit, focus: FocusMemory) {
+private fun Page(title: ExternalTitle, state: WishTitleUiState, images: ServerImages, actions: WishTitleViewModel, onMine: () -> Unit, focus: FocusMemory) {
     val c = SlouchcatTheme.colors
     Row(Modifier.fillMaxSize().tvPage(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(W.PageGap)) {
         Box(Modifier.width(W.Poster).aspectRatio(POSTER).clip(RoundedCornerShape(TvDimens.radiusPanel)).background(c.s2)) {
@@ -160,10 +162,10 @@ private fun Page(title: ExternalTitle, images: ServerImages, actions: WishTitleV
             }
             val wish = title.wish
             if (wish != null) {
-                val state = wishStateText(wish.state, wish.stateDetail)
+                val said = wishStateText(wish.state, wish.stateDetail)
                 val progress = wish.progress?.let { progressText(it) }
                 Row(Modifier.padding(top = W.StateTop), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TvDimens.l)) {
-                    TvBadge(state, tone = toneOf(wish.state))
+                    TvBadge(said, tone = toneOf(wish.state))
                     progress?.let { Text(it, style = TvType.body, color = c.tx2, maxLines = 1) }
                 }
                 wish.progress?.percent?.let { ProgressBar(it / PERCENT, W.Bar, Modifier.padding(top = TvDimens.m)) }
@@ -175,8 +177,11 @@ private fun Page(title: ExternalTitle, images: ServerImages, actions: WishTitleV
                     TvButton(stringResource(R.string.app_wishes_request), onClick = actions::onRequest, icon = SlouchcatIcon.Plus.vector, kind = TvButtonKind.Primary, modifier = Modifier.focusKey(focus, WishTitleKeys.REQUEST))
                 } else {
                     TvButton(stringResource(R.string.app_wishes_toMine), onClick = onMine, icon = SlouchcatIcon.Wish.vector, kind = TvButtonKind.Primary, modifier = Modifier.focusKey(focus, WishTitleKeys.MINE))
-                    if (wish != null) {
-                        TvButton(stringResource(R.string.wishes_withdraw_action), onClick = actions::onWithdraw, icon = SlouchcatIcon.Close.vector, modifier = Modifier.focusKey(focus, WishTitleKeys.WITHDRAW))
+                    // Only when the server says it can be withdrawn (code review M-1, rule 12); a wish
+                    // the profile only joined says «Nicht mehr mitwünschen».
+                    if (wish != null && state.canWithdraw) {
+                        val joined = state.ownWish?.role == Wish.Role.JOINED
+                        TvButton(stringResource(if (joined) R.string.wishes_withdraw_actionJoined else R.string.wishes_withdraw_action), onClick = actions::onWithdraw, icon = SlouchcatIcon.Close.vector, modifier = Modifier.focusKey(focus, WishTitleKeys.WITHDRAW))
                     }
                 }
             }
@@ -252,7 +257,7 @@ private fun RequestMenu(title: ExternalTitle, state: WishTitleUiState, images: S
             title.request.quota?.let { quota -> Text(quotaLine(title.media, quota), style = TvType.small, color = c.tx2) }
             Text(stringResource(R.string.app_wishes_requestNote), style = TvType.small, color = c.tx2)
         }
-        state.error?.let { TvNote(stringResource(wishErrorId(it)), Modifier.padding(top = TvDimens.m), tone = NoteTone.Warn, small = true) }
+        state.error?.let { TvNote(stringResource(wishErrorRes(it)), Modifier.padding(top = TvDimens.m), tone = NoteTone.Warn, small = true) }
         val label = when {
             state.sending -> stringResource(R.string.wishes_dialog_submitting)
             !series -> stringResource(R.string.app_wishes_request)
@@ -339,13 +344,23 @@ private fun CheckRow(title: String, subtitle: String?, checked: Boolean, enabled
 
 /** «Wunsch zurückziehen?» (mockup tv 60): «Zurückziehen» and «Behalten» (the focus starts there). */
 @Composable
-private fun WithdrawDialog(title: ExternalTitle, state: WishTitleUiState, actions: WishTitleViewModel) {
+private fun WithdrawDialog(title: ExternalTitle, state: WishTitleUiState, actions: WishTitleViewModel, joined: Boolean) {
     val keep = remember { FocusRequester() }
-    TvDialog(stringResource(R.string.wishes_withdraw_title), onDismiss = actions::onDismiss, initialFocus = keep) {
-        Text(stringResource(R.string.app_wishes_withdrawBody, title.title), style = TvType.large, color = SlouchcatTheme.colors.tx2)
+    TvDialog(stringResource(if (joined) R.string.wishes_withdraw_titleJoined else R.string.wishes_withdraw_title), onDismiss = actions::onDismiss, initialFocus = keep) {
+        Text(
+            if (joined) stringResource(R.string.wishes_withdraw_bodyJoined, title.title) else stringResource(R.string.app_wishes_withdrawBody, title.title),
+            style = TvType.large,
+            color = SlouchcatTheme.colors.tx2,
+        )
         TvActions {
             TvButton(
-                stringResource(if (state.sending) R.string.app_state_loading else R.string.wishes_withdraw_confirm),
+                stringResource(
+                    when {
+                        state.sending -> R.string.app_state_loading
+                        joined -> R.string.wishes_withdraw_confirmJoined
+                        else -> R.string.wishes_withdraw_confirm
+                    },
+                ),
                 onClick = actions::onConfirmWithdraw,
                 icon = SlouchcatIcon.Close.vector,
             )

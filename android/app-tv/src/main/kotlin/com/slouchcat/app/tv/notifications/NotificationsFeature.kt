@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -80,12 +83,14 @@ class NotificationsFeature(
         composable<NotificationsRoute> {
             val vm = viewModel { NotificationsViewModel(graph.session, repository(graph), graph.media.unreadCount) }
             val state by vm.state.collectAsStateWithLifecycle()
-            // Back from a title: entries may have come or been read elsewhere.
-            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
+            // Back from a title: entries may have come or been read elsewhere. Not on the first
+            // showing, which the model's own start reads already (code review L-7).
+            var shown by rememberSaveable { mutableStateOf(false) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (shown) vm.refresh() else shown = true }
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
                     when (message) {
-                        NotificationsMessage.Failed -> graph.toasts.show(R.string.app_wishes_failed)
+                        NotificationsMessage.Failed -> graph.toasts.show(R.string.app_state_failed)
                     }
                 }
             }
@@ -94,7 +99,8 @@ class NotificationsFeature(
                     open = { target ->
                         when (target) {
                             is NotificationTarget.Item -> if (navigator.canOpen(ItemRoute::class)) navigator.navigate(ItemRoute(target.id))
-                            NotificationTarget.Wishes -> navigator.openTarget(WishesFeature.KEY, WishesRoute(tab = WishesFeature.MINE))
+                            // Above this page (code review m-7): Back returns to the entry, as from a title.
+                            NotificationTarget.Wishes -> navigator.navigate(WishesRoute(tab = WishesFeature.MINE))
                             NotificationTarget.None -> Unit
                         }
                     },
@@ -125,7 +131,8 @@ private fun summary(unread: Int?): String? = when {
 }
 
 /**
- * The number on «Einstellungen»: read when the rail is drawn for a profile and when the app comes
+ * The number on «Einstellungen»: read when the rail is drawn for a profile (also after the player,
+ * which draws without the rail: two requests a film) and when the app comes
  * back to the front (the TV has no push), kept current by the page while it is open.
  */
 @Composable
