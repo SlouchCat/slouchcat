@@ -148,3 +148,21 @@ bleiben Seiten, Features, Routen, Navigator und Bausteine.
 
 Ein Modul unter `:core` hängt nie an einer App und nie an Compose-Material; Lint mit den eigenen Regeln
 und die Ziele `ciCheck`, `ciTest` und `fastCheck` erfassen jedes Modul.
+
+## Nachtrag 23. November 2026: Ausgabe, Versionen und Release-Weg der Apps
+
+- **Versionen:** Jede App hat ihre Versionsdatei (`app-mobile/version.properties`, `app-tv/version.properties`)
+  und ihren Tag (`app-vX.Y.Z`, `tv-vX.Y.Z`); der Tag muss dem `versionName` entsprechen. Weil beide Apps ein
+  Store-Eintrag mit derselben Kennung sind und jedes hochgeladene Bundle einen eigenen `versionCode`
+  braucht, zählt die Handy-App ab 1 und bleibt unter 1000000, die TV-App zählt ab 1000001; je Ausgabe +1.
+  Die Bauskripte brechen ausserhalb des Bereichs ab.
+- **Signatur:** `release` wird nur signiert, wenn die vier Werte `slouchcat.signing.*` (oder
+  `SLOUCHCAT_SIGNING_*`) gesetzt sind (`build-logic`, `Signing.kt`); sonst bleibt der Bau unsigniert. Der
+  Upload-Schlüssel kommt nie ins Repo.
+- **Release-Weg:** Der Workflow `release-android.yml` läuft nur bei `app-v*` und `tv-v*`, prüft Tag und
+  Version, fährt `task android:check` und `task android:test` ohne Secrets und hängt die Dateien von
+  `task android:dist` an ein GitHub-Release, das **nie «latest»** wird (`--latest=false`). Grund: Server und
+  Updater lesen `releases/latest/download/manifest.json`; ein App-Release ohne Manifest darf das
+  Server-Release dort nicht verdrängen. Anders als `release-relay.yml` legt dieser Workflow ein Release an,
+  weil die APKs und Bundles einen Ort zum Herunterladen brauchen.
+- Anleitung für den Betrieb: `docs/dev/ANDROID-INBETRIEBNAHME.md`.

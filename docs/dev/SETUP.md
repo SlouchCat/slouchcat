@@ -109,7 +109,8 @@ Texte und Tokens braucht der Bau Node und einmal `pnpm install` im Repo.
 Bausteine des Mockups), `core/strings` (Texte), `lint` (eigene Regeln für Regel 9 und 10),
 `build-logic` (Konventionen), `tools` (Generatoren). Versionen: `android/gradle/libs.versions.toml`,
 Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App kommen, steht in
-`android/strings-namespaces.txt`.
+`android/strings-namespaces.txt`. Bauen, Einspielen, Signieren und Releases mit den Tags
+`app-vX.Y.Z` und `tv-vX.Y.Z` (Workflow `release-android.yml`): `docs/dev/ANDROID-INBETRIEBNAHME.md`.
 
 ```bash
 task android:check        # beide Bauarten in debug und release (R8, unsigniert), Lint, Generatoren (CI-Job «android»)
@@ -121,6 +122,8 @@ task android:e2e:tv        # TV-App im eigenen TV-Emulator (sc_tv, Port 5584): v
                           # abmelden; per Scan gegen relay/bin/pair (PORT+85, also 8782), apicheck spielt das Handy; Server auf 8697
 task android:e2e:tv SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf mit Fotos jeder Seite und jedes Menüs
 task android:apk          # Debug- und Release-APKs nach android/app-mobile/ und android/app-tv/build/outputs/apk
+task android:bundle       # die zwei Bundles (AAB) für den Store: play der Handy-App und die TV-App
+task android:dist         # APKs und Bundles mit Version im Namen nach android/dist/, geprüft, mit SHA256SUMS (APPS=app oder tv)
 task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
 ```
 
