@@ -80,6 +80,14 @@
       "removed": "{{name}} ist nicht mehr in „Meine Sender“.",
       "favoriteOn": "{{name}} aus „Meine Sender“ entfernen",
       "favoriteOff": "{{name}} zu „Meine Sender“ hinzufügen"
+    },
+    "wishes": {
+      "searchCard": "„{{query}}“ wünschen",
+      "withdrawBody": "„{{title}}“ wird in Seerr gelöscht. Du kannst den Titel später wieder anfordern."
+    },
+    "notifications": {
+      "pushNotInBuild": "Diese Ausgabe der App hat keine Push-Meldungen. Neues findest du hier unter „Benachrichtigungen“, per E-Mail oder Telegram.",
+      "pushChannelOff": "Push ist für das Konto ausgeschaltet: Dieses Gerät ist angemeldet, bekommt aber nichts, bis das Hauptprofil den Kanal „Push“ unten einschaltet."
     }
   },
   "common": {

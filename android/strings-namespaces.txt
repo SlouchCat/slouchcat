@@ -90,3 +90,8 @@ audioSeries
 item.audio
 item.podcast
 item.action
+wishes
+titles
+notifications
+announcements
+settings.notifications

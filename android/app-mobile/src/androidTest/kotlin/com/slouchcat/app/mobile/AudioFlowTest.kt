@@ -63,7 +63,7 @@ import java.io.File
  * adds its own two libraries over the shared web session (`DetailFlowTest.Admin`), signs the app
  * in and plays the audiobook (chapter, speed), sends the app to the background (the media session
  * plays on), comes back and reads the progress at the server; then a podcast episode; with
- * `slouchcatRadio` (RADIO=1) a station of the test stream for longer than a heartbeat, and its end.
+ * `slouchcatRadio` (every run of the script) a station of the test stream for longer than a heartbeat, and its end.
  * At the end it removes its libraries again. With `slouchcatShots` it photographs every page (prefix `a`).
  */
 @RunWith(AndroidJUnit4::class)

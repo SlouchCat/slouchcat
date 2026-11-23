@@ -2,13 +2,15 @@
 # The flow of the phone app in an emulator against a real server (task android:e2e, concept 27 12
 # «Gerät»): starts bin/slouchcat with fresh data on PORT, starts its own emulator AVD on EMU_PORT
 # and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest, OfflineFlowTest,
-# TvLinkFlowTest with the relay relay/bin/pair on RELAY_PORT, and the showcases).
+# TvLinkFlowTest with the relay relay/bin/pair on RELAY_PORT, MessagesFlowTest with the push relay,
+# fcmfake and the Seerr and TMDB mocks, and the showcases). The helpers come from
+# scripts/android-helpers.sh and always run (PUSH_PORT, FCM_PORT, SEERR_PORT, TMDB_PORT there).
 #
 #   scripts/android-e2e.sh [--shots DIR]
 #
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
-# RELAY_PORT  port of the pairing relay (default 8181), on the loopback as well (TvLinkFlowTest)
+# RELAY_PORT  port of the pairing relay (default PORT+85), on the loopback as well (TvLinkFlowTest)
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580), an
 #             even number from 5554 to 5584: adb finds only those as emulator-EMU_PORT
 # EMU_OPTS    more options for the emulator, split at spaces
@@ -16,22 +18,23 @@
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
 # CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
-# WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
-# RADIO=1     the web radio without internet (K27 stage 7, AudioFlowTest): the server built with the
-#             tag radiotest (into the run's own folder, never over another run's binary) and the
-#             test stations of web/e2e/radio-server.mjs on RADIO_PORT (default PORT+1); needs node
-#             and go. After the flow the server's log must show a heartbeat of a listen.
+# WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
+#
+# The web radio (AudioFlowTest) runs without internet in every run: the server is built with the tag
+# radiotest into the run's own folder and reads the catalogue of the test stations
+# (web/e2e/radio-server.mjs, RADIO_PORT, default PORT+1; scripts/android-helpers.sh). After a run
+# with AudioFlowTest the server's log must show a heartbeat of a listen.
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
 # server, nothing else. One emulator at a time on a shared machine: while another one runs, it
 # waits. On a failure the logs (logcat, server, relay, emulator) stay in app-mobile/build/e2e-logs/.
-# Run from android/ (the Taskfile does). Needs server/bin/slouchcat (task server:build) and
-# relay/bin/pair (task relay:build).
+# Run from android/ (the Taskfile does). Needs server/bin/slouchcat (task server:build),
+# relay/bin (task relay:build) and Node.
 set -euo pipefail
 
 port=${PORT:-8597}
-relay_port=${RELAY_PORT:-8181}
+relay_port=${RELAY_PORT:-$((port + 85))}
 avd=${AVD:-sc_phone}
 emu_port=${EMU_PORT:-5580}
 shots=${SHOTS:-}
@@ -54,16 +57,16 @@ app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
 server_pid=""
-relay_pid=""
 emulator_pid=""
-radio_pid=""
+# shellcheck source=android-helpers.sh
+. ../scripts/android-helpers.sh
 
 cleanup() {
   status=$?
   if [ "$status" -ne 0 ]; then
     mkdir -p "$logs"
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
-    [ -f "$root/relay.log" ] && cp "$root/relay.log" "$logs/"
+    helpers_save_logs "$logs"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
     if [ -n "$emulator_pid" ]; then
       adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true
@@ -71,15 +74,15 @@ cleanup() {
       adb_brief pull "/sdcard/Android/data/$app/files/failures" "$logs/" >/dev/null 2>&1 || true
     fi
   fi
-  for pid in "$server_pid" "$relay_pid" "$radio_pid"; do
-    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
-  done
+  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+  helpers_stop
   if [ -n "$emulator_pid" ]; then
     adb_brief emu kill >/dev/null 2>&1 || true
     # Also before the emulator reached adb: the process itself (code review minor 31).
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
+  emulator_unlock
   rm -rf "$root"
 }
 trap cleanup EXIT
@@ -105,43 +108,21 @@ mkdir -p "$root/media"
 ../scripts/android-test-video.sh "$root/media"
 media=""
 if [ -d ../testdata/media/Movies ]; then media=$(cd ../testdata/media && pwd); fi
-binary=../server/bin/slouchcat
-radio_env=()
-if [ "${RADIO:-}" = "1" ]; then
-  # The test stations (Icecast MP3, Shoutcast, AAC, one unreachable) loop tones of testdata/radio.
-  radio_port=${RADIO_PORT:-$((port + 1))}
-  (cd ../server && go build -tags radiotest -o "$root/slouchcat-e2e" ./cmd/slouchcat)
-  node --input-type=module -e "const m = await import('$(cd ../web/e2e && pwd)/radio-server.mjs'); await m.startRadioServer({ port: $radio_port });" \
-    >"$root/radio.log" 2>&1 &
-  radio_pid=$!
-  # Ready when the port answers; a taken port or a dead node fails here, not in the flow.
-  for _ in $(seq 1 30); do
-    kill -0 "$radio_pid" 2>/dev/null || break
-    if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$radio_port/"; then break; fi
-    sleep 1
-  done
-  kill -0 "$radio_pid" 2>/dev/null && curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$radio_port/" ||
-    { cat "$root/radio.log" >&2; fail "the test stations do not answer on port $radio_port (taken? RADIO_PORT)"; }
-  binary=$root/slouchcat-e2e
-  radio_env=(SLOUCHCAT_TEST_RADIO_CATALOG_URL="http://127.0.0.1:$radio_port" SLOUCHCAT_TEST_RADIO_WIKIDATA_URL="http://127.0.0.1:$radio_port/sparql"
-    SLOUCHCAT_RADIO_DIR="$root/radio" SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1)
-fi
-env "${radio_env[@]}" SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= "$binary" serve \
+# The helpers first: the server inherits the addresses of the TMDB mock, the push relay and the
+# test stations of the radio.
+helpers_start "$root" "$port" "$relay_port" || fail "a helper did not come up"
+radio_start "$root" "$port" || fail "the test stations of the radio did not come up"
+SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= "$HELPER_RADIO_SERVER" serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
 server_pid=$!
-# The pairing relay for «Fernseher verbinden» (TvLinkFlowTest), as the TV's flow starts it.
-RELAY_LISTEN="127.0.0.1:$relay_port" RELAY_LOG_FORMAT=text ../relay/bin/pair >"$root/relay.log" 2>&1 &
-relay_pid=$!
 for _ in $(seq 1 120); do
   kill -0 "$server_pid" 2>/dev/null || fail "the server stopped while starting (port $port taken?)"
-  kill -0 "$relay_pid" 2>/dev/null || fail "the relay stopped while starting (port $relay_port taken?)"
-  if grep -q 'msg=listening' "$root/server.log" && curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1; then break; fi
+  if grep -q 'msg=listening' "$root/server.log"; then break; fi
   sleep 0.5
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
-curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1 || fail "the relay did not answer within 60 s"
 
 # With media: apicheck sets the server up as its fixture (account, primary profile with PIN,
 # films, audiobooks, podcasts, scanned); the flow signs in with that account. Without media
@@ -154,13 +135,15 @@ if [ -n "$media" ]; then
   flow_args=(slouchcatEmail apicheck-owner@slouchcat.test slouchcatPassword apicheck-password-0123)
   echo "android-e2e: server seeded with the test media"
 fi
-if [ "${RADIO:-}" = "1" ]; then flow_args+=(slouchcatRadio 1); fi
+flow_args+=(slouchcatRadio 1)
 
-# One emulator at a time: wait while another one runs (another agent's).
+# One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
+# for an emulator that a run without the lock started (an older script, by hand).
+emulator_lock "$wait_max" "$root" || fail "another run holds the emulator; one at a time on this machine"
 waited=0
 while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   [ "$waited" -lt "$wait_max" ] || fail "another emulator runs; one at a time on this machine"
-  echo "android-e2e: another emulator runs, waiting ($waited s)"
+  echo "android-e2e: another emulator runs without the lock, waiting ($waited s)"
   sleep 60
   waited=$((waited + 60))
 done
@@ -218,6 +201,8 @@ done
 
 server_url="http://10.0.2.2:$port"
 relay_url="http://10.0.2.2:$relay_port"
+# Stage 8 (MessagesFlowTest): the ports of the Seerr mock, the push relay and fcmfake.
+flow_args+=(slouchcatSeerrPort "$HELPER_SEERR_PORT" slouchcatPushPort "$HELPER_PUSH_PORT" slouchcatFcmPort "$HELPER_FCM_PORT")
 if [ -z "$shots" ]; then
   gradle_args=()
   for ((i = 0; i < ${#flow_args[@]}; i += 2)); do
@@ -246,7 +231,7 @@ else
 fi
 # The flow of the radio listens for longer than one heartbeat: the server must have taken one
 # (code review stage 7 m-8). Without a heartbeat the run fails.
-if [ "${RADIO:-}" = "1" ] && { [ -z "$only" ] || [[ "$only" == *AudioFlowTest* ]]; }; then
+if [ -z "$only" ] || [[ "$only" == *AudioFlowTest* ]]; then
   grep -qE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log" ||
     fail "no heartbeat of a radio listen reached the server"
   echo "android-e2e: the server took $(grep -cE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log") radio heartbeats"

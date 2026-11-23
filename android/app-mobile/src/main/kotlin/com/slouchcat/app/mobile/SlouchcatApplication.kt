@@ -85,6 +85,8 @@ class AppGraph(
     private val offlineData: ((AppGraph) -> OfflineData)? = null,
     /** The sound of stage 7 (audiobooks, podcasts, radio); tests bring fake players. `null`: the real one. */
     private val audioData: ((AppGraph) -> com.slouchcat.app.mobile.audio.AudioData)? = null,
+    /** Push of this device (stage 8); tests bring a registrar over fakes. `null`: the real one. */
+    private val pushRegistrar: ((AppGraph) -> com.slouchcat.app.mobile.push.PushRegistrar)? = null,
 ) {
     /** The context of the application (the sound loads its covers and texts with it). */
     val appContext: Context = context.applicationContext
@@ -173,6 +175,11 @@ class AppGraph(
         if (audioLazy.isInitialized()) audio.playback.stop(forget = false)
     }
 
+    /** Push of this device (concept 27, 7.3): built on first use, the same way for the app and its tests. */
+    val push: com.slouchcat.app.mobile.push.PushRegistrar by lazy {
+        pushRegistrar?.invoke(this) ?: com.slouchcat.app.mobile.push.PushData.create(appContext, this)
+    }
+
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
@@ -208,7 +215,7 @@ private const val TABLET_DP = 600
 
 class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost, com.slouchcat.app.mobile.audio.AudioHost {
     lateinit var graph: AppGraph
-        private set
+        internal set // the JVM tests of this module put a graph with fakes in (PushCheckWorkerTest)
 
     override fun onCreate() {
         super.onCreate()
@@ -218,6 +225,8 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
         OfflineStarter(this, graph).start()
         // The sound (stage 7): its hooks, and the last title of a process that died, shown paused.
         graph.audio
+        // Wishes and notifications (stage 8): the push subscription follows the session.
+        com.slouchcat.app.mobile.push.PushStarter.start(this, graph)
     }
 
     /** The one offline engine for the background fetch and the sync (core/offline). */

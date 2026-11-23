@@ -33,6 +33,13 @@ class LogTest {
     }
 
     @Test
+    fun thePushAddressIsScrubbed() {
+        val out = capture { Log.w("push", "bad address https://push.example.test/v1/push/1.SEALEDTOKEN0123456789 here") }
+        assertFalse(out, "SEALEDTOKEN" in out)
+        assertTrue(out, "/v1/push/[redacted] here" in out)
+    }
+
+    @Test
     fun messagesAndErrorsAreScrubbed() {
         val error = IOException(
             "failed: http://192.0.2.10:8096/api/v1/items/01J/stream?st=STREAMTOKEN&x=1",
@@ -53,10 +60,12 @@ class LogTest {
             "token", "Bearer_Token", "X-Slouchcat-Device", "pickupSecret", "newPassword", "fcm_token",
             "accessToken", "appToken", "refreshToken", "push_endpoint", "apiKey", "pairingVoucher", "st", "deviceId",
             "pickup_hash", "pair_id", "meeting_point_id", "packet", "sealed_token", "slouchcat_device",
+            // The Web Push subscription secret (keys.auth), as a whole name only.
+            "auth", "AUTH",
         )) {
             assertTrue(key, Redaction.isSecret(key))
         }
-        for (key in listOf("version", "host", "list", "status", "encrypted")) {
+        for (key in listOf("version", "host", "list", "status", "encrypted", "oauth", "author", "authState")) {
             assertFalse(key, Redaction.isSecret(key))
         }
     }

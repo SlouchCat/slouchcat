@@ -12,6 +12,8 @@ import com.slouchcat.app.mobile.player.PlayerFeature
 import com.slouchcat.app.mobile.playback.PlaybackSettingsFeature
 import com.slouchcat.app.mobile.profilesettings.ProfileSettingsFeature
 import com.slouchcat.app.mobile.search.SearchFeature
+import com.slouchcat.app.mobile.wishes.WishesFeature
+import com.slouchcat.app.mobile.notifications.NotificationsFeature
 import com.slouchcat.app.mobile.tvlink.TvLinkFeature
 
 /**
@@ -34,5 +36,7 @@ val features: List<Feature> = listOf(
     PlaybackSettingsFeature(),
     DownloadsFeature,
     AudioFeature,
+    WishesFeature(),
+    NotificationsFeature(),
     TvLinkFeature(),
 )
