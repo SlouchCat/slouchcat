@@ -71,6 +71,14 @@
         "deleted": "Profil „{{name}}“ gelöscht",
         "partly": "Das Profil ist gespeichert, aber die PIN ließ sich nicht ändern. Versuche es erneut."
       }
+    },
+    "wishes": {
+      "searchCard": "„{{query}}“ wünschen",
+      "withdrawBody": "„{{title}}“ wird in Seerr gelöscht. Du kannst den Titel später wieder anfordern."
+    },
+    "notifications": {
+      "pushNotInBuild": "Diese Ausgabe der App hat keine Push-Meldungen. Neues findest du hier unter „Benachrichtigungen“, per E-Mail oder Telegram.",
+      "pushChannelOff": "Push ist für das Konto ausgeschaltet: Dieses Gerät ist angemeldet, bekommt aber nichts, bis das Hauptprofil den Kanal „Push“ unten einschaltet."
     }
   },
   "common": {

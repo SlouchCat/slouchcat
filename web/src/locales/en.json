@@ -516,8 +516,78 @@
     },
     "audio": {},
     "radio": {},
-    "wishes": {},
-    "notifications": {},
+    "wishes": {
+      "discoverIntro": "Titles that are not in the library yet. Your wish goes to Seerr.",
+      "off": {
+        "title": "Wishes are not set up",
+        "body": "The main user connects Seerr in the administration under Integrations and switches the wishes on there. Until then no title can be requested here."
+      },
+      "caption": "{{year}} · {{kind}}",
+      "steps": {
+        "label": "State of the wish",
+        "requested": "Requested",
+        "approved": "Approved",
+        "loading": "Downloading",
+        "available": "Available",
+        "current": "{{step}}, current step",
+        "done": "{{step}}, done",
+        "open": "{{step}}, still open"
+      },
+      "requestedOn": "wished on {{date}}",
+      "keep": "Keep",
+      "request": "Request",
+      "requestNote": "Seerr gets the wish. Once the title is here, the app lets you know.",
+      "allSeasons": "All seasons",
+      "seasonsCount_one": "{{count}} season",
+      "seasonsCount_other": "{{count}} seasons",
+      "searchCard": "Wish for “{{query}}”",
+      "searchCardHint": "Search Seerr and send a wish",
+      "missingTitle": "Not in the library yet?",
+      "toMine": "My wishes",
+      "available": "Available: open the title",
+      "stale": "Seerr does not answer. You see what it sent last.",
+      "withdrawBody": "“{{title}}” is deleted in Seerr. You can request the title again later.",
+      "failed": "That did not work. Try again.",
+      "badge": "{{count}} open wishes"
+    },
+    "notifications": {
+      "settings": "Notification settings",
+      "settingsHint": "Push, e-mail and Telegram",
+      "bell_one": "Notifications, {{count}} new",
+      "bell_other": "Notifications, {{count}} new",
+      "unreadDot": "unread",
+      "device": "On this device",
+      "accountChannels": "Channels of the account",
+      "push": "Push notifications",
+      "pushHint": "Notifications appear on this device",
+      "pushNotInBuild": "This edition of the app has no push notifications. You find what is new here under “Notifications”, by e-mail or Telegram.",
+      "pushServerOff": "The server has no push set up. The main user does that in the administration under Integrations.",
+      "pushChannelOff": "Push is off for the account: this device is registered but gets nothing until the primary profile switches the channel “Push” on below.",
+      "pushBlocked": "Android does not show Slouchcat's notifications. Allow them so push notifications appear.",
+      "pushAllow": "Allow notifications",
+      "pushSystemSettings": "Open Android settings",
+      "pushBusy": "Registering …",
+      "pushFailed": {
+        "offline": "The server does not answer. The app tries again at the next start.",
+        "relay": "The push relay cannot be reached. The app tries again at the next start; the list here, e-mail and Telegram keep working.",
+        "google": "The device got no push token from Google. Check that Google Play services run.",
+        "server": "The server refused the subscription of this device."
+      },
+      "channelState": "{{channel}}, {{state}}",
+      "onlyPrimaryNote": "The channels apply to the whole account; only the primary profile can change them.",
+      "channelSheet": "Channel: {{channel}}",
+      "sendTest": "Send a test message",
+      "telegramCode": "Code: {{code}}",
+      "system": {
+        "content": "New episodes",
+        "wishes": "Wishes",
+        "account": "Account and devices",
+        "general": "Messages of the server"
+      },
+      "pushChannel": "Push",
+      "publicText": "New notification",
+      "pushOffPending": "Switched off. The server has not confirmed the removal yet: the app does it at the next contact. This device can no longer read a notification."
+    },
     "tv": {
       "title": "Connect a TV",
       "moreHint": "Scan the QR code on the TV",
@@ -1719,7 +1789,13 @@
     },
     "subtitleStyle": {
       "title": "Subtitle style",
-      "size": { "title": "Size", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Size",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Background",
         "none": "None",
@@ -1727,8 +1803,16 @@
         "translucent": "Translucent",
         "box": "Box"
       },
-      "color": { "title": "Colour", "white": "White", "yellow": "Yellow" },
-      "position": { "title": "Position", "bottom": "Bottom", "raised": "A little higher" },
+      "color": {
+        "title": "Colour",
+        "white": "White",
+        "yellow": "Yellow"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Bottom",
+        "raised": "A little higher"
+      },
       "offset": {
         "title": "Offset",
         "earlier": "0.1 s earlier",
@@ -1791,8 +1875,16 @@
       "cardSeason": "Season {{season}} · {{name}}",
       "notOnDevice": "Not on this device"
     },
-    "tabs": { "label": "More about the title", "next": "Up next", "info": "Info" },
-    "pauseView": { "label": "Paused", "paused": "Paused", "chapter": "Chapter: {{chapter}}" },
+    "tabs": {
+      "label": "More about the title",
+      "next": "Up next",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Paused",
+      "paused": "Paused",
+      "chapter": "Chapter: {{chapter}}"
+    },
     "slow": {
       "label": "Slow connection",
       "text": "Slow connection – switch to {{quality}}?",

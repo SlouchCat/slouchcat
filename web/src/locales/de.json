@@ -516,8 +516,78 @@
     },
     "audio": {},
     "radio": {},
-    "wishes": {},
-    "notifications": {},
+    "wishes": {
+      "discoverIntro": "Titel, die noch nicht in der Bibliothek sind. Dein Wunsch geht an Seerr.",
+      "off": {
+        "title": "Wünsche sind nicht eingerichtet",
+        "body": "Der Hauptbenutzer verbindet Seerr in der Verwaltung unter Integrationen und schaltet die Wünsche dort ein. Bis dahin lassen sich hier keine Titel anfordern."
+      },
+      "caption": "{{year}} · {{kind}}",
+      "steps": {
+        "label": "Stand des Wunsches",
+        "requested": "Angefragt",
+        "approved": "Genehmigt",
+        "loading": "Wird geladen",
+        "available": "Verfügbar",
+        "current": "{{step}}, aktueller Schritt",
+        "done": "{{step}}, erledigt",
+        "open": "{{step}}, noch offen"
+      },
+      "requestedOn": "gewünscht am {{date}}",
+      "keep": "Behalten",
+      "request": "Anfordern",
+      "requestNote": "Seerr bekommt den Wunsch. Ist der Titel da, meldet sich die App.",
+      "allSeasons": "Alle Staffeln",
+      "seasonsCount_one": "{{count}} Staffel",
+      "seasonsCount_other": "{{count}} Staffeln",
+      "searchCard": "«{{query}}» wünschen",
+      "searchCardHint": "Suche bei Seerr und schicke einen Wunsch",
+      "missingTitle": "Noch nicht in der Bibliothek?",
+      "toMine": "Meine Wünsche",
+      "available": "Verfügbar: zum Titel",
+      "stale": "Seerr antwortet nicht. Du siehst den Stand vom letzten Abruf.",
+      "withdrawBody": "«{{title}}» wird in Seerr gelöscht. Du kannst den Titel später wieder anfordern.",
+      "failed": "Das hat nicht geklappt. Versuche es noch einmal.",
+      "badge": "{{count}} offene Wünsche"
+    },
+    "notifications": {
+      "settings": "Einstellungen für Benachrichtigungen",
+      "settingsHint": "Push, E-Mail und Telegram",
+      "bell_one": "Benachrichtigungen, {{count}} neu",
+      "bell_other": "Benachrichtigungen, {{count}} neu",
+      "unreadDot": "ungelesen",
+      "device": "Auf diesem Gerät",
+      "accountChannels": "Kanäle des Kontos",
+      "push": "Push-Meldungen",
+      "pushHint": "Meldungen erscheinen auf diesem Gerät",
+      "pushNotInBuild": "Diese Ausgabe der App hat keine Push-Meldungen. Neues findest du hier unter «Benachrichtigungen», per E-Mail oder Telegram.",
+      "pushServerOff": "Der Server hat Push nicht eingerichtet. Das macht der Hauptbenutzer in der Verwaltung unter Integrationen.",
+      "pushChannelOff": "Push ist für das Konto ausgeschaltet: Dieses Gerät ist angemeldet, bekommt aber nichts, bis das Hauptprofil den Kanal «Push» unten einschaltet.",
+      "pushBlocked": "Android zeigt die Mitteilungen von Slouchcat nicht an. Erlaube sie, damit Push-Meldungen erscheinen.",
+      "pushAllow": "Mitteilungen erlauben",
+      "pushSystemSettings": "Android-Einstellungen öffnen",
+      "pushBusy": "Wird angemeldet …",
+      "pushFailed": {
+        "offline": "Der Server antwortet nicht. Die App versucht es beim nächsten Start wieder.",
+        "relay": "Die Push-Weiterleitung ist nicht erreichbar. Die App versucht es beim nächsten Start wieder; die Liste hier, E-Mail und Telegram gehen weiter.",
+        "google": "Das Gerät hat von Google kein Push-Token bekommen. Prüfe, ob die Google-Play-Dienste laufen.",
+        "server": "Der Server hat das Abo dieses Geräts abgelehnt."
+      },
+      "channelState": "{{channel}}, {{state}}",
+      "onlyPrimaryNote": "Die Kanäle gelten für das ganze Konto; ändern lassen sie sich nur im Hauptprofil.",
+      "channelSheet": "Kanal: {{channel}}",
+      "sendTest": "Testmeldung senden",
+      "telegramCode": "Code: {{code}}",
+      "system": {
+        "content": "Neue Folgen",
+        "wishes": "Wünsche",
+        "account": "Konto und Geräte",
+        "general": "Mitteilungen des Servers"
+      },
+      "pushChannel": "Push",
+      "publicText": "Neue Mitteilung",
+      "pushOffPending": "Ausgeschaltet. Der Server hat das Austragen noch nicht bestätigt: Die App holt es beim nächsten Kontakt nach. Lesen kann dieses Gerät keine Meldung mehr."
+    },
     "tv": {
       "title": "Fernseher verbinden",
       "moreHint": "QR-Code am Fernseher scannen",
@@ -1719,7 +1789,13 @@
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
-      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Grösse",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Hintergrund",
         "none": "Keiner",
@@ -1727,8 +1803,16 @@
         "translucent": "Halbtransparent",
         "box": "Box"
       },
-      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
-      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
+      "color": {
+        "title": "Farbe",
+        "white": "Weiss",
+        "yellow": "Gelb"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Unten",
+        "raised": "Etwas höher"
+      },
       "offset": {
         "title": "Versatz",
         "earlier": "0.1 s früher",
@@ -1791,8 +1875,16 @@
       "cardSeason": "Staffel {{season}} · {{name}}",
       "notOnDevice": "Nicht auf diesem Gerät"
     },
-    "tabs": { "label": "Mehr zum Titel", "next": "Als Nächstes", "info": "Info" },
-    "pauseView": { "label": "Pause", "paused": "Pausiert", "chapter": "Kapitel: {{chapter}}" },
+    "tabs": {
+      "label": "Mehr zum Titel",
+      "next": "Als Nächstes",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Pause",
+      "paused": "Pausiert",
+      "chapter": "Kapitel: {{chapter}}"
+    },
     "slow": {
       "label": "Langsame Verbindung",
       "text": "Verbindung langsam – auf {{quality}} wechseln?",

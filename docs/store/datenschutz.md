@@ -51,6 +51,9 @@ Die App speichert auf deinem Gerät:
 - gespeicherte Filme, Folgen und Hörbücher samt Untertiteln und Bildern, die Liste der Downloads,
   Wiedergabe-Ereignisse ohne Netz, die noch zum Server müssen, und eine Prüfgrösse für die
   Offline-PIN eines Profils;
+- für Push-Meldungen: einen eigenen Schlüssel, mit dem nur dieses Gerät die Meldungen entschlüsselt,
+  das Push-Token von Google und die Push-Adresse; verschlüsselt mit einem Schlüssel des
+  Android-Schlüsselspeichers, nie in einer Sicherung;
 - deine Einstellungen.
 
 In die Sicherung des Geräts und beim Umzug auf ein neues Gerät geht nur die Adresse deines
@@ -69,6 +72,11 @@ Entwicklers:
 - was das Gerät abspielen kann, damit der Server die passende Wiedergabe wählt;
 - was du tust: gewählte Profile, Suchen, Merkliste, Wiedergabe-Fortschritt, Downloads und
   Einstellungen;
+- deine Wünsche: welchen Film oder welche Staffel du anforderst oder zurückziehst. Dein Server gibt
+  sie an das Seerr deines Haushalts weiter, nicht an den Entwickler;
+- für Push-Meldungen die Push-Adresse der Weiterleitung und den öffentlichen Teil des Schlüssels
+  dieses Geräts; damit verschlüsselt dein Server jede Meldung so, dass nur dieses Gerät sie lesen
+  kann;
 - die Internet-Adresse deines Geräts, wie bei jeder Verbindung.
 
 Verbindet sich die App ohne HTTPS mit dem Server, gehen diese Angaben unverschlüsselt über das
@@ -100,16 +108,27 @@ Push-Dienst weiter. Der Dienst sieht dabei:
 
 Er sieht nicht Titel und Text einer Meldung und nicht dein Konto. Er speichert nichts davon.
 
-> **Hinweis für den Auftraggeber:** Konzept 27 Abschnitt 7.6 und `docs/relay/BETRIEB.md` nennen
-> für die Push-Weiterleitung nur die Adresse des Servers. Die App meldet sich aber selbst bei
-> `POST /v1/register` an; dabei sieht der Dienst auch die Adresse des Handys. Der Entwurf nennt
-> sie darum. Vor dem Veröffentlichen am Bau bestätigen.
+Die App prüft bei jedem Start mit einer Sitzung und etwa alle zwölf Stunden im Hintergrund (nur mit
+Netz), ob ihr Abo bei deinem Server noch gilt. Beim Dienst meldet sie sich nur neu an, wenn das
+Push-Token oder der Schlüssel deines Servers gewechselt hat oder das Abo fehlt, etwa nach einer
+Passwortänderung; jedes neue Abo bekommt einen neuen Schlüssel. Schaltest du Push-Meldungen auf
+diesem Gerät aus, löscht die App sofort ihren Schlüssel und das Push-Token bei Google und meldet das
+Abo bei deinem Server ab. Ist dein Server gerade nicht erreichbar, holt sie das Abmelden beim
+nächsten Kontakt nach und zeigt das in den Einstellungen; bis dahin kann dein Server noch Meldungen
+schicken, die das Gerät nicht mehr lesen kann und verwirft.
+
+> **Am Bau bestätigt (Stufe 8):** Die App selbst ruft `POST /v1/register` auf; der Dienst sieht
+> dabei die Internet-Adresse des Handys. Konzept 27 Abschnitt 7.6 nennt nur die des Servers.
 
 ## 7. Google
 
 - **Push (Firebase Cloud Messaging):** Google stellt die Meldungen zu. Google sieht das Push-Token,
   den Zeitpunkt und die verschlüsselte Meldung, nicht deren Inhalt und nicht die Adresse deines
-  Servers. Die Bibliothek von Google auf dem Gerät tauscht dafür Daten mit Google aus. Es gilt die
+  Servers. Die Bibliothek von Google auf dem Gerät tauscht dafür Daten mit Google aus: Für das
+  Push-Token meldet sie eine Installationskennung von Firebase und die Kennung der App bei Google
+  an. Die Bibliothek spricht erst mit Google, wenn du angemeldet bist und Push-Meldungen auf diesem
+  Gerät eingeschaltet sind (ab Werk eingeschaltet), und hört beim Ausschalten wieder auf. Die App schaltet die Analyse von Firebase und den Export von Zustellzahlen ab
+  und bindet keine weitere Firebase-Bibliothek ein. Es gilt die
   Datenschutzerklärung von Google (<https://policies.google.com/privacy>) und die Angaben zu
   Firebase (<https://firebase.google.com/support/privacy>). Google kann Daten in den USA
   verarbeiten. Die Bauart ohne Google-Bibliotheken (`foss`, nicht im Play Store) nutzt diesen Weg
@@ -175,5 +194,5 @@ das Datum oben. Die jeweils gültige Fassung steht unter `<Adresse der Datenschu
 
 **Unbelegt, vom Auftraggeber zu klären:** Diagnosedaten von Code-Scanner und Push-Bibliothek
 (Abschnitt 7); ob die App eine Analyse- oder Absturzbibliothek enthält (Abschnitt 3); Adresse
-des Handys bei der Anmeldung an der Push-Weiterleitung (Abschnitt 6); ob ein Mietserver-Anbieter
+ob ein Mietserver-Anbieter
 nach dem Umzug als Auftragsverarbeiter zu nennen ist.

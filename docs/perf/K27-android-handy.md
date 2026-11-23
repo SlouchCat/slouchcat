@@ -476,6 +476,33 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
 
+## Stufe 8: Wünsche und Meldungen (22. November 2026)
+
+### Push von der Meldung am Server bis zur Anzeige (lokaler Aufbau, ohne Google)
+
+Aufbau: Server mit `--dev` und `SLOUCHCAT_PUSH_RELAY=http://127.0.0.1:9680`, `relay/bin/push` auf 9680,
+`relay/bin/fcmfake` auf 9681 statt Google (`task android:contract CONTRACT_PORT=9597`, Test
+`MessagesContractTest.pushEndToEndThroughTheRelayWithoutGoogle`).
+
+| Strecke | Messwert |
+|---|---|
+| `testMyChannel(push)` bis die Nachricht bei `fcmfake` liegt (Server verschlüsselt, VAPID, Weiterleitung prüft und reicht weiter) | 22 ms |
+| Grösse des Körpers für die Weiterleitung | 2700 Byte (Satzgrösse aus Stufe 0) |
+| Entschlüsseln von `data.wp` mit dem Code der App (JVM) | unter 5 ms, im Lauf nicht getrennt gemessen |
+| Emulator: Nachricht aus `fcmfake` an die Empfangsklasse bis zur Mitteilung (`MessagesFlowTest`) | im Ablauf ohne eigene Zeitmessung; Mitteilung im Ablauf sofort vorhanden |
+
+Ohne Firebase-Projekt gibt es kein echtes FCM: Der Weg Google → Gerät ist nicht gemessen.
+
+### Auf einem echten Gerät noch zu messen (braucht das Firebase-Projekt)
+
+1. Meldung bei **geschlossener App** (weggewischt): Testmeldung aus der Web-App, Zeit bis zur
+   Mitteilung.
+2. Meldung im **Doze**: `adb shell dumpsys deviceidle force-idle`, Testmeldung; Die Weiterleitung
+   sendet mit `Urgency` des Servers (normal → `NORMAL`): erwartet ist Zustellung im nächsten
+   Wartungsfenster. Danach `adb shell dumpsys deviceidle unforce`.
+3. Token-Wechsel: App-Daten von Google-Play-Diensten löschen oder App neu installieren, App öffnen:
+   der Server listet genau ein Abo dieses Geräts.
+
 ## Stufe 9: Fernseher verbinden (22. November 2026)
 
 **Im Emulator und auf dem Host geprüft**, nicht mit echten Geräten:
