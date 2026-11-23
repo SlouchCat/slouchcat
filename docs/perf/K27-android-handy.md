@@ -533,6 +533,13 @@ unten, Punkt 1).
     «foreground service not allowed» (Android verweigert den Vordergrunddienst nach dem Verlassen
     der App); dann diesen Fall melden.
 12. Beim ersten Ton fragt Android 13 und neuer nach Mitteilungen. Abgelehnt: Der Ton spielt trotzdem.
+13. Webradio mit Titelanzeige: Wechselt der Titel, ändert sich die Mitteilung ohne Aussetzer im Ton
+    (`updateMetadata` baut den Player nicht neu auf; im Emulator nicht prüfbar).
+14. Sperrbildschirm: Titel und Autor des Hörbuchs sind sichtbar wie bei jeder Medien-App. Wer das nicht
+    möchte, schaltet in Android «Inhalte auf dem Sperrbildschirm» aus.
+15. Ein heruntergeladenes Hörbuch im Flugmodus bei Tempo 1,5 spielen, die App beenden und wieder
+    öffnen: Offline beginnt der Ton mit dem Tempo des Downloads, nicht mit 1,5 (bekannt, Code-Review
+    L-7; das Offline-Modell führt kein Tempo).
 
 ## Stufe 8: Wünsche und Meldungen (22. November 2026)
 

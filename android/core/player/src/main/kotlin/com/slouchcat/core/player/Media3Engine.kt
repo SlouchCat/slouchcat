@@ -57,7 +57,7 @@ class Media3Engine(
     http: Call.Factory,
     withSession: Boolean = true,
     /** What it plays: video (stage 5), spoken audio or music (stage 7: audio focus, wake lock, jumps). */
-    kind: EngineKind = EngineKind.Video,
+    private val kind: EngineKind = EngineKind.Video,
 ) : PlayerEngine {
     private val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
     override val events: Flow<EngineSignal> = signals.asSharedFlow()
@@ -178,6 +178,7 @@ class Media3Engine(
             .clearOverrides()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
             .build()
+        wakeModeFor(kind, media.url)?.let(player::setWakeMode)
         if (startMs == PlayerEngine.LIVE_EDGE) player.setMediaItem(item, /* resetPosition = */ true) else player.setMediaItem(item, startMs.coerceAtLeast(0))
         player.playWhenReady = play
         player.prepare()
@@ -423,4 +424,14 @@ class SlouchcatRenderersFactory(context: Context) : DefaultRenderersFactory(cont
         /** FLAC frame upper bound for 8 channels, 24 bit, 4608 samples (uncompressed worst case). */
         const val FLAC_MAX_INPUT = 8 * 3 * 4608 + 1024
     }
+}
+
+/**
+ * What keeps the device awake while sound plays (code review stage 7 L-2): a file of a download only
+ * the CPU, a stream also the Wi-Fi; `null` for video, which never plays in the background.
+ */
+internal fun wakeModeFor(kind: EngineKind, url: String): Int? = when {
+    kind == EngineKind.Video -> null
+    url.startsWith("file:") -> C.WAKE_MODE_LOCAL
+    else -> C.WAKE_MODE_NETWORK
 }
