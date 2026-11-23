@@ -19,7 +19,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.audio.AudioFeature
-import com.slouchcat.app.tv.common.DataStoreRelaySettings
+import com.slouchcat.core.session.DataStoreRelaySettings
 import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
@@ -164,7 +164,7 @@ class TvAudioFlowTest {
 
     /** From the start of the app to «Start»: set up by hand when the TV is not, then the profile with its PIN. */
     private fun launch(): ActivityScenario<MainActivity> {
-        runBlocking { DataStoreRelaySettings(context).set(relay) }
+        runBlocking { DataStoreRelaySettings(context, "tv").set(relay) }
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         compose.waitUntil(START_MS) { ready() || present(s(R.string.tv_setup_welcome)) || present(s(R.string.profiles_picker_title)) }
         if (!ready() && present(s(R.string.tv_setup_welcome))) {

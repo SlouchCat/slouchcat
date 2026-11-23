@@ -46,6 +46,7 @@ private class Probe(
     override val rail: List<RailEntry> = emptyList(),
     override val settings: List<SettingsEntry> = emptyList(),
     override val media: List<RailMedia> = emptyList(),
+    override val badges: List<RailBadge> = emptyList(),
 ) : TvFeature {
     override fun NavGraphBuilder.register(app: TvScope) {
         composable<ClashRoute> {}
@@ -77,10 +78,11 @@ class RegistryTest {
     }
 
     @Test
-    fun theRailOfStage2bIsAsInTheMockup() {
+    fun theRailIsAsInTheMockup() {
         val registry = TvRegistry(features)
-        // Start, Suche on top, Einstellungen at the bottom; «Start» is home.
-        assertEquals(listOf("start", "search", "settings"), registry.rail.map { it.key })
+        // Start, Suche on top; Wünsche (stage 5) and Einstellungen at the bottom; «Start» is home.
+        assertEquals(listOf("start", "search", "wishes", "settings"), registry.rail.map { it.key })
+        assertEquals(listOf(10, 20, 40, 50), registry.rail.map { it.order })
         assertEquals("start", registry.home.key)
         // «Medien»: the video libraries in the server's order (audio waits for stage 4); the lists
         // are no entries of the rail (code review M-3) but «Meine Listen» of the menu.
@@ -92,8 +94,10 @@ class RegistryTest {
         // Stage 4: audio libraries too, the radio after the libraries.
         assertEquals(listOf("library-1", "library-2", "library-3", "radio"), registry.mediaEntries(libraries).map { it.key })
         assertEquals(listOf("watchlist", "watched", "collections"), registry.lists.map { it.key })
-        // «Profile verwalten» in the settings (order 20) and from the profile choice; «Wiedergabe» (30, stage 3).
-        assertEquals(listOf("manage" to 20, "playback" to 30), registry.settings.map { it.key to it.order })
+        // «Profile verwalten» in the settings (order 20) and from the profile choice; «Wiedergabe» (30,
+        // stage 3); «Benachrichtigungen» (40, stage 5) with its number on «Einstellungen» in the rail.
+        assertEquals(listOf("manage" to 20, "playback" to 30, "notifications" to 40), registry.settings.map { it.key to it.order })
+        assertEquals(setOf("settings"), registry.badges.keys)
         assertTrue(registry.manageProfiles != null)
         // The players of stage 3 and 4 draw without rail and clock.
         assertTrue(com.slouchcat.app.tv.browse.PlayerRoute::class in registry.fullScreen)
@@ -155,6 +159,11 @@ class RegistryTest {
         assertTrue(fails(Probe(rail = listOf(start), settings = listOf(row)), Probe(settings = listOf(row.copy(key = "radio")))))
         // A media entry must come from RailMedia and know its own page.
         assertTrue(fails(Probe(rail = listOf(start, start.copy(key = "lib", section = RailSection.Media)))))
+        // A badge needs its entry, and one per entry.
+        val badge = RailBadge("start", count = { null }, label = { "" })
+        assertFalse(fails(Probe(rail = listOf(start), badges = listOf(badge))))
+        assertTrue(fails(Probe(rail = listOf(start), badges = listOf(badge.let { RailBadge("wishes", it.count, it.label) }))))
+        assertTrue(fails(Probe(rail = listOf(start), badges = listOf(badge)), Probe(badges = listOf(badge))))
         val media = TvRegistry(listOf(Probe(rail = listOf(start), media = listOf(RailMedia { list -> list.map { start.copy(key = "lib-${it.id}", section = RailSection.Media) } }))))
         assertTrue(runCatching { media.mediaEntries(listOf(LibraryNav(1, "Filme", LibraryKind.VIDEO, emptyList(), 1))) }.isFailure)
     }

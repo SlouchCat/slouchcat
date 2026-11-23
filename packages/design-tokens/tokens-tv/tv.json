@@ -793,6 +793,10 @@
           "$value": "7px",
           "$description": ".br-seek.is-f .br-track height"
         },
+        "chapter-mark": {
+          "$value": "4px",
+          "$description": "the gap of a chapter mark in the bar (web SeekBar .mark, stage 5)"
+        },
         "knob": {
           "$value": "18px",
           "$description": ".br-seek.is-f .br-knob"
@@ -975,6 +979,56 @@
         "bottom": {
           "$value": "80px",
           "$description": ".md-pb padding-bottom"
+        }
+      },
+      "wishes": {
+        "$description": "«Wünsche», a title outside the library and «Benachrichtigungen» of stage 5 (media.css .md-w*, .md-n*, .md-ann), half the mockup canvas",
+        "tabs-top": { "$value": "14px", "$description": ".md-tabs margin-top" },
+        "tab": { "$value": "38px", "$description": ".md-tab height" },
+        "tab-pad": { "$value": "19px", "$description": ".md-tab padding" },
+        "count": { "$value": "21px", "$description": ".md-cnt height and min-width" },
+        "count-pad": { "$value": "5px", "$description": ".md-cnt padding" },
+        "lead-top": { "$value": "11px", "$description": ".md-wlead margin-top" },
+        "body-top": { "$value": "20px", "$description": ".md-wbody padding-top" },
+        "poster": { "$value": "210px", "$description": ".md-wpost width" },
+        "page-gap": { "$value": "45px", "$description": ".md-wish gap" },
+        "info": { "$value": "520px", "$description": ".md-winfo max-width" },
+        "overview": { "$value": "480px", "$description": ".md-ov max-width" },
+        "kicker-gap": { "$value": "7px", "$description": ".md-kicker gap" },
+        "state-top": { "$value": "15px", "$description": ".md-wstate margin-top" },
+        "bar": { "$value": "310px", "$description": ".md-wbar width" },
+        "bar-height": { "$value": "5px", "$description": ".md-wbar height" },
+        "actions-top": { "$value": "17px", "$description": ".md-acts margin-top" },
+        "line-top": { "$value": "13px", "$description": ".md-qline margin-top" },
+        "quota": { "$value": "600px", "$description": ".md-quota max-width" },
+        "quota-key": { "$value": "210px", "$description": ".md-quota first column" },
+        "quota-pad-x": { "$value": "17px", "$description": ".md-quota padding" },
+        "quota-pad-y": { "$value": "13px", "$description": ".md-quota padding" },
+        "meter": { "$value": "6px", "$description": ".md-meter height" },
+        "list": { "$value": "700px", "$description": ".md-wlist max-width" },
+        "list-gap": { "$value": "9px", "$description": ".md-wlist gap" },
+        "row-poster": { "$value": "60px", "$description": ".md-wpo width" },
+        "row-pad": { "$value": "8px", "$description": ".md-wmain padding" },
+        "row-gap": { "$value": "16px", "$description": ".md-wmain gap" },
+        "row-bar": { "$value": "230px", "$description": ".md-wtx .md-bar width" },
+        "row-action": { "$value": "150px", "$description": ".md-wact width" },
+        "sheet-poster": { "$value": "48px", "$description": ".md-preq-po width" },
+        "check": { "$value": "45px", "$description": ".md-chk min-height" },
+        "check-box": { "$value": "25px", "$description": ".md-box" },
+        "info-pad-x": { "$value": "13px", "$description": ".md-pinfo padding" },
+        "info-pad-y": { "$value": "11px", "$description": ".md-pinfo padding" },
+        "notes": { "$value": "650px", "$description": ".md-nlist max-width" },
+        "note-poster": { "$value": "48px", "$description": ".md-npo width" },
+        "note-pad": { "$value": "7px", "$description": ".md-nrow padding" },
+        "note-pad-end": { "$value": "16px", "$description": ".md-nrow padding-right" },
+        "note-gap": { "$value": "15px", "$description": ".md-nrow gap" },
+        "dot": { "$value": "7px", "$description": ".md-dot" },
+        "ann-pad-x": { "$value": "17px", "$description": ".md-ann padding" },
+        "ann-pad-y": { "$value": "13px", "$description": ".md-ann padding" },
+        "ann-icon": { "$value": "22px", "$description": ".md-ann-ic" },
+        "rail-badge": {
+          "$value": "16px",
+          "$description": "the number on an entry of the rail (the bell of «Benachrichtigungen» on «Einstellungen»)"
         }
       },
       "audio": {

@@ -2,6 +2,7 @@ package com.slouchcat.app.tv
 
 import com.slouchcat.core.api.SlouchcatApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
@@ -10,6 +11,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -20,7 +22,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * The administration as a browser uses it, only to add the library of the test media
- * (scripts/android-test-media.sh) and wait for its scan (as the phone app's DetailFlowTest does):
+ * (scripts/android-test-media.sh) and wait for its scan (as the phone app's DetailFlowTest does),
+ * and for stage 5 to connect the Seerr mock, let it decline a wish and publish an announcement:
  * the TV may not call `admin` operations itself, so the test does it beside the app.
  */
 internal class TestLibrary(private val base: HttpUrl, private val email: String, private val password: String, private val pin: String) {
@@ -60,13 +63,17 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         call("PUT", "profiles/${primary()["id"]!!.jsonPrimitive.long}/pin", """{"pin":"$pin"}""")
     }
 
-    private fun call(method: String, path: String, body: String? = null): JsonElement? {
+    /** A call of the server's API in the web session; [at] another service (the Seerr mock) with [client]. */
+    private fun call(method: String, path: String, body: String? = null, client: OkHttpClient = http, at: HttpUrl? = null): JsonElement? {
+        val url = at?.newBuilder()?.addPathSegments(path)?.build()
+            ?: base.newBuilder().addPathSegments(SlouchcatApi.BASE_PATH).addPathSegments(path.substringBefore('?'))
+                .encodedQuery(path.substringAfter('?', "").ifEmpty { null }).build()
         val request = Request.Builder()
-            .url(base.newBuilder().addPathSegments(SlouchcatApi.BASE_PATH).addPathSegments(path).build())
+            .url(url)
             .header("X-Requested-With", "Slouchcat")
             .method(method, if (method == "GET") null else (body ?: "").toRequestBody("application/json".toMediaType()))
             .build()
-        http.newCall(request).execute().use { response ->
+        client.newCall(request).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "$method $path: ${response.code} $text" }
             return text.takeIf { it.isNotBlank() }?.let(Json::parseToJsonElement)
@@ -103,6 +110,65 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
             check(System.nanoTime() < deadline) { "the scan of the test library did not finish" }
             Thread.sleep(POLL_MS)
         }
+    }
+
+    // --- Stage 5: wishes through the Seerr mock of web/e2e, an announcement -----------------------
+
+    private var account: Long? = null
+
+    /** The client for the Seerr mock (no session of the server), one for the run (code review L-11). */
+    private val plain = OkHttpClient()
+
+    /**
+     * TMDB key, Seerr connected ([seerr] as the server reaches it), wishes on, the account linked to
+     * Seerr's user 3 (the phone app's MessagesFlowTest, the web e2e's `openWishes`).
+     */
+    fun wishesOn(seerr: String) {
+        signIn()
+        call("PUT", "admin/settings", """{"keys":{"tmdb":"$TMDB_KEY"}}""")
+        call("PUT", "admin/seerr", """{"url":"$seerr","apiKey":"$SEERR_KEY","enabled":true}""")
+        call("POST", "admin/seerr/test", "{}")
+        call("PUT", "admin/wishes/settings", """{"enabled":true}""")
+        val id = call("GET", "auth/session")!!.jsonObject["account"]!!.jsonObject["id"]!!.jsonPrimitive.long
+        account = id
+        call("POST", "admin/wishes/mappings/users/refresh", "{}")
+        val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+        while (call("GET", "admin/wishes/mappings/users")!!.jsonArray.none { it.jsonObject["id"]!!.jsonPrimitive.long == SEERR_USER }) {
+            check(System.nanoTime() < deadline) { "Seerr's users did not come" }
+            Thread.sleep(POLL_MS)
+        }
+        call("PUT", "admin/wishes/mappings/accounts/$id", """{"seerrUserId":$SEERR_USER}""")
+    }
+
+    /** Seerr ([seerrHere] as the device reaches it) declines every open request; the server's sync closes the wishes. */
+    fun declineOpen(seerrHere: HttpUrl) {
+        signIn()
+        val items = (call("GET", "admin/wishes?state=open&limit=100")?.jsonObject?.get("items") as? JsonArray).orEmpty().map { it.jsonObject }
+        for (wish in items) {
+            val ids = listOfNotNull(wish["seerrRequestId"]?.jsonPrimitive?.longOrNull) +
+                (wish["seasons"] as? JsonArray).orEmpty().mapNotNull { it.jsonObject["seerrRequestId"]?.jsonPrimitive?.longOrNull }
+            ids.forEach { call("POST", "__control", """{"request":{"id":$it,"status":3}}""", plain, seerrHere) }
+        }
+        if (items.isNotEmpty()) call("POST", "admin/seerr/sync", "{}")
+    }
+
+    /** An announcement of the main user, published at once; its id. */
+    fun announce(title: String, body: String): Long {
+        signIn()
+        val made = call("POST", "admin/announcements", """{"title":${Json.encodeToString(title)},"body":${Json.encodeToString(body)},"publish":true}""")
+        return made!!.jsonObject["id"]!!.jsonPrimitive.long
+    }
+
+    /** Everything [wishesOn] and [announce] changed, back; each part on its own (also after a failure). */
+    fun wishesOff(seerrHere: HttpUrl, announcement: Long?) {
+        runCatching { signIn() }
+        runCatching { declineOpen(seerrHere) }
+        announcement?.let { id -> runCatching { call("DELETE", "admin/announcements/$id") } }
+        account?.let { id -> runCatching { call("PUT", "admin/wishes/mappings/accounts/$id", """{"seerrUserId":null}""") } }
+        runCatching { call("PUT", "admin/wishes/settings", """{"enabled":false}""") }
+        runCatching { call("PUT", "admin/seerr", """{"clear":true,"enabled":false}""") }
+        runCatching { call("PUT", "admin/settings", """{"clear":["tmdb"]}""") }
+        runCatching { call("POST", "__reset", "{}", plain, seerrHere) }
     }
 
     /**
@@ -152,6 +218,10 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
     }
 
     private companion object {
+        const val SEERR_KEY = "e2e-seerr-key-4f2a9c71d3b8"
+        const val TMDB_KEY = "e2e-tmdb-key-8c41d0a7f2b9"
+        const val SEERR_USER = 3L
+
         /** The cookies of the web session per server and account (see [cookies]). */
         val SESSIONS = mutableMapOf<String, MutableList<Cookie>>()
 

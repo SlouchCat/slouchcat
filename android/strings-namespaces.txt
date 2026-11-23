@@ -95,3 +95,4 @@ titles
 notifications
 announcements
 settings.notifications
+player.chapters

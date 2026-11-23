@@ -185,6 +185,8 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                     railFocus = railFocus,
                     railOpen = railOpen,
                     onRailOpen = { railOpen = it },
+                    // Stage 5: the unread notifications on «Einstellungen» (a feature brings the number).
+                    badge = { entry -> graph.registry.badges[entry.key]?.let { b -> b.count(graph)?.takeIf { it > 0 }?.let { n -> n to b.label(n) } } },
                 ) {
                     // No page transitions: a page is there at once and takes its start focus (mockup).
                     NavHost(

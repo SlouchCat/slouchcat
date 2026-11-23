@@ -68,6 +68,19 @@ fun interface RailMedia {
 }
 
 /**
+ * A number on an entry of the rail (stage 5: the unread notifications on «Einstellungen», where
+ * the mockup keeps «Benachrichtigungen»). [key] names the entry, which may belong to another
+ * feature; [count] reads the number while the rail is shown (`null` or 0: no badge) and keeps it
+ * current itself (it is drawn once per session epoch). [label] is what a screen reader adds to the
+ * entry's name.
+ */
+class RailBadge(
+    val key: String,
+    val count: @Composable (TvGraph) -> Int?,
+    val label: @Composable (Int) -> String,
+)
+
+/**
  * A row of the page «Einstellungen» (mockup `/settings`, `MD_SET`): the shell brings «Profil
  * wechseln», «Server und Konto», «Über» and «Erweitert»; later stages add theirs (Profile
  * verwalten 2b, Wiedergabe 3, Webradio 4, Benachrichtigungen 5). [order]: Profil wechseln 10,
@@ -111,6 +124,9 @@ interface TvFeature {
     val media: List<RailMedia> get() = emptyList()
     val settings: List<SettingsEntry> get() = emptyList()
 
+    /** Numbers on entries of the rail (stage 5). */
+    val badges: List<RailBadge> get() = emptyList()
+
     /** Routes drawn without the rail and the clock (the player of stage 3). */
     val fullScreen: Set<KClass<*>> get() = emptySet()
 
@@ -145,6 +161,7 @@ class TvRegistry(val features: List<TvFeature>) {
     val media: List<RailMedia> = features.flatMap { it.media }
     val lists: List<RailEntry> = features.flatMap { it.lists }.sortedBy { it.order }
     val settings: List<SettingsEntry> = features.flatMap { it.settings }.sortedBy { it.order }
+    val badges: Map<String, RailBadge> = features.flatMap { it.badges }.associateBy { it.key }
     val fullScreen: Set<KClass<*>> = features.flatMapTo(mutableSetOf()) { it.fullScreen }
     val overlays = features.mapNotNull { it.overlay }
     val manageProfiles: Any? = features.mapNotNull { it.manageProfiles }.let {
@@ -161,6 +178,9 @@ class TvRegistry(val features: List<TvFeature>) {
         requireUnique("settings row", settings.map { it.key } + BUILT_IN_SETTINGS.keys)
         requireUnique("settings order", settings.map { it.order } + BUILT_IN_SETTINGS.values)
         require(rail.none { it.section == RailSection.Media }) { "media entries come from RailMedia, not from rail" }
+        requireUnique("rail badge", features.flatMap { it.badges }.map { it.key })
+        // A badge on an entry nobody brings would never show (the entry of another stage missing).
+        require(badges.keys.all { key -> rail.any { it.key == key } }) { "rail badge without its entry: ${badges.keys - rail.map { it.key }.toSet()}" }
     }
 
     /** Where the app lands after the profile choice: Start once it exists, else the first entry. */

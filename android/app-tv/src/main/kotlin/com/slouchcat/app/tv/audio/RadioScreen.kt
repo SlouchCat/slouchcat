@@ -54,7 +54,10 @@ import com.slouchcat.app.tv.browse.EmptyState
 import com.slouchcat.app.tv.browse.PageHead
 import com.slouchcat.app.tv.browse.pluralCount
 import com.slouchcat.app.tv.common.LoadableContent
-import com.slouchcat.app.tv.search.TvKeyboard
+import com.slouchcat.app.tv.search.TYPING_START
+import com.slouchcat.app.tv.search.TvTyping
+import com.slouchcat.app.tv.search.hardwareTyping
+import com.slouchcat.app.tv.search.rememberTypingMode
 import com.slouchcat.app.tv.shell.LocalContentStart
 import com.slouchcat.app.tv.ui.CardShape
 import com.slouchcat.app.tv.ui.FocusMemory
@@ -417,9 +420,19 @@ private fun CountryMenu(ui: RadioUiState, onPick: (String?) -> Unit, onDismiss: 
 @Composable
 private fun SearchMenu(initial: String, onApply: (String) -> Unit, onDismiss: () -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
-    val start = remember { FocusRequester() }
-    TvSideMenu(stringResource(R.string.radio_page_searchLabel), onDismiss = onDismiss, initialFocus = start) {
-        TvKeyboard(text, onText = { text = it }, start = start, placeholder = stringResource(R.string.radio_page_searchPlaceholder))
+    val keys = rememberFocusMemory()
+    val mode = rememberTypingMode()
+    TvSideMenu(stringResource(R.string.radio_page_searchLabel), onDismiss = onDismiss, initialFocus = keys.requester(TYPING_START)) {
+        TvTyping(
+            text,
+            onText = { text = it },
+            onClear = { text = "" },
+            focus = keys,
+            mode = mode,
+            placeholder = stringResource(R.string.radio_page_searchPlaceholder),
+            modifier = Modifier.fillMaxWidth().hardwareTyping(mode, { text }) { text = it },
+            hint = null,
+        )
         TvButton(
             stringResource(R.string.tv_library_show),
             onClick = { onApply(text) },
