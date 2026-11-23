@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { LOGO_HEAD, LOGO_PLAY, LOGO_VIEW_BOX } from './logoMark';
+import {
+  LOGO_HEAD,
+  LOGO_PLAY,
+  LOGO_SIGN_HEIGHT,
+  LOGO_SIGN_VIEW_BOX,
+  LOGO_SIGN_WIDTH,
+  LOGO_VIEW_BOX,
+} from './logoMark';
 
 /*
  * The sign sat 24 of 512 units below the middle of its canvas, and every copy had inherited it:
@@ -86,6 +93,17 @@ describe('the Slouchcat sign', () => {
     expect(head).toEqual({ left: 136, right: 376, top: 112, bottom: 400 });
     expect(head.left).toBe(CANVAS - head.right);
     expect(head.top).toBe(CANVAS - head.bottom);
+  });
+
+  it('has a view box for the sign next to text: the width of the head, the whole height', () => {
+    const head = box(LOGO_HEAD);
+    expect(LOGO_SIGN_VIEW_BOX).toBe(`${head.left} 0 ${head.right - head.left} ${CANVAS}`);
+    expect(LOGO_SIGN_VIEW_BOX).toBe(`${head.left} 0 ${LOGO_SIGN_WIDTH} ${LOGO_SIGN_HEIGHT}`);
+    expect(LOGO_SIGN_HEIGHT).toBe(CANVAS);
+    // Nothing of the sign lies outside the cut: the play triangle is inside the head.
+    const play = box(LOGO_PLAY);
+    expect(play.left).toBeGreaterThan(head.left);
+    expect(play.right).toBeLessThan(head.right);
   });
 
   it('has the play triangle centred on its centroid, in the head below the ears', () => {

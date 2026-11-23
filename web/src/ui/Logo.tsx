@@ -1,5 +1,12 @@
+import type { CSSProperties } from 'react';
 import styles from './Logo.module.css';
-import { LOGO_HEAD, LOGO_PLAY, LOGO_VIEW_BOX } from './logoMark';
+import {
+  LOGO_HEAD,
+  LOGO_PLAY,
+  LOGO_SIGN_HEIGHT,
+  LOGO_SIGN_VIEW_BOX,
+  LOGO_SIGN_WIDTH,
+} from './logoMark';
 
 /**
  * The Slouchcat mark with the word mark next to it; `name` comes from the locale files. The
@@ -8,7 +15,13 @@ import { LOGO_HEAD, LOGO_PLAY, LOGO_VIEW_BOX } from './logoMark';
 export function Logo({ name, tagline }: { name: string; tagline?: string }) {
   return (
     <span className={styles.logo}>
-      <svg className={styles.mark} viewBox={LOGO_VIEW_BOX} aria-hidden="true" focusable="false">
+      <svg
+        className={styles.mark}
+        viewBox={LOGO_SIGN_VIEW_BOX}
+        style={{ '--logo-sign-ratio': LOGO_SIGN_WIDTH / LOGO_SIGN_HEIGHT } as CSSProperties}
+        aria-hidden="true"
+        focusable="false"
+      >
         <path className={styles.head} d={LOGO_HEAD} />
         <path className={styles.play} d={LOGO_PLAY} />
       </svg>

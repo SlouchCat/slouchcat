@@ -8,5 +8,14 @@
  * copies outside the web app; logoMark.test.ts compares them.
  */
 export const LOGO_VIEW_BOX = '0 0 512 512';
+/**
+ * The canvas cut to the width of the head, at its full height: for the sign next to text. There
+ * the empty canvas left and right of the head would count as a gap nobody sees, and the sign
+ * would stand away from the edge the text above or below it starts at.
+ */
+export const LOGO_SIGN_VIEW_BOX = '136 0 240 512';
+/** Width and height of that cut; Logo sets the sign's width from their ratio and its own height. */
+export const LOGO_SIGN_WIDTH = 240;
+export const LOGO_SIGN_HEIGHT = 512;
 export const LOGO_HEAD = 'M136 376V112l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z';
 export const LOGO_PLAY = 'M228 244v96l84-48z';
