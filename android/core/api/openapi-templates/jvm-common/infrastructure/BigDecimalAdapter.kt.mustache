@@ -1,0 +1,29 @@
+package {{packageName}}.infrastructure
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonEncoder
+import kotlinx.serialization.json.JsonUnquotedLiteral
+import kotlinx.serialization.json.jsonPrimitive
+import java.math.BigDecimal
+
+/*
+ * Slouchcat (android/core/api/openapi-templates): the generator's own adapter writes a JSON string
+ * ("1.5"), the server's contract has a number (`playbackRate`, `seriesIndex`) and answers 400. This
+ * one writes and reads a JSON number, always without an exponent (10, not 1E+1); a string still reads.
+ */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+object BigDecimalAdapter : KSerializer<BigDecimal> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("BigDecimal", PrimitiveKind.DOUBLE)
+
+    override fun deserialize(decoder: Decoder): BigDecimal =
+        if (decoder is JsonDecoder) BigDecimal(decoder.decodeJsonElement().jsonPrimitive.content) else BigDecimal(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, value: BigDecimal) =
+        if (encoder is JsonEncoder) encoder.encodeJsonElement(JsonUnquotedLiteral(value.toPlainString())) else encoder.encodeString(value.toPlainString())
+}

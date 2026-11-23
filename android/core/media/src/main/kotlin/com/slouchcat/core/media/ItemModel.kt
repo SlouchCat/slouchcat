@@ -118,3 +118,28 @@ fun playTarget(item: ItemDetail): PlayTarget? {
         else -> PlayTarget(item.id, PlayTarget.Kind.Play)
     }
 }
+
+/**
+ * The big button of an audiobook, a podcast episode or a podcast (web `DetailActions` for audio,
+ * mockup `/book/:i` and `/podcast/:i`): «Weiterhören», «Nochmals anhören» or «Abspielen» by the
+ * title's own progress; a podcast plays its newest episode ([PlayTarget.Kind.Episode] with
+ * [PlayTarget.episode]). An audiobook without an available file has none; the server decides the
+ * rest (rule 12).
+ */
+fun audioPlayTarget(item: ItemDetail): PlayTarget? {
+    when (item.kind) {
+        ItemKind.PODCAST -> {
+            val newest = item.episodes?.firstOrNull() ?: return null
+            return PlayTarget(newest.id, PlayTarget.Kind.Episode, newest)
+        }
+        ItemKind.AUDIOBOOK -> if (item.mediaFiles.none { it.available }) return null
+        ItemKind.PODCAST_EPISODE -> Unit
+        else -> return null
+    }
+    val resume = item.progress.started()
+    return when {
+        resume != null -> PlayTarget(item.id, PlayTarget.Kind.Resume, resume = resume)
+        item.progress?.completed == true -> PlayTarget(item.id, PlayTarget.Kind.Again)
+        else -> PlayTarget(item.id, PlayTarget.Kind.Play)
+    }
+}

@@ -11,13 +11,20 @@
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
 # RELAY_PORT  port of the pairing relay (default PORT+85), on the loopback as well (TvLinkFlowTest)
-# AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580)
+# AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580), an
+#             even number from 5554 to 5584: adb finds only those as emulator-EMU_PORT
+# EMU_GPU     renderer of the emulator (default swangle_indirect, see before boot)
 # EMU_OPTS    more options for the emulator, split at spaces
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
 # CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
 # WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
+#
+# The web radio (AudioFlowTest) runs without internet in every run: the server is built with the tag
+# radiotest into the run's own folder and reads the catalogue of the test stations
+# (web/e2e/radio-server.mjs, RADIO_PORT, default PORT+1; scripts/android-helpers.sh). After a run
+# with AudioFlowTest the server's log must show a heartbeat of a listen.
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
@@ -35,6 +42,12 @@ shots=${SHOTS:-}
 only=${CLASS:-}
 wait_max=${WAIT_MAX:-600}
 if [ "${1:-}" = "--shots" ]; then shots=$2; fi
+# adb lists an emulator only on an even console port from 5554 to 5584; any other port boots an
+# emulator that the script never reaches (code review stage 7 m-13).
+if ! [[ "$emu_port" =~ ^[0-9]+$ ]] || [ "$emu_port" -lt 5554 ] || [ "$emu_port" -gt 5584 ] || [ $((emu_port % 2)) -ne 0 ]; then
+  echo "android-e2e: EMU_PORT=$emu_port is not an even port from 5554 to 5584 (adb would not find the emulator)" >&2
+  exit 2
+fi
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
@@ -96,9 +109,11 @@ mkdir -p "$root/media"
 ../scripts/android-test-video.sh "$root/media"
 media=""
 if [ -d ../testdata/media/Movies ]; then media=$(cd ../testdata/media && pwd); fi
-# The helpers first: the server inherits the addresses of the TMDB mock and the push relay.
+# The helpers first: the server inherits the addresses of the TMDB mock, the push relay and the
+# test stations of the radio.
 helpers_start "$root" "$port" "$relay_port" || fail "a helper did not come up"
-SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+radio_start "$root" "$port" || fail "the test stations of the radio did not come up"
+SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOUCHCAT_TMDB_API_KEY= "$HELPER_RADIO_SERVER" serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -121,6 +136,7 @@ if [ -n "$media" ]; then
   flow_args=(slouchcatEmail apicheck-owner@slouchcat.test slouchcatPassword apicheck-password-0123)
   echo "android-e2e: server seeded with the test media"
 fi
+flow_args+=(slouchcatRadio 1)
 
 # One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
 # for an emulator that a run without the lock started (an older script, by hand).
@@ -133,11 +149,18 @@ while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   waited=$((waited + 60))
 done
 
+# The renderer of the guest's graphics on the host (EMU_GPU overrides it). Not swiftshader_indirect:
+# with it the emulator process itself died (SIGSEGV) in 3 of 5 runs of AudioFlowTest, each time
+# while SystemUI built the media card of the notification; every core stopped on the same
+# instruction in code generated at run time, outside every library of the emulator (the renderer's
+# shader code). swangle_indirect (ANGLE over SwiftShader's Vulkan, also in software): 0 of 5
+# (docs/perf/K27-android-ci.md, «Absturz des Emulators»).
+emu_gpu=${EMU_GPU:-swangle_indirect}
 boot() {
   # EMU_OPTS: more options for the emulator, split at spaces (for example -feature -Vulkan).
   # shellcheck disable=SC2086
   "$sdk/emulator/emulator" -avd "$avd" -port "$emu_port" -no-window -no-audio -no-boot-anim -no-snapshot-save \
-    -gpu swiftshader_indirect ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
+    -gpu "$emu_gpu" ${EMU_OPTS:-} >"$root/emulator.log" 2>&1 &
   emulator_pid=$!
   for _ in $(seq 1 240); do
     kill -0 "$emulator_pid" 2>/dev/null || return 1
@@ -213,5 +236,12 @@ else
   mkdir -p "$shots"
   adb pull "/sdcard/Android/data/$app/files/shots/." "$shots" >/dev/null 2>&1
   echo "android-e2e: photos in $shots"
+fi
+# The flow of the radio listens for longer than one heartbeat: the server must have taken one
+# (code review stage 7 m-8). Without a heartbeat the run fails.
+if [ -z "$only" ] || [[ "$only" == *AudioFlowTest* ]]; then
+  grep -qE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log" ||
+    fail "no heartbeat of a radio listen reached the server"
+  echo "android-e2e: the server took $(grep -cE 'path=[^ ]*/radio/listen/[^ ]*/heartbeat status=200' "$root/server.log") radio heartbeats"
 fi
 echo "android-e2e: done after $(($(date +%s) - started)) s ($(($(date +%s) - booted)) s with the device)"

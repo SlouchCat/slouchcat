@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Sound in the background (stage 7, concept 27 8.3): the media session service runs in the
+         foreground while an audiobook, a podcast or a station plays; the player keeps the CPU and
+         the Wi-Fi awake meanwhile (screen off). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Plain HTTP everywhere (E-18): the server of a household often has no certificate. The app
          warns outside the home network before it connects (setup page); the rule lives in the
@@ -28,6 +34,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- The sound of stage 7. Not exported (security review L-2): the app's controller and the
+             media notification bind inside the app; the lock screen, the system's media controls and
+             the Bluetooth and headphone buttons reach the player through the platform session of
+             Media3, not through this service. Of those the session lets only play, pause, the jumps
+             and stop through (TrustedControllers, security review L-1). -->
+        <service
+            android:name=".audio.AudioService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
         <!-- The tap on a notification (stage 8, security review M-1): only the app's own
              PendingIntent starts it (not exported, no intent filter). -->
         <activity

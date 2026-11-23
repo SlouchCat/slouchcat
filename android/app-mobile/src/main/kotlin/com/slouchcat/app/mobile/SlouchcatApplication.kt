@@ -83,10 +83,13 @@ class AppGraph(
     private val mediaData: ((AppGraph) -> MediaData)? = null,
     /** Downloads and offline (stage 6); tests bring an engine over a database in memory. `null`: the real one. */
     private val offlineData: ((AppGraph) -> OfflineData)? = null,
+    /** The sound of stage 7 (audiobooks, podcasts, radio); tests bring fake players. `null`: the real one. */
+    private val audioData: ((AppGraph) -> com.slouchcat.app.mobile.audio.AudioData)? = null,
     /** Push of this device (stage 8); tests bring a registrar over fakes. `null`: the real one. */
     private val pushRegistrar: ((AppGraph) -> com.slouchcat.app.mobile.push.PushRegistrar)? = null,
 ) {
-    private val appContext = context.applicationContext
+    /** The context of the application (the sound loads its covers and texts with it). */
+    val appContext: Context = context.applicationContext
 
     /** Lives as long as the process; for work that outlasts a page (the session follows the server address). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -160,6 +163,18 @@ class AppGraph(
     /** Downloads and offline (concept 27 section 9): built on first use, the same way for the app and its tests. */
     val offline: OfflineData by lazy { offlineData?.invoke(this) ?: OfflineData.create(appContext, this) }
 
+    /** The sound across the pages (concept 27 8.3): built on first use, the same way for the app and its tests. */
+    private val audioLazy = lazy { audioData?.invoke(this) ?: com.slouchcat.app.mobile.audio.AudioData.create(appContext, this) }
+    val audio: com.slouchcat.app.mobile.audio.AudioData by audioLazy
+
+    /**
+     * Ends the sound when there is any (code review M-3): the video player plays one thing at a time,
+     * like the web app; nothing is built for a graph that never played sound.
+     */
+    fun stopSound() {
+        if (audioLazy.isInitialized()) audio.playback.stop(forget = false)
+    }
+
     /** Push of this device (concept 27, 7.3): built on first use, the same way for the app and its tests. */
     val push: com.slouchcat.app.mobile.push.PushRegistrar by lazy {
         pushRegistrar?.invoke(this) ?: com.slouchcat.app.mobile.push.PushData.create(appContext, this)
@@ -198,7 +213,7 @@ fun describeDevice(context: Context): DeviceDescription {
 
 private const val TABLET_DP = 600
 
-class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost {
+class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost, com.slouchcat.app.mobile.audio.AudioHost {
     lateinit var graph: AppGraph
         internal set // the JVM tests of this module put a graph with fakes in (PushCheckWorkerTest)
 
@@ -208,6 +223,8 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
         graph = AppGraph(this)
         // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
         OfflineStarter(this, graph).start()
+        // The sound (stage 7): its hooks, and the last title of a process that died, shown paused.
+        graph.audio
         // Wishes and notifications (stage 8): the push subscription follows the session.
         com.slouchcat.app.mobile.push.PushStarter.start(this, graph)
     }
@@ -216,6 +233,10 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory, Offlin
     override val offlineEngine get() = graph.offline.engine
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = graph.imageLoader
+
+    /** The sound of the process for the media session service (stage 7). */
+    override val audioPlayback get() = graph.audio.playback
+
 }
 
 /**

@@ -10,6 +10,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.MainActivity
+import com.slouchcat.app.mobile.isShown
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
 import com.slouchcat.app.mobile.shell.Feature
@@ -80,6 +81,8 @@ class Showcase(
     private val devices: DevicesRepository? = null,
     /** Downloads and offline (stage 6); `null`: the real one (never used by the other showcases). */
     private val offline: ((AppGraph) -> com.slouchcat.app.mobile.downloads.OfflineData)? = null,
+    /** The sound (stage 7); `null`: the real one (never plays in the other showcases). */
+    private val audio: ((AppGraph) -> com.slouchcat.app.mobile.audio.AudioData)? = null,
     private val media: (AppGraph) -> MediaData,
 ) {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -93,7 +96,7 @@ class Showcase(
             override suspend fun libraries(server: HttpUrl): ApiResult<List<LibraryNav>> = ApiResult.Ok(libraries)
         }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices, mediaData = media, offlineData = offline)
+            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices, mediaData = media, offlineData = offline, audioData = audio)
         }
         val loader = images.loader(context)
         scenario = ActivityScenario.launch(MainActivity::class.java)
@@ -113,7 +116,7 @@ class Showcase(
     fun back() = InstrumentationRegistry.getInstrumentation().runOnMainSync { activity?.onBackPressedDispatcher?.onBackPressed() }
 
     fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) =
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(timeout) { compose.isShown(matcher, unmerged = true) }
 
     /** A photo of the screen to the app's files (`shots/`), taken once the page settled. */
     fun shot(name: String) {

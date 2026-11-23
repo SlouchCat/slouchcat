@@ -35,7 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -88,6 +88,7 @@ import com.slouchcat.core.media.PlayTarget
 import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.media.WatchedMark
 import com.slouchcat.core.media.hasCheck
+import com.slouchcat.core.media.audioPlayTarget
 import com.slouchcat.core.media.isAudio
 import com.slouchcat.core.media.listable
 import com.slouchcat.core.media.minutesLeft
@@ -112,6 +113,8 @@ data class ItemLinks(
     val playFromStart: ((String) -> Unit)? = null,
     /** Opens YouTube outside the app (concept 27 3.3, F-30). */
     val trailer: (String) -> Unit = {},
+    /** Stage 7: the chapters of an audiobook, the episodes of a podcast, the series (above the summary). */
+    val audioSections: (@Composable (ItemDetail) -> Unit)? = null,
 )
 
 /**
@@ -257,7 +260,7 @@ private fun Hero(item: ItemDetail, media: MediaItem, modifier: Modifier, wide: B
         if (backdrop) {
             MediaImage(media.backdrop, item.title, Modifier.fillMaxSize(), placeholder = false)
         } else if (!media.poster.isEmpty) {
-            MediaImage(media.poster, item.title, Modifier.fillMaxSize().blur(30.dp), placeholder = false)
+            com.slouchcat.app.mobile.media.BlurredImage(media.poster, Modifier.fillMaxSize())
         }
         val bg = c.bg
         Box(
@@ -301,6 +304,8 @@ private fun kicker(item: ItemDetail): String? {
         }
         ItemKind.SEASON -> series
         ItemKind.PODCAST_EPISODE -> item.podcast?.title
+        // «HÖRBUCH», «PODCAST» over the title (mockup `/book/:i`, `/podcast/:i`).
+        ItemKind.AUDIOBOOK, ItemKind.PODCAST -> kindName(item.kind)?.uppercase(LocalConfiguration.current.locales[0])
         else -> null
     }
 }
@@ -327,6 +332,9 @@ private fun Head(item: ItemDetail, media: MediaItem, centered: Boolean, modifier
         TitleOrLogo(item.title, media.logo, centered, wide)
         if (isAudio(item.kind) && !item.author.isNullOrBlank()) {
             Text(stringResource(R.string.item_audio_by, item.author!!), style = SlouchcatType.bodySmall, color = c.tx2)
+        }
+        item.narrator?.takeIf { isAudio(item.kind) && it.isNotBlank() }?.let {
+            Text(stringResource(R.string.item_audio_narratedBy, it), style = SlouchcatType.bodySmall, color = c.tx3)
         }
         val separator = stringResource(R.string.format_separator).trim()
         val facts = facts(item)
@@ -403,13 +411,14 @@ private fun TitleOrLogo(title: String, logo: ImageSet, centered: Boolean, wide: 
 private fun PlayArea(item: ItemDetail, links: ItemLinks) {
     val c = SlouchcatTheme.colors
     val play = links.play ?: return
-    val target = playTarget(item) ?: return
+    val target = playTarget(item) ?: audioPlayTarget(item) ?: return
+    val audio = isAudio(item.kind)
     val code = target.episode?.let { episodeShort(it.seasonNumber, it.episodeNumber) }
     val label = when (target.kind) {
         PlayTarget.Kind.Play -> stringResource(R.string.app_item_play)
-        PlayTarget.Kind.Resume -> stringResource(R.string.app_item_resume)
-        PlayTarget.Kind.Again -> stringResource(R.string.app_item_again)
-        PlayTarget.Kind.Episode -> code?.let { stringResource(R.string.app_item_playEpisode, it) } ?: stringResource(R.string.app_item_play)
+        PlayTarget.Kind.Resume -> stringResource(if (audio) R.string.item_action_resumeListening else R.string.app_item_resume)
+        PlayTarget.Kind.Again -> stringResource(if (audio) R.string.item_action_againListening else R.string.app_item_again)
+        PlayTarget.Kind.Episode -> if (item.kind == ItemKind.PODCAST) stringResource(R.string.app_audio_newest) else code?.let { stringResource(R.string.app_item_playEpisode, it) } ?: stringResource(R.string.app_item_play)
         PlayTarget.Kind.EpisodeResume -> code?.let { stringResource(R.string.app_item_resumeEpisode, it) } ?: stringResource(R.string.app_item_resume)
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

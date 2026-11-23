@@ -170,9 +170,9 @@ class SignInFlowTest {
         val loading = hasContentDescription(s(R.string.app_state_loading))
         val phone = context.resources.configuration.screenWidthDp < 700
         compose.waitUntil(30_000) {
-            compose.onAllNodes(content, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() &&
-                compose.onAllNodes(loading, useUnmergedTree = true).fetchSemanticsNodes().isEmpty() &&
-                (!phone || libraries.isEmpty() || compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen))).fetchSemanticsNodes().isNotEmpty())
+            compose.isShown(content, unmerged = true) &&
+                compose.isGone(loading, unmerged = true) &&
+                (!phone || libraries.isEmpty() || compose.isShown(hasContentDescription(s(R.string.app_shell_menuOpen))))
         }
         compose.waitForIdle()
     }
@@ -207,7 +207,7 @@ class SignInFlowTest {
             waitForText(s(R.string.library_filters_allGenres))
             shot("b04-sheet-genre")
             button(genre).performClick()
-            compose.waitUntil(20_000) { compose.onAllNodes(hasText(s(R.string.library_filters_allGenres))).fetchSemanticsNodes().isEmpty() }
+            compose.waitForNoNode(hasText(s(R.string.library_filters_allGenres)), 20_000)
             waitFor(hasText(genre) and hasClickAction())
             shot("b05-library-genre")
         }
@@ -279,7 +279,7 @@ class SignInFlowTest {
         // Profile choice with PIN: a wrong PIN first.
         waitForText(s(R.string.profiles_picker_title))
         waitFor(hasContentDescription(s(R.string.profiles_picker_primary), substring = true))
-        compose.waitUntil(20_000) { compose.onAllNodes(hasContentDescription(s(R.string.app_state_loading))).fetchSemanticsNodes().isEmpty() }
+        compose.waitForNoNode(hasContentDescription(s(R.string.app_state_loading)), 20_000)
         shot("04-profiles")
         compose.onAllNodes(hasContentDescription(s(R.string.profiles_picker_primary), substring = true) and hasClickAction()).onLast().performClick()
         waitForText(s(R.string.profiles_pin_hint))
@@ -301,7 +301,7 @@ class SignInFlowTest {
         // «Mehr», the server sheet. With more targets than «Mehr» (stage 4) the app lands on the first one, and a
         // row scrolled to the bottom edge lies under the bar: rows of «Mehr» get their own action, not a tap.
         val more = (hasText(s(R.string.app_more_title)) or hasContentDescription(s(R.string.app_more_title), substring = true)) and hasClickAction()
-        compose.waitUntil(20_000) { compose.onAllNodes(more).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(20_000) { compose.isShown(more) }
         compose.onAllNodes(more).onLast().performSemanticsAction(SemanticsActions.OnClick)
         waitFor(hasText(s(R.string.app_more_title)) and isHeading())
         shot("07-more")
@@ -320,7 +320,7 @@ class SignInFlowTest {
         shot("10-devices-sign-out-sheet")
         button(s(R.string.settings_devices_signOut_confirm)).performClick()
         waitForText(s(R.string.settings_devices_signedOut, TV_NAME))
-        compose.waitUntil(20_000) { compose.onAllNodes(hasText(TV_NAME)).fetchSemanticsNodes().isEmpty() }
+        compose.waitForNoNode(hasText(TV_NAME), 20_000)
         shot("11-devices-after")
         back()
 
@@ -341,7 +341,7 @@ class SignInFlowTest {
             field(s(R.string.app_account_repeatPassword)).performTextInput(new)
             button(s(R.string.app_account_save)).performScrollTo().performClick()
             // The message of the first round may still show: wait for the sheet to close, too.
-            compose.waitUntil(20_000) { compose.onAllNodes(hasText(s(R.string.app_account_currentPassword))).fetchSemanticsNodes().isEmpty() }
+            compose.waitForNoNode(hasText(s(R.string.app_account_currentPassword)), 20_000)
             waitForText(s(R.string.app_account_passwordChanged))
         }
         button(email).performClick()

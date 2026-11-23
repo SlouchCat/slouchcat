@@ -75,6 +75,8 @@ dependencies {
     "fossImplementation"(libs.camerax.lifecycle)
     "fossImplementation"(libs.camerax.view)
     implementation(libs.media3.ui)
+    // Stage 7: covers of the media notification through the shared OkHttp client (token, gate).
+    implementation(libs.media3.datasource.okhttp)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -94,6 +96,9 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.core)
+    // Stage 7: the showcase of the sound plays fake players over made-up titles and stations.
+    androidTestImplementation(project(":core:player-testing"))
+    androidTestImplementation(project(":core:browse-testing"))
 }
 
 /** A Gradle property, else an environment variable, else empty (the Firebase values of stage 8). */

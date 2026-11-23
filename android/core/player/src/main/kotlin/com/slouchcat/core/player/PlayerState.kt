@@ -101,4 +101,7 @@ data class PlayerState(
     override fun toString() = "PlayerState(item=${item?.id}, loading=$loading, switching=$switching, playing=$playing, " +
         "ended=$ended, positionMs=$positionMs, durationMs=$durationMs, mode=${info?.mode}, error=$error, countdown=${countdown?.secondsLeft})"
     val isEpisode: Boolean get() = item?.seasonNumber != null || item?.episodeNumber != null
+
+    /** An audiobook or a podcast episode (stage 7): the audio player draws it, it plays on in the background. */
+    val isAudio: Boolean get() = info?.mediaKind == PlaybackInfo.MediaKind.AUDIO
 }

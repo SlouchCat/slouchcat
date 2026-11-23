@@ -12,7 +12,18 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.slouchcat.app.mobile.AppGraph
+import androidx.compose.runtime.Composable
+import com.slouchcat.app.mobile.audio.AudioDetailLinks
+import com.slouchcat.app.mobile.audio.AudioDetailSections
+import com.slouchcat.app.mobile.audio.EpisodesUi
+import com.slouchcat.app.mobile.browse.AudioSeriesRoute
 import com.slouchcat.app.mobile.browse.CollectionRoute
+import com.slouchcat.app.mobile.browse.ListenRoute
+import com.slouchcat.app.mobile.browse.playRoute
+import com.slouchcat.core.api.generated.models.ItemDetail
+import com.slouchcat.core.api.generated.models.ItemKind
+import com.slouchcat.core.browse.audio.PodcastEpisodesViewModel
+import com.slouchcat.core.media.isAudio
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
@@ -60,8 +71,16 @@ class ItemFeature(
             }
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
-            val play = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(PlayerRoute(target)) } }
-            val playFromStart = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(PlayerRoute(target, fromStart = true)) } }
+            // Audiobooks and podcast episodes play in the audio player of stage 7, everything else in the video player.
+            val kind = state.detail?.kind
+            val play = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(playRoute(target, kind)) } }
+            val playFromStart = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(playRoute(target, kind, fromStart = true)) } }
+            val audioLinks = AudioDetailLinks(
+                playAt = if (navigator.canOpen(ListenRoute::class)) ({ target, at -> navigator.navigate(ListenRoute(target, startAtMs = at)) }) else null,
+                play = if (navigator.canOpen(ListenRoute::class)) ({ target -> navigator.navigate(ListenRoute(target)) }) else null,
+                item = { navigator.opener(ItemRoute(it)) },
+                series = if (navigator.canOpen(AudioSeriesRoute::class)) ({ library, series -> navigator.navigate(AudioSeriesRoute(library, series)) }) else null,
+            )
             // Back from the player: the page reads the title again quietly (the new progress, stage 5).
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onShown() }
             ItemScreen(
@@ -77,6 +96,7 @@ class ItemFeature(
                     playFromStart = playFromStart,
                     // No app for the address (no browser, a kiosk profile): a notice, not a crash (code review m-4).
                     trailer = { youtube -> runCatching { uri.openUri(YOUTUBE + youtube) }.onFailure { graph.notices.show(R.string.app_item_trailerFailed) } },
+                    audioSections = if (kind != null && isAudio(kind)) ({ detail -> AudioSections(graph, detail, audioLinks, snackbar) }) else null,
                 ),
                 events = vm,
                 snackbar = snackbar,
@@ -84,6 +104,22 @@ class ItemFeature(
                 download = if (navigator.canOpen(DownloadsRoute::class)) ({ item -> DownloadAction(graph, item, snackbar) }) else null,
             )
         }
+    }
+
+    /** The chapters of an audiobook, the episodes of a podcast with their own list (stage 7). */
+    @Composable
+    private fun AudioSections(graph: AppGraph, detail: ItemDetail, links: AudioDetailLinks, snackbar: SnackbarHostState) {
+        val episodes = if (detail.kind == ItemKind.PODCAST) {
+            val vm = viewModel(key = "episodes-${detail.id}") { PodcastEpisodesViewModel(graph.session, graph.media.audio, repository(graph), detail.id) }
+            val paged by vm.state.collectAsStateWithLifecycle()
+            val busy by vm.busy.collectAsStateWithLifecycle()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onShown() }
+            ShowMessages(vm.messages, snackbar) { getString(R.string.app_audio_failed) }
+            EpisodesUi(paged, busy, vm::onNearEnd, vm::retry, vm::onHeard)
+        } else {
+            null
+        }
+        AudioDetailSections(detail, links, episodes)
     }
 
     private companion object {

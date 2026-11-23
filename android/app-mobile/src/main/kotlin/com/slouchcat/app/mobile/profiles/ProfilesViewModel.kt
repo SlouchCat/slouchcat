@@ -137,6 +137,7 @@ class ProfilesViewModel(
         _state.update { it.copy(selecting = profile.id, error = null) }
         viewModelScope.launch {
             val server = session.server ?: return@launch _state.update { it.copy(selecting = null, error = ProfilesError.Failed) }
+            actions.beforeProfileChange()
             when (val result = auth.selectProfile(server, profile.id, null)) {
                 is ApiResult.Ok -> chosen(profile, result.value)
                 is ApiResult.NotAllowed -> _state.update {
@@ -174,6 +175,7 @@ class ProfilesViewModel(
         _state.update { it.copy(pin = pin.copy(checking = true)) }
         viewModelScope.launch {
             val server = session.server ?: return@launch updatePin { it.copy(checking = false, message = PinMessage.Failed) }
+            actions.beforeProfileChange()
             val result = auth.selectProfile(server, pin.profile.id, pin.digits)
             when {
                 result is ApiResult.Ok -> chosen(pin.profile, result.value, pin.digits.toCharArray())

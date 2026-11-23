@@ -104,6 +104,8 @@ class PlayerFeature(
         val context = LocalContext.current.applicationContext
         val tablet = LocalConfiguration.current.smallestScreenWidthDp >= TABLET_DP
         val vm = viewModel(key = key) {
+            // One thing at a time (code review M-3): a video ends the sound, its session and its listen.
+            graph.stopSound()
             val store = settings(context)
             PlayerViewModel(
                 itemId = itemId,

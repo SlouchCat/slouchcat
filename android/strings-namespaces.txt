@@ -81,6 +81,15 @@ offline.rules
 offline.dialog
 offline.player
 offline.state
+# Stage 7 (sound): the audio player, chapters, radio, audiobook series, audio texts of the detail page
+player.audio
+player.chapters
+radio.player
+radio.page
+audioSeries
+item.audio
+item.podcast
+item.action
 wishes
 titles
 notifications

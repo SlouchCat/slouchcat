@@ -8,6 +8,8 @@
 #   Google's push     relay/bin/fcmfake  FCM_PORT    (default PORT+84; stands in for FCM)
 #   Seerr mock        web/e2e/seerr-server.mjs   SEERR_PORT  (default PORT-11; wishes)
 #   TMDB mock         web/e2e/tmdb-server.mjs    TMDB_PORT   (default PORT-12; titles outside the library)
+#   radio stations    web/e2e/radio-server.mjs   RADIO_PORT  (default PORT+1; stage 7, radio_start, with
+#                     the server built with the tag radiotest into the run's folder: HELPER_RADIO_SERVER)
 #
 # Ports: every default is a fixed distance from the server's PORT (PORT-12 to PORT+85), so two runs
 # whose PORTs lie at least 100 apart (android:e2e 8597, android:e2e:tv 8697, the web suite's
@@ -19,6 +21,7 @@
 #
 #   . ../scripts/android-helpers.sh
 #   helpers_start "$root" "$port" "$pair_port"   # exports SLOUCHCAT_TEST_TMDB_* and SLOUCHCAT_PUSH_RELAY
+#   radio_start "$root" "$port"                  # phone flow: exports SLOUCHCAT_TEST_RADIO_* and HELPER_RADIO_SERVER
 #   ...                                          # start the server after this: it inherits them
 #   emulator_lock "$wait_max" "$root"            # before the emulator starts; held until emulator_unlock
 #   helpers_save_logs "$dir"                     # on a failure
@@ -31,7 +34,7 @@
 # run and living on after it, must not inherit it. The holder ends with the run, also when the run
 # is killed. In CI one run per runner: the lock is free at once.
 #
-# Needs relay/bin (task relay:build), Node and flock (util-linux). Paths are relative to android/
+# Needs relay/bin (task relay:build), Node, Go (radio_start builds the server) and flock (util-linux). Paths are relative to android/
 # (where the Taskfile runs).
 
 helper_pids=()
@@ -97,11 +100,39 @@ helpers_start() {
   export SLOUCHCAT_PUSH_RELAY="http://127.0.0.1:$HELPER_PUSH_PORT"
 }
 
+radio_start() { # root port: the test stations of the radio and the server built to read them (stage 7)
+  local root=$1 port=$2
+  helper_root=$root
+  HELPER_RADIO_PORT=${RADIO_PORT:-$((port + 1))}
+  # Into the run's own folder: never over the binary of another run (web e2e: bin/slouchcat-e2e).
+  HELPER_RADIO_SERVER=$root/slouchcat-e2e
+  export HELPER_RADIO_PORT HELPER_RADIO_SERVER
+  (cd ../server && go build -tags radiotest -o "$HELPER_RADIO_SERVER" ./cmd/slouchcat) >"$root/radio-build.log" 2>&1 || {
+    echo "android-helpers: the radiotest server did not build" >&2
+    tail -n 20 "$root/radio-build.log" >&2
+    return 1
+  }
+  # The stations (Icecast MP3, Shoutcast, AAC, one unreachable) loop the tones of testdata/radio.
+  node --input-type=module -e "const m = await import('$(cd ../web/e2e && pwd)/radio-server.mjs'); await m.startRadioServer({ port: $HELPER_RADIO_PORT });" \
+    >"$root/radio.log" 2>&1 &
+  local pid=$!
+  helper_pids+=("$pid")
+  helper_wait radio "http://127.0.0.1:$HELPER_RADIO_PORT/json/stations" || return 1
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "android-helpers: the radio stations exited (port $HELPER_RADIO_PORT taken? RADIO_PORT)" >&2
+    return 1
+  fi
+  export SLOUCHCAT_TEST_RADIO_CATALOG_URL="http://127.0.0.1:$HELPER_RADIO_PORT"
+  export SLOUCHCAT_TEST_RADIO_WIKIDATA_URL="http://127.0.0.1:$HELPER_RADIO_PORT/sparql"
+  export SLOUCHCAT_RADIO_DIR="$root/radio"
+  export SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1
+}
+
 helpers_save_logs() { # dir: copies the helpers' logs there
   local dir=$1
   [ -n "$helper_root" ] || return 0
   mkdir -p "$dir"
-  for name in pair push fcmfake seerr tmdb; do
+  for name in pair push fcmfake seerr tmdb radio radio-build; do
     if [ -f "$helper_root/$name.log" ]; then cp "$helper_root/$name.log" "$dir/helper-$name.log"; fi
   done
 }

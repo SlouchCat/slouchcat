@@ -476,6 +476,71 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
 
+## Stufe 7: Ton (22. November 2026, nach der Korrekturrunde am 23. November neu gemessen)
+
+**Emulator-Messung**, nicht auf einem Gerät: `AudioFlowTest` (`RADIO=1 task android:e2e
+CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5574`, dazu `AVD=sc_tablet`) gegen den
+Server dieses Zweigs. Die Testmedien kommen aus `scripts/android-test-video.sh`: das Hörbuch «The Quiet
+Harbour» aus zwei AAC-Dateien zu 60 s (eine HLS-Zeitachse) und der Podcast-Ordner «Night Shift
+Stories». Das Radio läuft über die Teststationen der Web-App (`web/e2e/radio-server.mjs`, Server mit
+Tag `radiotest`). Die Werte stehen in `audio-measures.txt` neben den Fotos.
+
+| Messung | `sc_phone` (API 36) | `sc_tablet` (API 36) |
+|---|---|---|
+| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 372 ms | 319 ms |
+| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 74'683 ms | 77'184 ms |
+| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'668 ms | 72'651 ms |
+
+Weitere Ergebnisse des Ablaufs:
+
+- Im Hintergrund meldet die Mediensitzung des Dienstes «spielt» (`MediaController.isPlaying`).
+- Die Mitteilung zeigt Titel, Autor, −15 s, +30 s und Pause (Foto `a04-notification`).
+- Eine Podcast-Folge spielt, nachdem das Buch mit seiner letzten Meldung beendet wurde.
+- Ein Sender spielt länger als ein Herzschlag (30 s) ohne Fehler und endet mit dem Kreuz des
+  kleinen Players (`endRadioListen`). Das Skript prüft danach im Log des Servers, dass mindestens ein
+  Herzschlag mit 200 ankam; ohne ihn schlägt der Lauf fehl.
+
+Der Server liegt um höchstens eine Meldung (10 s Spielzeit) hinter dem Gerät. Beim Beenden geht die
+letzte Meldung mit. **Akku lässt sich im Emulator nicht messen**: Das bleibt ein Gerätepunkt (Liste
+unten, Punkt 1).
+
+**Gerätecheckliste Stufe 7 (nur Marco, auf dem echten Handy):**
+
+1. **Abnahme:** Ein Hörbuch starten und das Handy sperren. Eine Stunde nicht anfassen, Bildschirm
+   aus, nicht am Ladegerät. Danach entsperren:
+   - Der Ton lief durch.
+   - Die Position im Tonplayer und in der Web-App stimmt auf 10 s genau.
+   - Den Akkuverbrauch der App in den Einstellungen notieren.
+2. Sperrbildschirm und Mitteilung: Pause, Weiter, −15 s und +30 s wirken. Das Titelbild erscheint.
+3. Kopfhörer mit Kabel ziehen: Der Ton hält an. Bluetooth-Kopfhörer: Wiedergabe und Pause gehen
+   über die Taste.
+4. Anruf während des Hörbuchs: Der Ton hält an und geht nach dem Gespräch weiter. Eine andere App
+   mit Ton (Video) beendet die Wiedergabe der App.
+5. Webradio mit Bildschirm aus, 15 Minuten: Der Ton läuft weiter. In der Verwaltung der Web-App
+   (Streams) steht die Sitzung als aktiv.
+6. Die App aus der Liste der letzten Apps wischen:
+   - während des Spielens: Der Ton läuft weiter;
+   - in der Pause: Die Mitteilung verschwindet.
+7. Profil wechseln und abmelden: Der Ton hält an, die Mitteilung verschwindet.
+8. Die App beenden lassen (Entwickleroptionen «Hintergrundprozesse: keine», dann öffnen): Der
+   kleine Player zeigt «Zuletzt gehört», spielt aber erst nach einem Tippen und setzt beim Stand
+   des Servers fort.
+9. Ein Hörbuch herunterladen, dann den Flugmodus einschalten: Das Buch spielt aus «Downloads» im
+   Tonplayer, Kapitel und Tempo gehen.
+10. Schlaftimer «Ende des Kapitels»: Der Ton hält am Kapitelende an.
+11. «Abspielen» tippen und das Handy sofort sperren, auch bei einem Titel, der erst umgewandelt wird:
+    Der Ton beginnt, die Mitteilung erscheint. Erscheint sie nicht, steht im Log
+    «foreground service not allowed» (Android verweigert den Vordergrunddienst nach dem Verlassen
+    der App); dann diesen Fall melden.
+12. Beim ersten Ton fragt Android 13 und neuer nach Mitteilungen. Abgelehnt: Der Ton spielt trotzdem.
+13. Webradio mit Titelanzeige: Wechselt der Titel, ändert sich die Mitteilung ohne Aussetzer im Ton
+    (`updateMetadata` baut den Player nicht neu auf; im Emulator nicht prüfbar).
+14. Sperrbildschirm: Titel und Autor des Hörbuchs sind sichtbar wie bei jeder Medien-App. Wer das nicht
+    möchte, schaltet in Android «Inhalte auf dem Sperrbildschirm» aus.
+15. Ein heruntergeladenes Hörbuch im Flugmodus bei Tempo 1,5 spielen, die App beenden und wieder
+    öffnen: Offline beginnt der Ton mit dem Tempo des Downloads, nicht mit 1,5 (bekannt, Code-Review
+    L-7; das Offline-Modell führt kein Tempo).
+
 ## Stufe 8: Wünsche und Meldungen (22. November 2026)
 
 ### Push von der Meldung am Server bis zur Anzeige (lokaler Aufbau, ohne Google)

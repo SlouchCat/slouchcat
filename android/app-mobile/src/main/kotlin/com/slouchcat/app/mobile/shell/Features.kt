@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.shell
 
+import com.slouchcat.app.mobile.audio.AudioFeature
 import com.slouchcat.app.mobile.collections.CollectionsFeature
 import com.slouchcat.app.mobile.downloads.DownloadsFeature
 import com.slouchcat.app.mobile.item.ItemFeature
@@ -34,6 +35,7 @@ val features: List<Feature> = listOf(
     PlayerFeature(),
     PlaybackSettingsFeature(),
     DownloadsFeature,
+    AudioFeature,
     WishesFeature(),
     NotificationsFeature(),
     TvLinkFeature(),

@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile.home
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -90,7 +91,7 @@ object HomeFeature : Feature {
             val links = remember(navigator) {
                 HomeLinks(
                     item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
-                    play = if (navigator.canOpen(PlayerRoute::class)) ({ navigator.navigate(PlayerRoute(it.id)) }) else null,
+                    play = if (navigator.canOpen(PlayerRoute::class)) ({ navigator.navigate(com.slouchcat.app.mobile.browse.playRoute(it.id, it.kind)) }) else null,
                     showAll = { row ->
                         val list = row.list
                         val libraryId = row.libraryId
@@ -131,35 +132,7 @@ object HomeFeature : Feature {
         }
         composable<LibraryRoute> { entry ->
             val route = entry.toRoute<LibraryRoute>()
-            val vm = viewModel {
-                LibraryViewModel(
-                    graph.session,
-                    graph.media.library,
-                    route.id,
-                    graph.librariesSource.libraries,
-                    initialSort = LibrarySort.entries.firstOrNull { it.value == route.sort },
-                )
-            }
-            val state by vm.state.collectAsStateWithLifecycle()
-            val actions = remember(vm, navigator) {
-                LibraryActions(
-                    back = navigator::back,
-                    retry = vm::retry,
-                    nearEnd = vm::onNearEnd,
-                    sheet = vm::onSheet,
-                    sort = vm::onSort,
-                    all = vm::onAll,
-                    unseen = vm::onUnseen,
-                    genre = vm::onGenre,
-                    decade = vm::onDecade,
-                    content = vm::onContent,
-                    rating = vm::onRating,
-                    view = vm::onView,
-                    item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
-                    search = navigator.openerOf(SEARCH_TARGET),
-                )
-            }
-            LibraryScreen(state, actions)
+            LibraryPage(app, route.id, route.sort)
         }
         composable<ListRoute> { entry ->
             val key = entry.toRoute<ListRoute>().key
@@ -175,6 +148,45 @@ object HomeFeature : Feature {
             )
         }
     }
+}
+
+/**
+ * The page of one library (`listLibraryItems`, mockup `/library/:key`): from the media choice, from
+ * a row of the start page and from «Hörbücher» and «Podcasts» of «Mehr» (stage 7, `AudioLibraryRoute`).
+ */
+@Composable
+internal fun LibraryPage(app: AppScope, id: Long, sort: String?) {
+    val graph = app.graph
+    val navigator = app.navigator
+    val vm = viewModel {
+        LibraryViewModel(
+            graph.session,
+            graph.media.library,
+            id,
+            graph.librariesSource.libraries,
+            initialSort = LibrarySort.entries.firstOrNull { it.value == sort },
+        )
+    }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val actions = remember(vm, navigator) {
+        LibraryActions(
+            back = navigator::back,
+            retry = vm::retry,
+            nearEnd = vm::onNearEnd,
+            sheet = vm::onSheet,
+            sort = vm::onSort,
+            all = vm::onAll,
+            unseen = vm::onUnseen,
+            genre = vm::onGenre,
+            decade = vm::onDecade,
+            content = vm::onContent,
+            rating = vm::onRating,
+            view = vm::onView,
+            item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
+            search = navigator.openerOf(SEARCH_TARGET),
+        )
+    }
+    LibraryScreen(state, actions)
 }
 
 /**

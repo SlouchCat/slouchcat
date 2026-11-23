@@ -3,6 +3,7 @@ package com.slouchcat.core.player
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
+import android.os.Process
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -55,6 +56,8 @@ class Media3Engine(
     context: Context,
     http: Call.Factory,
     withSession: Boolean = true,
+    /** What it plays: video (stage 5), spoken audio or music (stage 7: audio focus, wake lock, jumps). */
+    private val kind: EngineKind = EngineKind.Video,
 ) : PlayerEngine {
     private val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
     override val events: Flow<EngineSignal> = signals.asSharedFlow()
@@ -72,10 +75,19 @@ class Media3Engine(
         // source; everything over the network through the shared OkHttp client.
         .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context.applicationContext, OkHttpDataSource.Factory(http))))
         .setAudioAttributes(
-            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
+            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(kind.contentType).build(),
             /* handleAudioFocus = */ true,
         )
         .setHandleAudioBecomingNoisy(true)
+        .apply {
+            if (kind != EngineKind.Video) {
+                // Sound with the screen off (stage 7): the CPU and the Wi-Fi stay awake while it plays;
+                // the jumps of the notification and the headphones are those of the audio player.
+                setWakeMode(C.WAKE_MODE_NETWORK)
+                setSeekBackIncrementMs(AudioRules.BACK_MS)
+                setSeekForwardIncrementMs(AudioRules.FORWARD_MS)
+            }
+        }
         .build()
 
     private val session: MediaSession? = if (withSession) {
@@ -139,7 +151,16 @@ class Media3Engine(
         val item = MediaItem.Builder()
             .setUri(media.url)
             .setMimeType(if (media.hls) MimeTypes.APPLICATION_M3U8 else null)
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(media.title).setSubtitle(media.subtitle).build())
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(media.title)
+                    .setSubtitle(media.subtitle)
+                    .setArtist(media.subtitle)
+                    // No artwork address: the metadata reach every controller of the session, the
+                    // address names the home server and the profile (security review L-1). The app
+                    // hands the picture itself with [updateArtwork].
+                    .build(),
+            )
             .setSubtitleConfigurations(
                 listOfNotNull(
                     media.subtitleUrl?.let {
@@ -157,7 +178,8 @@ class Media3Engine(
             .clearOverrides()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
             .build()
-        player.setMediaItem(item, startMs.coerceAtLeast(0))
+        wakeModeFor(kind, media.url)?.let(player::setWakeMode)
+        if (startMs == PlayerEngine.LIVE_EDGE) player.setMediaItem(item, /* resetPosition = */ true) else player.setMediaItem(item, startMs.coerceAtLeast(0))
         player.playWhenReady = play
         player.prepare()
     }
@@ -247,25 +269,65 @@ class Media3Engine(
         return EngineEvent.Failed(failure, status)
     }
 
+    /**
+     * The title and subtitle of the media session while it plays (the station's current song of
+     * the web radio), without loading again.
+     */
+    /**
+     * The cover of the notification and the lock screen as bytes (JPEG or PNG), not as an address
+     * (security review stage 7 L-1); `null` removes it. Without loading again.
+     */
+    fun updateArtwork(data: ByteArray?) {
+        val item = player.currentMediaItem ?: return
+        val metadata = item.mediaMetadata.buildUpon().setArtworkData(data, MediaMetadata.PICTURE_TYPE_FRONT_COVER).build()
+        if (metadata == item.mediaMetadata) return
+        player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+    }
+
+    fun updateMetadata(title: String?, subtitle: String?) {
+        val item = player.currentMediaItem ?: return
+        val metadata = item.mediaMetadata.buildUpon().setTitle(title).setSubtitle(subtitle).setArtist(subtitle).build()
+        if (metadata == item.mediaMetadata) return
+        player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+    }
+
     private companion object {
         const val SIDELOADED = "slouchcat-subtitle"
         val SESSIONS = AtomicInteger()
     }
 }
 
+/** What a [Media3Engine] plays: the audio attributes and the wake lock follow from it. */
+enum class EngineKind(val contentType: Int) {
+    Video(C.AUDIO_CONTENT_TYPE_MOVIE),
+
+    /** Audiobooks and podcasts: a transient loss of the audio focus pauses instead of ducking. */
+    Speech(C.AUDIO_CONTENT_TYPE_SPEECH),
+
+    /** The web radio. */
+    Music(C.AUDIO_CONTENT_TYPE_MUSIC),
+}
+
 /**
- * Who may control the player's [MediaSession]: this app, the system's media notification and the
- * trusted controllers of the system (headphone and Bluetooth buttons, the system UI). Another app
- * with access to notifications is turned away. Accepted controllers get the player commands without
- * setting or changing the media: the stream addresses come only from the controller of the app.
+ * Who may control the player's [MediaSession] (security review stage 7 L-1):
+ * - this app (by its UID, not the package name a connection claims) and the system's media
+ *   notification: the player commands without setting or changing the media ([COMMANDS]);
+ * - the trusted controllers of the system ([MediaSession.ControllerInfo.isTrusted]: the system UI,
+ *   Bluetooth and headphone buttons, and also every app the user gave access to notifications):
+ *   only play, pause, the jumps and stop ([TRUSTED_COMMANDS]); they see what plays (title, author,
+ *   the cover as a picture, no address);
+ * - every other app: turned away.
+ * Stream addresses come only from the controller of the app.
  */
 @OptIn(UnstableApi::class)
-internal class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
+class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-        if (!accepts(ownPackage, controller.packageName, session.isMediaNotificationController(controller), controller.isTrusted)) {
-            return MediaSession.ConnectionResult.reject()
+        val commands = when (level(Process.myUid(), controller.uid, session.isMediaNotificationController(controller), controller.isTrusted)) {
+            Level.Own -> COMMANDS
+            Level.Trusted -> TRUSTED_COMMANDS
+            Level.None -> return MediaSession.ConnectionResult.reject()
         }
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).setAvailablePlayerCommands(COMMANDS).build()
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).setAvailablePlayerCommands(commands).build()
     }
 
     override fun onAddMediaItems(
@@ -274,9 +336,32 @@ internal class TrustedControllers(private val ownPackage: String) : MediaSession
         mediaItems: MutableList<MediaItem>,
     ): ListenableFuture<MutableList<MediaItem>> = Futures.immediateFailedFuture(UnsupportedOperationException("no media from controllers"))
 
+    /** What a controller may do. */
+    enum class Level { Own, Trusted, None }
+
     companion object {
         fun accepts(ownPackage: String, packageName: String, notification: Boolean, trusted: Boolean): Boolean =
             packageName == ownPackage || notification || trusted
+
+        /** The level of a controller: by UID (this app), the media notification, the system's trust. */
+        fun level(ownUid: Int, uid: Int, notification: Boolean, trusted: Boolean): Level = when {
+            uid == ownUid || notification -> Level.Own
+            trusted -> Level.Trusted
+            else -> Level.None
+        }
+
+        /** Play, pause, the jumps and stop: what the system's controls need. */
+        val TRUSTED_COMMANDS: Player.Commands = Player.Commands.Builder()
+            .addAll(
+                Player.COMMAND_PLAY_PAUSE,
+                Player.COMMAND_SEEK_BACK,
+                Player.COMMAND_SEEK_FORWARD,
+                Player.COMMAND_STOP,
+                Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+                Player.COMMAND_GET_METADATA,
+                Player.COMMAND_GET_TIMELINE,
+            )
+            .build()
 
         /** Play, pause, seek and the like; no command that sets or changes the media items. */
         val COMMANDS: Player.Commands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
@@ -339,4 +424,14 @@ class SlouchcatRenderersFactory(context: Context) : DefaultRenderersFactory(cont
         /** FLAC frame upper bound for 8 channels, 24 bit, 4608 samples (uncompressed worst case). */
         const val FLAC_MAX_INPUT = 8 * 3 * 4608 + 1024
     }
+}
+
+/**
+ * What keeps the device awake while sound plays (code review stage 7 L-2): a file of a download only
+ * the CPU, a stream also the Wi-Fi; `null` for video, which never plays in the background.
+ */
+internal fun wakeModeFor(kind: EngineKind, url: String): Int? = when {
+    kind == EngineKind.Video -> null
+    url.startsWith("file:") -> C.WAKE_MODE_LOCAL
+    else -> C.WAKE_MODE_NETWORK
 }

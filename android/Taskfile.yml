@@ -98,7 +98,7 @@ tasks:
     desc: >-
       Instrumentation test in the emulator: server address, sign-in, profile with PIN, «Mehr», «Meine Geräte», sign-out,
       «Fernseher verbinden» through relay/bin/pair on RELAY_PORT (PORT+85), wishes and push (Seerr and TMDB mocks on
-      PORT-11 and PORT-12, push relay PORT+83, fcmfake PORT+84; scripts/android-helpers.sh), against bin/slouchcat
+      PORT-11 and PORT-12, push relay PORT+83, fcmfake PORT+84, radio test stations PORT+1; scripts/android-helpers.sh), against the server built with the tag radiotest
       on PORT (8597), only in its own emulator AVD (sc_phone) on EMU_PORT (5580); SHOTS=<dir> takes photos
     cmds:
       - task: :server:build

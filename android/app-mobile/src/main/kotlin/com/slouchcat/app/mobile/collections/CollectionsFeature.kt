@@ -121,6 +121,8 @@ class CollectionsFeature(
                 onDismiss = vm::onDismiss,
                 onOpen = { navigator.opener(ItemRoute(it)) },
                 onPlay = { navigator.opener(PlayerRoute(it)) },
+                // An audiobook or episode of a collection plays in the audio player (stage 7, m-6).
+                onListen = { navigator.opener(com.slouchcat.app.mobile.browse.ListenRoute(it)) },
             )
         }
     }

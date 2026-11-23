@@ -89,6 +89,7 @@ fun Main(item: ItemDetail, state: ItemUiState, images: ServerImages, links: Item
     val wide = isWideLayout()
     val pad = if (wide) Modifier else Modifier.padding(horizontal = gutter())
     Column(Modifier.fillMaxWidth()) {
+        links.audioSections?.let { sections -> Column(pad) { sections(item) } }
         Overview(item, state.overviewOpen, events::onToggleOverview, pad.then(Modifier.widthIn(max = 720.dp)))
         Cast(item.cast.orEmpty(), images, links, wide, pad)
         if (item.kind == ItemKind.SERIES || item.kind == ItemKind.SEASON) Episodes(item, state, images, links, events, pad)

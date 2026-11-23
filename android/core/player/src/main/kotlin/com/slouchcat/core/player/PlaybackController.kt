@@ -14,6 +14,8 @@ import com.slouchcat.core.api.log.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -343,13 +345,22 @@ class PlaybackController(
     }
 
     /** The page is left: the last progress and the end of the session, even after the page is gone. */
-    fun close() {
-        startJob?.cancel()
+    /**
+     * The page is left: the last progress and the end of the session, even after the page is gone.
+     * Returns the job of that end (`null` without a session), so a sign-out can wait for it (stage 7
+     * M-2). A start on its way is not cut off: its session ends when the answer comes (m-4).
+     */
+    fun close(): Job? {
+        closed = true
         reconnectJob?.cancel()
-        leaveCurrent()
+        val last = leaveCurrent()
         itemId = null
         engine.release()
+        return last
     }
+
+    /** [close] was called: a start that answers now ends its session at once. */
+    private var closed = false
 
     // ---- the start ----------------------------------------------------------------------------
 
@@ -424,9 +435,16 @@ class PlaybackController(
                     return@launch
                 }
                 val request = request(caps, positionMs)
-                when (val result = server.start(id, request)) {
+                // The request runs to its end even when this start is cancelled (a new start, the
+                // controller closed): a session the server opened must not stay open (m-4).
+                val result = withContext(NonCancellable) { server.start(id, request) }
+                if (!isActive || closed) {
+                    (result as? ApiResult.Ok)?.value?.let { late -> endSession(late.playbackSessionId, null) }
+                    return@launch
+                }
+                when (result) {
                     is ApiResult.Ok -> {
-                        onStarted(result.value, caps, play)
+                        onStarted(result.value, caps, play, switching)
                         return@launch
                     }
                     is ApiResult.Failed -> if (result.code == TRANSCODE_BUSY && attempts < BUSY_ATTEMPTS) {
@@ -476,7 +494,7 @@ class PlaybackController(
         else -> PlayerError.Failed
     }
 
-    private fun onStarted(started: PlaybackInfo, caps: PlaybackCapabilities, play: Boolean) {
+    private fun onStarted(started: PlaybackInfo, caps: PlaybackCapabilities, play: Boolean, switching: Boolean) {
         if (inBackground) {
             // A start that answered after the app left: its session ends at once, it never plays.
             endSession(started.playbackSessionId, null)
@@ -496,7 +514,8 @@ class PlaybackController(
                 switching = false,
                 error = null,
                 ended = false,
-                durationMs = started.mediaFile.durationMs ?: it.durationMs,
+                // An audiobook of several files is one timeline: the title's length, not its first file's.
+                durationMs = (if (started.mediaKind == PlaybackInfo.MediaKind.AUDIO) started.item.durationMs else null) ?: started.mediaFile.durationMs ?: it.durationMs,
                 positionMs = started.resumePositionMs,
                 audio = started.tracks.audio.map { t -> TrackChoice(t, t.index == selection.audioTrack) },
                 subtitles = started.tracks.subtitles.map { t -> TrackChoice(t, t.id == selection.subtitleTrack) },
@@ -517,13 +536,17 @@ class PlaybackController(
             return
         }
         val subtitleLanguage = started.tracks.subtitles.firstOrNull { it.id == selection.subtitleTrack }?.language
+        val audio = started.mediaKind == PlaybackInfo.MediaKind.AUDIO
+        val images = started.item.images
         val next = EngineMedia(
             url = url,
             hls = started.mode == PlaybackInfo.Mode.HLS,
             subtitleUrl = started.subtitleUrl?.let(server::absolute),
             subtitleLanguage = subtitleLanguage,
             title = started.item.title,
-            subtitle = started.item.seriesTitle,
+            subtitle = if (audio) started.item.author ?: started.item.seriesTitle else started.item.seriesTitle,
+            // The cover of the notification and the lock screen (stage 7).
+            artworkUrl = if (audio) (images.posterLarge ?: images.poster ?: images.posterSmall)?.url?.let(server::absolute) else null,
         )
         media = next
         seq = 1
@@ -531,6 +554,12 @@ class PlaybackController(
         playingSince = null
         loadId = ++loads
         engine.load(next, started.resumePositionMs, play, loadId)
+        if (audio) {
+            // An audiobook or episode plays at the speed last used for it (web: stored per profile and title).
+            val rate = if (switching) mutable.value.speed else started.item.progress?.playbackRate?.toFloat()?.let(AudioRules::clampSpeed) ?: 1f
+            engine.setSpeed(rate)
+            mutable.update { it.copy(speed = rate) }
+        }
         startLoops(started)
     }
 
@@ -835,6 +864,8 @@ class PlaybackController(
         val s = mutable.value
         val next = s.next ?: return
         if (inBackground || countdownCancelled || s.countdown != null || s.error != null) return
+        // Audio has no card: the audio player offers the next episode as a button (web).
+        if (s.isAudio) return
         val outro = s.outro
         if (!atEnd && (outro == null || s.positionMs < outro.startMs)) return
         countdownEnd = if (device.autoplayNext && wantsToPlay) clock() + AUTO_NEXT_MS else null
@@ -844,7 +875,10 @@ class PlaybackController(
 
     // ---- progress and the end of a session -----------------------------------------------------
 
-    private fun duration(): Long = engine.durationMs.takeIf { it > 0 } ?: info?.mediaFile?.durationMs ?: mutable.value.durationMs
+    private fun duration(): Long = engine.durationMs.takeIf { it > 0 }
+        ?: info?.takeIf { it.mediaKind == PlaybackInfo.MediaKind.AUDIO }?.item?.durationMs
+        ?: info?.mediaFile?.durationMs
+        ?: mutable.value.durationMs
 
     private fun stopClock() {
         playingSince?.let { playedMs += clock() - it }
@@ -873,7 +907,8 @@ class PlaybackController(
             clientTime = now(),
             mediaFileId = playing.mediaFile.id,
             playbackSessionId = playing.playbackSessionId,
-            playbackRate = mutable.value.speed.takeIf { it != 1f }?.let { BigDecimal(it.toString()) },
+            // Audio reports its speed always (web `reportRate`): back to 1.0 is stored as well.
+            playbackRate = mutable.value.speed.takeIf { it != 1f || playing.mediaKind == PlaybackInfo.MediaKind.AUDIO }?.let { BigDecimal(it.toString()) },
         )
         playedMs = 0
         if (running) playingSince = clock()
@@ -884,23 +919,24 @@ class PlaybackController(
      * Ends [session] after the page or the title is gone: first the [last] progress, then the stop,
      * one after the other (the server records the event before the session closes).
      */
-    private fun endSession(session: String, last: ProgressEvent?) {
+    private fun endSession(session: String, last: ProgressEvent?): Job {
         val id = itemId
-        finalScope.launch {
+        return finalScope.launch {
             if (last != null && id != null) server.progress(id, last)
             server.stop(session)
         }
     }
 
     /** Leaves the playing title: the last progress and the end of its session. */
-    private fun leaveCurrent() {
+    private fun leaveCurrent(): Job? {
         // Without a session (ended by the server, or in the background) the last progress went out already.
-        sessionId?.let { endSession(it, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null) }
+        val last = sessionId?.let { endSession(it, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null) }
         sessionId = null
         stopLoops()
         engine.stop()
         loadId = NO_LOAD
         info = null
+        return last
     }
 
     companion object {
