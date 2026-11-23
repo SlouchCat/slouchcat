@@ -10,11 +10,15 @@ import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
+import mockwebserver3.SocketEffect
+import okhttp3.Call
 import okhttp3.HttpUrl
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +28,11 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -31,6 +40,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /** «Server weist sich aus» (concept 27 section 6, F-38): the gate of the shared client. */
 class ServerIdentityGateTest {
@@ -81,7 +91,8 @@ class ServerIdentityGateTest {
     private fun gate(prover: ServerProver, trusted: TrustedServer = trusted(), timeout: Duration = Duration.ofSeconds(5)) =
         ServerIdentityGate(trusted, { generation.get() }, prover, timeout = timeout, backoff = Duration.ofSeconds(5), maxAge = Duration.ofMinutes(10), clock = { now })
 
-    private fun client(gate: ServerIdentityGate): OkHttpClient = SlouchcatHttp.client(identity, credentials, gate = gate)
+    private fun client(gate: ServerIdentityGate, builder: OkHttpClient.Builder = OkHttpClient.Builder()): OkHttpClient =
+        SlouchcatHttp.client(identity, credentials, builder = builder, gate = gate)
 
     private fun get(http: OkHttpClient, path: String = "/api/v1/auth/session") =
         http.newCall(Request.Builder().url(server.url(path)).build()).execute().use { it.code }
@@ -100,6 +111,60 @@ class ServerIdentityGateTest {
         }
         fail("the gate let the request through")
         error("unreachable")
+    }
+
+    /** The error a call ended with, `null` when it got an answer. */
+    private fun errorOf(call: Call): IOException? = try {
+        call.execute().close()
+        null
+    } catch (e: IOException) {
+        e
+    }
+
+    /**
+     * Holds a request to [path] where a request is after it got its connection: past the gate's
+     * wait for the proof, not yet at [ServerIdentityGate.hop] (the network interceptors of the
+     * builder run before the ones of [SlouchcatHttp.client]).
+     */
+    private class Held(private val path: String) : Interceptor {
+        val arrived = CountDownLatch(1)
+        val release = CountDownLatch(1)
+
+        override fun intercept(chain: Interceptor.Chain): Response {
+            if (chain.request().url.encodedPath == path) {
+                arrived.countDown()
+                release.await(10, TimeUnit.SECONDS)
+            }
+            return chain.proceed(chain.request())
+        }
+    }
+
+    /**
+     * Interrupts [thread] once it waits for the answer in a socket read: Okio's look at the
+     * interruption before the read is behind it, and the read itself ignores an interruption. So
+     * the call ends with whatever the connection does next, on an interrupted thread.
+     */
+    private fun interruptInItsRead(thread: Thread) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (thread.stackTrace.none { it.className.startsWith("java.net.Socket") && it.methodName == "read" }) {
+            if (System.nanoTime() > deadline) fail("the call never waited for its answer")
+            Thread.sleep(5)
+        }
+        thread.interrupt()
+    }
+
+    /** Runs [call] on a thread of its own, which [caller] names: the error it ended with, and whether the thread was interrupted by then. */
+    private fun errorOnItsOwnThread(call: Call, caller: AtomicReference<Thread>): Pair<IOException?, Boolean> {
+        val own = Executors.newSingleThreadExecutor()
+        try {
+            return own.submit<Pair<IOException?, Boolean>> {
+                caller.set(Thread.currentThread())
+                val error = errorOf(call)
+                error to Thread.interrupted()
+            }.get(10, TimeUnit.SECONDS)
+        } finally {
+            own.shutdownNow()
+        }
     }
 
     @Test
@@ -215,6 +280,247 @@ class ServerIdentityGateTest {
         server.close()
         assertRefused { get(http) }
         assertFalse("the proof survived a broken connection", gate.isProvenNow())
+    }
+
+    /**
+     * The app cancels a call that is on the server while a request to `/second` has its connection
+     * and has not left yet; [afterwards] runs before that request goes on. Returns what that request
+     * ended with.
+     */
+    private fun aRequestOnItsWayWhileACallIsCancelled(gate: ServerIdentityGate, afterwards: () -> Unit = {}): Result<Int> {
+        val reached = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath == "/cancelled") {
+                    reached.countDown()
+                    answer.await(10, TimeUnit.SECONDS)
+                }
+                return MockResponse(body = "{}")
+            }
+        }
+        val held = Held("/second")
+        val http = client(gate, OkHttpClient.Builder().addNetworkInterceptor(held))
+        assertEquals(200, get(http))
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val second = pool.submit<Result<Int>> { runCatching { get(http, "/second") } }
+            assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
+            val call = http.newCall(Request.Builder().url(server.url("/cancelled")).build())
+            val cancelled = pool.submit<IOException?> { errorOf(call) }
+            assertTrue("the call to cancel is not on the server", reached.await(5, TimeUnit.SECONDS))
+            call.cancel()
+            assertTrue("the cancelled call got an answer", cancelled.get(5, TimeUnit.SECONDS) is IOException)
+            afterwards()
+            held.release.countDown()
+            return second.get(5, TimeUnit.SECONDS)
+        } finally {
+            answer.countDown()
+            held.release.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun aCallTheAppCancelledKeepsTheProofForTheRequestsOnTheirWay() {
+        // A page is left and Coil cancels its images, the player seeks and cancels a segment: the
+        // app ended the call, the network did not. A request on its way meanwhile gets its answer.
+        val signer = Signer()
+        val gate = gate(signer)
+        assertEquals(200, aRequestOnItsWayWhileACallIsCancelled(gate).getOrThrow())
+        assertTrue("a call the app cancelled cost the proof", gate.isProvenNow())
+        assertEquals(1, signer.calls.get())
+    }
+
+    @Test
+    fun aNetworkChangeAfterACancelledCallStillStopsTheRequestOnItsWay() {
+        // Keeping the proof after a cancelled call keeps it for this network only.
+        val refused = aRequestOnItsWayWhileACallIsCancelled(gate(Signer())) { generation.incrementAndGet() }.exceptionOrNull()
+        assertTrue("the request left into a network without a proof: $refused", refused is ServerNotProvenException)
+        assertEquals(listOf("/api/v1/auth/session", "/cancelled"), List(server.requestCount) { server.takeRequest().url.encodedPath })
+    }
+
+    @Test
+    fun aCallWhoseThreadWasInterruptedKeepsTheProofForTheRequestsOnTheirWay() {
+        // A cancelled coroutine interrupts the thread of its blocking call (ApiCaller): the next
+        // Okio operation ends the call with InterruptedIOException("interrupted") and leaves the
+        // thread interrupted; the call itself is not cancelled.
+        val interrupt = Interceptor { chain ->
+            if (chain.request().url.encodedPath == "/interrupted") Thread.currentThread().interrupt()
+            chain.proceed(chain.request())
+        }
+        val held = Held("/second")
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate, OkHttpClient.Builder().addNetworkInterceptor(held).addNetworkInterceptor(interrupt))
+        assertEquals(200, get(http))
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val second = pool.submit<Int> { get(http, "/second") }
+            assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
+            val call = http.newCall(Request.Builder().url(server.url("/interrupted")).build())
+            val interrupted = pool.submit<IOException?> {
+                try {
+                    errorOf(call)
+                } finally {
+                    Thread.interrupted()
+                }
+            }
+            val error = interrupted.get(5, TimeUnit.SECONDS)
+            assertTrue("not the interruption Okio reports: $error", error is InterruptedIOException && error !is SocketTimeoutException)
+            assertEquals("interrupted", error?.message)
+            assertFalse(call.isCanceled())
+            held.release.countDown()
+            assertEquals(200, second.get(5, TimeUnit.SECONDS))
+            assertTrue("an interrupted call cost the proof", gate.isProvenNow())
+            assertEquals(1, signer.calls.get())
+        } finally {
+            held.release.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun aSocketTimeoutForgetsTheProof() {
+        // SocketTimeoutException is an InterruptedIOException too, but nobody interrupted anything:
+        // the server stopped answering, which is what a network that went away looks like.
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath == "/silent") answer.await(10, TimeUnit.SECONDS)
+                return MockResponse(body = "{}")
+            }
+        }
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        try {
+            assertEquals(200, get(http))
+            val impatient = http.newBuilder().readTimeout(Duration.ofMillis(200)).build()
+            val refused = assertRefused { get(impatient, "/silent") }
+            assertTrue("not a timeout: $refused", refused is SocketTimeoutException)
+            assertFalse("the proof survived a timeout", gate.isProvenNow())
+        } finally {
+            answer.countDown()
+        }
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+    }
+
+    @Test
+    fun aCallTimeoutForgetsTheProof() {
+        // OkHttp ends a call that ran into its call timeout by cancelling it. That is a server that
+        // stopped answering and not a call the app gave up.
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath == "/silent") answer.await(10, TimeUnit.SECONDS)
+                return MockResponse(body = "{}")
+            }
+        }
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        try {
+            assertEquals(200, get(http))
+            val call = http.newBuilder().callTimeout(Duration.ofMillis(200)).build()
+                .newCall(Request.Builder().url(server.url("/silent")).build())
+            assertTrue("the call got an answer", errorOf(call) is IOException)
+            assertTrue("OkHttp no longer cancels a call at its call timeout", call.isCanceled())
+            assertFalse("the proof survived a call timeout", gate.isProvenNow())
+        } finally {
+            answer.countDown()
+        }
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+    }
+
+    @Test
+    fun aSocketTimeoutOfAnInterruptedCallForgetsTheProof() {
+        // The interruption does not explain a server that stopped answering.
+        val caller = AtomicReference<Thread>()
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath == "/silent") {
+                    interruptInItsRead(caller.get())
+                    answer.await(10, TimeUnit.SECONDS)
+                }
+                return MockResponse(body = "{}")
+            }
+        }
+        val gate = gate(Signer())
+        val http = client(gate)
+        try {
+            assertEquals(200, get(http))
+            // Long enough for the interruption to land first, also on a busy runner.
+            val call = http.newBuilder().readTimeout(Duration.ofSeconds(3)).build()
+                .newCall(Request.Builder().url(server.url("/silent")).build())
+            val (error, interrupted) = errorOnItsOwnThread(call, caller)
+            assertTrue("the thread was not interrupted when the call ended", interrupted)
+            assertTrue("not a timeout: $error", error is SocketTimeoutException)
+            assertFalse("the proof survived a timeout of an interrupted call", gate.isProvenNow())
+        } finally {
+            answer.countDown()
+        }
+    }
+
+    @Test
+    fun aConnectionResetUnderAnInterruptedCallForgetsTheProof() {
+        // The interruption does not explain a reset either: that is how a machine answers a
+        // connection it does not know. (A connection closed in good order is different: on an
+        // interrupted thread Okio reads once more and reports the interruption.)
+        val caller = AtomicReference<Thread>()
+        ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { listener ->
+            val resetting = Executors.newSingleThreadExecutor()
+            try {
+                resetting.execute {
+                    listener.accept().use { socket ->
+                        val head = StringBuilder()
+                        while (!head.endsWith("\r\n\r\n")) {
+                            val byte = socket.getInputStream().read()
+                            if (byte < 0) return@use
+                            head.append(byte.toChar())
+                        }
+                        interruptInItsRead(caller.get())
+                        socket.setSoLinger(true, 0)
+                    }
+                }
+                val url = HttpUrl.Builder().scheme("http").host(listener.inetAddress.hostAddress!!).port(listener.localPort).build()
+                val signer = Signer()
+                val gate = gate(signer, trusted(url))
+                // Without OkHttp's own retry: it would connect again on the interrupted thread, and
+                // that ends with an InterruptedException which no interceptor sees.
+                val http = client(gate, OkHttpClient.Builder().retryOnConnectionFailure(false))
+                val (error, interrupted) = errorOnItsOwnThread(http.newCall(Request.Builder().url(url).build()), caller)
+                assertTrue("the thread was not interrupted when the call ended", interrupted)
+                assertTrue("not a reset: $error", error is SocketException)
+                assertEquals(1, signer.calls.get())
+                assertFalse("the proof survived a reset under an interrupted call", gate.isProvenNow())
+            } finally {
+                resetting.shutdownNow()
+            }
+        }
+    }
+
+    @Test
+    fun aServerThatHangsUpForgetsTheProof() {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = if (request.url.encodedPath == "/hangup") {
+                MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build()
+            } else {
+                MockResponse(body = "{}")
+            }
+        }
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        val refused = assertRefused { get(http, "/hangup") }
+        assertFalse("the gate held the request back: $refused", refused is ServerNotProvenException)
+        assertFalse("the proof survived a connection the server closed", gate.isProvenNow())
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
     }
 
     @Test
