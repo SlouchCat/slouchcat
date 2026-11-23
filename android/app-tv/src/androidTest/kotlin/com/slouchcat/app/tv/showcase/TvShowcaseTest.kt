@@ -47,7 +47,7 @@ val SHOWCASE_SERVER: HttpUrl = "http://192.0.2.10:8096/".toHttpUrl()
 /** The profile the showcase is signed in with. */
 val SHOWCASE_PROFILE = ActiveProfile(1, "Mara", isPrimary = true, accent = "ember")
 
-private class Servers : ServerStore {
+internal class Servers : ServerStore {
     private val flow = MutableStateFlow<SavedServer?>(SavedServer(SHOWCASE_SERVER, "1.42.0", serverKey = "showcase-key"))
     override val server: Flow<SavedServer?> = flow
     override suspend fun save(server: SavedServer) { flow.value = server }
@@ -56,17 +56,17 @@ private class Servers : ServerStore {
     override suspend fun clear() = Unit
 }
 
-private class Tokens : TokenStore {
+internal class Tokens : TokenStore {
     override suspend fun read() = StoredCredentials("showcase-token", "showcase-device")
     override suspend fun write(credentials: StoredCredentials) = Unit
 }
 
-private class Accounts : AccountStore {
+internal class Accounts : AccountStore {
     override suspend fun read(): Pair<String?, ActiveProfile?> = "mara@example.test" to SHOWCASE_PROFILE
     override suspend fun write(email: String?, profile: ActiveProfile?) = Unit
 }
 
-private class Relay : RelaySettings {
+internal class Relay : RelaySettings {
     override val relay: Flow<HttpUrl> = MutableStateFlow(RelaySettings.DEFAULT)
     override suspend fun set(address: HttpUrl?) = Unit
 }

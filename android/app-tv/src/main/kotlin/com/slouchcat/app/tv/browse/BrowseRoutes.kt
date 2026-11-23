@@ -1,5 +1,6 @@
 package com.slouchcat.app.tv.browse
 
+import com.slouchcat.core.api.generated.models.ItemKind
 import kotlinx.serialization.Serializable
 
 /*
@@ -72,3 +73,43 @@ data class PlayerRoute(val itemId: String, val startAtMs: Long = NO_POSITION, va
         const val NO_POSITION = -1L
     }
 }
+
+/**
+ * The audio player of stage 4 (concept 26 5.6; mockup `/listen/:i`): an audiobook or a podcast
+ * episode; [startAtMs] a chapter's start ([PlayerRoute.NO_POSITION]: where the server resumes),
+ * [fromStart] «Von vorn». The title that plays already plays on when the page opens again; [show]
+ * only shows what plays, paused or not («Läuft gerade» of the rail).
+ */
+@Serializable
+data class ListenRoute(val itemId: String, val startAtMs: Long = PlayerRoute.NO_POSITION, val fromStart: Boolean = false, val show: Boolean = false)
+
+/** The series of an audiobook (web `/libraries/$libraryId/series/$seriesId`). */
+@Serializable
+data class AudioSeriesRoute(val libraryId: Long, val seriesId: String)
+
+/** «Webradio» (mockup `/radio`): countries, stations, «Meine Sender», the search. */
+@Serializable
+data object RadioRoute
+
+/** The station that plays, as a page of its own without the rail (the audio player of a station). */
+@Serializable
+data object RadioListenRoute
+
+/**
+ * Where «Abspielen» of a title leads (stage 4): an audiobook or an episode to the audio player, a
+ * podcast to its page (the episodes; its big button plays the newest), every other title to the
+ * video player. Open it through `TvNavigator.opener`, which gives `null` while its page is missing.
+ */
+fun playRoute(itemId: String, kind: ItemKind?, startAtMs: Long = PlayerRoute.NO_POSITION, fromStart: Boolean = false): Any = when (kind) {
+    ItemKind.AUDIOBOOK, ItemKind.PODCAST_EPISODE -> ListenRoute(itemId, startAtMs, fromStart)
+    ItemKind.PODCAST -> ItemRoute(itemId)
+    else -> PlayerRoute(itemId, startAtMs, fromStart)
+}
+
+/**
+ * «Abspielen» of a title on a card or a stage ([playRoute]): the video player, the audio player or
+ * the podcast's page, else the title's page when the audio player is not registered; `null` while
+ * the video player is not registered (no button, as before stage 4).
+ */
+fun com.slouchcat.app.tv.shell.TvNavigator.player(): ((itemId: String, kind: ItemKind) -> Unit)? =
+    if (canOpen(PlayerRoute::class)) ({ id, kind -> (opener(playRoute(id, kind)) ?: opener(ItemRoute(id)))?.invoke() }) else null

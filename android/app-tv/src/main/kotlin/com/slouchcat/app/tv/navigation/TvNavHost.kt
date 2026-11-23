@@ -46,6 +46,7 @@ import com.slouchcat.app.tv.setup.SetupScreen
 import com.slouchcat.app.tv.shell.ENTRY_ROUTES
 import com.slouchcat.app.tv.shell.HandSetupRoute
 import com.slouchcat.app.tv.shell.LIBRARIES_MENU
+import com.slouchcat.app.tv.browse.LibraryRoute
 import com.slouchcat.app.tv.shell.LibrariesMenu
 import com.slouchcat.app.tv.shell.librariesMenuEntry
 import com.slouchcat.app.tv.shell.railLibraryCapacity
@@ -119,7 +120,14 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                 val all = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
                 // As many libraries as fit (code review M-3), then «Alle Bibliotheken …» with the menu.
                 val capacity = railLibraryCapacity(with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() })
-                val media = if (profile == null || (all.isEmpty() && graph.registry.lists.isEmpty())) emptyList() else all.take(capacity) + librariesMenuEntry()
+                // The capacity counts libraries only: the radio and «Läuft gerade» (stage 4) always show.
+                val (shelves, others) = all.partition { it.route is LibraryRoute }
+                // The capacity reserves one place for the radio; «Läuft gerade» takes one more (review m-8).
+                val reserve = (others.size - 1).coerceAtLeast(0)
+                val shown = (shelves.take((capacity - reserve).coerceAtLeast(1)) + others).sortedBy { it.order }
+                // «Alle Bibliotheken …» only with a library or a list: an empty menu helps nobody.
+                val menu = shelves.isNotEmpty() || graph.registry.lists.isNotEmpty()
+                val media = if (profile == null) emptyList() else shown + listOfNotNull(librariesMenuEntry().takeIf { menu })
                 val currentMedia by rememberUpdatedState(all)
                 var librariesMenu by rememberSaveable { mutableStateOf(false) }
                 var menuClosed by remember { mutableIntStateOf(0) }
@@ -201,6 +209,7 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                             with(feature) { register(app) }
                         }
                     }
+                    if (profile != null) for (overlay in graph.registry.overlays) overlay(app, page, showRail)
                 }
             }
             TvToastHost(graph.toasts)

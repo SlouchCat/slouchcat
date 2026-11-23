@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -168,6 +169,70 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         runCatching { call("PUT", "admin/seerr", """{"clear":true,"enabled":false}""") }
         runCatching { call("PUT", "admin/settings", """{"clear":["tmdb"]}""") }
         runCatching { call("POST", "__reset", "{}", plain, seerrHere) }
+    }
+
+    /** Stage 4: the library [name] goes again, with its titles and their progress (another flow sees nothing of it). */
+    fun remove(name: String) {
+        signIn()
+        val id = library(name)?.get("id")?.jsonPrimitive?.long ?: return
+        call("POST", "admin/libraries/$id/deletion", """{"confirmName":${Json.encodeToString(name)}}""")
+        // The deletion runs as a job: until the library is gone.
+        val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+        while (library(name) != null) {
+            check(System.nanoTime() < deadline) { "the library $name did not go" }
+            Thread.sleep(POLL_MS)
+        }
+        // Its titles go after the library: until «Weiterschauen» of the start page has none of them.
+        while (call("GET", "home")!!.jsonObject["rows"]!!.jsonArray.any { it.jsonObject["key"]?.jsonPrimitive?.content == "continue" }) {
+            check(System.nanoTime() < deadline) { "the titles of $name did not go" }
+            Thread.sleep(POLL_MS)
+        }
+    }
+
+    /**
+     * Stage 4: an audio library [name] of [kind] (`audiobooks`, `podcasts`) over [folder] with
+     * [content] (`audiobook`, `podcast`), local metadata only, scanned.
+     */
+    fun ensureAudio(name: String, kind: String, folder: String, content: String) {
+        signIn()
+        if (library(name) == null) {
+            call(
+                "POST",
+                "admin/libraries",
+                """{"name":${Json.encodeToString(name)},"kind":"$kind","roots":[{"path":${Json.encodeToString(folder)},"content":"$content","providers":["local"]}]}""",
+            )
+        }
+        waitForScan(name)
+    }
+
+    /** Stage 4: the test stations of the test radio server (always started by the e2e script) (first catalog sync) and an offer of every country, as the phone's AudioFlowTest. */
+    fun ensureRadio() {
+        signIn()
+        if (call("GET", "admin/radio/catalog")!!.jsonObject["stationsTotal"]!!.jsonPrimitive.int == 0) {
+            call("POST", "admin/radio/catalog/sync")
+            val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+            while (call("GET", "admin/radio/catalog")!!.jsonObject["stationsTotal"]!!.jsonPrimitive.int == 0) {
+                check(System.nanoTime() < deadline) { "the radio catalog did not arrive" }
+                Thread.sleep(POLL_MS)
+            }
+        }
+        val offer = call("GET", "admin/radio/offer")!!.jsonObject
+        val steps = offer["countries"]!!.jsonArray.map { it.jsonObject }.filter { it["total"]!!.jsonPrimitive.int > 0 }.flatMap {
+            val code = it["code"]!!.jsonPrimitive.content
+            listOf("""{"op":"chooseCountry","country":"$code"}""", """{"op":"markAll","country":"$code"}""")
+        }
+        call("POST", "admin/radio/offer/apply", """{"version":${offer["version"]},"steps":[${steps.joinToString(",")}]}""")
+    }
+
+    private fun waitForScan(name: String) {
+        val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+        while (true) {
+            val state = (library(name)!!["scan"] as JsonObject)["state"]!!.jsonPrimitive.content
+            check(state != "failed" && state != "aborted") { "the scan of $name $state" }
+            if (state == "done") return
+            check(System.nanoTime() < deadline) { "the scan of $name did not finish" }
+            Thread.sleep(POLL_MS)
+        }
     }
 
     private companion object {

@@ -12,7 +12,7 @@ import com.slouchcat.app.tv.browse.CollectionRoute
 import com.slouchcat.app.tv.browse.CollectionsRoute
 import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.ListRoute
-import com.slouchcat.app.tv.browse.PlayerRoute
+import com.slouchcat.app.tv.browse.player
 import com.slouchcat.app.tv.browse.WatchedRoute
 import com.slouchcat.app.tv.browse.WatchlistRoute
 import com.slouchcat.app.tv.shell.Label
@@ -117,7 +117,7 @@ object ListsFeature : TvFeature {
                 CollectionActions(
                     item = item(),
                     // A series of a collection plays from its own page (its next episode); a film plays itself.
-                    play = if (navigator.canOpen(PlayerRoute::class)) ({ navigator.navigate(PlayerRoute(it.id)) }) else null,
+                    play = navigator.player()?.let { play -> { item -> play(item.id, item.kind) } },
                     listAll = vm::onListAll,
                     watched = vm::onWatched,
                     confirm = vm::onConfirm,

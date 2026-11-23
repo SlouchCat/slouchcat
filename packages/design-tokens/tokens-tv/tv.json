@@ -1030,6 +1030,65 @@
           "$value": "16px",
           "$description": "the number on an entry of the rail (the bell of «Benachrichtigungen» on «Einstellungen»)"
         }
+      },
+      "audio": {
+        "$description": "Stage 4 «Ton» (media.css .md-det, .md-ls, .md-calm, #md-now, .md-radiopage), half the mockup canvas",
+        "detail-cover": {
+          "$value": "280px",
+          "$description": ".md-cover width of a book or podcast page"
+        },
+        "detail-gap": { "$value": "42px", "$description": "between the cover column and the list" },
+        "row": {
+          "$value": "52px",
+          "$description": ".md-row min-height of a chapter or an episode"
+        },
+        "row-pad": { "$value": "15px", "$description": ".md-row padding" },
+        "row-mark": {
+          "$value": "30px",
+          "$description": "the column of the check mark or the number"
+        },
+        "row-dot": { "$value": "8px", "$description": "the dot of an episode not heard" },
+        "row-bar": { "$value": "180px", "$description": "the progress under an episode begun" },
+        "list-title-top": {
+          "$value": "40px",
+          "$description": "«Kapitel», «Folgen» above the list"
+        },
+        "cover": { "$value": "300px", "$description": ".md-ls-cover" },
+        "gap": { "$value": "55px", "$description": ".md-ls-main gap" },
+        "info": { "$value": "510px", "$description": ".md-ls-info max-width" },
+        "title-gap": { "$value": "13px", "$description": ".md-ls-line margin-top" },
+        "seek-top": { "$value": "28px", "$description": ".md-seek margin-top" },
+        "track": { "$value": "5px", "$description": ".md-seek track" },
+        "track-focus": { "$value": "8px", "$description": ".md-seek track in focus" },
+        "buttons-top": { "$value": "26px", "$description": ".md-ctl margin-top" },
+        "button": { "$value": "56px", "$description": ".md-cb round button" },
+        "button-main": { "$value": "78px", "$description": ".md-cb.main" },
+        "button-gap": { "$value": "17px", "$description": ".md-ctl gap" },
+        "button-icon": { "$value": "20px" },
+        "button-main-icon": { "$value": "32px" },
+        "chips-top": { "$value": "26px", "$description": ".md-ls-chips margin-top" },
+        "menu-mark": {
+          "$value": "32px",
+          "$description": "the number box of a chapter in the menu"
+        },
+        "calm-cover": { "$value": "190px", "$description": ".md-calm-cover" },
+        "calm-text": { "$value": "340px", "$description": ".md-calm-tx width" },
+        "calm-bar": { "$value": "260px", "$description": ".md-calm-tx .md-bar" },
+        "calm-gap": { "$value": "32px", "$description": ".md-calm-in gap" },
+        "calm-drift": {
+          "$value": "24px",
+          "$description": "how far the calm screen drifts (burn-in, mdDrift)"
+        },
+        "now-height": { "$value": "38px", "$description": "#md-now height" },
+        "now-image": { "$value": "29px", "$description": ".md-now-im" },
+        "now-width": { "$value": "270px", "$description": "#md-now max-width" },
+        "now-end": {
+          "$value": "58px",
+          "$description": "#md-now right of the safe margin (left of the clock)"
+        },
+        "station": { "$value": "180px", "$description": ".md-st the tile of a station" },
+        "station-star": { "$value": "28px", "$description": "the star of a favourite on its tile" },
+        "playing": { "$value": "420px", "$description": "the card «Jetzt läuft» on the radio page" }
       }
     },
     "opacity": {

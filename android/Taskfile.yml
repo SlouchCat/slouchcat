@@ -121,12 +121,14 @@ tasks:
     desc: >-
       Instrumentation test of the TV app in its own TV emulator: set up by hand, profile with PIN, settings, sign out;
       set up by scan through a local relay with apicheck as the phone; the player; wishes and notifications through
-      the Seerr and TMDB mocks of scripts/android-helpers.sh (PORT 8697, RELAY_PORT PORT+85, EMU_PORT 5584); SHOTS=<dir> takes photos
+      the Seerr and TMDB mocks of scripts/android-helpers.sh; the sound with audiobook, podcast and the test stations of
+      the radio mock (PORT+1). Defaults PORT 8697, RELAY_PORT PORT+85, EMU_PORT 5584; SHOTS=<dir> takes photos;
+      TESTS=<class> runs only these test classes
     cmds:
       - task: :server:build
       - task: :relay:build
       - cd ../server && go build -o bin/apicheck ./cmd/apicheck
-      - PORT={{.PORT | default "8697"}} RELAY_PORT={{.RELAY_PORT}} AVD={{.AVD | default "sc_tv"}} EMU_PORT={{.EMU_PORT | default "5584"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} ../scripts/android-tv-e2e.sh
+      - PORT={{.PORT | default "8697"}} RELAY_PORT={{.RELAY_PORT}} AVD={{.AVD | default "sc_tv"}} EMU_PORT={{.EMU_PORT | default "5584"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} TESTS={{.TESTS}} ../scripts/android-tv-e2e.sh
 
   # The pairing of the two apps (concept 27 stage 9): the TV app in its emulator shows its code, the
   # phone app's own Kotlin (:core:pairing, ScannedCode, PhonePairing) plays the phone as a JVM program
