@@ -8,10 +8,10 @@
 #   example synthetic media from testdata/generate-media.sh (README, «Ohne Download»).
 set -eu
 
-MEDIA=/media
+MEDIA="${DEMO_MEDIA:-/media}" # scripts/store-screenshots.sh sets a folder outside a container
 MOVIES="$MEDIA/Movies"
 INCOMING="$MEDIA/.incoming" # hidden: the scanner skips it
-LIST=/demo/films.tsv
+LIST="${DEMO_LIST:-/demo/films.tsv}"
 SOURCE="${DEMO_SOURCE:-blender}"
 
 fail() {

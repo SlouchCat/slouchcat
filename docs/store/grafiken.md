@@ -81,6 +81,95 @@ mittig auf dunklem Grund, sonst nichts. Der Name muss auf dem Banner lesbar sein
 Detailseite, Videoplayer mit Tonmenü, Einrichten-Seite mit QR-Code. Der QR-Code auf dem Foto muss
 ein abgelaufener Treffpunkt sein, keiner, der noch gilt.
 
+## Bildschirmfotos aufnehmen
+
+```bash
+scripts/store-screenshots.sh <Ordner für die Store-Grafiken>
+```
+
+Das Skript lädt die vier Filme einmal über `deploy/demo/prepare-media.sh` nach
+`~/.cache/slouchcat-demo` (rund 1,6 GB, mit Prüfsumme; `MEDIA_CACHE` ändert den Ort), startet je
+Sprache einen Server dieses Repos mit frischen Daten auf dem Loopback (`PORT`, ab Werk 8897 für
+Deutsch und 8899 für Englisch) und richtet ihn über die API ein: Konto `demo@example.com`,
+Hauptprofil «Demo» mit PIN, ein zweites Profil («Gast», «Guest»), die Bibliothek der Filme mit
+Vorschau beim Spulen «Im Voraus» und eine Hörbuch-Bibliothek. Dann fährt es die Emulatoren
+nacheinander (`sc_phone`, `sc_tablet`, `sc_tv`; ein Emulator zugleich über die Sperre aus
+`scripts/android-helpers.sh`), je Sprache mit gelöschten App-Daten und der Testklasse
+`StoreShotsTest` der App, und legt die Bilder nach `<Ordner>/{phone,tablet7,tablet10,tv}-{de,en}/`.
+Zum Schluss wandelt es jedes Bild in PNG mit 24 Bit ohne Alphakanal und prüft Mass, Format und
+Seitenverhältnis mit `scripts/store-screenshots-check.py`. Einen Ordner im Repo verweigert es.
+`DEVICES` (ab Werk `phone tablet tv`) und `LANGS` (`de en`) schränken einen Lauf ein.
+
+- **Ohne TMDB:** Plakat und Hintergrund jedes Films sind Standbilder aus dem Film selbst, die das
+  Skript mit ffmpeg zieht. Ohne TMDB-Schlüssel ordnet der Server einen Film keiner Quelle zu und
+  übernimmt dann weder NFO-Texte noch Bilder neben dem Film; das Skript setzt darum Inhaltsangabe
+  (eigene Worte, je Sprache) und Genres über die Verwaltung (`updateItemMetadata`) und lädt Plakat
+  und Hintergrund hoch (`uploadItemImage`), wie es eine Verwaltung ohne Schlüssel von Hand täte.
+- **Vorschau beim Spulen:** «Im Voraus» erzeugt Vorschaubilder nur für Dateien, die nach dem ersten
+  Scan dazukommen. Das Skript startet darum einmal `trickplay.backfill` (`runJobType`).
+- **Server:** mit `SLOUCHCAT_HW=software` wie der Vorführserver auf einem kleinen Mietserver (auf
+  dem Entwicklungsrechner scheiterte die GPU-Erkennung beim Vorbereiten eines Downloads).
+- **Hörbuch:** Es gibt am Vorführserver kein frei lizenziertes Hörbuch. Das Motiv zeigt das
+  erfundene Testhörbuch «The Quiet Harbour» von «Mira Lindqvist» aus
+  `scripts/android-test-video.sh` (Sinustöne) mit einem Umschlag, den das Skript zeichnet.
+- **Tablets:** Die AVD `sc_tablet` hat 2560 × 1600 (16:10). Der Store will 16:9; das Skript stellt
+  die Anzeige des Emulators mit `wm size` auf 1920 × 1080 (Dichte 280, 7 Zoll) und 2560 × 1440
+  (Dichte 320, 10 Zoll). Die App zeichnet sich in dieser Grösse; es wird nichts abgeschnitten.
+- **Handy-Player:** Für das Querformat-Foto stellt das Skript die Anzeige auf 1080 × 1920, das
+  Foto hat dann 1920 × 1080. Die anderen Handy-Fotos haben das Mass der AVD (1080 × 2424).
+- **Statusleiste:** im Demo-Modus der Systemoberfläche (12:00, volles WLAN und voller Akku, keine
+  Mitteilungen).
+- **QR-Code:** Der Treffpunkt liegt bei der lokalen Vermittlung `relay/bin/pair` des Laufs; sie
+  endet mit dem Lauf, der Code auf dem Foto führt danach nirgends hin.
+- Die Testklassen `StoreShotsTest` fährt nur dieses Skript (`am instrument -e class`, mit dem
+  Argument `slouchcatStore`); `scripts/android-e2e.sh` und `scripts/android-tv-e2e.sh` schliessen
+  sie mit `notClass` aus, sie zählen dort weder als Fall noch als übersprungen.
+
+### Was vorliegt
+
+Stand des Laufs vom 23. November 2026, je Sprache (`de` in der Schweizer Schreibweise der App,
+`de-CH`, und `en`) ein Satz. Dateien unter `<Ordner für die Store-Grafiken>/<Satz>-<Sprache>/`,
+PNG mit 24 Bit ohne Alphakanal.
+
+| Satz | Motiv | Datei | Mass |
+|---|---|---|---|
+| `phone` | Startseite mit Reihen | `01-home.png` | 1080 × 2424 |
+| `phone` | Detailseite «Tears of Steel», «Datei und Technik» offen | `02-detail.png` | 1080 × 2424 |
+| `phone` | Videoplayer im Querformat beim Spulen mit Vorschaubild | `03-player.png` | 1920 × 1080 |
+| `phone` | «Downloads» mit «Sintel» (Qualität «Niedrig») und belegtem Platz | `04-downloads.png` | 1080 × 2424 |
+| `phone` | Profilwahl: «Demo» mit PIN-Schloss und ein zweites Profil | `05-profiles.png` | 1080 × 2424 |
+| `phone` | Tonplayer mit dem erfundenen Testhörbuch | `06-audiobook.png` | 1080 × 2424 |
+| `phone` | «Fernseher verbinden», die Rückfrage vor dem Koppeln | `07-tv-link.png` | 1080 × 2424 |
+| `tablet7`, `tablet10` | Startseite mit Navigation an der Seite | `01-home.png` | 1920 × 1080, 2560 × 1440 |
+| `tablet7`, `tablet10` | Bibliothek «Filme» als Raster | `02-library.png` | 1920 × 1080, 2560 × 1440 |
+| `tablet7`, `tablet10` | Detailseite «Tears of Steel» | `03-detail.png` | 1920 × 1080, 2560 × 1440 |
+| `tablet7`, `tablet10` | Videoplayer beim Spulen | `04-player.png` | 1920 × 1080, 2560 × 1440 |
+| `tv` | Startseite, Fokus auf «Tears of Steel» | `01-home.png` | 1920 × 1080 |
+| `tv` | Detailseite «Tears of Steel» | `02-detail.png` | 1920 × 1080 |
+| `tv` | Videoplayer mit offenem Tonmenü | `03-player-audio.png` | 1920 × 1080 |
+| `tv` | Einrichten mit QR-Code (Treffpunkt abgelaufen) | `04-setup-qr.png` | 1920 × 1080 |
+
+Was abweicht oder fehlt:
+
+- **Untertitel auf der Detailseite (Handy):** Die Detailseite der Handy-App nennt unter «Datei und
+  Technik» Video, Auflösung, Ton, Grösse und Behälter, aber keine Untertitel. Das Foto zeigt darum
+  die Tonspur; die Untertitel (Deutsch, Englisch) wählt man im Player.
+- **Hörbuch:** erfundener Testinhalt (siehe oben), kein echtes Hörbuch. Seine Teile heissen auch
+  im englischen Satz «Teil 1» und «Teil 2» (so benennt sie `scripts/android-test-video.sh`). Es
+  steht als zuletzt hinzugefügter Titel in der Reihe «Neu hinzugefügt» vor den Filmen.
+- **Startseite:** Der Vorführserver hat keine Spotlight-Liste (sie kommt von einem Anbieter
+  ausserhalb, den der Lauf nicht anbindet); die Startseite zeigt «Weiterschauen» (ausser auf dem ersten Handy-Foto), «Neu hinzugefügt» und
+  «Genres».
+- **HTTP-Hinweis:** Der Vorführserver des Laufs spricht HTTP auf `10.0.2.2`. Darum zeigt die
+  Rückfrage «Fernseher verbinden» den Hinweis, dass die Verbindung nicht verschlüsselt ist, und die
+  Adresse `http://10.0.2.2:8897`; die Profilwahl zeigt `10.0.2.2` in der Fusszeile, die TV-Seite
+  mit dem QR-Code «Eigene Vermittlung: 10.0.2.2». Mit einem Vorführserver hinter HTTPS und der
+  öffentlichen Vermittlung fielen Hinweis und Zeile weg.
+- **Uhr der TV-App:** Die TV-Oberfläche zeigt die Uhrzeit des Emulators (kein Demo-Modus auf dem
+  Fernseher).
+- **Tablets:** gerendert in 16:9 durch `wm size`, die AVD selbst ist 16:10 (siehe oben); der
+  7-Zoll-Satz ist dieselbe Oberfläche mit kleinerer Dichte, kein eigenes Gerät.
+
 ## Noch einzutragen
 
 | Platzhalter | Was |
