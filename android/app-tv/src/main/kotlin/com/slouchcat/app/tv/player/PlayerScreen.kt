@@ -531,7 +531,9 @@ private fun SeekBar(
     val position = if (scrubbed >= 0) scrub.targetMs ?: state.positionMs else state.positionMs
     val share = if (state.durationMs > 0) (position.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
     val label = stringResource(R.string.player_seek)
-    val value = stringResource(R.string.player_time, timecode(position), timecode(state.durationMs))
+    // With the chapter there, for TalkBack too (code review L-2).
+    val value = listOfNotNull(stringResource(R.string.player_time, timecode(position), timecode(state.durationMs)), chapterName(state.chapters, position))
+        .joinToString(stringResource(R.string.format_listSeparator))
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
@@ -572,7 +574,9 @@ private fun SeekBar(
         Box(Modifier.fillMaxWidth().height(track).clip(shape).background(SlouchcatTokens.Tv.Color.GlassStrong))
         Box(Modifier.fillMaxWidth(share).height(track).clip(shape).background(c.accent))
         // The chapters (paper 5.1, web SeekBar `.mark`): a gap in the bar where each one begins.
-        for (start in chapterMarks(state.chapters, state.durationMs)) {
+        // At least three marks wide apart (code review L-1).
+        val gap = (state.durationMs * (P.ChapterMark * MARK_SPACING / maxWidth)).toLong()
+        for (start in chapterMarks(state.chapters, state.durationMs, gap)) {
             Box(
                 Modifier
                     .offset(x = maxWidth * (start.toFloat() / state.durationMs) - P.ChapterMark / 2)
@@ -639,10 +643,10 @@ private fun Bubble(
         }
         Text(timecode(target), style = TvType.largeStrong)
         // The chapter at the target (web SeekBar: its title, else «Kapitel n»).
-        val chapter = chapterIndexAt(state.chapters, target)
-        if (chapter >= 0) {
+        val chapter = chapterName(state.chapters, target)
+        if (chapter != null) {
             Text(
-                state.chapters[chapter].title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.player_chapters_untitled, (chapter + 1).toString()),
+                chapter,
                 style = TvType.bodyStrong,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -869,3 +873,6 @@ private const val TOP_MID = 0.12f
 private const val TOP_END = 0.3f
 private const val BOTTOM_START = 0.48f
 private const val BOTTOM_MID = 0.76f
+
+/** Chapter marks lie at least this many mark widths apart. */
+private const val MARK_SPACING = 3
