@@ -122,6 +122,10 @@ display_reset() {
   "${a[@]}" wm density reset >/dev/null 2>&1 || true
   "${a[@]}" am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
   "${a[@]}" settings delete global sysui_demo_allowed >/dev/null 2>&1 || true
+  # The settings provider writes its file 200 ms after a change; a power-off right after the
+  # change lost it on sc_phone. One second, then sync.
+  sleep 1
+  "${a[@]}" sync >/dev/null 2>&1 || true
 }
 
 emulator_stop() {
