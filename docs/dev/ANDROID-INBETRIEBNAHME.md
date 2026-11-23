@@ -422,8 +422,12 @@ einen eigenen Ablauf, damit Dependabot-Updates sie mitführen.
 - Die Dateien aus `task android:dist`: Signatur der Debug-APKs (`apksigner verify`), `aapt2 dump
   badging` (Paket, Version, Symbol, TV-Starter, Banner, `leanback` verlangt nur bei der TV-App);
   Signieren mit `task android:sign` und einem Wegwerf-Schlüssel.
+- Die Texte der Apps in 20 Sprachen: übersetzt und zweitgelesen, `task i18n:check` streng grün
+  (`docs/i18n/glossar.md`, Abschnitt 9).
 
 **Nur auf echten Geräten oder mit fremden Diensten:**
+
+- Wünsche gegen ein echtes Seerr statt der Attrappe, an Handy und Fernseher.
 
 - Wiedergabe von HEVC 10 Bit, HDR, Dolby Vision, Dolby- und DTS-Ton, Durchreichen an eine Tonanlage
   (beide Berichte).
@@ -453,3 +457,5 @@ einen eigenen Ablauf, damit Dependabot-Updates sie mitführen.
 | 11 | In GitHub: Environment `android-release` mit Pflicht-Reviewer und Tag-Regel, seine Signatur-Secrets (oder bewusst weglassen), Firebase-Variablen, Tag-Ruleset für `app-v*` und `tv-v*` | 7.1 |
 | 12 | Version erhöhen, taggen, Signierlauf freigeben, Release prüfen | 7.2 |
 | 13 | Bundle in die Play Console laden, das TV-Bundle nur in die Spur «Android TV» | 7, `docs/store/VEROEFFENTLICHEN.md` |
+| 14 | Store-Grafiken erzeugen (`scripts/store-graphics.sh`) und Bildschirmfotos aufnehmen; beide liegen nicht im Repo | `docs/store/grafiken.md` |
+| 15 | Wünsche mit dem echten Seerr an Handy und Fernseher abnehmen | 8 |
