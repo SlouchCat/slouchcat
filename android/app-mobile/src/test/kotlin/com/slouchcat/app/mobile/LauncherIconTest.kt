@@ -18,7 +18,8 @@ import java.io.File
 
 /**
  * The launcher icon: the manifest names it as icon and round icon, it is adaptive with a monochrome
- * layer (themed icons), and its two colours are the tokens of web/public/icon.svg.
+ * layer (themed icons), its two colours are the tokens of web/public/icon.svg, and its sign is the
+ * one of web/public/icon.svg, the middle of that canvas on the middle of the layer.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -59,6 +60,27 @@ class LauncherIconTest {
         }
         assertEquals(listOf(token("bg", "base")), fills("ic_launcher_background"))
         assertEquals(listOf(token("accent", "ember", "base")), fills("ic_launcher_foreground"))
+    }
+
+    /**
+     * Both layers with a sign draw the two paths of the web icon, and the group around them puts the
+     * middle of the web icon's canvas (512 x 512) on the middle of the layer (108 x 108). The web
+     * icon has its sign in the middle of its canvas (web/src/ui/logoMark.test.ts), so the launcher
+     * shows it in the middle too, whatever mask it cuts.
+     */
+    @Test
+    fun theSignIsTheWebIconInTheMiddleOfTheLayer() {
+        val webIcon = File("../../web/public/icon.svg").readText()
+        val canvas = Regex("viewBox=\"0 0 (\\d+) (\\d+)\"").find(webIcon)!!.groupValues.drop(1).map { it.toFloat() }
+        val paths = Regex("<path d=\"([^\"]+)\"").findAll(webIcon).map { it.groupValues[1] }.toList()
+        assertEquals("the head and the play triangle", 2, paths.size)
+        for (layer in listOf("ic_launcher_foreground", "ic_launcher_monochrome")) {
+            val xml = File("src/main/res/drawable/$layer.xml").readText()
+            fun number(name: String) = Regex("android:$name=\"([^\"]+)\"").find(xml)!!.groupValues[1].toFloat()
+            assertEquals("$layer: the paths", paths.joinToString(" "), Regex("android:pathData=\"([^\"]+)\"").find(xml)!!.groupValues[1])
+            assertEquals("$layer: middle, x", number("viewportWidth") / 2, number("translateX") + canvas[0] / 2 * number("scaleX"), 0.001f)
+            assertEquals("$layer: middle, y", number("viewportHeight") / 2, number("translateY") + canvas[1] / 2 * number("scaleY"), 0.001f)
+        }
     }
 
     private fun fills(name: String): List<String> =

@@ -28,7 +28,15 @@
   padding: 0 var(--page-gutter);
 }
 
+/* A box of its own instead of a line of text: as high as the logo, so the logo sits on the middle
+   line of the header, and never narrower than the logo (the breadcrumb shrinks, not this). Where
+   the name is hidden (Logo.module.css, narrow screens) the sign alone is narrower than it is
+   tall; the link stays a square of its height to tap, the sign in its middle. */
 .brand {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  min-width: var(--sc-space-8);
   border-radius: var(--sc-radius-md);
   color: var(--sc-color-text-primary);
   text-decoration: none;
