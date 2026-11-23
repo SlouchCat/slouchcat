@@ -3,10 +3,8 @@ package com.slouchcat.app.mobile
 import android.Manifest
 import android.graphics.Bitmap
 import android.os.Build
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -16,12 +14,10 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -82,6 +78,19 @@ class OfflineFlowTest {
     private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
     private fun present(matcher: SemanticsMatcher) = compose.isShown(matcher)
+
+    /**
+     * «Pause» is there, with the controls brought back when they are hidden. Through the picture's
+     * own action, which exists only while they are hidden, never with a tap: a wait asks many
+     * times a second, two taps that close together are a double tap, and a double tap jumps ten
+     * seconds ahead. The film then stood at its end, where «Pause» never comes.
+     */
+    private fun pauseShown(pause: SemanticsMatcher): Boolean {
+        val show = hasContentDescription(s(R.string.app_player_showControls)) and hasClickAction()
+        // The controls may come back by themselves between the look and the action.
+        if (!present(pause) && present(show)) runCatching { compose.onAllNodes(show).onFirst().performSemanticsAction(SemanticsActions.OnClick) }
+        return present(pause)
+    }
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitUntil(timeout) { shown(matcher) }
 
@@ -243,17 +252,11 @@ class OfflineFlowTest {
         val seek = hasContentDescription(s(R.string.player_seek))
         val pause = hasContentDescription(s(R.string.player_pause)) and hasClickAction()
         val opened = System.nanoTime()
-        // Playing: the controls show «Pause» (a tap on the picture shows them).
-        compose.waitUntil(30_000) {
-            if (!present(pause)) compose.onRoot().performTouchInput { click(Offset(width * 0.5f, height * 0.3f)) }
-            present(pause)
-        }
+        // Playing: the controls show «Pause» (the picture's own action shows them).
+        compose.waitUntil(30_000) { pauseShown(pause) }
         measure("offline player playing after ms=${(System.nanoTime() - opened) / 1_000_000}")
         compose.onAllNodes(seek).onFirst().performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
-        compose.waitUntil(30_000) {
-            if (!present(pause)) compose.onRoot().performTouchInput { click(Offset(width * 0.5f, height * 0.3f)) }
-            present(pause)
-        }
+        compose.waitUntil(30_000) { pauseShown(pause) }
         shot("o05-offline-player")
         // Pause writes the progress event and the position on the device.
         compose.onAllNodes(pause).onFirst().performSemanticsAction(SemanticsActions.OnClick)
