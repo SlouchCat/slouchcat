@@ -77,6 +77,13 @@ rss_kb="$(awk '{print $2}' <<<"$rss_line")"
 echo "idle after ${IDLE_SECONDS} s: $(tr -s '[:space:]' ' ' <<<"$rss_line")"
 printf 'idle RSS: %d.%01d MB (limit %s MB)\n' $((rss_kb / 1024)) $(((rss_kb % 1024) * 10 / 1024)) "$MAX_RSS_MB"
 "$DOCKER" stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.PIDs}}' "$name"
+# What the RSS is made of, and what the host does with huge pages: the same container read 52 MB
+# and 77 MB on two runner images, so the log has to say which part moved. Diagnosis only, no gate.
+"$DOCKER" exec "$name" grep -E '^(RssAnon|RssFile|RssShmem|VmHWM|Threads):' /proc/1/status | tr -s '[:space:]' ' ' || true
+echo
+"$DOCKER" exec "$name" grep -E '^(Rss|Pss|Anonymous|AnonHugePages|FilePmdMapped|Private_Dirty):' /proc/1/smaps_rollup | tr -s '[:space:]' ' ' || true
+echo
+echo "host: $(nproc) CPUs, kernel $(uname -r), THP enabled $(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || echo '?'), defrag $(cat /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null || echo '?')"
 
 fail=0
 if ((elapsed_ms > MAX_HEALTHY_SECONDS * 1000)); then
