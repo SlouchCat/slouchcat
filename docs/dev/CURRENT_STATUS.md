@@ -38,11 +38,194 @@ Marco meldete nach dem ersten Release-Bau der Handy-App: «Das Logo ist nicht sa
   rechts von der linken Kante der Überschrift, und der Abstand zum Namen ist 16,5 statt 8 px. Das zu
   ändern verschiebt den Namen in jeder Kopfzeile und ist eine Gestaltungsfrage.
 
+## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, PR #212, veröffentlicht)
+
+Marco meldete am 23. November 2026: «Strike Back» über die Android-App gewünscht, erscheint nicht in der Startreihe
+«Erfüllte Wünsche». Befund auf CT 190 (Release 1.43.0, nur gelesen): Der Wunsch über die Staffeln 1 und 2 stand auf
+«teilweise», obwohl beide Staffeln in der Bibliothek lagen. Sonarr importierte Staffel 1, der Scan fand sie, der
+Serienjob ordnete die Serie zu und löste über `WithMatched` den Abgleich des Titels aus (Staffel 1 verfügbar).
+Staffel 2 kam 80 Sekunden später. Ihre zehn Folgen liefen je einen eigenen `metadata.match`-Job, und der löste den
+Abgleich nicht aus. Der Wunsch wartete auf den stündlichen `wishes.reconcile`, also bis zu 60 Minuten. Die Reihe
+zeigt nur Wünsche im Zustand «verfügbar» (Marco, E-10); das bleibt so.
+
+- **Korrektur:** Der Job einer Folge unter einer zugeordneten Serie meldet die Serie nach seinem Ende erneut
+  (`matchEpisode`, `episodeHook` in `server/internal/metadata/match.go`), ob der Anbieter die Folge kennt oder nicht:
+  Gezählt werden abspielbare Folgen. `TitleMatched` reiht den Abgleich des Titels unter seinem Idempotenz-Schlüssel
+  ein. Keine Meldung gibt es für eine Folge, die der Serienjob schrieb, und für eine Folge einer Serie ohne
+  Zuordnung.
+- **Zwilling (Befund der unabhängigen Prüfung, behoben):** Eine Serie mit einem weich gelöschten Zwilling melden
+  ihre Folgen nicht (`FindDeletedTwin`, nur lesend, jedes Alter). Die Kopie geht mit `library.relink` im Zwilling
+  auf; ein für sie gemeldeter Wunsch verlöre mit dem Verschmelzen seinen Titel. Danach meldet wie bisher der
+  Serienjob des Zwillings.
+- **Restgrenzen, der Stundenlauf fängt sie:** Die Meldung der letzten Folge kann in einem gerade laufenden Abgleich
+  untergehen (Fenster von Millisekunden). Scheitert nach dem Schreiben der Folge das Einreihen des Bild-Jobs,
+  entfällt die Meldung. Eine Serie mit einem alten Zwilling, der nie verschmilzt, melden ihre Folgen nie.
+- **Schon vorher so, nicht angefasst:** Verschmilzt eine Kopie, an der ein erfüllter Wunsch hängt (Reihenfolge
+  «neuen Ordner hinzufügen, scannen, alten entfernen»), fällt `wishes.item_id` auf NULL und der Wunsch verliert
+  seinen Titel.
+- **Geprüft:** Beide neuen Tests in `server/internal/metadata/matched_test.go` sind ohne den jeweiligen Aufruf rot;
+  `task check:fast`, `task server:lint` und `task ci` auf `4058b5ff` grün; unabhängige Prüfung in zwei Durchgängen.
+  Keine Migration, Vertrag bleibt 1.43.0. Marco hat am 23. November 2026 «Ja, Patch 1.43.1» gewählt; der
+  Versionscommit liegt auf demselben Zweig.
+- **Veröffentlicht am 23. November 2026:** PR #212 gemergt (Merge `744ec9c6`), Tag `v1.43.1` auf dem
+  Merge-Commit, Release-Lauf 45178154670 grün, `manifest.json` nennt 1.43.1. Der erste PR-Lauf (45163735384)
+  endete rot, ohne dass ein Test fehlschlug: Vier Jobs hingen in `sudo apt-get update` an den Ubuntu-Spiegeln bis
+  zu ihrem Zeitlimit; nach `gh run rerun --failed` war der Sammel-Check `ci` grün. `android-emulator (flow,
+  informational)` war rot wie in den Läufen davor und zählt nicht für `ci`. Der Zweig ist gelöscht.
+- **Beobachtet auf CT 190:** Der Stundenlauf stellte den Wunsch um 11:49 Ortszeit auf «verfügbar»; «Strike Back»
+  steht seither in der Reihe «Erfüllte Wünsche». Die Korrektur selbst ist dort nicht abgenommen: CT 190 lief dabei
+  auf 1.43.0, Marco hebt per Updater.
+
 ## Bau der Android-Apps (Konzept 27 und 26): Stand je Stufe (seit 21. November 2026)
 
-Marco hat am 21. November 2026 den Bau beider Konzepte bestellt (Frage 34 und 35). Dieser Abschnitt wächst
-mit jeder Stufe. Was nur im Emulator oder gegen Nachbauten geprüft ist und was Marco selbst einrichten muss,
-steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETRIEBNAHME.md`.
+Marco hat am 21. November 2026 den Bau beider Konzepte bestellt (Frage 34 und 35). Gebaut wurde vom 21. bis
+23. November 2026. Was nur im Emulator oder gegen Nachbauten geprüft ist und was Marco selbst einrichten muss,
+steht je Stufe dabei und gesammelt unten; die gesammelte Anleitung ist `docs/dev/ANDROID-INBETRIEBNAHME.md`.
+
+### Stand je Stufe (23. November 2026)
+
+| Stufe | Stand | PR (Merge) | Tag |
+|---|---|---|---|
+| Regeln vor Stufe 0 | in main | #192 (`4b1cf97d`) | – |
+| K27 0 Messung | in main | #194 (`92a29b83`) | – |
+| K27 1 Server | in main, Release 1.42.0 | #198 (`20cb5371`) | `v1.42.0` |
+| K27 2 Dienste | in main; Abnahme auf Marcos Infrastruktur offen | #195 (`13ef4798`) | `relay-v1.0.0` |
+| K27 3 Gerüst | in main | Teil 1 #197 (`69bf5a62`), Teil 2 #201 (`8d08f4ea`) | – |
+| K27 4 Stöbern | in main | #201 (`8d08f4ea`) | – |
+| K27 5 Videoplayer | in main | #201 (`8d08f4ea`) | – |
+| K27 6 Downloads | in main | #202 (`a22a45dc`) | – |
+| K27 7 Ton | in main | #206 (`30b61111`) | – |
+| K27 8 Wünsche und Meldungen | in main | #204 (`c261f325`) | – |
+| K27 9 Fernseher verbinden | in main | #203 (`1b267daf`) | – |
+| K27 10 Öffentlich | Vorbereitung, Ausgabe und Foto-Lauf in main; Rest offen (Play Console, Fotos gegen den Vorführserver hinter HTTPS) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 (`00b8bbb6`) | `app-v1.0.0` |
+| K26 0 Messung | in main | #196 (`1cc6d95e`) | – |
+| K26 1 Server: Ton und Fähigkeiten | in main, Release 1.43.0 | #199 (`f1f0f493`) | `v1.43.0` |
+| K26 2a Gerüst | in main | #201 (`8d08f4ea`) | – |
+| K26 2b Seiten | in main | #202 (`a22a45dc`) | – |
+| K26 3 Videoplayer | in main | #202 (`a22a45dc`) | – |
+| K26 4 Ton | in main | #208 (`ea676878`) | – |
+| K26 5 Wünsche | in main | #205 (`80bec7a3`) | – |
+| K26 6 Öffentlich | TV-Teil der Store-Unterlagen, Ausgabe und Foto-Lauf in main; Rest offen (TV-Spur in der Play Console) | #200 (`64ae5bcd`), #209 (`9dce65e8`), #211 (`00b8bbb6`) | `tv-v1.0.0` |
+| Ausgabe (Symbol, Signatur, Bundles, Release-Weg, Anleitung) | in main | #209 (`9dce65e8`) | – |
+| Übersetzungen der App-Texte (20 Sprachen) | in main | #210 (`f7f237d3`) | – |
+| Bildschirmfotos für den Store (Skript; Bilder nicht im Repo) | in main | #211 (`00b8bbb6`) | – |
+| Messkorrektur der RSS-Latte | in main | #207 (`ba7ea8c9`) | – |
+
+**Tags der Apps:** `app-v1.0.0` und `tv-v1.0.0` stehen seit dem 23. November 2026 auf `00b8bbb6` (main nach
+PR #211). Der Workflow `release-android.yml` lief für beide durch (Läufe 45168391941 und 45168390943: bauen,
+signieren, veröffentlichen). Die GitHub-Releases «Slouchcat phone app 1.0.0» und «Slouchcat TV app 1.0.0»
+tragen die unsignierten Release-Dateien (APK, AAB, `SHA256SUMS`; im Repo liegen keine Signatur-Secrets) und
+sind nicht «latest»: «Latest» blieb das Server-Release. Das sind keine Store-Ausgaben; die Regel aus
+`docs/dev/VERTRAEGLICHKEIT.md` wird erst mit der ersten Ausgabe im Play Store verbindlich. Einen Tag
+`relay-v1.0.1` gibt es nicht (A-18).
+
+### Eigene Entscheide des Baus
+
+Die Entscheide A-1 bis A-18 hat der Bau selbst getroffen, wo das Papier eine Lücke liess oder ein Review
+eine Abweichung verlangte. Sie sind keine Entscheide von Marco. (Nicht zu verwechseln mit den Spec-IDs A-1
+bis A-9.)
+
+| Nr. | Entscheid | Grund | Steht in |
+|---|---|---|---|
+| A-1 | Die Hilfeseite des QR-Codes liefert die Vermittlung selbst (`GET /tv`), nicht eine Website des Projekts (K27 15.2) | Im Repo gibt es keine Website; der Name der Vermittlung steckt so ohnehin in der Adresse des QR-Codes | ADR 0042 Punkt 3; `docs/relay/BETRIEB.md` Abschnitt 4 |
+| A-2 | Das Logbuch des Baus liegt ausserhalb des Repos statt unter `.omc/state/` | Die Bau-Session durfte nicht in den Haupt-Checkout schreiben | nur hier |
+| A-3 | JDK 21 statt JDK 17 (K27 5.7) | Robolectric braucht für SDK 36 Java 21 | ADR 0039 Punkt 7; `CLAUDE.md` «Werkzeuge»; `docs/perf/K27-android-handy.md` Punkt 10 |
+| A-4 | Die Lizenzen des Android-SDK sind beim Installieren auf der Entwicklungsmaschine angenommen worden | Ohne sie lässt sich das SDK nicht installieren; der Auftrag verlangt SDK und Emulatoren | `scripts/install-android-tools.sh` (Kopfkommentar) |
+| A-5 | `compileSdk` 37.2 statt 36; `targetSdk` bleibt 36 (Handy) und 34 (TV) | Compose 1.13, Material 3 1.5 und OkHttp 5.5 verlangen es | `docs/perf/K27-android-handy.md` Punkt 11; ADR 0039 Punkt 7 |
+| A-6 | «Server hat einen neuen Schlüssel»: kein Blatt, das sich von selbst öffnet und zur Anmeldung führt; bestätigen nur ausdrücklich über «Mehr › Server» mit Fingerabdruck und der Angabe «im eigenen Netz»; ein anderer `serverKey` beim Neu-Einrichten zählt als anderer Server (Zugang weg) | Sicherheits-Review K27 Stufe 3 Teil 2 (H-1, H-2): Der Ablauf des Papiers hätte einem fremden Gerät im Netz Passwort oder Zugang geliefert | ADR 0040, «Nachtrag K27 Stufe 3: die Handy-App» |
+| A-7 | TV-App: Texteingabe über die Eingabe des Systems statt der eigenen Bildschirmtastatur des HTML-Mockups (für die Suche gilt A-11) | Konvention auf Android TV (Tastatur des Geräts, Spracheingabe); das Mockup brauchte eine eigene, weil ein Browser keine hat | nur hier |
+| A-8 | «Profile verwalten» fragt im Hauptprofil die PIN nicht erneut (Sicherheits-Review K27 Stufe 5, M-1, nicht gebaut) | K27 4.6 nennt nur den Fall ohne PIN, die Web-App verhält sich gleich; eine zweite PIN-Abfrage nur in der App wäre eine Regel neben dem Server (Regel 12) | nur hier |
+| A-9 | Leiste der TV-App wie im Mockup: Merkliste, Gesehen und Sammlungen als «Meine Listen» im Menü «Bibliotheken» und hinter «Alle» der Reihen auf «Start»; höchstens fünf Bibliotheken, dann «Alle Bibliotheken …» | Code-Review K26 Stufe 2b (M-3): Die Leiste blätterte nicht und lief aus dem Bild | Punkt «Konzept 26, Stufe 2, Teil b» unten |
+| A-10 | Die Bühne der Startseite holt Inhaltsangabe und Genres des gezeigten Titels über `getItem` (gemerkt je Titel), in beiden Apps | Ohne Vertragsänderung; `getHome` liefert beides nicht | ADR 0039, Nachtrag 22. November 2026; Punkt «Gemeinsame Module» unten |
+| A-11 | Suche am Fernseher: Die eigene Tastatur des Mockups bleibt, dazu eine Taste «Tastatur des Geräts» für alle Schriften; Backspace einer echten Tastatur löscht | Die eigene Tastatur kennt nur lateinische Zeichen | Punkt «Konzept 26, Stufe 2, Teil b» unten |
+| A-12 | Gemeinsames Modul `:core:browse` für die ViewModels beider Apps, gebaut nach K27 Stufe 6 | Code-Review K26 Stufe 2b (M-1): neun ViewModels waren kopiert; der Zeitpunkt vermied Konflikte mit dem laufenden Bau | ADR 0039, Nachtrag 22. November 2026 |
+| A-13 | Der Ablauf im Emulator steht nicht im Gate: `android-contract` im Gate, `android-emulator` nur zur Information | Der Emulator stürzte auf den Runnern ab; K27 5.7 lässt die Frage offen («misst Stufe 3») | `docs/perf/K27-android-ci.md` |
+| A-14 | Aus dem Sicherheits-Review K27 Stufe 9 nicht gebaut: L-3 (Prüfwert auf beiden Bildschirmen) und L-5 (PIN vor dem Koppeln im Hauptprofil) | K26 4.6 sieht keinen Prüfwert vor; L-5 wäre eine Vertragsänderung (wie A-8) | Punkt «Konzept 27, Stufe 9», «Bewusst nicht gebaut» |
+| A-15 | (a) «Filme» und «Serien» der Wünsche am Fernseher sind Reihen in «Entdecken», die nachladen; (b) die Hauptsuche der TV-App zeigt «Noch nicht in der Bibliothek?» wie Handy und Web | (a) Das TV-Mockup 32 hat keine eigenen Reiter, das Papier nennt sie nur in einer Aufzählung; (b) gleiche Logik in allen Clients | Punkt «Konzept 26, Stufe 5», «Abweichungen» |
+| A-16 | Keine Prüfsummen-Datei für Gradle (`verification-metadata.xml`) im Paket «Ausgabe» | Sie bricht mit jedem Dependabot-Update und braucht einen eigenen Ablauf | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.2, «Restrisiko» |
+| A-17 | `deploy/scripts/measure-healthy.sh` misst den Leerlauf mit `--network none`; die Grenze bleibt 80 MB | Der Server holt beim ersten Start den Radiokatalog aus dem Internet; die Messung hing an einem fremden Dienst | `docs/perf/M9.md` Abschnitt 5 |
+| A-18 | Kein Tag `relay-v1.0.1` | Seit `relay-v1.0.0` änderten sich nur `relay/internal/pairing` und das Prüfprogramm `paircheck`; die zwei Images bauen `cmd/pair` und `cmd/push`, die das Paket nicht einbinden. Ein neuer Tag ergäbe dieselben Dienste | `git diff relay-v1.0.0..main -- relay` |
+
+**Weiterer Entscheid des Baus ohne Nummer:** die Tippsperre im Videoplayer
+(Code-Review K27 Stufe 5, L-6) ist nicht gebaut, weil weder Papier noch Mockup sie nennen.
+
+**Abweichungen der Agenten** (in den Reviews geprüft und belassen; Einzelheiten in den Stufen-Punkten unten):
+
+- **K27 Stufe 2:** Der Port der Dienste ist am Mietserver an `127.0.0.1` gebunden; falsches Abholgeheimnis
+  gibt 403; `data.wp` ist Standard-Base64 mit Füllung.
+- **K26 Stufe 1:** MP3 in HLS neu kodiert; TrueHD, PCM und unbekannte Formate im Remux neu kodiert;
+  Dolby-Kopie nur mit `maxAudioChannels`; E-AC-3 bis 1024 kbit/s.
+- **K27 Stufe 3:** «angemeldet heute / vor 3 Tagen» statt «seit …» in «Meine Geräte».
+- **K26 Stufe 2a:** Taste «Öffnen» im PIN-Feld; «Vermittlung ändern» auf der Kopplungsseite; Zurück führt
+  zuerst in die Leiste; Zurück auf «Verbunden» bestätigt nichts; neuer Schlüssel des Servers am Fernseher =
+  Hinweis und neu einrichten.
+- **K27 Stufe 4:** Genre- und Bibliothekskacheln ohne Bild (der Vertrag liefert keins); acht Profilfarben;
+  PIN-Längen 4–8 und 6–12 wie im Vertrag; «Empfehlen» ohne Profilnamen (der Server empfiehlt allen).
+- **K27 Stufe 6:** «Niedrig» statt «Sparsam» (vorhandener Text der Web-App).
+- **K27 Stufe 7:** Mini-Player auch für Hörbuch und Podcast; Webradio ohne Zeitversatz; Podcast-Abo =
+  Merkliste («Merken»).
+- **K27 Stufe 8:** Adresse der Push-Weiterleitung nur beim Bau änderbar (F-21); Ereignisse je Kanal;
+  Ankündigungen als Karte; Ziel «Wünsche» immer in der Leiste.
+- **K27 Stufe 9:** keine Eingabe des Codes von Hand (Papier und Mockup sehen keine vor); Scanner der Bauart
+  `foss` innerhalb der Seite; kein `FLAG_SECURE`; der Gutschein lässt sich nicht zurückziehen (verfällt nach
+  2 Minuten).
+- **K26 Stufe 3:** Folgenmenü in normaler Breite; Qualität ohne «Original», ab Werk «Automatisch»; Zeile
+  «Untertitelsprache»; Countdown-Karte 450 dp. Der zuerst gebaute Knopf «Tempo» ist wieder entfernt (Papier
+  und Mockup nennen keinen).
+- **K26 Stufe 4:** Sprünge −15/+30 s wie in Web- und Handy-App (TV-Mockup 30/30, das Papier nennt keinen
+  Wert); kein Schlaftimer; Länder als Seitenmenü; keine Reihe «Meine Sender» auf «Start».
+- **K26 Stufe 5:** «Filme» und «Serien» als Reihen (A-15); dritter Reiter «Suchen» statt eines Blatts;
+  Kapitelname beim Spulen (Mockup zeigt keinen); Bewertung an zweiter Stelle; Zählung mit Ankündigungen.
+- **Ausgabe:** `versionCode` der Handy-App unter 1 000 000, der TV-App ab 1 000 001 (ein Store-Eintrag);
+  Abbruch, wenn die Signaturwerte nur teilweise gesetzt sind; Store-Symbol als volles Quadrat;
+  Feature-Grafik ohne Handy.
+- **Alle Stufen:** `compileSdk` 37.2 (A-5).
+
+### Nur im Emulator oder gegen Nachbauten geprüft
+
+| Was | Geprüft mit | Steht in |
+|---|---|---|
+| Handy-App, alle Bereiche | Emulatoren `sc_phone` und `sc_tablet` (API 36), `task android:e2e` 16 Fälle; Krypto auch auf API 28 | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 8; `docs/perf/K27-android-handy.md` «Nur im Emulator geprüft» |
+| TV-App, alle Bereiche | Emulator `sc_tv` (Google TV, API 34), `task android:e2e:tv` 12 Fälle (Stand K26 Stufe 4) | `docs/perf/K26-android-tv.md` «Nur im Emulator geprüft» |
+| Ton am Fernseher | nur Software-Decoder, PCM Stereo; Dolby und Durchreichen nicht | `docs/perf/K26-android-tv.md` Stufe 3 und 4 |
+| Messwerte (erstes Bild, Tippen bis Ton, offline) | nur im Emulator | `docs/perf/K27-android-handy.md` Stufe 5 bis 7; `docs/perf/K26-android-tv.md` Stufe 3 |
+| Server 1.42.0 und 1.43.0 | Prüfprogramme `task apicheck`, `task devicecheck`; keine echte App und kein echter Fernseher gegen einen laufenden Server zu Hause | Punkte K27 Stufe 1 und K26 Stufe 1 unten |
+| Vermittlung und Push-Weiterleitung | lokal in Containern, Umzugsprobe nachgestellt | `docs/relay/BETRIEB.md` Abschnitt 8 |
+| Push | Attrappe `fcmfake` statt Googles Dienst | `docs/perf/K27-android-handy.md` Stufe 8 |
+| Kopplung Handy und Fernseher | `task android:pair:host`, `task android:e2e:pair` (echte TV-App im Emulator, Handy-Logik als Programm auf dem Rechner) | `docs/perf/K27-android-handy.md` Stufe 9 |
+| Wünsche | Attrappen von Seerr und TMDB | `scripts/android-helpers.sh` |
+| Webradio | Teststationen | `scripts/android-helpers.sh` |
+| Signieren | Wegwerf-Schlüssel über Gradle und `task android:sign` | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 6 |
+
+### Offen
+
+| Was | Steht in |
+|---|---|
+| Vermittlung und Push-Weiterleitung: Der Bau hat sie nur lokal und gegen Nachbauten geprüft. Betrieb, Überwachung und die Umzugsprobe liegen ausserhalb dieses Baus; die Abnahme nach der Betriebsanleitung ist offen | `docs/relay/BETRIEB.md` Abschnitt 9 |
+| Firebase-Projekt und echte Zustellung von Push (geschlossene App, Stromsparmodus) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 5; `docs/perf/K27-android-handy.md` Stufe 8 |
+| Echte Geräte: Gerätechecklisten der Handy-App, Abnahmeliste der TV-App je Gerät und Tonanlage | `docs/perf/K27-android-handy.md` Stufe 5 bis 9 und «Auf einem echten Gerät …»; `docs/perf/K26-android-tv.md` «Auf den drei Geräten nachzumessen», Stufe 3 und 4 |
+| Abnahme mit echtem Seerr an Handy und Fernseher | `docs/planning/27-android-handy-app.md` Abschnitt 13 (Stufe 8); `docs/planning/26-android-tv.md` Abschnitt 10 (Stufe 5) |
+| CT 190 hat der Bau nicht berührt: Abnahme von 1.42.0 und 1.43.0 auf CT 190, Kopplung gegen CT 190 mit dem Prüfprogramm als Fernseher | `docs/planning/27-android-handy-app.md` Abschnitt 13 (Stufen 1 und 9); `docs/planning/26-android-tv.md` Abschnitt 10 (Stufe 1) |
+| Play Console: App anlegen, Upload-Schlüssel, interne Testspur, geschlossener Test, Produktion, TV-Spur; Platzhalter in den Unterlagen | `docs/store/VEROEFFENTLICHEN.md`, Abschnitt «Noch einzutragen» |
+| GitHub: Environment `android-release` mit Pflicht-Reviewer und Tag-Regel, Tag-Ruleset, Signatur-Secrets (der erste Lauf von `release-android.yml` lief ohne sie und lieferte unsignierte Dateien) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.1 |
+| Bildschirmfotos für den Store gegen den Vorführserver hinter HTTPS neu aufnehmen (der Lauf vom 23. November 2026 zeigt HTTP-Hinweise und `10.0.2.2`); Bilder liegen nicht im Repo | `docs/store/grafiken.md`, `scripts/store-screenshots.sh`, `scripts/store-graphics.sh` |
+| Prüfsummen der Gradle-Abhängigkeiten (`android/gradle/verification-metadata.xml`, A-16) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.2, «Restrisiko» |
+| Emulator auf dem Runner: seit `-gpu swangle_indirect` kein Absturz, aber 13 von 16 Fällen grün; der Job bleibt ausserhalb des Gates | `docs/perf/K27-android-ci.md`, «Absturz des Emulators (23.11.2026)» |
+| Dolby-Tonspur, die erst nach dem ersten Segment beginnt: Start eines Remux mit Tonkopie scheitert | ADR 0041 |
+| Erster Abgleich des Radiokatalogs braucht kurz über 100 MB | `docs/perf/M9.md` Abschnitt 5 |
+| Web-Tests, die unter Last der Maschine flatterten und im Nachlauf grün waren (Altbestand, die Zweige änderten am Web nur Sprachdateien): `web/e2e/offline-pin.spec.ts:20` und `web/e2e/sidecar.spec.ts:25` (Firefox), `web/e2e/admin-radio.spec.ts:345` und `web/e2e/admin-stats.spec.ts:33` (Chromium), `web/e2e/downloads.spec.ts:44` (Firefox); Vitest mit Zeitüberschreitungen unter Last, darunter `web/src/app/radio/useRadio.test.tsx` | die genannten Dateien |
+| CI: Der Job `android` scheiterte an drei Pull Requests am Download-Limit von Maven Central (429), solange main keinen Gradle-Zwischenspeicher hatte (main überspringt geprüften Inhalt und speicherte darum keinen); seit dem vollen main-Lauf vom 23. November 2026 treffen Pull Requests den Zwischenspeicher. Kommt ein Zweig mit geänderten Gradle-Dateien, lädt er wieder frisch | `docs/perf/K27-android-ci.md` |
+| CI: Mit dem Zwischenspeicher laufen die JVM-Tests auf den Runnern anders getaktet; zwei Rennen in Tests (nicht in der App) traten auf und sind behoben (`DownloadsViewModelTest`, `AudioServiceTest`). Drei Verdachtsfälle ohne Beleg sind nicht geändert: `OfflineEngineTest` (Liste `syncs`), `OfflineWorkerTest.tearDown`, `FileFetcherTest` (Abbruch) | `docs/perf/K27-android-ci.md` |
+| Glossar: «In Beschaffung» in Italienisch und Französisch und der Webtext `wishes.state.processing` widersprechen der Regel «wird geholt»; Ungarisch hat für «Läuft gerade» zwei Fassungen (`app.player.nowPlaying`, `tv.audio.nowPlaying`); «Vermittlung» und «Push-Weiterleitung» tragen in pl, tr und nb verschiedene Wörter | `docs/i18n/glossar.md` Abschnitt 8 und 9 |
+| Beispieladresse aus einem Heimnetz in `admin.integrations.seerr.urlHelp` und `urlPlaceholder` (`web/src/locales/de.json`, `en.json`; Altbestand) | die genannten Dateien |
+| Nicht gebaut, weil der Vertrag es nicht liefert: «Mehr davon» (beide Apps), Budget des Servers in der Speicheranzeige, Regeln je Serie oder Podcast, «Qualität für neue Downloads», Lizenzfristen, Webradio «Zuletzt gespielt», sichere Zuordnung «dieser Fernseher» beim Koppeln (bräuchte eine Gerätekennung beim Einlösen) | Punkte K27 Stufe 4, 6, 7, 9 und K26 Stufe 2b unten |
+| Sicherheitsvorschläge ohne Bau: A-8, A-14 | oben |
+| K26 Stufe 4 (#208) und «Ausgabe» (#209) warten auf das Gate; die Übersetzungen auf ihren PR | Tabelle oben |
+
+**Was Marco tun muss**, steht als eine Liste in `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9 «Das muss
+Marco tun».
+
+### Die Stufen im Einzelnen
 
 - **Regeln (PR #192):** `CLAUDE.md` Regel 11, Spec «Non-Goals» und Plan Abschnitt 1 nennen die
   Android-Handy-App, die Android-TV-App und die zwei Dienste aus `relay/` als Ausnahmen.
@@ -149,7 +332,9 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
   - **Offen, nur Marco:** Platzhalter in den Unterlagen füllen (Entwickler, Adressen, Kontakt), Upload-Schlüssel
     erzeugen, App in der Play Console anlegen und hochladen, geschlossener Test mit 12 Testern über 14 Tage,
     Antrag auf Produktion, Vorführserver aufsetzen, Datenschutzerklärung prüfen und veröffentlichen.
-    Bildschirmfotos, Symbol und Banner entstehen mit den fertigen Apps.
+    Bildschirmfotos, Symbol und Banner entstehen mit den fertigen Apps. (Stand 23. November 2026: Das
+    Banner der TV-App steht im Manifest; Starter-Symbol und die SVG-Quellen der Store-Grafiken kommen mit
+    dem Punkt «Ausgabe», PR #209; die Bildschirmfotos entstehen mit `scripts/store-screenshots.sh`, PR #211.)
 - **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
   Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
   - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.
@@ -166,9 +351,9 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     einen echten Server), `android:apk`; CI-Job `android` im Gate; `scripts/install-android-tools.sh`;
     ADR 0039; `CLAUDE.md` Regeln 8, 9 und Werkzeuge.
   - **Geprüft:** Tests, getrenntes Code-Review mit Korrekturrunde (5 Major, 34 Minor), Seite im Emulator
-    an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» folgen mit
-    Teil 2 (braucht den Serverteil aus Stufe 1). Die Texte des Namensraums `app` gibt es erst in Deutsch
-    und Englisch.
+    an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» kamen mit
+    Teil 2. Die Texte des Namensraums `app` gab es zuerst nur in Deutsch und Englisch; die Übersetzungen
+    stehen im Punkt «Übersetzungen der Apps».
 - **Konzept 27, Stufe 3 «Gerüst», Teil 2:** Anmelden (`appLogin`), Zugang im Android-Keystore,
   Profilwahl mit PIN, Hülle der App als Register von Seiten (untere Leiste am Handy, Seitenspalte am
   Tablet), «Mehr», «Meine Geräte», Konto (Passwort, E-Mail), Abmelden.
@@ -179,7 +364,8 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Ablauf im Emulator (`task android:e2e`) läuft lokal vor jedem PR an den Apps; der CI-Job
     `android-emulator` steht **nicht** im Gate, weil der Emulator auf den Runnern von GitHub in drei
     Läufen mit einem Speicherzugriffsfehler abstürzte (dieselbe Fassung läuft lokal). Messung und
-    Entscheid in `docs/perf/K27-android-ci.md`.
+    Entscheid in `docs/perf/K27-android-ci.md`. Seit K27 Stufe 7 (`-gpu swangle_indirect`) stürzt er dort
+    nicht mehr ab; 13 von 16 Fällen sind grün, der Job bleibt ausserhalb des Gates.
   - **Geprüft:** Code-Review und Sicherheits-Review mit Korrekturrunde (2 High behoben: Nachanmeldung
     und erneutes Einrichten übernahmen einen fremden Schlüssel), Ablauf im Emulator an Handy und Tablet.
 - **Konzept 27, Stufe 4 «Stöbern»:** Start (Bühne, Reihen), Medienauswahl, Bibliothek (Raster und Liste,
@@ -190,7 +376,8 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
   - **Geprüft:** Oberflächentest je Seite (zwei Breiten, 200 % Schrift), Test über das echte Register,
     Ablauf im Emulator an Handy und Tablet, Schaubilder aller Seiten mit eingespielten Daten gegen das
     Mockup angesehen, getrenntes Code-Review mit Korrekturrunde (2 Major, 10 Minor).
-  - **Abweichungen vom Mockup:** keine Genres auf der Bühne (die Web-App zeigt dort auch keine);
+  - **Abweichungen vom Mockup:** keine Genres auf der Bühne (die Web-App zeigt dort auch keine; überholt:
+    seit `:core:browse` holt die Bühne Genres und Inhaltsangabe über `getItem`, A-10);
     «Mehr davon» fehlt (der Vertrag liefert keine Liste); Genre- und Bibliothekskacheln ohne Bild.
 - **Konzept 27, Stufe 5 «Videoplayer»:** gemeinsames Modul `:core:player` (Media3, Fähigkeitsprofil des
   Geräts nach ADR 0041, Sitzung, Fortschritt, Spur- und Qualitätswechsel, nächste Folge, MediaSession),
@@ -210,8 +397,9 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Prüfprogramm `apicheck -pair-phone` spielt das Handy. Läuft lokal, nicht in der CI (Laufzeit).
   - **Geprüft:** Tests mit dem Steuerkreuz als JVM-Tests, Test über das echte Register, getrenntes
     Code-Review mit Korrekturrunde (3 Major, darunter: Die Kopplung lief nach Verlassen der Seite weiter).
-  - **Offen:** die Seiten der TV-App (Stufe 2 Teil b), der Scan mit der echten Handy-App (K27 Stufe 9),
-    alles auf einem echten Fernseher.
+  - **Offen:** alles auf einem echten Fernseher. Die Seiten der TV-App (Stufe 2 Teil b) und die
+    Handy-Seite des Scans (K27 Stufe 9) sind inzwischen gebaut; der Scan lief nur mit der TV-App im
+    Emulator und der Handy-Logik als Programm auf dem Rechner (`task android:e2e:pair`).
 - **Ausgabe der Apps (Konzept 27 Stufe 10 und Konzept 26 Stufe 6, was ohne Google und ohne Marco geht):**
   - **Starter-Symbol** der Handy-App (adaptiv, mit einfarbiger Ebene), Versionsdateien beider Apps
     (`app-mobile/version.properties`, `app-tv/version.properties`, beide `1.0.0`; `versionCode` der Handy-App
@@ -394,7 +582,8 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
   `web/src/locales/*.json`) sind am 23. November 2026 in allen 20 Sprachen übersetzt und zweitgelesen
   (266 Korrekturen); `task i18n:check` ist strikt grün. Die neuen Begriffe stehen im Glossar,
   Abschnitt 9 «Android-Apps».
-  - **Offen (Altbestand):** Die Glossarzeile «In Beschaffung» in Italienisch («In elaborazione», Abschnitt 8)
+  - **Offen (Altbestand):** Die Glossarzeile «In Beschaffung» in Italienisch («In elaborazione», Abschnitt 8;
+    ebenso Französisch «En cours de traitement»)
     und der Webtext `wishes.state.processing` widersprechen der Regel des Glossars («wird geholt», nie «wird
     verarbeitet»); die App-Texte (`app.wishes.steps.loading` «In download») halten die Regel.
   - **Offen:** Abnahme mit echtem Seerr auf einem Fernseher.

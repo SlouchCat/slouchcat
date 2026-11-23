@@ -19,9 +19,10 @@ import (
 // The reconcile with the library (concept 25, architecture 8.1, 8.3 and 11; build step 2.5): a
 // wish is available when Slouchcat can play it for a requester (F-13), not when Seerr says so. The
 // match of a title in the library calls TitleMatched (the hook of package metadata after the
-// provider ids are written, for a series after its seasons), which queues the reconcile of that
-// title; the scan alone triggers nothing, because before the match the ids may be empty and the
-// rating unknown. Every hour the reconcile checks every open wish. A film is available when a
+// provider ids are written, for a series after its seasons and again after each episode a later
+// scan brought), which queues the reconcile of that title; the scan alone triggers nothing,
+// because before the match the ids may be empty and the rating unknown. Every hour the reconcile
+// checks every open wish. A film is available when a
 // requester sees it; a season when a requester plays as many episodes as the season has (a
 // running season: as many as have aired); a series when every wished season is, partial before.
 // The Notifier decides per profile and writes notified_at; this package writes it only for a
@@ -79,8 +80,9 @@ func (s *Service) queueReconcile(ctx context.Context, p *reconcilePayload) error
 }
 
 // TitleMatched is the hook of package metadata (metadata.Service.WithMatched): a film or series of
-// the library got its provider ids. With an open wish for one of them it queues the reconcile of
-// that title; a failure is logged, the hourly reconcile catches up.
+// the library got its provider ids, or a series got an episode after its match. With an open wish
+// for one of them it queues the reconcile of that title; a failure is logged, the hourly reconcile
+// catches up.
 func (s *Service) TitleMatched(ctx context.Context, m metadata.MatchedTitle) {
 	media := model.WishMediaMovie
 	switch m.Kind {
