@@ -10,15 +10,21 @@
 # Per app: debug APKs to install with `adb install` (signed with the debug key, application id with
 # `.dev`), the release APKs and the bundles (AAB; `foss` has none, it never goes to the store),
 # signed with the upload key when the four slouchcat.signing.* values are set (build-logic,
-# Signing.kt), else unsigned and named so. Checks: every debug APK verifies with apksigner and its
-# badging names the package, the version of version.properties and an icon; the TV APKs carry the
-# leanback launcher and the banner; a release APK named signed verifies as well.
+# Signing.kt), else unsigned and named so; scripts/android-sign.sh signs those afterwards without
+# Gradle (the job "sign" of release-android.yml). Checks: every debug APK verifies with apksigner
+# and its badging names the package, the version of version.properties and an icon; the TV APKs
+# carry the leanback launcher and the banner; the TV release APK requires leanback and not the
+# touchscreen, the phone's release APKs do not require leanback.
 #
 # JAVA_HOME and ANDROID_HOME as in android/Taskfile.yml. Gradle waits for a heavy slot.
 set -euo pipefail
+shopt -s inherit_errexit
 
 android=$(cd "$(dirname "$0")/../android" && pwd)
-apps=${APPS:-app tv}
+# APPS is a list of words; no globbing on it.
+set -f
+read -r -a apps <<<"${APPS:-app tv}"
+set +f
 dist="$android/dist"
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 tools=$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort -V | tail -n 1)
@@ -36,7 +42,7 @@ version() { # <module> <key>
 }
 
 tasks=()
-for app in $apps; do
+for app in "${apps[@]}"; do
   case "$app" in
     app) tasks+=(:app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease
       :app-mobile:assembleFossRelease :app-mobile:bundlePlayRelease) ;;
@@ -45,12 +51,20 @@ for app in $apps; do
   esac
 done
 
+# With the upload key in play, nothing of it goes into Gradle's configuration cache.
+gradle_flags=(--console=plain)
+gradle_props="${GRADLE_USER_HOME:-$HOME/.gradle}/gradle.properties"
+if [ -n "${SLOUCHCAT_SIGNING_STORE_FILE:-}${SLOUCHCAT_SIGNING_STORE_PASSWORD:-}${SLOUCHCAT_SIGNING_KEY_ALIAS:-}${SLOUCHCAT_SIGNING_KEY_PASSWORD:-}" ] \
+  || { [ -f "$gradle_props" ] && grep -q '^[[:space:]]*slouchcat\.signing\.' "$gradle_props"; }; then
+  gradle_flags+=(--no-configuration-cache)
+fi
+
 cd "$android"
 # A release APK of an earlier run with or without the key would sit beside the new one under the
 # other name; Gradle writes the release outputs again.
 rm -rf app-mobile/build/outputs/apk/play/release app-mobile/build/outputs/apk/foss/release \
   app-mobile/build/outputs/bundle app-tv/build/outputs/apk/release app-tv/build/outputs/bundle
-../scripts/heavy-slot.sh ./gradlew --console=plain "${tasks[@]}"
+../scripts/heavy-slot.sh ./gradlew "${gradle_flags[@]}" "${tasks[@]}"
 
 rm -rf "$dist"
 mkdir -p "$dist"
@@ -67,14 +81,22 @@ one() { # <dir> <pattern>
 }
 
 # Signed or not, by the file itself: apksigner for an APK, a signature block in META-INF for a bundle.
-signed_apk() { "$apksigner" verify "$1" >/dev/null 2>&1; }
-signed_aab() { unzip -Z1 "$1" | grep -qE '^META-INF/[^/]+\.(RSA|EC|DSA)$'; }
+signed() { # <file>
+  case "$1" in
+    *.apk) "$apksigner" verify "$1" >/dev/null 2>&1 ;;
+    # The listing first: `unzip | grep -q` fails under pipefail when grep stops reading early.
+    *.aab) grep -qE '^META-INF/[^/]+\.(RSA|EC|DSA)$' <<<"$(unzip -Z1 "$1")" ;;
+  esac
+}
 
-copy() { # <source> <name without suffix> <ext> <signed: yes|no>
+# Copies <source> to dist as <name>.<ext>, or <name>-unsigned.<ext> when the file has no signature;
+# the name it got lands in the variable `copied`.
+copied=""
+copy() { # <source> <name without suffix> <ext>
   local target="$2"
-  [ "$4" = yes ] || target="$target-unsigned"
+  signed "$1" || target="$target-unsigned"
   cp "$1" "$dist/$target.$3"
-  echo "$target.$3"
+  copied="$target.$3"
 }
 
 badging() { "$aapt2" dump badging "$1"; }
@@ -96,35 +118,55 @@ check_debug() { # <apk> <package> <versionName> <versionCode> <tv: yes|no>
   echo "checked $1: $(grep '^package:' <<<"$out" | cut -d' ' -f2-4)"
 }
 
-for app in $apps; do
+# The devices a release APK reaches (Google Play filters by required features): the TV app only TVs
+# (leanback required, touchscreen not), the phone app never only TVs (leanback not required).
+check_features() { # <apk> <tv: yes|no>
+  local out
+  out=$(badging "$dist/$1")
+  if [ "$2" = yes ]; then
+    grep -qE "^[[:space:]]*uses-feature: name='android.software.leanback'$" <<<"$out" \
+      || { echo "$1: leanback is not required, the TV app would reach phones" >&2; exit 1; }
+    grep -qE "^[[:space:]]*uses-feature-not-required: name='android.hardware.touchscreen'$" <<<"$out" \
+      || { echo "$1: the touchscreen is not declared as not required" >&2; exit 1; }
+    echo "checked $1: requires leanback, not the touchscreen"
+  else
+    if grep -qE "^[[:space:]]*uses-feature: name='android.software.leanback'$" <<<"$out"; then
+      echo "$1: requires leanback, the phone app would reach only TVs" >&2
+      exit 1
+    fi
+    echo "checked $1: does not require leanback"
+  fi
+}
+
+for app in "${apps[@]}"; do
   if [ "$app" = app ]; then
     name=$(version app-mobile versionName)
     code=$(version app-mobile versionCode)
     out=app-mobile/build/outputs
     base="slouchcat-app-$name"
     for flavour in play foss; do
-      file=$(copy "$(one "$out/apk/$flavour/debug" "*.apk")" "$base-$flavour-debug" apk yes)
-      check_debug "$file" "com.slouchcat.app$([ "$flavour" = foss ] && echo .foss).dev" "$name" "$code" no
-      release=$(one "$out/apk/$flavour/release" "*.apk")
-      if signed_apk "$release"; then copy "$release" "$base-$flavour-release" apk yes >/dev/null
-      else copy "$release" "$base-$flavour-release" apk no >/dev/null; fi
+      src=$(one "$out/apk/$flavour/debug" "*.apk")
+      copy "$src" "$base-$flavour-debug" apk
+      check_debug "$copied" "com.slouchcat.app$([ "$flavour" = foss ] && echo .foss).dev" "$name" "$code" no
+      src=$(one "$out/apk/$flavour/release" "*.apk")
+      copy "$src" "$base-$flavour-release" apk
+      check_features "$copied" no
     done
-    bundle=$(one "$out/bundle/playRelease" "*.aab")
-    if signed_aab "$bundle"; then copy "$bundle" "$base-play-release" aab yes >/dev/null
-    else copy "$bundle" "$base-play-release" aab no >/dev/null; fi
+    src=$(one "$out/bundle/playRelease" "*.aab")
+    copy "$src" "$base-play-release" aab
   else
     name=$(version app-tv versionName)
     code=$(version app-tv versionCode)
     out=app-tv/build/outputs
     base="slouchcat-tv-$name"
-    file=$(copy "$(one "$out/apk/debug" "*.apk")" "$base-debug" apk yes)
-    check_debug "$file" com.slouchcat.app.dev "$name" "$code" yes
-    release=$(one "$out/apk/release" "*.apk")
-    if signed_apk "$release"; then copy "$release" "$base-release" apk yes >/dev/null
-    else copy "$release" "$base-release" apk no >/dev/null; fi
-    bundle=$(one "$out/bundle/release" "*.aab")
-    if signed_aab "$bundle"; then copy "$bundle" "$base-release" aab yes >/dev/null
-    else copy "$bundle" "$base-release" aab no >/dev/null; fi
+    src=$(one "$out/apk/debug" "*.apk")
+    copy "$src" "$base-debug" apk
+    check_debug "$copied" com.slouchcat.app.dev "$name" "$code" yes
+    src=$(one "$out/apk/release" "*.apk")
+    copy "$src" "$base-release" apk
+    check_features "$copied" yes
+    src=$(one "$out/bundle/release" "*.aab")
+    copy "$src" "$base-release" aab
   fi
 done
 

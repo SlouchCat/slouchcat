@@ -6,11 +6,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- TV-MT: a TV has no touchscreen. Leanback declared but not required: one store entry with the
-         phone app (E-20); the TV artifact is the one with LEANBACK_LAUNCHER. -->
+    <!-- TV-MT: a TV has no touchscreen. Leanback required: the TV app is an artifact of its own on
+         the Android TV track of the phone app's store entry (E-20) and must never reach a phone, where
+         its higher versionCode would win over the phone app. required="false" is for one artifact
+         that runs on both ("Declare TV device support", developer.android.com, read 23 November 2026;
+         ADR 0039, addendum of 23 November 2026). scripts/android-dist.sh checks both in the APK. -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
-    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="true" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
