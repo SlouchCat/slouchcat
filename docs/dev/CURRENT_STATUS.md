@@ -293,6 +293,24 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     und durchreichen), Mehrkanal-PCM, HDR10, HLG, Dolby Vision, der Wechsel des Tonausgangs an echter
     Hardware. Die Abnahmeliste je Gerät und Tonanlage (28 Schritte) steht in `docs/perf/K26-android-tv.md`,
     «Stufe 3».
+- **Konzept 26, Stufe 4 «Ton» (TV-App):** Bibliotheken Hörbücher und Podcasts, Seiten Hörbuch, Reihe, Podcast
+  und Folge, Webradio (Kacheln mit Stern für «Meine Sender», Ländermenü, Suche mit der Tastatur der TV-App),
+  Tonplayer als Vollbild (Kapitel auf einer Zeitachse, −15/+30 s, Kapitel und Folge vor und zurück, Menüs
+  Tempo (0,75× bis 2×), Kapitel, Folgen; nach 12 s eine ruhige Seite, der Bildschirm wird nicht wachgehalten), «Läuft
+  gerade» als Eintrag der Leiste und als Plakette oben rechts auf allen Seiten. Die Logik kommt aus
+  `:core:player`, `:core:media` und `:core:browse` (dieselbe wie in der Handy-App).
+  - **Ton nur, solange die App vorn ist (Papier 5.6):** Er endet bei Home, Standby, HDMI weg, Verlassen
+    der App, Profilwechsel und Abmelden; ein Video beendet die Sitzung des Hörtitels. Beim Bildschirmschoner
+    läuft er weiter. Kein Hintergrunddienst auf dem Fernseher.
+  - **Geprüft:** je Seite ein Test mit dem Steuerkreuz, Tests für Home, Schoner, HDMI, Verlassen und Video
+    (`AudioForegroundTest`, `AudioFlowTest`), Test über das echte Register, Ablauf im TV-Emulator mit
+    Teststationen (`task android:e2e:tv`, 12 Tests), Schaubilder gegen das Mockup angesehen, Code-Review mit
+    Korrekturrunde (1 Blocker, 2 Major), Verifier.
+  - **Abweichungen:** Sprünge −15/+30 s wie in der Web-App und der Handy-App (das TV-Mockup zeigt 30/30,
+    das Papier nennt keinen Wert).
+  - **Bekannte Grenzen:** Stirbt der Prozess gleich nach dem Verlassen, fehlt die letzte Meldung des Standes
+    an den Server. Wirkung von Bildschirmschoner, CEC und HDMI-Signalen an echten Geräten ist nicht geprüft
+    (Abnahmeliste in `docs/perf/K26-android-tv.md`, «Stufe 4»).
 - **Konzept 26, Stufe 5 «Wünsche» (TV-App):** Bereich «Wünsche» in der Leiste mit «Entdecken», «Suchen»
   (eigene Tastatur und Spracheingabe) und «Meine Wünsche» (Filter, Zahl der offenen Wünsche), Titelseite
   ausserhalb der Bibliothek mit Anfordern (Serien mit Staffeln), Zurückziehen und «Nicht mehr
