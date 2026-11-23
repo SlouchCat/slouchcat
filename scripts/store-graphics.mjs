@@ -7,9 +7,10 @@
 // app-icon.png 512 x 512 (PNG 32 bit with alpha, as the Play Console asks), feature-graphic.png
 // 1024 x 500 and tv-banner.png 1280 x 720 (PNG 24 bit without alpha). Chromium writes an opaque
 // page as RGB, so the colour type is set here: the PNG is decoded and written again as RGBA or RGB
-// (zlib of Node, no image library). Every file's size and colour type is checked after writing.
+// (zlib of Node, no image library). Every file's size and colour type is checked before it is
+// written. The target folder must exist and lie outside the repository.
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { deflateSync, inflateSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,10 +24,15 @@ const graphics = [
   { source: "tv-banner.svg", target: "tv-banner.png", width: 1280, height: 720, alpha: false },
 ];
 
-const target = process.argv[2];
-if (!target) {
+if (!process.argv[2]) {
   console.error("usage: node scripts/store-graphics.mjs <target folder>");
   process.exit(2);
+}
+// The images never go into the repository, also when this is called without store-graphics.sh.
+const target = realpathSync(process.argv[2]);
+if (`${target}/`.startsWith(`${realpathSync(root)}/`)) {
+  console.error(`refusing ${target}: the store graphics stay outside the repository`);
+  process.exit(1);
 }
 
 const browser = await chromium.launch();
@@ -38,12 +44,12 @@ try {
     await page.setContent(`<!doctype html><html><body style="margin:0">${svg}</body></html>`);
     const shot = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: g.width, height: g.height } });
     const out = recode(shot, g.alpha);
-    writeFileSync(path.join(target, g.target), out);
     const info = header(out);
-    console.log(`${g.target}: ${info.width} x ${info.height}, ${info.alpha ? "RGBA" : "RGB"}, ${out.length} bytes`);
     if (info.width !== g.width || info.height !== g.height || info.alpha !== g.alpha) {
       throw new Error(`${g.target}: expected ${g.width} x ${g.height} ${g.alpha ? "RGBA" : "RGB"}`);
     }
+    writeFileSync(path.join(target, g.target), out);
+    console.log(`${g.target}: ${info.width} x ${info.height}, ${info.alpha ? "RGBA" : "RGB"}, ${out.length} bytes`);
   }
 } finally {
   await browser.close();
