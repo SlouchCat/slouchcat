@@ -109,7 +109,7 @@ class MessagesFlowTest {
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
-    private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
     private fun button(text: String) = compose.onAllNodes((hasText(text) or hasContentDescription(text)) and hasClickAction()).onLast()
 

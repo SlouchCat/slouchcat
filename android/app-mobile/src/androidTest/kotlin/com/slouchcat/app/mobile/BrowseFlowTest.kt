@@ -74,7 +74,7 @@ class BrowseFlowTest {
 
     private fun gone(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitForNoNode(matcher, timeout)
 
-    private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
     private fun button(text: String) = compose.onAllNodes((hasText(text) or hasContentDescription(text)) and hasClickAction()).onLast()
 

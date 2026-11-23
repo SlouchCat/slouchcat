@@ -89,9 +89,9 @@ class AudioFlowTest {
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 30_000) = compose.waitForNode(matcher, timeout)
 
-    private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
-    private fun present(matcher: SemanticsMatcher) = compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+    private fun present(matcher: SemanticsMatcher) = compose.isShown(matcher)
 
     private fun button(text: String) = compose.onAllNodes((hasText(text) or hasContentDescription(text)) and hasClickAction()).onLast()
 

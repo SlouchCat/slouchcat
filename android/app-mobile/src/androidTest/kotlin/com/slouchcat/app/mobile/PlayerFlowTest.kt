@@ -73,10 +73,10 @@ class PlayerFlowTest {
 
     private fun waitForText(text: String, timeout: Long = 20_000) = waitFor(hasText(text, substring = true), timeout)
 
-    private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
     /** A button: its label and its click sit in one node only in the merged tree. */
-    private fun present(matcher: SemanticsMatcher) = compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+    private fun present(matcher: SemanticsMatcher) = compose.isShown(matcher)
 
     private fun waitForButton(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitUntil(timeout) { present(matcher) }
 

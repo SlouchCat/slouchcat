@@ -123,7 +123,7 @@ class TvShowcaseTest {
     }
 
     private fun waitFor(text: String) = compose.waitUntil(TIMEOUT) {
-        compose.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        compose.nodesOrNull(hasText(text, substring = true) or hasContentDescription(text, substring = true), unmerged = true)?.isNotEmpty() == true
     }
 
     private fun focusedLabel(): String = compose.onAllNodes(isFocused()).fetchSemanticsNodes().joinToString { node ->
@@ -270,3 +270,9 @@ class TvShowcaseTest {
     }
 }
 
+/** The nodes of [matcher] now; `null` while no Compose hierarchy is there (an activity without Compose in front). */
+private fun androidx.compose.ui.test.junit4.ComposeTestRule.nodesOrNull(matcher: androidx.compose.ui.test.SemanticsMatcher, unmerged: Boolean = false) = try {
+    onAllNodes(matcher, useUnmergedTree = unmerged).fetchSemanticsNodes()
+} catch (e: IllegalStateException) {
+    if (e.message?.startsWith("No compose hierarchies found in the app") == true) null else throw e
+}

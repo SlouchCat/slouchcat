@@ -10,6 +10,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.MainActivity
+import com.slouchcat.app.mobile.isShown
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
 import com.slouchcat.app.mobile.shell.Feature
@@ -115,7 +116,7 @@ class Showcase(
     fun back() = InstrumentationRegistry.getInstrumentation().runOnMainSync { activity?.onBackPressedDispatcher?.onBackPressed() }
 
     fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) =
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(timeout) { compose.isShown(matcher, unmerged = true) }
 
     /** A photo of the screen to the app's files (`shots/`), taken once the page settled. */
     fun shot(name: String) {

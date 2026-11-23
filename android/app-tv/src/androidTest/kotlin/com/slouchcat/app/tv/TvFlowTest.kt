@@ -96,7 +96,7 @@ class TvFlowTest {
 
     /** Whether the focus is on an element with [text] now. */
     private fun isFocusedOn(text: String): Boolean =
-        compose.onAllNodes(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true))).fetchSemanticsNodes().isNotEmpty()
+        compose.nodesOrNull(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true)))?.isNotEmpty() == true
 
 
     /** A page of «Meine Listen» from the menu «Bibliotheken»: «Alle Bibliotheken …», then down to [label], OK. */
@@ -130,7 +130,7 @@ class TvFlowTest {
     }
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 30_000, unmerged: Boolean = true) {
-        compose.waitUntil(timeout) { compose.onAllNodes(matcher, useUnmergedTree = unmerged).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(timeout) { compose.nodesOrNull(matcher, unmerged)?.isNotEmpty() == true }
     }
 
     private fun waitForText(text: String, timeout: Long = 30_000) = waitFor(hasText(text, substring = true), timeout)
@@ -371,7 +371,7 @@ class TvFlowTest {
 
     /** Whether anything with [text] is on the screen now. */
     private fun present(text: String): Boolean =
-        compose.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        compose.nodesOrNull(hasText(text, substring = true) or hasContentDescription(text, substring = true), unmerged = true)?.isNotEmpty() == true
 
     /** The card [text] on a grid page: down into the grid, then along it to the right or the left. */
     private fun toCard(text: String) {
@@ -617,4 +617,11 @@ class TvFlowTest {
         const val LEFT_MAX = 8
         const val ROW_MAX = 4
     }
+}
+
+/** The nodes of [matcher] now; `null` while no Compose hierarchy is there (an activity without Compose in front). */
+private fun androidx.compose.ui.test.junit4.ComposeTestRule.nodesOrNull(matcher: SemanticsMatcher, unmerged: Boolean = false) = try {
+    onAllNodes(matcher, useUnmergedTree = unmerged).fetchSemanticsNodes()
+} catch (e: IllegalStateException) {
+    if (e.message?.startsWith("No compose hierarchies found in the app") == true) null else throw e
 }

@@ -83,7 +83,7 @@ class PlayerPicturesTest {
         )
         for ((error, title, name) in cases) {
             state = PlayerState(item = film, loading = false, durationMs = 60_000, error = error)
-            compose.waitUntil(5_000) { compose.onAllNodes(hasText(context.getString(title)) and isHeading()).fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(5_000) { compose.isShown(hasText(context.getString(title)) and isHeading()) }
             shot(name)
         }
     }

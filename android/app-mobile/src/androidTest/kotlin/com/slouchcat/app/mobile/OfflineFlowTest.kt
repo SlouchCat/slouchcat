@@ -79,9 +79,9 @@ class OfflineFlowTest {
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun shown(matcher: SemanticsMatcher) = compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 
-    private fun present(matcher: SemanticsMatcher) = compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+    private fun present(matcher: SemanticsMatcher) = compose.isShown(matcher)
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) = compose.waitUntil(timeout) { shown(matcher) }
 
