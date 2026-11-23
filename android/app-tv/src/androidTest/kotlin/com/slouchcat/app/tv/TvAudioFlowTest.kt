@@ -264,7 +264,8 @@ class TvAudioFlowTest {
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(PLAY_MS) { title()?.state?.playing == true }
         assertTrue(title()?.state?.item?.kind == com.slouchcat.core.api.generated.models.ItemKind.PODCAST_EPISODE)
-        waitForText(PODCAST)
+        // The audio player of an episode: «Podcast · <date>» over it.
+        waitForText(s(R.string.kind_podcast).uppercase())
         shot("s4-06-listen-episode")
         key(KeyEvent.KEYCODE_BACK)
         scenario.close()

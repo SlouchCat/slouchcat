@@ -185,7 +185,7 @@ fun NowPill(now: AudioNow?, server: HttpUrl?) {
             Triple(
                 server?.let { ServerImages(it).posters(item.images).forWidth(A.NowImage) },
                 stringResource(if (paused) R.string.radio_page_paused else R.string.tv_audio_nowPlaying),
-                if (item.kind == com.slouchcat.core.api.generated.models.ItemKind.PODCAST_EPISODE) item.seriesTitle ?: item.title else item.title,
+                titleOf(item),
             )
         }
         is AudioNow.Radio -> {

@@ -357,7 +357,9 @@ class AudioShowcaseTest {
         focused(s(R.string.player_pause))
         waitFor("Kapitel 7")
         shot("a04-listen-book")
+        // Down from play lands on the nearest chip below it, «Tempo» is the left one.
         key(KeyEvent.KEYCODE_DPAD_DOWN)
+        key(KeyEvent.KEYCODE_DPAD_LEFT)
         focused(s(R.string.app_audio_speedTitle))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         shot("a05-listen-speed")

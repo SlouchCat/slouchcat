@@ -327,6 +327,16 @@ fun ListenScreen(
         }
     }
     focus.StartFocus(if (item == null) ListenKeys.RETRY else ListenKeys.PLAY, item?.id, state?.error != null)
+    // The first focus of a title goes to play: while it loads the page has no button, and the system
+    // may hand the focus to the first control (the timeline) meanwhile (seen on the emulator).
+    var placed by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(item?.id) {
+        val id = item?.id ?: return@LaunchedEffect
+        if (placed != id) {
+            placed = id
+            focus.focus(ListenKeys.PLAY)
+        }
+    }
     val close = {
         menu = null
         focus.restore()
@@ -358,7 +368,7 @@ private fun kindLine(item: ItemRef, chapters: List<Chapter>, index: Int?): Strin
 }
 
 /** The big title: the book, or the podcast of an episode. */
-private fun titleOf(item: ItemRef): String = if (item.kind == ItemKind.PODCAST_EPISODE) item.seriesTitle ?: item.title else item.title
+internal fun titleOf(item: ItemRef): String = if (item.kind == ItemKind.PODCAST_EPISODE) item.seriesRef?.title ?: item.seriesTitle ?: item.title else item.title
 
 /** The line under the title: the chapter, or the episode. */
 @Composable
