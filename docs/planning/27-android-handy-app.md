@@ -11,6 +11,15 @@
   Fassung 3 bis 5 geprüft hat (Annahme mit Vorbehalt, 0 Blocker, 0 Major, 13 Minor; 19.4). Die
   Einarbeitung dieser dritten Lesung hat der Kritiker nicht mehr gegengelesen. Gebaut wird erst
   nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+- **Umsetzung:** Der Bau aller Stufen beider Papiere ist mit dem Auftrag vom 21. November 2026 bestellt
+  (Zitat oben) und vom 21. bis 23. November 2026 ausgeführt worden. Stand je Stufe in Abschnitt 13
+  unter der Tabelle. Gebaut sind die Stufen 0 bis 9 (in `main`) und von Stufe 10 die Vorbereitung
+  (in `main`) und die Ausgabe der Dateien (PR #209, offen). Nicht oder abweichend gebaut, mit Grund:
+  `docs/dev/CURRENT_STATUS.md`, Abschnitt «Bau der Android-Apps», «Eigene Entscheide des Baus» (A-1
+  bis A-17 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Offen bleiben
+  alles auf echten Geräten, die zwei Dienste auf Marcos Infrastruktur, das Firebase-Projekt, die Play
+  Console, die Bildschirmfotos und die Abnahmen auf CT 190 (dort «Offen»). Was Marco tun muss:
+  `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
   dieser App den QR Code auf dem TV scannen und auf dem TV wird alles eingerichtet (sofern mit
@@ -1446,6 +1455,23 @@ der zwei Dienste; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
 | **8 Wünsche und Meldungen** | Bereich «Wünsche», Benachrichtigungen, Ankündigungen, Meldekanäle, Push | Abnahme mit echtem Seerr; eine Meldung kommt bei geschlossener App an | Stufe 2 |
 | **9 Fernseher verbinden** | Scanner und Kopplung in der App | Kopplung vom Handy über die Vermittlung gegen CT 190 mit dem Prüfprogramm als Fernseher; **erste Ausgabe nach E-13 vollständig** | Stufe 1 und 2 |
 | **10 Öffentlich** | Geschlossener Test, Antrag, Store-Eintrag, Datenschutzerklärung, Vorführserver, Verträglichkeitsregel verbindlich | App im Play Store | F-9, F-10, F-35, F-36 |
+
+**Stand der Umsetzung (23. November 2026; Einzelheiten in `docs/dev/CURRENT_STATUS.md`):**
+
+- **0 Messung:** in `main` (PR #194); nur im Emulator gemessen, echtes Gerät und Firebase offen.
+- **1 Server:** in `main` als Release 1.42.0 (PR #198, Tag `v1.42.0`); nur gegen Prüfprogramme geprüft,
+  Abnahme auf CT 190 offen.
+- **2 Dienste:** in `main` (PR #195, Tag `relay-v1.0.0`); nur lokal in Containern geprüft, Abnahme auf
+  Marcos Infrastruktur offen (`docs/relay/BETRIEB.md` Abschnitt 9).
+- **3 Gerüst:** in `main` (Teil 1 PR #197, Teil 2 PR #201); App per ADB auf einem echten Handy offen.
+- **4 Stöbern:** in `main` (PR #201); Abnahme auf einem echten Handy offen.
+- **5 Videoplayer:** in `main` (PR #201); Abnahmeliste auf dem Handy und interne Testspur offen.
+- **6 Downloads:** in `main` (PR #202); Flugmodus und 20 GB über Nacht auf einem echten Gerät offen.
+- **7 Ton:** in `main` (PR #206); eine Stunde Hörbuch bei ausgeschaltetem Bildschirm offen.
+- **8 Wünsche und Meldungen:** in `main` (PR #204); Abnahme mit echtem Seerr und Push über Google offen.
+- **9 Fernseher verbinden:** in `main` (PR #203); Kopplung gegen CT 190 und mit zwei echten Geräten offen.
+- **10 Öffentlich:** Vorbereitung in `main` (PR #200), Ausgabe der Dateien PR #209 (offen); Play Console,
+  geschlossener Test, Bildschirmfotos offen.
 
 Zur Reihenfolge:
 
