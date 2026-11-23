@@ -34,6 +34,7 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -298,19 +299,36 @@ class TvAudioFlowTest {
         scenario.close()
     }
 
-    private companion object {
-        const val BOOKS = "Hörbücher-Test"
-        const val PODCASTS = "Podcasts-Test"
-        const val BOOK = "The Quiet Harbour"
-        const val PODCAST = "Night Shift Stories"
-        const val CHAPTER_MS = 60_000L
-        const val WAIT_MS = 30_000L
-        const val START_MS = 60_000L
-        const val PLAY_MS = 90_000L
-        const val STOP_MS = 20_000L
-        const val FRAME_MS = 500L
-        const val RAIL_MAX = 14
-        const val LEFT_MAX = 8
-        const val ROW_MAX = 4
+    companion object {
+        /**
+         * The own libraries go again after the class: their «Weiterschauen» would change the start page
+         * of TvFlowTest. Once, not after each test: a library being deleted still holds its folder.
+         */
+        @JvmStatic
+        @AfterClass
+        fun removeLibraries() {
+            val args = InstrumentationRegistry.getArguments()
+            val library = TestLibrary(
+                (args.getString("slouchcatServer") ?: "http://10.0.2.2:8697").toHttpUrl(),
+                args.getString("slouchcatEmail") ?: "e2e-owner@example.test",
+                args.getString("slouchcatPassword") ?: "e2e-password-0123",
+                args.getString("slouchcatPin") ?: "246810",
+            )
+            for (name in listOf(BOOKS, PODCASTS)) runCatching { library.remove(name) }
+        }
+
+        private const val BOOKS = "Hörbücher-Test"
+        private const val PODCASTS = "Podcasts-Test"
+        private const val BOOK = "The Quiet Harbour"
+        private const val PODCAST = "Night Shift Stories"
+        private const val CHAPTER_MS = 60_000L
+        private const val WAIT_MS = 30_000L
+        private const val START_MS = 60_000L
+        private const val PLAY_MS = 90_000L
+        private const val STOP_MS = 20_000L
+        private const val FRAME_MS = 500L
+        private const val RAIL_MAX = 14
+        private const val LEFT_MAX = 8
+        private const val ROW_MAX = 4
     }
 }

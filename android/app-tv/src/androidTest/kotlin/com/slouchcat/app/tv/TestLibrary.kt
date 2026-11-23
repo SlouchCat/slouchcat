@@ -175,6 +175,19 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
      * Stage 4: an audio library [name] of [kind] (`audiobooks`, `podcasts`) over [folder] with
      * [content] (`audiobook`, `podcast`), local metadata only, scanned.
      */
+    /** Stage 4: the library [name] goes again, with its titles and their progress (another flow sees nothing of it). */
+    fun remove(name: String) {
+        signIn()
+        val id = library(name)?.get("id")?.jsonPrimitive?.long ?: return
+        call("POST", "admin/libraries/$id/deletion", """{"confirmName":${Json.encodeToString(name)}}""")
+        // The deletion runs as a job: until the library is gone.
+        val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
+        while (library(name) != null) {
+            check(System.nanoTime() < deadline) { "the library $name did not go" }
+            Thread.sleep(POLL_MS)
+        }
+    }
+
     fun ensureAudio(name: String, kind: String, folder: String, content: String) {
         signIn()
         if (library(name) == null) {
