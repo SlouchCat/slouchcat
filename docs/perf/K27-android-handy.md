@@ -476,7 +476,7 @@ Abgleich enthalten den ersten Beweis «Server weist sich aus» im neuen Netz.
 10. Abmelden mit «Downloads auf diesem Gerät löschen»: Die Dateien sind weg und erscheinen in der
     Web-App unter «Meine Geräte» nicht mehr.
 
-## Stufe 7: Ton (22. November 2026)
+## Stufe 7: Ton (22. November 2026, nach der Korrekturrunde am 23. November neu gemessen)
 
 **Emulator-Messung**, nicht auf einem Gerät: `AudioFlowTest` (`RADIO=1 task android:e2e
 CLASS=com.slouchcat.app.mobile.AudioFlowTest PORT=9497 EMU_PORT=5574`, dazu `AVD=sc_tablet`) gegen den
@@ -487,9 +487,9 @@ Tag `radiotest`). Die Werte stehen in `audio-measures.txt` neben den Fotos.
 
 | Messung | `sc_phone` (API 36) | `sc_tablet` (API 36) |
 |---|---|---|
-| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 687 ms | 306 ms |
-| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 82'012 ms | 80'158 ms |
-| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'417 ms | 72'670 ms |
+| Tippen auf «Abspielen» bis der Ton spielt (`startPlayback`, HLS über beide Teile) | 372 ms | 319 ms |
+| Position im Gerät nach rund 10 s im Hintergrund, bei 1,5-fachem Tempo | 74'683 ms | 77'184 ms |
+| Position im Server zum selben Zeitpunkt (letzte Meldung alle 10 s, mit Tempo 1,5) | 72'668 ms | 72'651 ms |
 
 Weitere Ergebnisse des Ablaufs:
 
