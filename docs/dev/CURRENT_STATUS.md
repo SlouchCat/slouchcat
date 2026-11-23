@@ -35,14 +35,11 @@ steht je Stufe dabei und gesammelt unten; die gesammelte Anleitung ist `docs/dev
 | Bildschirmfotos für den Store (Skript; Bilder nicht im Repo) | in main | #211 | – |
 | Messkorrektur der RSS-Latte | in main | #207 (`ba7ea8c9`) | – |
 
-App-Tags (`app-v*`, `tv-v*`) gibt es noch keine. Der Tag `relay-v1.0.1` steht aus: Nach `relay-v1.0.0` hat
-sich nur die Bibliothek `relay/internal/pairing` und das Prüfwerkzeug `paircheck` geändert (Einlöse-Antwort
-mit `accountEmail`), die zwei Dienste verhalten sich gleich; getaggt wird mit der nächsten Änderung an einem
-Dienst.
+@@TAGS@@
 
 ### Eigene Entscheide des Baus
 
-Die Entscheide A-1 bis A-17 hat der Bau selbst getroffen, wo das Papier eine Lücke liess oder ein Review
+Die Entscheide A-1 bis A-18 hat der Bau selbst getroffen, wo das Papier eine Lücke liess oder ein Review
 eine Abweichung verlangte. Sie sind keine Entscheide von Marco. (Nicht zu verwechseln mit den Spec-IDs A-1
 bis A-9.)
 
@@ -65,8 +62,9 @@ bis A-9.)
 | A-15 | (a) «Filme» und «Serien» der Wünsche am Fernseher sind Reihen in «Entdecken», die nachladen; (b) die Hauptsuche der TV-App zeigt «Noch nicht in der Bibliothek?» wie Handy und Web | (a) Das TV-Mockup 32 hat keine eigenen Reiter, das Papier nennt sie nur in einer Aufzählung; (b) gleiche Logik in allen Clients | Punkt «Konzept 26, Stufe 5», «Abweichungen» |
 | A-16 | Keine Prüfsummen-Datei für Gradle (`verification-metadata.xml`) im Paket «Ausgabe» | Sie bricht mit jedem Dependabot-Update und braucht einen eigenen Ablauf | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.2, «Restrisiko» |
 | A-17 | `deploy/scripts/measure-healthy.sh` misst den Leerlauf mit `--network none`; die Grenze bleibt 80 MB | Der Server holt beim ersten Start den Radiokatalog aus dem Internet; die Messung hing an einem fremden Dienst | `docs/perf/M9.md` Abschnitt 5 |
+| A-18 | Kein Tag `relay-v1.0.1` | Seit `relay-v1.0.0` änderten sich nur `relay/internal/pairing` und das Prüfprogramm `paircheck`; die zwei Images bauen `cmd/pair` und `cmd/push`, die das Paket nicht einbinden. Ein neuer Tag ergäbe dieselben Dienste | `git diff relay-v1.0.0..main -- relay` |
 
-**Weitere Entscheide des Baus ohne Nummer:** kein Tag `relay-v1.0.1` (oben); die Tippsperre im Videoplayer
+**Weiterer Entscheid des Baus ohne Nummer:** die Tippsperre im Videoplayer
 (Code-Review K27 Stufe 5, L-6) ist nicht gebaut, weil weder Papier noch Mockup sie nennen.
 
 **Abweichungen der Agenten** (in den Reviews geprüft und belassen; Einzelheiten in den Stufen-Punkten unten):
@@ -128,12 +126,14 @@ bis A-9.)
 | CT 190 hat der Bau nicht berührt: Abnahme von 1.42.0 und 1.43.0 auf CT 190, Kopplung gegen CT 190 mit dem Prüfprogramm als Fernseher | `docs/planning/27-android-handy-app.md` Abschnitt 13 (Stufen 1 und 9); `docs/planning/26-android-tv.md` Abschnitt 10 (Stufe 1) |
 | Play Console: App anlegen, Upload-Schlüssel, interne Testspur, geschlossener Test, Produktion, TV-Spur; Platzhalter in den Unterlagen | `docs/store/VEROEFFENTLICHEN.md`, Abschnitt «Noch einzutragen» |
 | GitHub: Environment `android-release`, Tag-Ruleset, erster Lauf von `release-android.yml`; die ersten App-Tags | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7 (mit PR #209) |
-| Bildschirmfotos für den Store; Store-Grafiken als Bild erzeugen | `docs/store/grafiken.md`; `scripts/store-graphics.sh` (mit PR #209) |
+| Bildschirmfotos für den Store gegen den Vorführserver hinter HTTPS neu aufnehmen (der Lauf vom 23. November 2026 zeigt HTTP-Hinweise und `10.0.2.2`); Bilder liegen nicht im Repo | `docs/store/grafiken.md`, `scripts/store-screenshots.sh`, `scripts/store-graphics.sh` |
 | Prüfsummen der Gradle-Abhängigkeiten (`android/gradle/verification-metadata.xml`, A-16) | `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 7.2, «Restrisiko» |
 | Emulator auf dem Runner: seit `-gpu swangle_indirect` kein Absturz, aber 13 von 16 Fällen grün; der Job bleibt ausserhalb des Gates | `docs/perf/K27-android-ci.md`, «Absturz des Emulators (23.11.2026)» |
 | Dolby-Tonspur, die erst nach dem ersten Segment beginnt: Start eines Remux mit Tonkopie scheitert | ADR 0041 |
 | Erster Abgleich des Radiokatalogs braucht kurz über 100 MB | `docs/perf/M9.md` Abschnitt 5 |
 | Web-Tests, die unter Last der Maschine flatterten und im Nachlauf grün waren (Altbestand, die Zweige änderten am Web nur Sprachdateien): `web/e2e/offline-pin.spec.ts:20` und `web/e2e/sidecar.spec.ts:25` (Firefox), `web/e2e/admin-radio.spec.ts:345` und `web/e2e/admin-stats.spec.ts:33` (Chromium), `web/e2e/downloads.spec.ts:44` (Firefox); Vitest mit Zeitüberschreitungen unter Last, darunter `web/src/app/radio/useRadio.test.tsx` | die genannten Dateien |
+| CI: Der Job `android` scheiterte an drei Pull Requests am Download-Limit von Maven Central (429), solange main keinen Gradle-Zwischenspeicher hatte (main überspringt geprüften Inhalt und speicherte darum keinen); seit dem vollen main-Lauf vom 23. November 2026 treffen Pull Requests den Zwischenspeicher. Kommt ein Zweig mit geänderten Gradle-Dateien, lädt er wieder frisch | `docs/perf/K27-android-ci.md` |
+| CI: Mit dem Zwischenspeicher laufen die JVM-Tests auf den Runnern anders getaktet; zwei Rennen in Tests (nicht in der App) traten auf und sind behoben (`DownloadsViewModelTest`, `AudioServiceTest`). Drei Verdachtsfälle ohne Beleg sind nicht geändert: `OfflineEngineTest` (Liste `syncs`), `OfflineWorkerTest.tearDown`, `FileFetcherTest` (Abbruch) | `docs/perf/K27-android-ci.md` |
 | Glossar: «In Beschaffung» in Italienisch und Französisch und der Webtext `wishes.state.processing` widersprechen der Regel «wird geholt»; Ungarisch hat für «Läuft gerade» zwei Fassungen (`app.player.nowPlaying`, `tv.audio.nowPlaying`); «Vermittlung» und «Push-Weiterleitung» tragen in pl, tr und nb verschiedene Wörter | `docs/i18n/glossar.md` Abschnitt 8 und 9 |
 | Beispieladresse aus einem Heimnetz in `admin.integrations.seerr.urlHelp` und `urlPlaceholder` (`web/src/locales/de.json`, `en.json`; Altbestand) | die genannten Dateien |
 | Nicht gebaut, weil der Vertrag es nicht liefert: «Mehr davon» (beide Apps), Budget des Servers in der Speicheranzeige, Regeln je Serie oder Podcast, «Qualität für neue Downloads», Lizenzfristen, Webradio «Zuletzt gespielt», sichere Zuordnung «dieser Fernseher» beim Koppeln (bräuchte eine Gerätekennung beim Einlösen) | Punkte K27 Stufe 4, 6, 7, 9 und K26 Stufe 2b unten |
@@ -252,7 +252,7 @@ Marco tun».
     Antrag auf Produktion, Vorführserver aufsetzen, Datenschutzerklärung prüfen und veröffentlichen.
     Bildschirmfotos, Symbol und Banner entstehen mit den fertigen Apps. (Stand 23. November 2026: Das
     Banner der TV-App steht im Manifest; Starter-Symbol und die SVG-Quellen der Store-Grafiken kommen mit
-    dem Punkt «Ausgabe», PR #209; die Bildschirmfotos fehlen.)
+    dem Punkt «Ausgabe», PR #209; die Bildschirmfotos entstehen mit `scripts/store-screenshots.sh`, PR #211.)
 - **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
   Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
   - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.

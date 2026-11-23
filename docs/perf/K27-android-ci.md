@@ -192,3 +192,28 @@ gemeldet.
 
 Auf der Entwicklungsmaschine sind dieselben 16 Fälle grün. Der Job bleibt informativ und steht nicht im
 Gate (Entscheid oben). Die drei Fälle auf dem Runner sind offen.
+
+## Download-Limit und Rennen in JVM-Tests (23. November 2026)
+
+**429 von Maven Central.** An den Pull Requests #208, #209 und #210 scheiterte der Job `android` je einmal oder
+mehrmals an «Received status code 429 from server: Too Many Requests», immer in
+`:app-mobile:generateFossDebugUnitTestLintModel`. Der Job fand keinen Gradle-Zwischenspeicher («Cache not found
+for input keys: gradle-Linux-…»): Ein Pull Request speichert ihn nur für seinen eigenen Ref, und main speicherte
+keinen, weil die CI auf main geprüften Inhalt überspringt (ADR 0013, Nachtrag). Jeder neue Zweig lud darum alle
+Abhängigkeiten frisch. Seit dem vollen Lauf auf main vom 23. November 2026 (08:03 UTC, 2,17 GiB unter
+`refs/heads/main`) treffen Pull Requests den Zwischenspeicher; #211 lief ohne 429. Ändert ein Zweig die
+Gradle-Dateien, wechselt der Schlüssel und er lädt wieder frisch, bis main einmal voll gelaufen ist.
+
+**Rennen in Tests.** Mit dem Zwischenspeicher laufen die JVM-Tests auf den Runnern (vier Kerne) anders
+getaktet. In zwei Läufen hintereinander wurden zwei Tests rot, die lokal immer grün waren; beide Male lag das
+Rennen im Test, nicht in der App:
+
+| Test | Ursache | Behebung |
+|---|---|---|
+| `DownloadsViewModelTest.deleteAsksThenDeletesOnTheServerAndTheDevice` | `OfflineEngine.delete` markiert den Download zuerst (die Zeile verschwindet) und fragt danach den Server; der Test las die Aufrufe der Attrappe direkt nach der leeren Liste | wartet begrenzt auch auf den Server-Aufruf |
+| `AudioServiceTest.headphonesPulledOutPauseTheSound` | Media3 meldet den Empfänger für `ACTION_AUDIO_BECOMING_NOISY` erst über seinen Hintergrund-Thread an; kam die Meldung vorher, empfing sie niemand | wartet vor dem Senden begrenzt, bis der Empfänger angemeldet ist |
+
+Beleg: beide Klassen je zehnmal auf vier Kernen (`taskset -c 0-3`), alle grün. Rund 35 weitere Testklassen
+wurden nach demselben Muster durchgesehen, ohne weiteren Beleg. Verdachtsfälle ohne Beleg, nicht geändert:
+`OfflineEngineTest` (die Liste `syncs` ist nicht threadsicher), `OfflineWorkerTest.tearDown` (bricht den Scope
+nicht ab), `FileFetcherTest` (Abbruch gegen eine gedrosselte Übertragung).
