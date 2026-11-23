@@ -150,7 +150,41 @@ class AudioFlowTest {
         remote.ok()
         idle(FRAME)
         assertEquals(1, video.played.size)
+        // Review M-2: the book's session ended before the video's, «Läuft gerade» keeps the book.
+        assertEquals(1, audio.titles.stops.size)
+        // Back from the video: the book waits paused where it stood.
+        remote.back()
+        idle(FRAME)
+        pages.waitFor("Night Train")
+        assertEquals(2, audio.titles.starts.size)
         assertFalse(audio.engine.wantsPlay)
+        assertEquals(2, compose.onAllNodes(hasText(s(R.string.radio_page_paused))).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun closingTheAppEndsTheBook() {
+        playBook()
+        // The second Back of the start page finishes the activity (review B-1): the sound ends at once.
+        compose.activityRule.scenario.moveToState(Lifecycle.State.DESTROYED)
+        idle(AudioForeground.GRACE_MS * 2)
+        assertEquals(1, audio.titles.stops.size)
+        assertTrue(audio.engine.released)
+    }
+
+    @Test
+    fun stopOfTheRemoteOnAnotherPageEndsTheBook() {
+        playBook()
+        remote.back()
+        pages.waitFor("Night Train")
+        // Review m-5: the keys go to the sound, not past it to Media3's own session.
+        media(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        assertFalse(audio.engine.wantsPlay)
+        media(KeyEvent.KEYCODE_MEDIA_PLAY)
+        assertTrue(audio.engine.wantsPlay)
+        media(KeyEvent.KEYCODE_MEDIA_STOP)
+        idle(FRAME)
+        assertEquals(1, audio.titles.stops.size)
+        compose.onNode(hasTestTag(ShellTags.entry(AudioFeature.NOW))).assertDoesNotExist()
     }
 
     @Test
@@ -199,7 +233,7 @@ class AudioFlowTest {
         remote.assertEveryControlReachable()
         remote.right()
         remote.ok()
-        assertTrue(radio.calls.toString(), "favorite:2:true" in radio.calls)
+        assertTrue(radio.calls.toString(), "favorite:2:false" in radio.calls)
         remote.right()
         remote.ok()
         // «Radio beenden»: the station ends, the page closes.

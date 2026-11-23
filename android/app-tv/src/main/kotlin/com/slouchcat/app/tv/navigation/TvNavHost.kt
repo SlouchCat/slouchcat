@@ -122,7 +122,12 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                 val capacity = railLibraryCapacity(with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() })
                 // The capacity counts libraries only: the radio and «Läuft gerade» (stage 4) always show.
                 val (shelves, others) = all.partition { it.route is LibraryRoute }
-                val media = if (profile == null || (all.isEmpty() && graph.registry.lists.isEmpty())) emptyList() else (shelves.take(capacity) + others).sortedBy { it.order } + librariesMenuEntry()
+                // The capacity reserves one place for the radio; «Läuft gerade» takes one more (review m-8).
+                val reserve = (others.size - 1).coerceAtLeast(0)
+                val shown = (shelves.take((capacity - reserve).coerceAtLeast(1)) + others).sortedBy { it.order }
+                // «Alle Bibliotheken …» only with a library or a list: an empty menu helps nobody.
+                val menu = shelves.isNotEmpty() || graph.registry.lists.isNotEmpty()
+                val media = if (profile == null) emptyList() else shown + listOfNotNull(librariesMenuEntry().takeIf { menu })
                 val currentMedia by rememberUpdatedState(all)
                 var librariesMenu by rememberSaveable { mutableStateOf(false) }
                 var menuClosed by remember { mutableIntStateOf(0) }

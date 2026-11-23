@@ -4,7 +4,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.SystemClock
+import coil3.request.allowHardware
+import coil3.toBitmap
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import androidx.navigation.NavDestination.Companion.hasRoute
+import com.slouchcat.app.tv.ui.OnRemoteKey
+import com.slouchcat.app.tv.ui.RemoteKey
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -41,7 +50,6 @@ import com.slouchcat.app.tv.shell.RailSection
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.app.tv.shell.isRoute
-import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.browse.audio.AudioSeriesViewModel
 import com.slouchcat.core.browse.audio.PodcastEpisodesViewModel
 import com.slouchcat.core.browse.radio.RadioMessage
@@ -85,7 +93,9 @@ class AudioFeature(
 
     /** The sound of [graph], built once. */
     fun audioOf(graph: TvGraph, context: Context): TvAudio =
-        audios.getOrPut(graph) { TvAudio.create(graph) { scope -> playback(context.applicationContext, graph, scope) } }.also { shown = it }
+        audios.getOrPut(graph) {
+            TvAudio.create(graph) { scope -> playback(context.applicationContext, graph, scope) }.also { listen(context.applicationContext, it.lifecycle) }
+        }.also { shown = it }
 
     override val fullScreen = setOf(ListenRoute::class, RadioListenRoute::class)
 
@@ -135,12 +145,36 @@ class AudioFeature(
     override val overlay: @Composable (TvScope, NavBackStackEntry?, Boolean) -> Unit = { app, page, framed ->
         val audio = audioOf(app.graph, LocalContext.current)
         AudioLifecycle(audio)
-        // A video starts: the title pauses, a station ends (mockup `hashchange`).
-        val video = page?.takeIf { it.isRoute(PlayerRoute::class) }?.id
-        LaunchedEffect(video) { if (video != null) audio.videoStarts() }
+        // A video: the title's session ends before the video's starts, a station ends (mockup
+        // `hashchange`, review M-2); back from it the title waits paused.
+        DisposableEffect(app.navigator, audio) {
+            val off = app.navigator.onPage { destination -> if (destination.hasRoute(PlayerRoute::class)) audio.videoStarts() else audio.videoEnds() }
+            onDispose { off() }
+        }
         val now by audio.playback.now.collectAsStateWithLifecycle()
+        val audioPage = page != null && (page.isRoute(ListenRoute::class) || page.isRoute(RadioListenRoute::class) || page.isRoute(PlayerRoute::class))
+        // The media keys on the other pages (review m-5): to the sound, not to Media3's own session.
+        if (now != null && !audioPage) OnRemoteKey(app.graph.remoteKeys) { key -> mediaKey(audio, key) }
+        ArtworkOf(audio, app.graph)
         val onRadio = page?.isRoute(RadioRoute::class) == true
         if (framed && !(onRadio && now is AudioNow.Radio)) NowPill(now, app.graph.session.server)
+    }
+
+    /** A media key of the remote on a page without the audio player. */
+    private fun mediaKey(audio: TvAudio, key: RemoteKey) {
+        val playback = audio.playback
+        val title = playback.title
+        val radio = playback.radio
+        when (key) {
+            RemoteKey.PlayPause -> playback.togglePlay()
+            RemoteKey.Play -> { title?.play(); radio?.play() }
+            RemoteKey.Pause -> { title?.pause(); radio?.pause() }
+            RemoteKey.Stop -> playback.stop(forget = false)
+            RemoteKey.FastForward -> title?.seekBy(com.slouchcat.core.player.AudioRules.FORWARD_MS)
+            RemoteKey.Rewind -> title?.seekBy(-com.slouchcat.core.player.AudioRules.BACK_MS)
+            RemoteKey.Next -> if (title?.state?.value?.chapters.orEmpty().isNotEmpty()) playback.nextChapter() else title?.playNext()
+            RemoteKey.Previous -> if (title?.state?.value?.chapters.orEmpty().isNotEmpty()) playback.previousChapter() else title?.playPrevious()
+        }
     }
 
     override fun NavGraphBuilder.register(app: TvScope) {
@@ -164,7 +198,7 @@ class AudioFeature(
             val episodes = podcast?.let { id ->
                 val vm = viewModel(key = "episodes-$id") { PodcastEpisodesViewModel(graph.session, graph.media.audio, graph.media.detail, id) }
                 val paged by vm.state.collectAsStateWithLifecycle()
-                paged
+                EpisodesUi(paged, emptySet(), vm::onNearEnd, vm::retry, vm::onHeard)
             }
             val server = graph.session.server
             ListenScreen(
@@ -181,35 +215,35 @@ class AudioFeature(
             val radio = (now as? AudioNow.Radio)?.state
             // Nothing plays any more (ended elsewhere, Stop): back to where it came from.
             LaunchedEffect(radio == null) { if (radio == null) navigator.back() }
-            val scope = androidx.compose.runtime.rememberCoroutineScope()
-            var hearts by remember { mutableStateOf<Map<Long, Boolean>>(emptyMap()) }
+            // The heart through the radio's own ViewModel (review m-6): sooner, back on a refusal, the message.
+            val vm = viewModel { RadioViewModel(graph.session, graph.media.radio) }
+            val ui by vm.ui.collectAsStateWithLifecycle()
+            RadioMessages(vm, graph)
+            val station = radio?.station
+            val favorites = (ui.favorites as? com.slouchcat.core.media.Loadable.Ready)?.value
             RadioListenScreen(
                 state = radio,
                 server = graph.session.server,
-                favorite = radio?.station?.let { hearts[it.id] ?: it.favorite } == true,
+                favorite = station != null && (favorites?.any { it.id == station.id } ?: station.favorite),
                 remoteKeys = graph.remoteKeys,
                 events = object : RadioListenEvents {
                     override fun onToggle() = audio.playback.togglePlay()
+                    override fun onPlay() {
+                        audio.playback.radio?.play()
+                    }
+                    override fun onPause() {
+                        audio.playback.radio?.pause()
+                    }
                     override fun onStop() {
-                        audio.playback.stop()
+                        audio.playback.stop(forget = false)
                     }
                     override fun onRetry() {
                         radio?.station?.let(audio.playback::playRadio)
                     }
                     override fun onFavorite() {
-                        val station = radio?.station ?: return
-                        val server = graph.session.server ?: return
-                        val on = !(hearts[station.id] ?: station.favorite)
-                        hearts = hearts + (station.id to on)
-                        scope.launch {
-                            val result = graph.media.radio.setFavorite(server, station.id, on)
-                            if (result is ApiResult.Ok) {
-                                graph.toasts.show(if (on) R.string.app_radio_added else R.string.app_radio_removed, station.name)
-                            } else {
-                                hearts = hearts + (station.id to !on)
-                                graph.toasts.show(R.string.app_radio_failed)
-                            }
-                        }
+                        val current = station ?: return
+                        val on = favorites?.any { it.id == current.id } ?: current.favorite
+                        vm.onFavorite(current.copy(favorite = on))
                     }
                     override fun onBack() {
                         navigator.back()
@@ -239,15 +273,10 @@ class AudioFeature(
             val ui by vm.ui.collectAsStateWithLifecycle()
             val stations by vm.stations.collectAsStateWithLifecycle()
             val now by audio.playback.now.collectAsStateWithLifecycle()
-            LaunchedEffect(vm) {
-                vm.messages.collect { message ->
-                    when (message) {
-                        is RadioMessage.Added -> graph.toasts.show(R.string.app_radio_added, message.name)
-                        is RadioMessage.Removed -> graph.toasts.show(R.string.app_radio_removed, message.name)
-                        RadioMessage.Failed -> graph.toasts.show(R.string.app_radio_failed)
-                    }
-                }
-            }
+            RadioMessages(vm, graph)
+            // Back from the station's page (a heart there): the lists again, quietly (review m-6).
+            var shown by remember { mutableStateOf(false) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (shown) vm.retry() else shown = true }
             val playback = audio.playback
             RadioScreen(
                 ui = ui,
@@ -304,15 +333,15 @@ fun tvPlayback(context: Context, graph: TvGraph, scope: CoroutineScope): AudioPl
 }
 
 /**
- * Home, standby and the screen saver for the sound ([AudioForeground]): the activity's lifecycle
- * and the broadcasts of the screen saver and the screen. Whether a page is seen also tells the
- * radio to ask for its current title ([AudioPlayback.visible]).
+ * The activity's lifecycle for the sound ([AudioForeground] in the graph's scope, review B-1): Stop
+ * and Start, and the end of the activity for good (`finish()`, the second Back of the start page)
+ * ends the sound at once. Whether a page is seen also tells the radio to ask for its current title
+ * ([AudioPlayback.visible]).
  */
 @Composable
 private fun AudioLifecycle(audio: TvAudio) {
-    val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val foreground = remember(audio) { AudioForeground(audio, scope) }
+    val activity = androidx.activity.compose.LocalActivity.current
+    val foreground = audio.lifecycle
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         audio.playback.visible = false
         foreground.onStop()
@@ -321,22 +350,83 @@ private fun AudioLifecycle(audio: TvAudio) {
         audio.playback.visible = true
         foreground.onStart()
     }
-    DisposableEffect(context, foreground) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                when (intent.action) {
-                    Intent.ACTION_DREAMING_STARTED -> foreground.onDreamingStarted()
-                    Intent.ACTION_DREAMING_STOPPED -> foreground.onDreamingStopped()
-                    Intent.ACTION_SCREEN_OFF -> foreground.onScreenOff()
+    DisposableEffect(activity, foreground) {
+        onDispose { if (activity?.isFinishing == true) foreground.onFinish() }
+    }
+}
+
+/**
+ * The screen saver, standby and the HDMI output as the system tells them (review m-7), on the
+ * application's context for the life of the process: also while the activity is gone.
+ */
+private fun listen(context: Context, foreground: AudioForeground) {
+    val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_DREAMING_STARTED -> foreground.onDreamingStarted()
+                Intent.ACTION_DREAMING_STOPPED -> foreground.onDreamingStopped()
+                Intent.ACTION_SCREEN_OFF -> foreground.onScreenOff()
+                // The sticky state at the registration is no change.
+                AudioManager.ACTION_HDMI_AUDIO_PLUG -> if (!isInitialStickyBroadcast) {
+                    foreground.onHdmi(intent.getIntExtra(AudioManager.EXTRA_AUDIO_PLUG_STATE, 1) != 0)
                 }
             }
         }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_DREAMING_STARTED)
-            addAction(Intent.ACTION_DREAMING_STOPPED)
-            addAction(Intent.ACTION_SCREEN_OFF)
+    }
+    val filter = IntentFilter().apply {
+        addAction(Intent.ACTION_DREAMING_STARTED)
+        addAction(Intent.ACTION_DREAMING_STOPPED)
+        addAction(Intent.ACTION_SCREEN_OFF)
+        addAction(AudioManager.ACTION_HDMI_AUDIO_PLUG)
+    }
+    ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+}
+
+/** The short messages of the radio's ViewModel as toasts. */
+@Composable
+private fun RadioMessages(vm: RadioViewModel, graph: TvGraph) {
+    LaunchedEffect(vm) {
+        vm.messages.collect { message ->
+            when (message) {
+                is RadioMessage.Added -> graph.toasts.show(R.string.app_radio_added, message.name)
+                is RadioMessage.Removed -> graph.toasts.show(R.string.app_radio_removed, message.name)
+                RadioMessage.Failed -> graph.toasts.show(R.string.app_radio_failed)
+            }
         }
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        onDispose { context.unregisterReceiver(receiver) }
     }
 }
+
+/** The cover of what plays as a picture for the system's media card (no address in the metadata; review L-6). */
+@Composable
+private fun ArtworkOf(audio: TvAudio, graph: TvGraph) {
+    val context = LocalContext.current.applicationContext
+    LaunchedEffect(audio) {
+        audio.playback.now.map { coverUrl(graph, it) }.distinctUntilChanged().collectLatest { url ->
+            val bytes = url?.let { load(context, graph, it) }
+            (audio.playback.engine.value as? Media3Engine)?.updateArtwork(bytes)
+        }
+    }
+}
+
+private fun coverUrl(graph: TvGraph, now: AudioNow?): String? {
+    val server = graph.session.server ?: return null
+    return when (now) {
+        is AudioNow.Title -> ServerImages(server).posters(now.state.item?.images).pick(ARTWORK_PX)
+        is AudioNow.Radio -> stationImage(server, now.state.now?.cover?.url ?: now.state.station?.logo?.url) as? String
+        else -> null
+    }
+}
+
+private suspend fun load(context: Context, graph: TvGraph, url: String): ByteArray? {
+    val request = coil3.request.ImageRequest.Builder(context).data(url).allowHardware(false).build()
+    val bitmap = (graph.imageLoader.execute(request) as? coil3.request.SuccessResult)?.image?.toBitmap() ?: return null
+    return withContext(Dispatchers.Default) {
+        java.io.ByteArrayOutputStream().use { out ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            out.toByteArray()
+        }
+    }
+}
+
+private const val ARTWORK_PX = 512
+private const val JPEG_QUALITY = 85

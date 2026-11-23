@@ -163,4 +163,15 @@ class TvNavigator(
 
     /** A setup page from the choice. */
     fun toSetup(route: Any) = nav.navigate(route) { launchSingleTop = true }
+
+    /**
+     * [listener] hears every new page as it is navigated to, before the page is drawn (stage 4: the
+     * sound ends the title's session before a video starts its own, review M-2). Gives the call that
+     * stops listening.
+     */
+    fun onPage(listener: (androidx.navigation.NavDestination) -> Unit): () -> Unit {
+        val callback = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> listener(destination) }
+        nav.addOnDestinationChangedListener(callback)
+        return { nav.removeOnDestinationChangedListener(callback) }
+    }
 }

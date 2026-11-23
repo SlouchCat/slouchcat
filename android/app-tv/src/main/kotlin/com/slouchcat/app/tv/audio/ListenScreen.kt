@@ -102,6 +102,12 @@ import kotlinx.coroutines.delay
 /** What the audio player can be asked to do; [PlaybackListenEvents] passes it on, tests record it. */
 interface ListenEvents {
     fun onTogglePlay()
+
+    /** The Play key of a remote with keys of their own: plays, never pauses (review m-1). */
+    fun onPlay()
+
+    /** The Pause key: pauses, never plays. */
+    fun onPause()
     fun onBack()
     fun onForward()
 
@@ -127,6 +133,14 @@ class PlaybackListenEvents(private val playback: AudioPlayback, private val sour
     private val chapters get() = playback.title?.state?.value?.chapters.orEmpty()
 
     override fun onTogglePlay() = playback.togglePlay()
+
+    override fun onPlay() {
+        playback.title?.play()
+    }
+
+    override fun onPause() {
+        playback.title?.pause()
+    }
 
     override fun onBack() {
         playback.title?.seekBy(-AudioRules.BACK_MS)
@@ -181,6 +195,7 @@ object ListenKeys {
     const val RETRY = "listen-retry"
     const val CALM = "listen-calm"
     const val MAIN = "listen-main"
+    const val LEAVE = "leave"
 }
 
 /** The side menus of the audio player (mockup photos TV 58 and 59). */
@@ -204,7 +219,7 @@ private val SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
 fun ListenScreen(
     state: PlayerState?,
     images: ServerImages?,
-    episodes: Paged<ItemRef>?,
+    episodes: EpisodesUi?,
     remoteKeys: TvRemoteKeys,
     events: ListenEvents,
     calmAfterMs: Long = CALM_MS,
@@ -217,7 +232,9 @@ fun ListenScreen(
     OnRemoteKey(remoteKeys) { key ->
         calm.wake()
         when (key) {
-            RemoteKey.PlayPause, RemoteKey.Play, RemoteKey.Pause -> events.onTogglePlay()
+            RemoteKey.PlayPause -> events.onTogglePlay()
+            RemoteKey.Play -> events.onPlay()
+            RemoteKey.Pause -> events.onPause()
             RemoteKey.Next -> events.onNext()
             RemoteKey.Previous -> events.onPrevious()
             RemoteKey.FastForward -> events.onForward()
@@ -326,13 +343,20 @@ fun ListenScreen(
             }
         }
     }
-    focus.StartFocus(if (item == null) ListenKeys.RETRY else ListenKeys.PLAY, item?.id, state?.error != null)
+    // Without a title, «Erneut versuchen» where it helps, else «Zurück» (review m-4).
+    val fallback = when {
+        item != null -> ListenKeys.PLAY
+        state?.error?.let { com.slouchcat.app.tv.player.retryable(it) } == false -> ListenKeys.LEAVE
+        else -> ListenKeys.RETRY
+    }
+    focus.StartFocus(fallback, item?.id, state?.error != null)
     // The first focus of a title goes to play: while it loads the page has no button, and the system
     // may hand the focus to the first control (the timeline) meanwhile (seen on the emulator).
     var placed by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(item?.id) {
         val id = item?.id ?: return@LaunchedEffect
-        if (placed != id) {
+        // Only the page's first title: a next episode keeps the button the user is on (review m-2).
+        if (placed == null) {
             placed = id
             focus.focus(ListenKeys.PLAY)
         }
@@ -346,7 +370,7 @@ fun ListenScreen(
         ListenMenu.List -> if (chapters.isNotEmpty()) {
             ChaptersMenu(chapters, position, onPick = { events.onChapter(it); close() }, onDismiss = close)
         } else if (episodes != null) {
-            EpisodesMenu(episodes, item?.id, onPick = { events.onEpisode(it); close() }, onDismiss = close)
+            EpisodesMenu(episodes.episodes, item?.id, episodes.onNearEnd, onPick = { events.onEpisode(it); close() }, onDismiss = close)
         }
         null -> Unit
     }
@@ -627,9 +651,11 @@ private fun ChaptersMenu(chapters: List<Chapter>, position: Long, onPick: (Chapt
 
 /** «Folgen» of a podcast: newest first, the one that plays focused. */
 @Composable
-private fun EpisodesMenu(episodes: Paged<ItemRef>, current: String?, onPick: (ItemRef) -> Unit, onDismiss: () -> Unit) {
+private fun EpisodesMenu(episodes: Paged<ItemRef>, current: String?, onNearEnd: () -> Unit, onPick: (ItemRef) -> Unit, onDismiss: () -> Unit) {
     val initial = remember { FocusRequester() }
     val list = (episodes.items as? Loadable.Ready)?.value.orEmpty()
+    // Every page while the menu is open (review m-3): the episode that plays and the older ones are in it.
+    LaunchedEffect(list.size, episodes.hasMore) { if (episodes.hasMore) onNearEnd() }
     val focused = list.indexOfFirst { it.id == current }.coerceAtLeast(0)
     TvSideMenu(stringResource(R.string.item_episodes_title), onDismiss = onDismiss, initialFocus = initial.takeIf { list.isNotEmpty() }) {
         list.forEachIndexed { index, episode ->
@@ -659,7 +685,7 @@ private fun ListenError(error: PlayerError, focus: FocusMemory, events: ListenEv
             if (com.slouchcat.app.tv.player.retryable(error)) {
                 TvButton(stringResource(R.string.common_retry), onClick = events::onRetry, icon = SlouchcatIcon.Refresh.vector, modifier = Modifier.focusKey(focus, ListenKeys.RETRY).testTag(ListenKeys.RETRY))
             }
-            TvButton(stringResource(R.string.common_back), onClick = events::onLeave, icon = SlouchcatIcon.Back.vector, modifier = Modifier.focusKey(focus, "leave"))
+            TvButton(stringResource(R.string.common_back), onClick = events::onLeave, icon = SlouchcatIcon.Back.vector, modifier = Modifier.focusKey(focus, ListenKeys.LEAVE).testTag(ListenKeys.LEAVE))
         }
     }
 }

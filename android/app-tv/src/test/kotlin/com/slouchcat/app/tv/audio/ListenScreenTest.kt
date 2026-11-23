@@ -44,6 +44,8 @@ import org.robolectric.annotation.GraphicsMode
 private class Recorded : ListenEvents {
     val calls = mutableListOf<String>()
     override fun onTogglePlay() { calls += "toggle" }
+    override fun onPlay() { calls += "play" }
+    override fun onPause() { calls += "pause" }
     override fun onBack() { calls += "back" }
     override fun onForward() { calls += "forward" }
     override fun onPrevious() { calls += "previous" }
@@ -87,9 +89,12 @@ class ListenScreenTest {
         chapters = book,
     )
 
+    private var nearEnd = 0
+
     private fun show(initial: PlayerState?, episodes: Paged<ItemRef>? = null, calmAfterMs: Long = CALM_MS) {
         state = initial
-        remote.show { ListenScreen(state, images = null, episodes = episodes, remoteKeys = keys, events = events, calmAfterMs = calmAfterMs) }
+        val ui = episodes?.let { EpisodesUi(it, emptySet(), onNearEnd = { nearEnd++ }, onRetry = {}, onHeard = {}) }
+        remote.show { ListenScreen(state, images = null, episodes = ui, remoteKeys = keys, events = events, calmAfterMs = calmAfterMs) }
     }
 
     private fun media(code: Int) {
@@ -205,6 +210,57 @@ class ListenScreenTest {
         remote.up()
         remote.ok()
         assertEquals(listOf("episode:${episodes[0].id}"), events.calls)
+    }
+
+    @Test
+    fun theEpisodesMenuLoadsTheOlderEpisodes() {
+        val episodes = (101..104).map { episodeRef(it) }
+        val episode = bookState().copy(item = playedEpisode(episodes[0].id, "The Letter", podcast = "Night Shift Stories", parent = "pod"), chapters = emptyList())
+        // A podcast with more episodes than one page (review m-3).
+        show(episode, episodes = Paged(items = Loadable.Ready(episodes), total = 40))
+        compose.onNode(hasTestTag(ListenKeys.LIST)).requestFocus()
+        remote.settle()
+        remote.ok()
+        assertTrue("the next page is asked for", nearEnd > 0)
+    }
+
+    @Test
+    fun aNextEpisodeKeepsTheFocusOnNext() {
+        val episodes = (101..104).map { episodeRef(it) }
+        fun on(n: Int) = bookState().copy(item = playedEpisode(episodes[n].id, "Episode $n", podcast = "Night Shift Stories", parent = "pod"), chapters = emptyList(), next = episodes[n + 1], previous = null)
+        show(on(0))
+        compose.onNode(hasTestTag(ListenKeys.NEXT)).requestFocus()
+        remote.settle()
+        remote.ok()
+        // The next episode comes (review m-2): the focus stays on «Nächste Folge», a second OK goes on.
+        state = on(1)
+        remote.settle()
+        remote.settle()
+        remote.assertFocused(s(R.string.app_audio_nextEpisode))
+        remote.ok()
+        assertEquals(listOf("next", "next"), events.calls)
+    }
+
+    @Test
+    fun theKeysPlayAndPauseDoNotToggle() {
+        show(bookState(playing = true))
+        // A remote with keys of their own (review m-1): Play on a title that plays changes nothing.
+        media(KeyEvent.KEYCODE_MEDIA_PLAY)
+        media(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        assertEquals(listOf("play", "pause"), events.calls)
+    }
+
+    @Test
+    fun anErrorWithoutRetryFocusesBack() {
+        show(null)
+        // Review m-4: «Zurück» has the focus when «Erneut versuchen» cannot help.
+        state = PlayerState(loading = false, error = PlayerError.NotFound)
+        remote.settle()
+        remote.settle()
+        remote.assertFocused(s(R.string.common_back))
+        compose.onNode(hasTestTag(ListenKeys.RETRY)).assertDoesNotExist()
+        remote.ok()
+        assertEquals(listOf("leave"), events.calls)
     }
 
     @Test

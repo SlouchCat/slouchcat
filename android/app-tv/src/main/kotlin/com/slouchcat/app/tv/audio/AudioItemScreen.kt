@@ -276,6 +276,8 @@ private fun ChapterRow(itemId: String, chapter: Chapter, index: Int, position: L
         end = timecode(chapter.endMs - chapter.startMs),
         strong = !heard,
         label = stringResource(R.string.item_audio_chapterPlay, title, timecode(chapter.startMs)),
+        // Without a file to play the row is no control (review L-4).
+        enabled = playAt != null,
         modifier = Modifier.focusKey(focus, AudioItemKeys.chapter(index)).testTag(AudioItemKeys.chapter(index)),
     ) {
         if (heard) HeardMark() else NumberMark(index + 1)

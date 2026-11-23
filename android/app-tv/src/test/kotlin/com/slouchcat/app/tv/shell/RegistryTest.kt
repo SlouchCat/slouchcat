@@ -84,7 +84,7 @@ class RegistryTest {
         assertEquals(listOf("start", "search", "wishes", "settings"), registry.rail.map { it.key })
         assertEquals(listOf(10, 20, 40, 50), registry.rail.map { it.order })
         assertEquals("start", registry.home.key)
-        // «Medien»: the video libraries in the server's order (audio waits for stage 4); the lists
+        // «Medien»: the video libraries in the server's order (and since stage 4 audiobooks, podcasts and the radio); the lists
         // are no entries of the rail (code review M-3) but «Meine Listen» of the menu.
         val libraries = listOf(
             LibraryNav(1, "Filme", LibraryKind.VIDEO, emptyList(), 1),
@@ -100,7 +100,7 @@ class RegistryTest {
         assertEquals(setOf("settings"), registry.badges.keys)
         assertTrue(registry.manageProfiles != null)
         // The players of stage 3 and 4 draw without rail and clock.
-        assertTrue(com.slouchcat.app.tv.browse.PlayerRoute::class in registry.fullScreen)
+        assertEquals(setOf(com.slouchcat.app.tv.browse.PlayerRoute::class, com.slouchcat.app.tv.browse.ListenRoute::class, com.slouchcat.app.tv.browse.RadioListenRoute::class), registry.fullScreen)
     }
 
     @Test
@@ -172,7 +172,6 @@ class RegistryTest {
     fun stage4BringsTheSoundAndItsPlayers() {
         val registry = TvRegistry(features)
         // The audio players draw without rail and clock; «Läuft gerade» draws above the pages.
-        assertTrue(registry.fullScreen.containsAll(setOf(com.slouchcat.app.tv.browse.ListenRoute::class, com.slouchcat.app.tv.browse.RadioListenRoute::class)))
         assertEquals(1, registry.overlays.size)
         // Podcasts and the radio count as media; the radio stands after every library, also without one.
         val libraries = listOf(LibraryNav(5, "Podcasts", LibraryKind.PODCASTS, emptyList(), 1))

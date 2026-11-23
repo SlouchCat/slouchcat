@@ -27,9 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Border
@@ -124,12 +122,14 @@ fun AudioRow(
     strong: Boolean = false,
     progress: Float? = null,
     label: String = title,
+    enabled: Boolean = true,
     mark: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(TvDimens.radiusMenuItem)
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().heightIn(min = A.Row).semantics(mergeDescendants = true) { contentDescription = label },
         shape = ClickableSurfaceDefaults.shape(shape = shape),
         colors = ClickableSurfaceDefaults.colors(
@@ -210,7 +210,8 @@ fun NowPill(now: AudioNow?, server: HttpUrl?) {
                 .background(SlouchcatTokens.Tv.Color.Rail)
                 .border(BorderStroke(TvDimens.borderThin, c.line), CircleShape)
                 .padding(start = TvDimens.xs, end = TvDimens.l)
-                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                // No live region: TalkBack would say every title of a station while one browses (review L-3).
+                .semantics(mergeDescendants = true) { },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(TvDimens.m),
         ) {

@@ -559,14 +559,26 @@ Abnahmeliste.
 - **Home und Standby:** Der Titel meldet seinen letzten Stand und beendet die Sitzung am Server; zurück in der
   App wartet er pausiert an derselben Stelle. Ein Sender endet (`endRadioListen`). Die App wartet nach dem
   Stopp der Activity 1,5 s, ob der Bildschirmschoner sich meldet (`ACTION_DREAMING_STARTED`): dann spielt der
-  Ton weiter. Geht der Bildschirm aus (`ACTION_SCREEN_OFF`), endet die Sitzung sofort.
+  Ton weiter. Geht der Bildschirm aus (`ACTION_SCREEN_OFF`), endet die Sitzung sofort. Endet der Schoner,
+  ohne dass die App wieder vorn ist (Home, eine andere App), gilt dieselbe Frist noch einmal. Verschwindet
+  der HDMI-Ausgang (anderer Eingang am Fernseher, `ACTION_HDMI_AUDIO_PLUG`) länger als 1,5 s, endet die
+  Sitzung ebenso; kommt er zurück, wartet der Titel pausiert. Entschieden wird im Scope des Graphen, nicht
+  der Seite.
+- **App schliessen:** Das zweite Zurück auf der Startseite (`finish()`) beendet den Ton sofort, ohne Frist.
 - **Bildschirmschoner und Einbrennschutz:** Der Tonplayer hält den Bildschirm nicht wach. Nach 12 s ohne Taste
   wird er ruhig (Mockup): kleines Bild, Titel und Fortschritt, das langsam wandert; die erste Taste weckt ihn
   nur. Danach darf der Bildschirmschoner des Fernsehers kommen.
-- **Video:** Startet ein Film, pausiert das Hörbuch, ein Sender endet (Mockup).
-- **Tasten:** Links/Rechts auf der Zeitleiste und die Spultasten springen 15 s zurück und 30 s vor (wie Web
-  und Handy, `AudioRules`; das Mockup zeigt 30/30), Vor/Zurück wechseln das Kapitel bzw. die Folge,
-  Play/Pause und Stopp wirken auch, wenn eine andere Seite offen ist (Media-Session des Players).
+- **Video:** Wird ein Film geöffnet, beendet das Hörbuch seine Sitzung am Server, bevor der Film seine
+  beginnt (keine zwei Sitzungen, Stream-Grenze); «Läuft gerade» behält es, nach dem Film wartet es pausiert.
+  Ein Sender endet.
+- **Tasten:** Links/Rechts auf der Zeitleiste und die Spultasten springen 15 s zurück und 30 s vor. Das
+  TV-Mockup zeigt 30/30, das Papier nennt keinen Wert; es gilt der gemeinsame Wert `AudioRules` aus
+  `:core:player`, den auch der Tonplayer der Web-App (`player.audio.back15`/`forward30`) und das Handy
+  nutzen. Vor/Zurück wechseln das Kapitel bzw. die Folge. Play und Pause getrennter Tasten schalten nicht
+  um. Auf den anderen Seiten nimmt die App die Medientasten selbst ab, solange Ton läuft: Play/Pause,
+  Stopp (beendet die Sitzung), Spulen ±15/30 s, Vor/Zurück wie im Tonplayer.
+- **Prozess-Tod:** Keine Wiederaufnahme und keine letzte Meldung; die Sitzung bleibt bis zu ihrem Ablauf
+  am Server in der Streamübersicht (bekannte Grenze).
 - **Tempo** mit 0,75× bis 2× wie im Mockup; kein Schlaftimer am Fernseher (Mockup und Papier nennen keinen).
 - **Webradio:** OK startet einen Sender, nochmals OK hält ihn an (Mockup). Die Länder wählt ein Seitenmenü
   wie das Blatt am Handy; «Meine Sender» und die Sender sind Reihen von Kacheln mit dem Herz darunter.
@@ -583,8 +595,11 @@ Abnahmeliste.
 | 4 | Während es spielt Home drücken; App wieder öffnen | Ton aus; zurück pausiert an derselben Stelle, «Läuft gerade» zeigt «Pausiert»; am Server stimmt die Position (Web-App: Fortsetzen) |
 | 5 | Während es spielt den Fernseher in Standby schalten und wieder einschalten (auch über CEC der Fernbedienung) | Ton aus, Sitzung beendet; danach pausiert an derselben Stelle |
 | 6 | Webradio: Sender starten, über Nacht laufen lassen (Bildschirmschoner an) | kein Abbruch, der Herzschlag hält die Sitzung, der laufende Titel wechselt; am Morgen spielt er noch |
-| 7 | Webradio spielt, Film starten | der Sender endet, der Film spielt; ein Hörbuch stünde danach pausiert unter «Läuft gerade» |
+| 7 | Webradio spielt, Film starten; ebenso mit einem Hörbuch | der Sender endet, der Film spielt; ein Hörbuch beendet seine Sitzung (Streamübersicht zeigt nur den Film) und wartet nach dem Film pausiert unter «Läuft gerade» |
 | 8 | Podcast-Folge bis zum Ende hören | die Folge gilt als gehört (Haken in der Liste der Podcast-Seite) |
-| 9 | Play/Pause der Fernbedienung auf einer anderen Seite, während ein Hörbuch spielt | pausiert und spielt weiter, die Plakette oben rechts folgt |
+| 9 | Play/Pause, getrennte Play- und Pause-Tasten (CEC, Shield), Stopp und Spultasten auf einer anderen Seite, während ein Hörbuch spielt | pausiert und spielt weiter, Play pausiert nie; Stopp beendet die Sitzung, «Läuft gerade» verschwindet; Spulen 15/30 s |
 | 10 | Profil wechseln und «Diesen Fernseher abmelden», während etwas spielt | der Ton endet sofort, die Streamübersicht der Verwaltung zeigt nichts mehr |
-| 11 | HDMI-Eingang am Fernseher wechseln, während ein Sender läuft, nach 10 min zurück | je nach Gerät: Ton läuft weiter (Box bleibt an) oder pausiert per CEC; Ergebnis je Gerät notieren |
+| 11 | HDMI-Eingang am Fernseher wechseln, während ein Sender läuft, nach 10 min zurück | meldet das Gerät den Wegfall des HDMI-Tons: der Sender endet nach 1,5 s; sonst läuft er weiter oder die Box schläft per CEC. Ergebnis je Gerät notieren |
+| 12 | Hörbuch spielt, warten bis der Bildschirmschoner kommt, dann Home drücken | der Ton endet nach etwa 1,5 s, zurück in der App wartet der Titel pausiert |
+| 13 | Hörbuch spielt, auf der Startseite zweimal Zurück (App verlassen) | der Ton endet sofort |
+| 14 | Webradio über Nacht mit Bildschirmschoner auf einem Gerät mit 2 GB | läuft am Morgen noch; beendet das System die App, notieren (Review O-1: dann braucht 5.6 einen Entscheid) |

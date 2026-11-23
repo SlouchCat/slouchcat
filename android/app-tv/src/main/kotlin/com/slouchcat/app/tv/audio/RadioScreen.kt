@@ -314,19 +314,30 @@ private fun StationTile(station: RadioStation, playing: RadioState?, server: Htt
         else -> stringResource(R.string.radio_page_play, station.name)
     }
     Column(Modifier.width(A.Station), verticalArrangement = Arrangement.spacedBy(TvDimens.xs)) {
-        TvCard(
-            title = station.name,
-            image = stationLogo(server, station),
-            onClick = { events.onStation(station) },
-            modifier = modifier.semantics { contentDescription = action },
-            shape = CardShape.Square,
-            tag = when {
-                running -> stringResource(R.string.radio_page_playing)
-                chosen -> stringResource(R.string.radio_page_paused)
-                else -> null
-            },
-            width = A.Station,
-        )
+        Box {
+            TvCard(
+                title = station.name,
+                image = stationLogo(server, station),
+                onClick = { events.onStation(station) },
+                modifier = modifier.semantics { contentDescription = action },
+                shape = CardShape.Square,
+                tag = when {
+                    running -> stringResource(R.string.radio_page_playing)
+                    chosen -> stringResource(R.string.radio_page_paused)
+                    else -> null
+                },
+                width = A.Station,
+            )
+            // A station of «Meine Sender»: the star at the top right (mockup photo 31); no control.
+            if (station.favorite) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(TvDimens.s).size(A.StationStar).clip(CircleShape).background(SlouchcatTokens.Color.Scrim.Solid),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    TvIcon(SlouchcatIcon.Star, TvDimens.Button.Icon, tint = c.accent)
+                }
+            }
+        }
         Text(station.name, style = TvType.bodyStrong, color = c.tx, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TvDimens.xs))
         val line = listOfNotNull(station.country?.let { countryName(it) }, station.genres.take(GENRES).joinToString(stringResource(R.string.format_listSeparator)).ifBlank { null })
             .joinToString(stringResource(R.string.format_separator))
@@ -446,6 +457,10 @@ private fun SearchMenu(initial: String, onApply: (String) -> Unit, onDismiss: ()
 /** What the page of the station that plays can be asked to do. */
 interface RadioListenEvents {
     fun onToggle()
+
+    /** The Play and Pause keys of a remote with keys of their own (review m-1). */
+    fun onPlay()
+    fun onPause()
     fun onStop()
     fun onRetry()
     fun onFavorite()
@@ -474,7 +489,9 @@ fun RadioListenScreen(state: RadioState?, server: HttpUrl?, favorite: Boolean, r
     OnRemoteKey(remoteKeys) { key ->
         calm.wake()
         when (key) {
-            RemoteKey.PlayPause, RemoteKey.Play, RemoteKey.Pause -> events.onToggle()
+            RemoteKey.PlayPause -> events.onToggle()
+            RemoteKey.Play -> events.onPlay()
+            RemoteKey.Pause -> events.onPause()
             RemoteKey.Stop -> events.onStop()
             else -> Unit
         }

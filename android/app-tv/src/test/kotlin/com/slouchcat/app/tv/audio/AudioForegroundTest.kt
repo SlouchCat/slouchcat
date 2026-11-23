@@ -13,7 +13,6 @@ import com.slouchcat.core.player.testing.FakeServer
 import com.slouchcat.core.player.testing.audioInfo
 import com.slouchcat.core.player.testing.station
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -45,7 +44,7 @@ class AudioForegroundTest {
             settings = MemoryDeviceSettingsStore().settings,
             clock = { testScheduler.currentTime },
         )
-        return TvAudio(playback, Job()).also { it.follow(backgroundScope) }
+        return TvAudio(playback).also { it.follow(backgroundScope) }
     }
 
     private fun TestScope.playTitle(audio: TvAudio) {
@@ -124,7 +123,7 @@ class AudioForegroundTest {
         playTitle(audio)
         audio.videoStarts()
         runCurrent()
-        assertFalse(engines.last().wantsPlay)
+        assertEquals(listOf("session-book"), titles.stops)
         assertTrue(audio.playback.now.value is AudioNow.Title)
         audio.playback.playRadio(station(7))
         runCurrent()
@@ -142,5 +141,88 @@ class AudioForegroundTest {
         runCurrent()
         assertEquals(listOf("session-book"), titles.stops)
         assertNull(audio.now.value)
+    }
+
+    @Test
+    fun theScreenSaverThenHomeEndsTheSession() = runTest {
+        val audio = audio()
+        playTitle(audio)
+        val foreground = AudioForeground(audio, backgroundScope)
+        foreground.onStop()
+        foreground.onDreamingStarted()
+        advanceTimeBy(AudioForeground.GRACE_MS * 2)
+        runCurrent()
+        assertTrue(titles.stops.isEmpty())
+        // Home wakes the screen saver, the launcher comes, the app gets no Start (review M-1).
+        foreground.onDreamingStopped()
+        advanceTimeBy(AudioForeground.GRACE_MS + 1)
+        runCurrent()
+        assertEquals(listOf("session-book"), titles.stops)
+    }
+
+    @Test
+    fun theScreenSaverThenBackInTheAppPlaysOn() = runTest {
+        val audio = audio()
+        playTitle(audio)
+        val foreground = AudioForeground(audio, backgroundScope)
+        foreground.onStop()
+        foreground.onDreamingStarted()
+        advanceTimeBy(AudioForeground.GRACE_MS * 2)
+        foreground.onDreamingStopped()
+        foreground.onStart()
+        advanceTimeBy(AudioForeground.GRACE_MS * 2)
+        runCurrent()
+        assertTrue(titles.stops.isEmpty())
+        assertTrue(engines.last().wantsPlay)
+    }
+
+    @Test
+    fun finishingTheAppEndsAtOnce() = runTest {
+        val audio = audio()
+        playTitle(audio)
+        val foreground = AudioForeground(audio, backgroundScope)
+        // The second Back of the start page (review B-1): no wait, no paused title left.
+        foreground.onStop()
+        foreground.onFinish()
+        runCurrent()
+        assertEquals(listOf("session-book"), titles.stops)
+        assertNull(audio.playback.now.value)
+    }
+
+    @Test
+    fun anHdmiOutputThatGoesAwayEndsTheSessionAndComesBackPaused() = runTest {
+        val audio = audio()
+        playTitle(audio)
+        val foreground = AudioForeground(audio, backgroundScope)
+        // A short handshake changes nothing.
+        foreground.onHdmi(plugged = false)
+        foreground.onHdmi(plugged = true)
+        advanceTimeBy(AudioForeground.GRACE_MS * 2)
+        runCurrent()
+        assertTrue(titles.stops.isEmpty())
+        // Another input of the TV (review m-7).
+        foreground.onHdmi(plugged = false)
+        advanceTimeBy(AudioForeground.GRACE_MS + 1)
+        runCurrent()
+        assertEquals(listOf("session-book"), titles.stops)
+        foreground.onHdmi(plugged = true)
+        runCurrent()
+        assertEquals(2, titles.starts.size)
+        assertFalse(engines.last().wantsPlay)
+    }
+
+    @Test
+    fun aVideoEndsTheSessionOfTheTitleAndBringsItBackPaused() = runTest {
+        val audio = audio()
+        playTitle(audio)
+        audio.videoStarts()
+        runCurrent()
+        // Review M-2: no second session beside the video's.
+        assertEquals(listOf("session-book"), titles.stops)
+        assertTrue(audio.now.value is Playing.Title)
+        audio.videoEnds()
+        runCurrent()
+        assertEquals(2, titles.starts.size)
+        assertFalse(engines.last().wantsPlay)
     }
 }

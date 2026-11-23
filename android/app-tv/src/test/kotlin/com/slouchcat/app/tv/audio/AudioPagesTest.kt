@@ -193,6 +193,26 @@ class AudioPagesTest {
     }
 
     @Test
+    fun theEpisodePageReachesEveryControlAndLeadsToItsPodcast() {
+        // An episode from a row of Start (review m-9: a test for every page).
+        details.details[ulid(101)] = ApiResult.Ok(com.slouchcat.core.browse.testing.podcastEpisode(101).copy(overview = "A night in the archive."))
+        home.page = ApiResult.Ok(HomePage(rows = listOf(homeRow(HomeRowKey.RECENT, listOf(com.slouchcat.core.browse.testing.episodeRef(101))))))
+        open()
+        pages.waitFor("Episode 101")
+        remote.ok()
+        pages.waitFor("A night in the archive.")
+        compose.onNode(hasText("Night Shift Stories")).assertExists()
+        remote.assertFocused(s(R.string.tv_audio_listen))
+        remote.assertEveryControlReachable(scope = pages.page)
+        focus(AudioItemKeys.PODCAST)
+        remote.ok()
+        pages.waitFor("Episode 102")
+        remote.back()
+        pages.waitFor("A night in the archive.")
+        remote.assertFocused(s(R.string.item_podcast_link))
+    }
+
+    @Test
     fun weiterhoerenOnStartOpensTheAudioPlayer() {
         open()
         pages.waitFor(book.title)
