@@ -176,6 +176,8 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
 extra+=(-e slouchcatRadio 1)
+# The photos of the store listing are no part of the flow: only scripts/store-screenshots.sh runs them.
+extra+=(-e notClass com.slouchcat.app.tv.store.StoreShotsTest)
 if [ -n "${TESTS:-}" ]; then extra+=(-e class "$TESTS"); fi
 # The whole flow under one adb call: its own, longer limit.
 timeout 3600 "$sdk/platform-tools/adb" -s "$serial" shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \

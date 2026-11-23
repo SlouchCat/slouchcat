@@ -137,6 +137,8 @@ if [ -n "$media" ]; then
   echo "android-e2e: server seeded with the test media"
 fi
 flow_args+=(slouchcatRadio 1)
+# The photos of the store listing are no part of the flow: only scripts/store-screenshots.sh runs them.
+flow_args+=(notClass com.slouchcat.app.mobile.store.StoreShotsTest)
 
 # One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
 # for an emulator that a run without the lock started (an older script, by hand).
