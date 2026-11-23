@@ -12,6 +12,15 @@
   Operationen stehen genau einmal und mit der richtigen Sichtbarkeit darin. Die Einarbeitung der
   dritten Lesung ist nicht gegengelesen. Verweise «K27 4.2» meinen Abschnitte von Konzept 27. Gebaut
   wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+- **Umsetzung:** Der Bau aller Stufen beider Papiere ist mit dem Auftrag vom 21. November 2026 bestellt
+  (Zitat oben) und vom 21. bis 23. November 2026 ausgeführt worden. Stand je Stufe in Abschnitt 10
+  unter der Tabelle. In `main` sind die Stufen 0 bis 3 und 5; Stufe 4 (PR #208) und die Ausgabe der
+  Dateien für Stufe 6 (PR #209) sind offen. Nicht oder abweichend gebaut, mit Grund:
+  `docs/dev/CURRENT_STATUS.md`, Abschnitt «Bau der Android-Apps», «Eigene Entscheide des Baus» (A-1
+  bis A-17 sind Entscheide des Baus, nicht von Marco) und «Abweichungen der Agenten». Offen bleiben
+  alles auf den drei Fernsehern und an Tonanlagen, die Vermittlung auf Marcos Infrastruktur, die Play
+  Console mit der TV-Spur, Store-Banner als Bild und Bildschirmfotos und die Abnahme auf CT 190 (dort
+  «Offen»). Was Marco tun muss: `docs/dev/ANDROID-INBETRIEBNAHME.md` Abschnitt 9.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
   die Rückfrage, was damit gemeint ist, hat er «Konzept starten» gewählt.
@@ -773,6 +782,21 @@ ist jede Stufe eine Ausgabe der TV-App.
 | **4 Ton** | Hörbücher, Podcasts, Webradio | Abnahme auf den Geräten | |
 | **5 Wünsche** | Bereich «Wünsche», Benachrichtigungen, Ankündigungen | Abnahme mit echtem Seerr; **erste Ausgabe nach E-5 vollständig** | |
 | **6 Öffentlich** | TV-Geräteart mit eigener Veröffentlichungsspur, TV-Prüfung, Banner und Bildschirmfotos | TV-App im Play Store | geschlossener Test und Vorführserver aus K27 Stufe 10 laufen oder sind erledigt; F-10 |
+
+**Stand der Umsetzung (23. November 2026; Einzelheiten in `docs/dev/CURRENT_STATUS.md`):**
+
+- **0 Messung:** in `main` (PR #196); nur im TV-Emulator gemessen, die drei Fernseher offen.
+- **1 Server: Ton und Fähigkeiten:** in `main` als Release 1.43.0 (PR #199, Tag `v1.43.0`); Geräte,
+  Tonanlagen und Abnahme auf CT 190 offen.
+- **2a Gerüst:** in `main` (PR #201); Scan im Emulator gegen eine lokale Vermittlung, echter Fernseher offen.
+- **2b Seiten:** in `main` (PR #202); Abnahme auf den drei Geräten offen.
+- **3 Videoplayer:** in `main` (PR #202); Abnahmeliste je Gerät und Tonanlage und Vorab-Ausgabe über die
+  interne Testspur offen.
+- **4 Ton:** PR #208 offen; Abnahme auf den Geräten offen.
+- **5 Wünsche:** in `main` (PR #205); Abnahme mit echtem Seerr offen.
+- **6 Öffentlich:** Unterlagen für die TV-Geräteart in `main` (PR #200, `docs/store/VEROEFFENTLICHEN.md`
+  Abschnitt 9), Banner der App im Manifest, Ausgabe der Dateien PR #209 (offen); TV-Spur, Store-Banner als
+  Bild und Bildschirmfotos offen.
 
 Zur Reihenfolge innerhalb dieses Papiers:
 
