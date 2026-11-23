@@ -374,12 +374,14 @@ class ServerIdentityGate(
     fun isProvenNow(): Boolean = synchronized(lock) { validProof() != null }
 
     /** Whether a hop may leave now; if so, the proof is in use from now. */
-    private fun leaveWithTheProof(): Boolean = synchronized(lock) { validProof()?.also { it.usedAt = clock() } != null }
-
-    /** The proof of the key in use for the current network, under [lock]. */
-    private fun validProof(): Proof? {
-        val key = candidateKey ?: trusted.serverKey ?: return null
+    private fun leaveWithTheProof(): Boolean = synchronized(lock) {
         val now = clock()
+        validProof(now)?.also { it.usedAt = now } != null
+    }
+
+    /** The proof of the key in use for the current network at [now], under [lock]. */
+    private fun validProof(now: Long = clock()): Proof? {
+        val key = candidateKey ?: trusted.serverKey ?: return null
         return proven?.takeIf {
             it.generation == network.generation() && it.key == key && now - it.at < maxAge.toNanos() && now - it.usedAt < idle.toNanos()
         }

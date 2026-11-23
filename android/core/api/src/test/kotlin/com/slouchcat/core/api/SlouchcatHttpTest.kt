@@ -43,11 +43,13 @@ class SlouchcatHttpTest {
         assertTrue(SlouchcatHttp.PROOF_IDLE < SlouchcatHttp.KEEP_ALIVE)
         val http = SlouchcatHttp.client(identity, keepAlive = Duration.ofMillis(200))
         server.enqueue(MockResponse(body = "{}"))
-        http.newCall(Request.Builder().url(server.url("/")).build()).execute().close()
-        assertEquals(1, http.connectionPool.idleConnectionCount())
+        // Counted while the answer is open: once it is idle, a slow machine may find it gone already.
+        http.newCall(Request.Builder().url(server.url("/")).build()).execute().use {
+            assertEquals(1, http.connectionPool.connectionCount())
+        }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (http.connectionPool.idleConnectionCount() > 0 && System.nanoTime() < deadline) Thread.sleep(20)
-        assertEquals("the pool kept an idle connection past its time", 0, http.connectionPool.idleConnectionCount())
+        while (http.connectionPool.connectionCount() > 0 && System.nanoTime() < deadline) Thread.sleep(20)
+        assertEquals("the pool kept an idle connection past its time", 0, http.connectionPool.connectionCount())
     }
 
     @Test

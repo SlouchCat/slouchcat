@@ -628,7 +628,12 @@ class ServerIdentityGateTest {
             held.release.countDown()
             val onItsWay = second.get(5, TimeUnit.SECONDS).exceptionOrNull()
             assertTrue("the request on its way left without a proof: $onItsWay", onItsWay is ServerNotProvenException)
-            assertTrue("a request left without a proof: $log", log.none { it.startsWith("/second") || it.startsWith("/third") })
+            // The first request and the one of the minute in use, whatever connection they took; nothing else.
+            assertEquals(
+                "a request left without a proof",
+                List(2) { "/api/v1/auth/session with token" },
+                log.map { it.replace(Regex(" on \\d+"), "") },
+            )
         } finally {
             held.release.countDown()
         }

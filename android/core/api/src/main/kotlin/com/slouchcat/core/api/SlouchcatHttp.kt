@@ -49,7 +49,8 @@ interface SessionCredentials {
  *   server proved itself in this network ([ServerIdentityGate], F-38); its `hop` checks every
  *   network hop again (retries, redirects), before the credentials are added.
  * - Idle connections go after [KEEP_ALIVE]: before the server closes them, and not before a proof
- *   of the server has lapsed for want of use ([PROOF_IDLE]).
+ *   of the server has lapsed for want of use ([PROOF_IDLE]). The client gets a pool of its own for
+ *   that; a pool on the builder that is passed in is replaced.
  * - No logging interceptor: headers and addresses carry the token and stream tokens (rule 10).
  */
 object SlouchcatHttp {

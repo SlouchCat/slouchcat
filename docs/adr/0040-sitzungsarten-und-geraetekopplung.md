@@ -297,12 +297,19 @@ Verbindung, höchstens fünf) fallen weg.
 - Nach einer Pause über 60 s geht nichts mehr ohne neuen Beweis hinaus. Das Fenster «erste Anfrage auf einer
   alten Verbindung» gibt es dann nicht mehr, und das Fenster «bis zu 10 min ohne jeden Bruch» ist auf 60 s
   seit der letzten Anfrage geschrumpft.
-- Es bleibt der Wechsel mitten in der Benutzung, also weniger als 60 s nach der letzten Anfrage: Die nächste
-  Anfrage geht auf einer alten Verbindung hinaus, mit Token, und wer die Adresse des Servers hält, kann sie
-  lesen. Danach greifen Bruch und Zweifel wie im zweiten Teil.
-- Hält die App in diesen 60 s ausnahmsweise keine alte Verbindung (der Server hat sie mit `Connection: close`
-  beendet, oder alle fünf Plätze im Vorrat waren anders belegt), geht die Anfrage auf einer neuen Verbindung
-  an das fremde Gerät. Auch das höchstens 60 s nach der letzten Anfrage.
+- Es bleibt der Wechsel mitten in der Benutzung, also weniger als 60 s nach der letzten Anfrage. Die nächste
+  Anfrage geht mit Token hinaus, in der Regel auf einer alten Verbindung, und wer die Adresse des Servers
+  hält, kann sie lesen. Bricht das fremde Gerät die alte Verbindung oder schweigt es, greifen Bruch und
+  Zweifel wie im zweiten Teil.
+- Antwortet das fremde Gerät statt dessen, bricht nichts. Das kann es, wenn die App in dem Moment keine alte
+  Verbindung hält (der Server hat sie mit `Connection: close` beendet, oder die fünf Plätze im Vorrat waren
+  anders belegt) und es die neue annimmt und irgendetwas antwortet, oder wenn es sich gezielt in die alte
+  Verbindung einschaltet. Dann hält jede weitere Anfrage den Beweis in Benutzung, er gilt, bis er 10 min alt
+  ist, und jede Anfrage trägt das Token. Die 60 s begrenzen nur, wann dieses Fenster beginnen kann, nicht wie
+  lange es dauert; hier greift allein die Prüfung nach Zeit.
+
+Nicht gebaut: eine kürzere Höchstdauer des Beweises, solange die App den Server benutzt (heute 10 min). Sie
+kürzte das letzte Fenster und kostete laufend Beweise, auch im eigenen Netz. Das wäre ein eigener Entscheid.
 
 Ganz schliessen kann die Grenze weiter nur HTTPS.
 
