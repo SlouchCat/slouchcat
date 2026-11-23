@@ -156,7 +156,11 @@ class AudioServiceTest {
         val player = app.engines.single().player
         player.play()
         idle()
-        app.sendBroadcast(Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        // Media3 registers its receiver from the player's background thread (AudioBecomingNoisyManager
+        // posts registerReceiver there): a broadcast sent before that reaches nobody.
+        val noisy = Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+        until { shadowOf(app).hasReceiverForIntent(noisy) }
+        app.sendBroadcast(noisy)
         // The player takes the broadcast on its own thread and pauses from there: one pass of the main
         // looper can come too early (it did once on a CI runner).
         until { !player.playWhenReady }
