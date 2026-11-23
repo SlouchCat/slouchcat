@@ -15,11 +15,14 @@ import com.slouchcat.core.media.data.ChannelsRepository
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -87,6 +90,8 @@ class PushRegistrar(
     private val relay: RelayClient,
     private val platform: PushPlatform,
     private val store: PushStore,
+    // RelayClient.register blocks (OkHttp execute); callers run on the main dispatcher.
+    private val io: CoroutineDispatcher = Dispatchers.IO,
     private val deviceName: () -> String,
 ) : DevicePush {
     private val _state = MutableStateFlow<DevicePushState>(if (platform.available) DevicePushState.Off else DevicePushState.NotInBuild)
@@ -176,7 +181,7 @@ class PushRegistrar(
         if (known != null && known.fcmToken == token && known.vapidKey == vapid && known.subscriptionId != null && stillThere(server, known.subscriptionId)) {
             return DevicePushState.On
         }
-        val endpoint = when (val result = relay.register(token, vapid)) {
+        val endpoint = when (val result = withContext(io) { relay.register(token, vapid) }) {
             is RelayResult.Registered -> result.endpoint
             is RelayResult.Failed -> {
                 Log.w(TAG, "relay refused", "status" to result.status)

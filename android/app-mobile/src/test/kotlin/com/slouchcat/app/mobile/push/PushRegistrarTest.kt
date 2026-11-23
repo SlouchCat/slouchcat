@@ -43,8 +43,10 @@ class FakePlatform(var tokenValue: String? = "fcm-token-1", override val availab
 /** A relay that hands out an address per token and VAPID key, as `relay/cmd/push` does. */
 class FakeRelay(var answer: RelayResult? = null) : RelayClient {
     val calls = mutableListOf<Pair<String, String>>()
+    val threads = mutableListOf<Thread>()
     override fun register(fcmToken: String, vapidKey: String): RelayResult {
         calls += fcmToken to vapidKey
+        threads += Thread.currentThread()
         return answer ?: RelayResult.Registered("https://push.example.test/v1/push/1.sealed-${calls.size}")
     }
 }
@@ -86,6 +88,19 @@ class PushRegistrarTest {
         push.sync()
         assertEquals(1, relay.calls.size)
         assertEquals(1, channels.subscriptions.size)
+    }
+
+    @Test
+    fun theRelayIsNeverAskedOnTheCallersThread() = runTest(dispatcher) {
+        // The app scope runs on the main dispatcher; a blocking relay call there throws
+        // NetworkOnMainThreadException on a device (the test dispatcher stands in for main).
+        val caller = Thread.currentThread()
+        val relay = FakeRelay()
+        val push = registrar(FakeChannels(), relay, FakePlatform(), MemoryPushStore())
+        push.sync()
+        assertEquals(DevicePushState.On, push.state.value)
+        val thread = relay.threads.single()
+        assertTrue("relay asked on ${thread.name}", thread !== caller)
     }
 
     @Test
