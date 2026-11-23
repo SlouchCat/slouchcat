@@ -1,5 +1,33 @@
 # Aktueller Stand
 
+## CI: Job `android-emulator` rund vier Minuten schneller (23. November 2026, PR #215)
+
+Marco am 23. November 2026: Der Job `android-emulator (flow, informational)` dauert viel zu lange. Gemessen an
+drei Pull-Request-Läufen: 15,2 bis 15,6 min. Davon waren 8 min der Ablauf am Gerät, 4 min der Gradle-Bau und
+knapp 2 min das Einrichten.
+
+- **Ursachen:** Der Gradle-Cache des Jobs war fast leer (er teilte den Schlüssel mit `android-contract`, der nur
+  `core:api` baut, und speicherte selbst nie, weil er immer rot war). Der Gast lief mit zwei von vier Kernen und
+  zeichnete 1080 × 2424 Pixel in Software.
+- **Geändert:** Der Job liest den Gradle-Cache des Jobs `android` (nur lesend). Der AVD `ci_phone` hat vier
+  Kerne und 720 × 1616 Pixel bei 280 dpi, also dieselben dp wie bisher. `scripts/android-e2e.sh` baut die beiden
+  APKs im Hintergrund, während der Server eingerichtet wird und der Emulator startet; das gilt auch lokal.
+- **Gemessen:** zehn Jobs in zwei Läufen eines Wegwerf-Workflows (45182593516, 45185868418; der Zweig ist
+  gelöscht). Mit allen drei Änderungen 10,7 bis 11,9 min. Der Gradle-Bau dauert 81 bis 119 s statt 4 bis 6 min,
+  die Fälle laufen ein Viertel bis ein Drittel schneller. Tabellen: `docs/perf/K27-android-ci.md`, «Laufzeit des
+  Emulator-Jobs».
+- **Bleibt:** Der Job ist weiter rot und steht nicht im Gate. `AudioFlowTest` war in zehn von zehn Jobs rot
+  (das Radio spielt nicht innert 30 s), vier weitere Fälle gelegentlich; die Ursachen sind nicht untersucht.
+  Die Wartezeit eines Pull Requests bestimmt der Job nicht: Am längsten laufen `server tests (2)` (22 min) und
+  `android` (16 bis 18 min).
+- **Geprüft:** Die zehn Jobs der Messung führen das geänderte Skript aus. Lokal `task android:e2e` (`sc_phone`,
+  im Käfig mit 12 GB und 8 Kernen): APKs nach 40 s und Emulator nach 34 s bereit, 15 von 16 Fällen grün,
+  `OfflineFlowTest.kt:253` lief in sein Zeitlimit von 30 s; die Wiederholung mit `CLASS=…OfflineFlowTest` war
+  grün (111 s). Dieselbe Stelle war in 4 der 10 Runner-Jobs rot, der Fall wackelt also auch lokal. Die Mechanik
+  des Hintergrund-Baus (Platz von `heavy-slot.sh`, eigene Prozessgruppe, Abbruch) ist mit einem
+  Stellvertreter-Befehl geprüft. Kein `task ci` und kein `task check:fast`: Der Pull Request ändert nur
+  `ci.yml`, das Skript des Emulator-Ablaufs und Dokumente, und keines der beiden Ziele liest eine dieser Dateien.
+
 ## Patch 1.43.1: Serienwunsch gilt sofort als erfüllt, auch wenn eine Staffel später eingelesen wird (23. November 2026, PR #212, veröffentlicht)
 
 Marco meldete am 23. November 2026: «Strike Back» über die Android-App gewünscht, erscheint nicht in der Startreihe
