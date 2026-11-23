@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -111,6 +113,8 @@ fun TvShell(
     railOpen: Boolean,
     onRailOpen: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** The number on an entry and what a screen reader adds (stage 5); `null`: none. */
+    badge: @Composable (RailEntry) -> Pair<Int, String>? = { null },
     content: @Composable () -> Unit,
 ) {
     val open = railOpen && showRail
@@ -145,6 +149,7 @@ fun TvShell(
                 onProfile = onProfile,
                 railFocus = railFocus,
                 contentFocus = contentFocus,
+                badge = badge,
                 modifier = Modifier.zIndex(2f),
             )
         }
@@ -163,6 +168,7 @@ private fun Rail(
     onProfile: () -> Unit,
     railFocus: FocusRequester,
     contentFocus: FocusRequester,
+    badge: @Composable (RailEntry) -> Pair<Int, String>?,
     modifier: Modifier,
 ) {
     val c = SlouchcatTheme.colors
@@ -200,25 +206,34 @@ private fun Rail(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(r.Gap, Alignment.CenterVertically)) {
             val top = rail.filter { it.section == RailSection.Top }
             val bottom = rail.filter { it.section == RailSection.Bottom }
-            for (entry in top) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus)
+            for (entry in top) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus, badge(entry))
             if (media.isNotEmpty()) {
                 Box(Modifier.height(r.Section).padding(start = TvDimens.safeX + TvDimens.xs / 4), contentAlignment = Alignment.BottomStart) {
                     Text(stringResource(R.string.tv_shell_media).uppercase(), style = TvType.section, color = c.tx3, modifier = Modifier.alpha(labels).semantics { heading() })
                 }
-                for (entry in media) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus, small = true)
+                for (entry in media) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus, badge(entry), small = true)
             }
             if (bottom.isNotEmpty()) Spacer(Modifier.height(r.Section))
-            for (entry in bottom) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus)
+            for (entry in bottom) RailItem(entry, entry == marked, labels, onEntry, railFocus.takeIf { entry == marked }, contentFocus, badge(entry))
         }
         if (profile != null) ProfileItem(profile, labels, onProfile, contentFocus)
     }
 }
 
 @Composable
-private fun RailItem(entry: RailEntry, current: Boolean, labels: Float, onEntry: (RailEntry) -> Unit, requester: FocusRequester?, contentFocus: FocusRequester, small: Boolean = false) {
+private fun RailItem(
+    entry: RailEntry,
+    current: Boolean,
+    labels: Float,
+    onEntry: (RailEntry) -> Unit,
+    requester: FocusRequester?,
+    contentFocus: FocusRequester,
+    badge: Pair<Int, String>?,
+    small: Boolean = false,
+) {
     val c = SlouchcatTheme.colors
     val r = TvDimens.Rail
-    val label = entry.label.text()
+    val label = entry.label.text().let { name -> if (badge != null) "$name, ${badge.second}" else name }
     RailSurface(
         onClick = { onEntry(entry) },
         height = if (small) r.Media else r.Item,
@@ -232,9 +247,30 @@ private fun RailItem(entry: RailEntry, current: Boolean, labels: Float, onEntry:
                 selected = current
             },
     ) { focused ->
-        TvIcon(entry.icon, if (small) r.MediaIcon else r.Icon, tint = if (focused) c.bg else if (current) c.tx else c.tx3)
+        Box {
+            TvIcon(entry.icon, if (small) r.MediaIcon else r.Icon, tint = if (focused) c.bg else if (current) c.tx else c.tx3)
+            if (badge != null) RailCount(badge.first, Modifier.align(Alignment.TopEnd).offset(x = TvDimens.s, y = -TvDimens.xs))
+        }
         Spacer(Modifier.width(r.Pad))
-        Text(label, style = if (small) TvType.body else TvType.bodyStrong, maxLines = 1, modifier = Modifier.alpha(labels))
+        Text(entry.label.text(), style = if (small) TvType.body else TvType.bodyStrong, maxLines = 1, modifier = Modifier.alpha(labels))
+    }
+}
+
+/** The number on an entry (`.md-cnt`, smaller): the accent with its text colour; «99+» beyond 99. */
+@Composable
+private fun RailCount(count: Int, modifier: Modifier) {
+    val c = SlouchcatTheme.colors
+    val size = SlouchcatTokens.Tv.Size.Wishes.RailBadge
+    Box(
+        modifier
+            .heightIn(min = size)
+            .widthIn(min = size)
+            .clip(CircleShape)
+            .background(c.accent)
+            .padding(horizontal = TvDimens.xs),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (count > MAX_COUNT) stringResource(R.string.notifications_badgeMax, MAX_COUNT.toString()) else count.toString(), style = TvType.badge, color = c.onAccent, maxLines = 1)
     }
 }
 
@@ -329,6 +365,9 @@ private fun Clock(modifier: Modifier) {
 
 /** Where the closed rail's gradient starts to fade (`#rail` background, 55 %). */
 private const val RAIL_SOLID = 0.55f
+
+/** The largest number a badge shows in full. */
+private const val MAX_COUNT = 99
 
 /** The clock turns over at the full minute. */
 private const val CLOCK_TICK_MS = 60_000L

@@ -133,6 +133,9 @@ internal object PlayerKeys {
     /** Test tags of the controls (shown or hidden; they stay composed for the focus). */
     const val CONTROLS_SHOWN = "player-controls"
     const val CONTROLS_HIDDEN = "player-controls-hidden"
+
+    /** A chapter mark on the bar (stage 5). */
+    const val CHAPTER_MARK = "chapter-mark"
     val ROW = setOf(AUDIO, SUBTITLES, QUALITY, EPISODES, PREVIOUS, NEXT, INFO)
 }
 
@@ -528,7 +531,9 @@ private fun SeekBar(
     val position = if (scrubbed >= 0) scrub.targetMs ?: state.positionMs else state.positionMs
     val share = if (state.durationMs > 0) (position.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
     val label = stringResource(R.string.player_seek)
-    val value = stringResource(R.string.player_time, timecode(position), timecode(state.durationMs))
+    // With the chapter there, for TalkBack too (code review L-2).
+    val value = listOfNotNull(stringResource(R.string.player_time, timecode(position), timecode(state.durationMs)), chapterName(state.chapters, position))
+        .joinToString(stringResource(R.string.format_listSeparator))
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
@@ -568,6 +573,18 @@ private fun SeekBar(
         val shape = RoundedCornerShape(track / 2)
         Box(Modifier.fillMaxWidth().height(track).clip(shape).background(SlouchcatTokens.Tv.Color.GlassStrong))
         Box(Modifier.fillMaxWidth(share).height(track).clip(shape).background(c.accent))
+        // The chapters (paper 5.1, web SeekBar `.mark`): a gap in the bar where each one begins.
+        // At least three marks wide apart (code review L-1).
+        val gap = (state.durationMs * (P.ChapterMark * MARK_SPACING / maxWidth)).toLong()
+        for (start in chapterMarks(state.chapters, state.durationMs, gap)) {
+            Box(
+                Modifier
+                    .offset(x = maxWidth * (start.toFloat() / state.durationMs) - P.ChapterMark / 2)
+                    .size(P.ChapterMark, track)
+                    .background(c.bg)
+                    .testTag(PlayerKeys.CHAPTER_MARK),
+            )
+        }
         if (focused) {
             val x = maxWidth * share - P.Knob / 2
             Box(
@@ -625,6 +642,17 @@ private fun Bubble(
             ) { thumbnail(tile, Modifier.fillMaxSize()) }
         }
         Text(timecode(target), style = TvType.largeStrong)
+        // The chapter at the target (web SeekBar: its title, else «Kapitel n»).
+        val chapter = chapterName(state.chapters, target)
+        if (chapter != null) {
+            Text(
+                chapter,
+                style = TvType.bodyStrong,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
         val way = abs(delta)
         val time = if (way < MINUTE_MS) stringResource(R.string.format_seconds, (way / SECOND_MS).toString()) else timecode(way)
         Text(
@@ -845,3 +873,6 @@ private const val TOP_MID = 0.12f
 private const val TOP_END = 0.3f
 private const val BOTTOM_START = 0.48f
 private const val BOTTOM_MID = 0.76f
+
+/** Chapter marks lie at least this many mark widths apart. */
+private const val MARK_SPACING = 3

@@ -6,6 +6,7 @@ import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.WishesApi
 import com.slouchcat.core.api.generated.models.DiscoverPage
+import com.slouchcat.core.api.generated.models.DiscoverRowKey
 import com.slouchcat.core.api.generated.models.ExternalMedia
 import com.slouchcat.core.api.generated.models.ExternalTitle
 import com.slouchcat.core.api.generated.models.ExternalTitleRef
@@ -43,6 +44,12 @@ interface WishesRepository {
 
     suspend fun discover(server: HttpUrl): ApiResult<WishDiscover>
 
+    /**
+     * The next page of one row of «Entdecken» (`listWishDiscoverRow`, the TV loads a row further at
+     * its end). A repository without it ends the row with its first page.
+     */
+    suspend fun discoverRow(server: HttpUrl, row: DiscoverRowKey, page: Int): ApiResult<DiscoverPage> = ApiResult.NotFound
+
     /** The wishes area's search (TMDB through Seerr), page by page from 1. */
     suspend fun search(server: HttpUrl, query: String, page: Int): ApiResult<DiscoverPage>
 
@@ -71,6 +78,9 @@ class ApiWishesRepository(private val api: ApiCaller, private val http: Call.Fac
         api.call("wishes") { SlouchcatApi.create(::AuthApi, server, http).getSession() }.map { it.wishes }
 
     override suspend fun discover(server: HttpUrl) = api.call("wishes") { wishes(server).getWishDiscover() }
+
+    override suspend fun discoverRow(server: HttpUrl, row: DiscoverRowKey, page: Int) =
+        api.call("wishes") { wishes(server).listWishDiscoverRow(row, page) }
 
     override suspend fun search(server: HttpUrl, query: String, page: Int) =
         api.call("wishes") { wishes(server).searchWishTitles(query, page) }

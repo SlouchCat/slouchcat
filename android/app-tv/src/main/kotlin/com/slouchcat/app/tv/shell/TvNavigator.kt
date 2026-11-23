@@ -65,6 +65,15 @@ class TvNavigator(
         nav.navigate(route)
     }
 
+    /**
+     * [route] instead of the page shown (a title outside the library that is in the library
+     * meanwhile): Back then skips the replaced page.
+     */
+    fun replace(route: Any) {
+        val top = nav.currentBackStackEntry ?: return navigate(route)
+        nav.navigate(route) { popUpTo(top.destination.id) { inclusive = true } }
+    }
+
     /** Whether a page of [route] (equal arguments) is in the stack. */
     private fun has(route: Any): Boolean = runCatching { nav.getBackStackEntry(route) }.isSuccess
 
