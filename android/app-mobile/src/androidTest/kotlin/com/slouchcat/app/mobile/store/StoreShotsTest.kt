@@ -69,7 +69,6 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Rule
@@ -81,8 +80,9 @@ import java.io.File
 /**
  * The photos of the store listing (docs/store/grafiken.md) against the demo server of
  * scripts/store-screenshots.sh: the four open films of the Blender Foundation, an audiobook of
- * scripts/android-test-video.sh and an account with two profiles. Active only with the argument
- * `slouchcatStore` (the script passes it); in every other run each test stops at its assumption.
+ * scripts/android-test-video.sh and an account with two profiles. Only that script runs it
+ * (`-e class`, with the argument `slouchcatStore`); the flow of scripts/android-e2e.sh leaves it
+ * out (`notClass`).
  *
  * The script runs the methods one by one: `phone` and `phoneTvLink` on the phone, `tablet` on the
  * tablet, `player` on both (on the phone with a display of 1080 × 1920, so the landscape photo is
@@ -112,7 +112,7 @@ class StoreShotsTest {
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     @Before
-    fun onlyForTheStore() = assumeTrue("store photos only through scripts/store-screenshots.sh", args.getString("slouchcatStore") != null)
+    fun onlyForTheStore() = check(args.getString("slouchcatStore") != null) { "store photos only through scripts/store-screenshots.sh" }
 
     private fun shown(matcher: SemanticsMatcher) = compose.isShown(matcher, unmerged = true)
 

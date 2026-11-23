@@ -22,7 +22,6 @@ import com.slouchcat.core.strings.R
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -35,8 +34,9 @@ import java.io.InputStreamReader
  * scripts/store-screenshots.sh: 04 the setup with the QR code (the script stops the local relay
  * afterwards, so the code on the photo leads nowhere), then set up by hand with the remote, the
  * primary profile with its PIN, 01 the start page with the focus on a film, 02 its detail page,
- * 03 the player with the sound menu open. Active only with the argument `slouchcatStore`; in every
- * other run the test stops at its assumption. Photos go to the app's `files/store/`.
+ * 03 the player with the sound menu open. Only scripts/store-screenshots.sh runs it (`-e class`,
+ * with the argument `slouchcatStore`); the flow of scripts/android-tv-e2e.sh leaves it out
+ * (`-e notClass`). Photos go to the app's `files/store/`.
  *
  * Arguments: `slouchcatServer`, `slouchcatRelay`, `slouchcatEmail`, `slouchcatPassword`,
  * `slouchcatPin` (of the primary profile).
@@ -58,7 +58,7 @@ class StoreShotsTest {
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     @Before
-    fun onlyForTheStore() = assumeTrue("store photos only through scripts/store-screenshots.sh", args.getString("slouchcatStore") != null)
+    fun onlyForTheStore() = check(args.getString("slouchcatStore") != null) { "store photos only through scripts/store-screenshots.sh" }
 
     private fun ComposeTestRule.nodesOrNull(matcher: SemanticsMatcher, unmerged: Boolean) = try {
         onAllNodes(matcher, useUnmergedTree = unmerged).fetchSemanticsNodes()
@@ -189,12 +189,16 @@ class StoreShotsTest {
         pin.forEach { key(KeyEvent.KEYCODE_0 + (it - '0')) }
         submitPin()
 
-        // Start with the focus on Tears of Steel, its page.
+        // Start with the focus on Tears of Steel in the first row: the page stands at its top, no
+        // row is cut. A card of «Weiterschauen» starts the player at once: for the detail page
+        // the film of the row below.
         waitForText(TEARS, timeout = SCAN_MS)
-        // A card of «Weiterschauen» starts the player at once: the film in the row below it.
-        if (present(s(R.string.home_rows_continue))) key(KeyEvent.KEYCODE_DPAD_DOWN)
         toCard(TEARS)
         photo("01-home")
+        if (present(s(R.string.home_rows_continue))) {
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+            toCard(TEARS)
+        }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         waitFor(hasContentDescription(s(R.string.tv_item_more)))
         // «Abspielen», or «Weiterschauen» once the phone's player of this language ran.

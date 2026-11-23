@@ -121,8 +121,9 @@ Seitenverhältnis mit `scripts/store-screenshots-check.py`. Einen Ordner im Repo
   Mitteilungen).
 - **QR-Code:** Der Treffpunkt liegt bei der lokalen Vermittlung `relay/bin/pair` des Laufs; sie
   endet mit dem Lauf, der Code auf dem Foto führt danach nirgends hin.
-- Die Testklassen `StoreShotsTest` laufen nur mit dem Argument `slouchcatStore`; in den übrigen
-  Emulator-Läufen enden sie an ihrer Annahme (`assumeTrue`).
+- Die Testklassen `StoreShotsTest` fährt nur dieses Skript (`am instrument -e class`, mit dem
+  Argument `slouchcatStore`); `scripts/android-e2e.sh` und `scripts/android-tv-e2e.sh` schliessen
+  sie mit `notClass` aus, sie zählen dort weder als Fall noch als übersprungen.
 
 ### Was vorliegt
 
