@@ -73,33 +73,35 @@ dieselbe.
 ## 3. App-Bundle bauen und signieren
 
 **Was:** baut das Bundle der Bauart `play` (FCM, Google code scanner) und signiert es. **Wo:** im
-Repo unter `android/`, nach `source …/android-env.sh` oder mit eigenem JDK 21 und Android-SDK.
+Repo, mit JDK 21 und Android-SDK aus `scripts/install-android-tools.sh` (unter `~/.local/share`,
+`docs/dev/SETUP.md`, Abschnitt «Die Android-Apps: `android/`»).
 
-1. `versionCode` und `versionName` in `android/app-mobile/build.gradle.kts` hochzählen
-   (`versionCode` muss bei jedem Hochladen steigen).
-2. Bauen:
+1. `versionCode` und `versionName` in `android/app-mobile/version.properties` hochzählen
+   (`versionCode` steigt bei jedem Hochladen um 1; Regel und Bereiche von Handy und TV:
+   `docs/dev/ANDROID-INBETRIEBNAHME.md`, Abschnitt 7).
+2. Die vier Signatur-Werte setzen (`docs/dev/ANDROID-INBETRIEBNAHME.md`, Abschnitt 6.2; der Schlüssel
+   bleibt ausserhalb des Repos) und die Firebase-Werte (ebenda, Abschnitt 5). Ohne Firebase-Werte
+   baut `play` ohne Push; für den Store müssen sie beim Bau eingespielt sein.
+3. Bauen:
 
    ```bash
-   cd android
-   ./gradlew :app-mobile:bundlePlayRelease
+   task android:dist APPS=app
    ```
 
-   Das Bundle liegt dann unter `app-mobile/build/outputs/bundle/playRelease/` (Name am Bau
-   prüfen). Ohne Firebase-Angaben baut `play` ohne Push (Festlegungen des Baus); für den Store
-   müssen sie beim Bau eingespielt sein.
-3. Signieren (das Projekt hat keine Signatur-Konfiguration für `release`; das ist Absicht, so
-   kommt nichts davon ins Repo):
+   Das Bundle liegt dann als `android/dist/slouchcat-app-<versionName>-play-release.aab` da, mit
+   dem Upload-Schlüssel signiert. Heisst es `…-play-release-unsigned.aab`, waren die Signatur-Werte
+   nicht gesetzt: Ohne die Werte baut Gradle das Bundle unsigniert (geprüft beim Bau, kein
+   Debug-Schlüssel darin). Es lässt sich dann von Hand signieren (`docs/dev/ANDROID-INBETRIEBNAHME.md`,
+   Abschnitt 6.3). `task android:bundle` baut nur die zwei Bundles, ohne Umbenennen.
+4. Prüfen:
 
    ```bash
-   jarsigner -keystore ~/.config/slouchcat/upload.jks \
-     -signedjar slouchcat-<versionName>.aab \
-     app-mobile/build/outputs/bundle/playRelease/<Name des Bundles>.aab upload
-   jarsigner -verify slouchcat-<versionName>.aab
+   jarsigner -verify android/dist/slouchcat-app-<versionName>-play-release.aab
    ```
 
 **Geklappt, wenn:** `jarsigner -verify` mit «jar verified.» endet. Die Bauart `foss` geht nie in
-den Store (F-33). **Unbelegt:** ob der Bau ohne `signingConfig` ein unsigniertes Bundle liefert oder
-mit dem Debug-Schlüssel signiert; im zweiten Fall vor dem Signieren `zip -d <Bundle> 'META-INF/*'`.
+den Store (F-33). Den Tag `app-v<versionName>` setzen: `docs/dev/ANDROID-INBETRIEBNAHME.md`,
+Abschnitt 7; der Workflow baut dieselben Dateien und hängt sie an ein GitHub-Release.
 
 ## 4. Interne Testspur
 
@@ -224,9 +226,21 @@ ohne Anmeldung als Tester erscheint.
 2. Android TV hinzufügen, «Eigene Spur für Android TV» wählen, speichern.
 3. Store-Eintrag: TV-Banner 1280 × 720 und mindestens ein TV-Bildschirmfoto (`grafiken.md`); den
    Absatz «Zusatz für die TV-Geräteart» aus `eintrag-de.md` und `listing-en.md` einsetzen.
-4. Das TV-Bundle bauen und signieren wie in Schritt 3 (Modul `app-tv`, derselbe Upload-Schlüssel,
-   eigener `versionCode`-Bereich, damit sich Handy und TV nicht in die Quere kommen; Bereich am Bau
-   festlegen), zuerst in die interne TV-Spur, dann in die Produktion der TV-Spur.
+4. Das TV-Bundle bauen und signieren wie in Schritt 3, mit `android/app-tv/version.properties` und
+   `task android:dist APPS=tv` (Datei `slouchcat-tv-<versionName>-release.aab`, derselbe
+   Upload-Schlüssel). Der `versionCode` der TV-App zählt ab 1000001, der der Handy-App bleibt unter
+   1000000, damit sich die zwei nicht in die Quere kommen (`docs/dev/ANDROID-INBETRIEBNAHME.md`,
+   Abschnitt 7). Zuerst in die interne TV-Spur, dann in die Produktion der TV-Spur.
+   **Das TV-Bundle nur in die TV-Spur, das Handy-Bundle nie dorthin.** Google Play liefert je Gerät das
+   passende Artefakt mit dem höchsten `versionCode`. Die TV-App verlangt darum
+   `android.software.leanback` (`required="true"`: «Google Play will only make your app available on
+   Android TV OS», developer.android.com, «Create and run a TV app», Abschnitt «Declare TV device
+   support», gelesen am 23. November 2026); `scripts/android-dist.sh` prüft es in jedem Bau.
+   **Ziel-API 34 reicht für die TV-App:** «Android TV and Android XR apps, which must target Android
+   14 (API level 34) or higher» für neue Apps und Updates ab 31. August 2026
+   (<https://developer.android.com/google/play/requirements/target-sdk>, gelesen am 23. November
+   2026). Bestehende TV-Apps mit Ziel-API 33 oder tiefer sind auf neueren Geräten nicht mehr
+   erhältlich; 34 liegt darüber.
 5. Der Anleitung für die Prüfer (App-Zugriff) den TV-Absatz beilassen: Einrichten von Hand mit dem
    Prüfkonto (`datensicherheit.md` Abschnitt 5).
 6. Die TV-Prüfung abwarten. Google prüft gegen die TV-Qualitätsliste; Ablehnungen kommen mit
@@ -243,6 +257,7 @@ der Rechercheur gelesen, nicht nachgeprüft):
 - [ ] kein Bildschirmschoner während der Wiedergabe
 - [ ] keine Funktion, die Touch, Kamera oder GPS voraussetzt, als Pflicht im Manifest
 - [ ] App-Bundle (AAB), Ziel-API mindestens 34, `minSdk` höchstens 31
+- [ ] `android.software.leanback` verlangt (nur Fernseher), Touchscreen nicht verlangt (prüft `task android:dist`)
 - [ ] 32 und 64 Bit sowie 16-KB-Speicherseiten unterstützt
 - [ ] Test-Zugangsdaten für Googles Prüfer eingetragen (Vorführserver)
 
@@ -256,7 +271,7 @@ Testern für die TV-Geräteart erneut anfällt.
 |---|---|
 | `<Name des Entwicklers>` | 2 (Zertifikat) |
 | `<Ort der Sicherung des Upload-Schlüssels>` | 2 |
-| `<versionName>`, `<Name des Bundles>` | 3 |
+| `<versionName>` (kein Platzhalter zum Ausfüllen: der `versionName` aus `android/app-mobile/version.properties` bzw. `android/app-tv/version.properties` der Ausgabe) | 3, 9 |
 | `<Liste der internen Tester>` | 4 |
 | `<Adresse der Datenschutzerklärung>` | 5 |
 | `<Liste der geschlossenen Tester>` | 6 |

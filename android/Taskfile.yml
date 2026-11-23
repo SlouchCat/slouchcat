@@ -31,6 +31,31 @@ tasks:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease :app-tv:assembleDebug :app-tv:assembleRelease
       - find app-mobile/build/outputs/apk app-tv/build/outputs/apk -name '*.apk' -print
 
+  bundle:
+    desc: >-
+      App bundles (AAB) for the store: play of the phone app and the TV app (foss never goes to the store); signed with
+      the four slouchcat.signing.* values, else unsigned
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:bundlePlayRelease :app-tv:bundleRelease
+      - find app-mobile/build/outputs/bundle app-tv/build/outputs/bundle -name '*.aab' -print
+
+  # The files of a release in android/dist/ (docs/dev/ANDROID-INBETRIEBNAHME.md): APPS="app tv"
+  # (default), app or tv; the release workflow builds only the app of its tag.
+  dist:
+    desc: >-
+      Debug APKs for adb install, release APKs and bundles of both apps with the version in the name into android/dist/,
+      checked with apksigner and aapt2, with SHA256SUMS; APPS=app or APPS=tv for one app
+    cmds:
+      - APPS="{{.APPS | default "app tv"}}" ../scripts/android-dist.sh
+
+  # The job "sign" of release-android.yml, locally: no Gradle, the key from SLOUCHCAT_SIGNING_*.
+  sign:
+    desc: >-
+      Signs the unsigned release files in android/dist/ (or DIR) with the upload key from the four SLOUCHCAT_SIGNING_*
+      environment variables (zipalign, apksigner, jarsigner) and writes SHA256SUMS again
+    cmds:
+      - ../scripts/android-sign.sh "{{.DIR | default "dist"}}"
+
   # The generated client against a real server: the server of this repository with fresh data and
   # the media tree of scripts/android-test-media.sh on its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
   contract:

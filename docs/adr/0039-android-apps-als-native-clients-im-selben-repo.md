@@ -148,3 +148,43 @@ bleiben Seiten, Features, Routen, Navigator und Bausteine.
 
 Ein Modul unter `:core` hängt nie an einer App und nie an Compose-Material; Lint mit den eigenen Regeln
 und die Ziele `ciCheck`, `ciTest` und `fastCheck` erfassen jedes Modul.
+
+## Nachtrag 23. November 2026: Ausgabe, Versionen und Release-Weg der Apps
+
+- **Versionen:** Jede App hat ihre Versionsdatei (`app-mobile/version.properties`, `app-tv/version.properties`)
+  und ihren Tag (`app-vX.Y.Z`, `tv-vX.Y.Z`); der Tag muss dem `versionName` entsprechen. Weil beide Apps ein
+  Store-Eintrag mit derselben Kennung sind und jedes hochgeladene Bundle einen eigenen `versionCode`
+  braucht, zählt die Handy-App ab 1 und bleibt unter 1000000, die TV-App zählt ab 1000001; je Ausgabe +1.
+  Die Bauskripte brechen ausserhalb des Bereichs ab.
+- **Signatur:** `release` wird nur signiert, wenn die vier Werte `slouchcat.signing.*` (oder
+  `SLOUCHCAT_SIGNING_*`) gesetzt sind (`build-logic`, `Signing.kt`); sonst bleibt der Bau unsigniert. Der
+  Upload-Schlüssel kommt nie ins Repo.
+- **Release-Weg:** Der Workflow `release-android.yml` läuft nur bei `app-v*` und `tv-v*` und hat drei Jobs.
+  `build` (nur Leserecht, ohne Secrets) prüft Tag, Version und dass der Commit in `main` liegt, fährt
+  `task android:check` und `task android:test` und baut unsigniert. `sign` läuft im Environment
+  `android-release` (Pflicht-Reviewer, nur Tags `app-v*`/`tv-v*`) und signiert ohne pnpm und ohne Gradle,
+  nur mit `zipalign`, `apksigner` und `jarsigner` (`scripts/android-sign.sh`). `publish` (Schreibrecht,
+  ohne Secrets) hängt die Release-Dateien an ein GitHub-Release, das **nie «latest»** wird
+  (`--latest=false`). Grund für die Teilung: Der Upload-Schlüssel trifft nie auf fremden Code aus pnpm und
+  Maven, das Schreibrecht auch nicht (Sicherheits-Review «Ausgabe», M-1 und M-2). Grund für «nie latest»:
+  Server und Updater lesen `releases/latest/download/manifest.json`; ein App-Release ohne Manifest darf das
+  Server-Release dort nicht verdrängen. Fällt GitHub nach dem Löschen eines Server-Releases doch auf ein
+  App-Release zurück: `gh release edit vX.Y.Z --latest`. Anders als `release-relay.yml` legt dieser
+  Workflow ein Release an, weil APKs und Bundles einen Ort zum Herunterladen brauchen. Debug-APKs gehören
+  nicht hinein (neuer Debug-Schlüssel je Lauf, `run-as` liest die App-Daten).
+- **TV-App nur für Fernseher:** `app-tv` verlangt `android.software.leanback` (`required="true"`). Die
+  Android-Doku: «If your app runs on both mobile and TV, set the `required` attribute value to `false`. If
+  you set the `required` attribute value to `true`, Google Play will only make your app available on
+  Android TV OS» (<https://developer.android.com/training/tv/get-started/create>, «Declare TV device
+  support», gelesen am 23. November 2026). `false` ist für **ein** Artefakt, das auf beidem läuft; die
+  TV-App ist ein eigenes Artefakt in der eigenen Spur «Android TV» desselben Eintrags (E-20, «Manage
+  different form factor releases on dedicated tracks»,
+  <https://support.google.com/googleplay/android-developer/answer/13295490>, gelesen am 23. November 2026).
+  Mit `false` könnte die TV-App mit ihrem höheren `versionCode` ein Handy erreichen. Das ersetzt die
+  Zeile «Leanback … `required="false"`» des Messberichts K26 Stufe 0 (`docs/perf/K26-android-tv.md`,
+  Abschnitt 8). `scripts/android-dist.sh` prüft in jedem Bau: TV verlangt `leanback`, nicht den
+  Touchscreen; Handy verlangt `leanback` nicht.
+- **Ziel-API der TV-App bleibt 34:** Google Play verlangt seit 31. August 2026 für neue Apps und Updates
+  Ziel-API 36, «except for … Android TV and Android XR apps, which must target Android 14 (API level 34) or
+  higher» (<https://developer.android.com/google/play/requirements/target-sdk>, gelesen am 23. November 2026).
+- Anleitung für den Betrieb: `docs/dev/ANDROID-INBETRIEBNAHME.md`.
