@@ -315,6 +315,42 @@ func TestReconcileSeasonsByEpisodes(t *testing.T) {
 	}
 }
 
+// A season that arrives after the match of its series (the download tool imports season by
+// season): package metadata reports the series again after the episodes, and the partial wish
+// becomes available by the reconcile of the title, not by the hourly run.
+func TestReconcileAfterALaterSeason(t *testing.T) {
+	r := syncFixture(t)
+	res := r.create(r.marco, show(got, 1, 2))
+	r.fake.SetRequestStatus(r.wish(res.Wish.ID).Seasons[0].SeerrRequestID, seerrtest.RequestApproved)
+	r.exec(`UPDATE wishes SET state = 'processing' WHERE id = ?`, res.Wish.ID)
+	r.exec(`UPDATE wish_seasons SET state = 'processing' WHERE wish_id = ?`, res.Wish.ID)
+	matched := func() {
+		t.Helper()
+		r.queue.jobs = nil
+		r.svc.TitleMatched(r.ctx, metadata.MatchedTitle{ItemID: itemGot, Kind: "series", TMDBID: got})
+		if r.queue.count(JobReconcile) != 1 || r.queue.jobs[0].IdempotencyKey != JobReconcile+":item:"+itemGot {
+			t.Fatalf("jobs = %+v", r.queue.jobs)
+		}
+		if errs := r.runJobs(JobReconcile); len(errs) != 1 || errs[0] != nil {
+			t.Fatalf("reconcile: %v", errs)
+		}
+	}
+	r.addTitle("show", got, itemGot, map[int]int{1: 10})
+	matched()
+	if w := r.wish(res.Wish.ID); w.State != model.WishPartial || w.Seasons[1].State != model.WishProcessing {
+		t.Fatalf("season 1 in the library: %+v", w.Wish)
+	}
+	r.addTitle("show", got, itemGot, map[int]int{1: 10, 2: 10})
+	matched()
+	w := r.wish(res.Wish.ID)
+	if w.State != model.WishAvailable || w.ItemID != itemGot || w.AvailableAt == nil {
+		t.Errorf("season 2 in the library: %+v", w.Wish)
+	}
+	if !r.note.has(fmt.Sprintf("available %d %s", res.Wish.ID, itemGot)) {
+		t.Errorf("notifier = %v", r.note.got())
+	}
+}
+
 // A film in the library that no requester may see yet stays processing «wird eingelesen»; profiles
 // that wait for an available wish are reported again by the hourly run.
 func TestReconcileHiddenAndWaiting(t *testing.T) {
