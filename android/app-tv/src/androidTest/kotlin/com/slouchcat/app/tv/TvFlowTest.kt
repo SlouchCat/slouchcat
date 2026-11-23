@@ -644,7 +644,8 @@ class TvFlowTest {
         try {
             library.wishesOn("http://127.0.0.1:${server.port - SEERR_BELOW}")
             announcement = library.announce(ANNOUNCEMENT, "The test server goes down for a moment.")
-            val scenario = launch()
+            // Closed also when a step fails (code review L-11).
+            launch().use { scenario ->
             toStart()
             waitForText(TITLE)
 
@@ -720,7 +721,7 @@ class TvFlowTest {
             waitForText(s(R.string.wishes_state_declined))
             focused(s(R.string.wishes_area_mine))
             shot("89-wishes-mine")
-            scenario.close()
+            }
         } finally {
             library.wishesOff(seerrHere, announcement)
         }

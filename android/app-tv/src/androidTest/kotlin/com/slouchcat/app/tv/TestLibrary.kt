@@ -115,6 +115,9 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
 
     private var account: Long? = null
 
+    /** The client for the Seerr mock (no session of the server), one for the run (code review L-11). */
+    private val plain = OkHttpClient()
+
     /**
      * TMDB key, Seerr connected ([seerr] as the server reaches it), wishes on, the account linked to
      * Seerr's user 3 (the phone app's MessagesFlowTest, the web e2e's `openWishes`).
@@ -143,7 +146,7 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         for (wish in items) {
             val ids = listOfNotNull(wish["seerrRequestId"]?.jsonPrimitive?.longOrNull) +
                 (wish["seasons"] as? JsonArray).orEmpty().mapNotNull { it.jsonObject["seerrRequestId"]?.jsonPrimitive?.longOrNull }
-            ids.forEach { call("POST", "__control", """{"request":{"id":$it,"status":3}}""", OkHttpClient(), seerrHere) }
+            ids.forEach { call("POST", "__control", """{"request":{"id":$it,"status":3}}""", plain, seerrHere) }
         }
         if (items.isNotEmpty()) call("POST", "admin/seerr/sync", "{}")
     }
@@ -164,7 +167,7 @@ internal class TestLibrary(private val base: HttpUrl, private val email: String,
         runCatching { call("PUT", "admin/wishes/settings", """{"enabled":false}""") }
         runCatching { call("PUT", "admin/seerr", """{"clear":true,"enabled":false}""") }
         runCatching { call("PUT", "admin/settings", """{"clear":["tmdb"]}""") }
-        runCatching { call("POST", "__reset", "{}", OkHttpClient(), seerrHere) }
+        runCatching { call("POST", "__reset", "{}", plain, seerrHere) }
     }
 
     private companion object {
