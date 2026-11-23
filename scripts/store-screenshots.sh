@@ -127,6 +127,10 @@ display_reset() {
 emulator_stop() {
   [ -n "$emulator_pid" ] || return 0
   display_reset
+  # A power-off, not «emu kill»: Android writes its settings a moment after a change, and a killed
+  # emulator loses what is not on disk yet (measured: the reset of sysui_demo_allowed was gone).
+  timeout 30 "$sdk/platform-tools/adb" -s "$serial" shell reboot -p >/dev/null 2>&1 || true
+  for _ in $(seq 1 60); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
   timeout 30 "$sdk/platform-tools/adb" -s "$serial" emu kill >/dev/null 2>&1 || true
   for _ in $(seq 1 30); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
   kill "$emulator_pid" 2>/dev/null || true
@@ -152,6 +156,10 @@ cleanup() {
   rm -rf "$run"
 }
 trap cleanup EXIT
+# Ctrl-C and kill end the script through exit, so the cleanup above runs as well (bash killed by
+# a signal it does not trap would skip it and leave the AVD with the photo display).
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 command -v ffmpeg >/dev/null || fail "ffmpeg is missing"
 command -v python3 >/dev/null || fail "python3 is missing"
