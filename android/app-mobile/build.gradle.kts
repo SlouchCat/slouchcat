@@ -1,18 +1,26 @@
 // The phone app (concept 27). Package com.slouchcat.app for phone and TV (E-20); debug builds carry
 // `.dev` and are never uploaded (11.1).
+import java.util.Properties
+
 plugins {
     id("slouchcat.android.application")
     id("slouchcat.android.compose")
     alias(libs.plugins.kotlin.serialization)
 }
 
+// The version of the phone app, apart from the TV app's (tags `app-v…`): below 1000000, the TV app
+// counts from there (one store entry, every bundle needs a code of its own).
+val appVersion = Properties().apply { file("version.properties").inputStream().use(::load) }
+val appVersionCode = appVersion.getProperty("versionCode").toInt()
+check(appVersionCode in 1 until 1_000_000) { "app-mobile/version.properties: versionCode must stay below 1000000" }
+
 android {
     namespace = "com.slouchcat.app.mobile"
     defaultConfig {
         applicationId = "com.slouchcat.app"
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersion.getProperty("versionName")
         // The flow in the emulator (task android:e2e, concept 27 12 «Gerät»).
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -43,7 +51,8 @@ android {
         buildConfigField("String", "PUSH_RELAY", quoted(setting("slouchcat.pushRelay", "SLOUCHCAT_PUSH_RELAY").ifEmpty { "https://push.slouchcat.com" }))
     }
     // R8 from the start, so a page that needs a keep rule shows it in `task android:apk` and
-    // not first in the store build. Unsigned here; signing comes with the release (11.2).
+    // not first in the store build. Unsigned unless the four `slouchcat.signing.*` values are set
+    // (build-logic, Signing.kt; concept 27 11.2).
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true

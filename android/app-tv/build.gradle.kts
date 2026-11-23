@@ -10,7 +10,9 @@ plugins {
 }
 
 // The version of the TV app, apart from the phone app's (tags `tv-v…`, concept 26 3.2).
+// From 1000001 on: the phone app counts below 1000000 (one store entry, every bundle needs a code of its own).
 val tvVersion = Properties().apply { file("version.properties").inputStream().use(::load) }
+check(tvVersion.getProperty("versionCode").toInt() > 1_000_000) { "app-tv/version.properties: versionCode must be above 1000000" }
 
 android {
     namespace = "com.slouchcat.app.tv"
@@ -23,7 +25,8 @@ android {
         // The flow in the TV emulator (scripts/android-tv-e2e.sh).
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    // R8 from the start, like the phone app. Unsigned here; signing comes with the release.
+    // R8 from the start, like the phone app. Unsigned unless the four `slouchcat.signing.*` values
+    // are set (build-logic, Signing.kt).
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true

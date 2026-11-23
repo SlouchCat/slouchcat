@@ -40,6 +40,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 }
             }
             configureLint(lint)
+            configureReleaseSigning(this)
         }
         configureTests()
     }
