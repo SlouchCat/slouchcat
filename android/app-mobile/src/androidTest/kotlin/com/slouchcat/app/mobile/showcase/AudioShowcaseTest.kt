@@ -19,6 +19,8 @@ import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.ListenRoute
 import com.slouchcat.app.mobile.browse.RadioRoute
 import com.slouchcat.app.mobile.home.HomeRoute
+import com.slouchcat.app.mobile.isGone
+import com.slouchcat.app.mobile.isShown
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.features
 import com.slouchcat.core.api.ApiResult
@@ -130,7 +132,7 @@ class AudioShowcaseTest {
     /** The node's own click once it is there and enabled (the player's buttons wait for the start). */
     private fun click(text: String) {
         val matcher = (hasText(text) or hasContentDescription(text)) and hasClickAction() and isEnabled()
-        compose.waitUntil(20_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(20_000) { compose.isShown(matcher) }
         compose.onAllNodes(matcher).onFirst().performSemanticsAction(SemanticsActions.OnClick)
     }
 
@@ -169,12 +171,12 @@ class AudioShowcaseTest {
         showcase.waitFor(hasText(s(R.string.player_audio_sleep_off)))
         showcase.shot("s05-listen-sleep")
         click(s(R.string.player_audio_sleep_off))
-        compose.waitUntil(10_000) { compose.onAllNodes(hasText(s(R.string.player_audio_sleep_off))).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntil(10_000) { compose.isGone(hasText(s(R.string.player_audio_sleep_off))) }
         click(s(R.string.player_chapters_button))
         showcase.waitFor(hasText("Kapitel 12"))
         showcase.shot("s06-listen-chapters")
         click("Kapitel 1")
-        compose.waitUntil(10_000) { compose.onAllNodes(hasText("Kapitel 12")).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntil(10_000) { compose.isGone(hasText("Kapitel 12")) }
 
         // The small player over the start page.
         showcase.back()

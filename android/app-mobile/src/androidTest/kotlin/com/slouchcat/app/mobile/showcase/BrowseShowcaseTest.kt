@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.slouchcat.app.mobile.isGone
 import com.slouchcat.app.mobile.shell.features
 import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.strings.R
@@ -77,7 +78,7 @@ class BrowseShowcaseTest {
         showcase.waitFor(hasText(s(R.string.library_filters_allGenres)))
         showcase.shot("c06-sheet-genre")
         button("Drama").performScrollTo().performClick()
-        compose.waitUntil(10_000) { compose.onAllNodes(hasText(s(R.string.library_filters_allGenres))).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntil(10_000) { compose.isGone(hasText(s(R.string.library_filters_allGenres))) }
 
         button(s(R.string.library_filters_year)).performClick()
         showcase.waitFor(hasText(s(R.string.app_browse_allYears)))
