@@ -48,6 +48,15 @@ dependencies {
     implementation(project(":core:browse"))
     testImplementation(project(":core:browse-testing"))
     implementation(project(":core:offline"))
+    // «Fernseher verbinden» (stage 9): the phone's side of the pairing, the relay setting, the scanner.
+    implementation(project(":core:pairing"))
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.zxing.core)
+    "playImplementation"(libs.play.code.scanner)
+    "playImplementation"(libs.play.services.base)
+    "fossImplementation"(libs.camerax.camera2)
+    "fossImplementation"(libs.camerax.lifecycle)
+    "fossImplementation"(libs.camerax.view)
     implementation(libs.media3.ui)
     // Stage 7: covers of the media notification through the shared OkHttp client (token, gate).
     implementation(libs.media3.datasource.okhttp)
@@ -70,4 +79,29 @@ dependencies {
     // Stage 7: the showcase of the sound plays fake players over made-up titles and stations.
     androidTestImplementation(project(":core:player-testing"))
     androidTestImplementation(project(":core:browse-testing"))
+}
+
+// The two flavours stay apart (code review m-9, docs/store/datensicherheit.md 1.3): the merged
+// manifest of `play` declares no camera permission (Google's code scanner needs none), and `foss`
+// carries no library of Google's Play services, ML Kit or Firebase. Part of `ciCheck`.
+tasks.register("checkFlavourSeparation") {
+    group = "verification"
+    description = "The merged manifest of play has no CAMERA, foss has no Google Play services, ML Kit or Firebase"
+    val play = layout.buildDirectory.file("intermediates/merged_manifest/playRelease/processPlayReleaseMainManifest/AndroidManifest.xml")
+    val foss = layout.buildDirectory.file("intermediates/merged_manifest/fossRelease/processFossReleaseMainManifest/AndroidManifest.xml")
+    val fossModules = configurations.named("fossReleaseRuntimeClasspath").map { classpath ->
+        classpath.incoming.resolutionResult.allComponents.mapNotNull { (it.id as? ModuleComponentIdentifier)?.let { m -> "${m.group}:${m.module}" } }.sorted()
+    }
+    dependsOn("processPlayReleaseMainManifest", "processFossReleaseMainManifest")
+    inputs.file(play)
+    inputs.file(foss)
+    inputs.property("fossModules", fossModules)
+    doLast {
+        val playManifest = play.get().asFile.readText()
+        check("android.permission.CAMERA" !in playManifest) { "the merged manifest of play declares the camera permission" }
+        val fossManifest = foss.get().asFile.readText()
+        check("com.google.android.gms" !in fossManifest && "com.google.mlkit" !in fossManifest) { "the merged manifest of foss names Google Play services or ML Kit" }
+        val google = fossModules.get().filter { it.startsWith("com.google.android.gms:") || it.startsWith("com.google.mlkit:") || it.startsWith("com.google.firebase:") }
+        check(google.isEmpty()) { "foss carries Google's libraries: $google" }
+    }
 }

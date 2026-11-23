@@ -533,3 +533,46 @@ unten, Punkt 1).
     «foreground service not allowed» (Android verweigert den Vordergrunddienst nach dem Verlassen
     der App); dann diesen Fall melden.
 12. Beim ersten Ton fragt Android 13 und neuer nach Mitteilungen. Abgelehnt: Der Ton spielt trotzdem.
+
+## Stufe 9: Fernseher verbinden (22. November 2026)
+
+**Im Emulator und auf dem Host geprüft**, nicht mit echten Geräten:
+
+| Prüfung | Handy | Fernseher | Ergebnis |
+|---|---|---|---|
+| `TvLinkFlowTest` (`task android:e2e CLASS=…TvLinkFlowTest`) | Handy-App in `sc_phone` und `sc_tablet`, Scan über eine Test-Naht | `TvPairing` aus `:core:pairing` (dieselbe Logik wie die TV-App) | koppelt über `relay/bin/pair` in rund 2 s nach «Verbinden»; 410, 404 und «Vermittlung weg» mit echten Antworten; Handy und Tablet grün |
+| `task android:e2e:pair` | Kotlin der Handy-App als JVM-Programm (`:core:pairing:phoneCheck`) | TV-App in `sc_tv` | koppelt (`TvFlowTest` 3 Tests grün, `phonecheck: the TV is listed under «Meine Geräte»`) |
+| Host | `phoneCheck` (Kotlin) | `apicheck -pair-tv` (Go) | koppelt; Go öffnet das Paket aus Kotlin |
+
+Zwei Emulatoren zugleich (echte TV-App und echte Handy-App) passen nicht auf die Maschine; die zwei Hälften
+oben decken je eine Seite mit der echten App ab.
+
+**Gerätecheckliste Stufe 9 (nur Marco, echtes Handy, echter Fernseher, echte Vermittlung):**
+
+1. Fernseher: «Mit dem Handy einrichten». Handy (Hauptprofil): «Mehr › Fernseher verbinden › Scanner
+   öffnen». Der Scanner von Google öffnet sich ohne Frage nach der Kamera und liest den Code auch bei
+   Spiegelung am Bildschirm.
+2. Die Frage zeigt Konto, Server und «(Hauptprofil)»; bei einem Server über HTTP die Warnung.
+3. «Verbinden»: drei Zeilen, dann «Verbunden» mit dem Namen des Fernsehers innerhalb weniger Sekunden. Der
+   Fernseher zeigt Server und Konto, dann die Profilwahl. Die Meldung «Neues Gerät verbunden» kommt per
+   E-Mail/Telegram und (Stufe 8) als Push.
+4. Unter «Meine Geräte» steht der Fernseher; dort abmelden: Der Fernseher kehrt zur Einrichtung zurück.
+5. Denselben Code ein zweites Mal scannen: Warnung «Am Treffpunkt liegt schon ein Paket».
+6. Ein Kinderprofil: Die Seite zeigt den Hinweis «nur das Hauptprofil» und «Profil wechseln», keinen Scanner.
+7. Während «Fernseher meldet sich an …» die App verlassen: Zurück in der App steht «Du hast die Seite
+   verlassen …» mit dem Weg zu «Meine Geräte».
+8. Den Code eines Fernsehers mit einer anderen Vermittlung scannen: Ablehnung mit dem Namen der Vermittlung.
+9. Ohne Internet am Handy (nur WLAN zum Server): «Die Vermittlung antwortet nicht» mit dem Hinweis auf
+   «Von Hand einrichten».
+10. Bauart `foss` (von Hand installiert): Der Scanner fragt nach der Kamera; ablehnen zeigt den Hinweis und
+    «Einstellungen öffnen»; erlauben liest den Code. Ein anderer QR-Code im Bild (WLAN, Verpackung) beendet
+    den Scanner nicht.
+11. Bauart `foss`, Kaltstart: «Scanner öffnen» und sofort «Scanner schliessen». Das Kamera-Symbol von
+    Android erlischt sofort und bleibt aus, solange die Einleitung sichtbar ist.
+12. Erster Scan auf einem Handy, auf dem noch keine App Googles Code-Scanner benutzt hat (oder nach
+    «Daten löschen» der Play-Dienste): «Scanner wird geladen …», danach öffnet der Scanner von selbst.
+    Klappt das Laden nicht, sagt die Seite «wird noch geladen, gleich nochmals», nicht «keine Kamera».
+13. Auf «Verbunden»: «Nicht mein Fernseher – abmelden»; der Fernseher fällt zurück auf die Einrichtung.
+14. Während Googles Scanner offen ist, den Dunkelmodus umschalten oder die App vom System beenden lassen
+    (Entwickleroption «Aktivitäten nicht speichern»): Zurück in der App steht die Einleitung ohne
+    Meldung; ein neuer Scan klappt (bekannte Grenze, Code-Review L-6).

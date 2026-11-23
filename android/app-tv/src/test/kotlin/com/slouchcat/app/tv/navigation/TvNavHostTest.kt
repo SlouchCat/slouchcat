@@ -20,7 +20,7 @@ import androidx.navigation.toRoute
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.TvGraph
-import com.slouchcat.app.tv.common.MemoryRelaySettings
+import com.slouchcat.core.session.MemoryRelaySettings
 import com.slouchcat.app.tv.settings.SettingsFeature
 import com.slouchcat.app.tv.shell.Label
 import com.slouchcat.app.tv.shell.RailEntry

@@ -567,7 +567,94 @@
     },
     "wishes": {},
     "notifications": {},
-    "tv": {}
+    "tv": {
+      "title": "Connect a TV",
+      "moreHint": "Scan the QR code on the TV",
+      "intro": {
+        "title": "Connect a TV with your phone",
+        "lede": "No typing with the remote: the phone gives the TV its access.",
+        "step1": "Open the Slouchcat app on the TV. It shows a QR code.",
+        "step2": "Scan the code with this phone.",
+        "step3": "Confirm here. The TV signs in with your account.",
+        "scan": "Open scanner",
+        "cameraHint": "The app asks for the camera the first time.",
+        "googleHint": "The scanner of Google Play services reads the code. The app itself gets no access to the camera.",
+        "primaryOnly": "Only the primary profile can connect a TV. That way nobody adds a device to your account from a child profile.",
+        "linked": "Connected",
+        "since": "since {{date}}"
+      },
+      "scan": {
+        "title": "Scan QR code",
+        "close": "Close scanner",
+        "aim": "Point the camera at the code on the TV.",
+        "denied": "Without the camera the app cannot read the code. Allow the camera in the app's settings.",
+        "settings": "Open settings",
+        "loading": "Loading the scanner …"
+      },
+      "problem": {
+        "notACode": "This is not a code of the Slouchcat TV app. Scan the QR code the TV shows under “Set up with your phone”.",
+        "otherVersion": "This code comes from a newer TV app. Update the app on this phone.",
+        "otherRelay": "This code belongs to another relay. If you do not run a relay of your own, it is not a code of your TV app.",
+        "loading": "The scanner of Google Play services is still loading. Try again in a moment.",
+        "noPlayServices": "Google Play services are missing on this device or too old. Without them there is no scanner.",
+        "noCamera": "This device has no camera the app can read the code with.",
+        "scannerFailed": "The scanner could not be opened. Try again."
+      },
+      "confirm": {
+        "title": "Connect this TV to your account?",
+        "lede": "Only do this if the code is on your own TV.",
+        "account": "Account",
+        "server": "Server",
+        "by": "Confirmed by",
+        "primary": "{{name}} (primary profile)",
+        "profile": "{{name}} (profile)",
+        "hint": "The TV gets access to the profiles of this account, but not to the administration. It stays signed in until you sign it out under “My devices”.",
+        "plainHttp": "The connection to the server is not encrypted (HTTP). The TV then sends its access in the clear as well. Set up HTTPS for the server.",
+        "go": "Connect"
+      },
+      "run": {
+        "title": "Connecting …",
+        "failedTitle": "Not connected",
+        "voucher": "Voucher fetched from the server",
+        "handedOver": "Handed to the TV, encrypted",
+        "waiting": "TV is signing in …",
+        "done": "Done",
+        "busy": "Running",
+        "failed": "Failed",
+        "pending": "Waiting"
+      },
+      "fail": {
+        "occupied": "A packet is already waiting at the meeting point. The TV may be connected to someone else's server. Check which server and account the TV shows.",
+        "lapses": "Your voucher expires unused.",
+        "timedOut": "That did not work. Show a new code on the TV.",
+        "expired": "The code has expired. Show a new code on the TV.",
+        "relay": "The relay does not answer. Set the TV up by hand: choose “Set up by hand” on the TV and sign in with your account.",
+        "server": "The server does not answer. Check the connection and scan the code again.",
+        "notAllowed": "This sign-in cannot connect a TV.",
+        "leftBefore": "You left the page before the TV got its access. Scan the code again.",
+        "leftAfter": "You left the page. Whether the TV is connected, you see under “My devices”.",
+        "ok": "Got it",
+        "again": "Scan again",
+        "tooMany_one": "Too many attempts. Wait {{count}} second, then scan the code again.",
+        "tooMany_other": "Too many attempts. Wait {{count}} seconds, then scan the code again."
+      },
+      "done": {
+        "title": "Connected",
+        "lede": "The TV now shows the profile choice. It is listed under “My devices”. The message “New device connected” goes out over the notification channels that are set up.",
+        "finish": "Done",
+        "named": "The TV calls itself “{{name}}”",
+        "several": "A new TV is connected. Another device joined at the same moment: check under “My devices” which one is yours.",
+        "notMine": "Not my TV – sign out"
+      },
+      "relay": {
+        "primaryOnly": "Only the primary profile changes the relay."
+      },
+      "notMine": {
+        "title": "Sign out “{{name}}”?",
+        "body": "The TV loses its access to this account at once. Afterwards it is no longer listed under “My devices”.",
+        "done": "“{{name}}” is signed out."
+      }
+    }
   },
   "common": {
     "back": "Back",

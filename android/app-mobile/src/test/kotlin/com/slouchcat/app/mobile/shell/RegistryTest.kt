@@ -30,6 +30,8 @@ import com.slouchcat.app.mobile.more.AccountRoute
 import com.slouchcat.app.mobile.more.DevicesRoute
 import com.slouchcat.app.mobile.more.MoreRoute
 import com.slouchcat.app.mobile.playback.PlaybackSettingsRoute
+import com.slouchcat.app.mobile.tvlink.RelayRoute
+import com.slouchcat.app.mobile.tvlink.TvLinkRoute
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
@@ -74,6 +76,7 @@ class RegistryTest {
         com.slouchcat.app.mobile.browse.ListenRoute::class, com.slouchcat.app.mobile.browse.AudioSeriesRoute::class,
         com.slouchcat.app.mobile.browse.AudiobooksRoute::class, com.slouchcat.app.mobile.browse.PodcastsRoute::class,
         com.slouchcat.app.mobile.browse.RadioRoute::class,
+        TvLinkRoute::class, RelayRoute::class,
     )
 
     @Test

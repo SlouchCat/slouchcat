@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # The flow of the phone app in an emulator against a real server (task android:e2e, concept 27 12
 # «Gerät»): starts bin/slouchcat with fresh data on PORT, starts its own emulator AVD on EMU_PORT
-# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest, OfflineFlowTest).
+# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest, OfflineFlowTest,
+# TvLinkFlowTest with the relay relay/bin/pair on RELAY_PORT, and the showcases).
 #
 #   scripts/android-e2e.sh [--shots DIR]
 #
 # PORT        port of the test server (default 8597); it listens on 127.0.0.1 only, the emulator
 #             reaches the host's loopback as http://10.0.2.2:PORT
+# RELAY_PORT  port of the pairing relay (default 8181), on the loopback as well (TvLinkFlowTest)
 # AVD         emulator to start (default sc_phone); EMU_PORT its console port (default 5580), an
 #             even number from 5554 to 5584: adb finds only those as emulator-EMU_PORT
 # EMU_OPTS    more options for the emulator, split at spaces
@@ -23,11 +25,13 @@
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
 # another agent's emulator and never a phone on USB. On exit it stops that emulator and the
 # server, nothing else. One emulator at a time on a shared machine: while another one runs, it
-# waits. On a failure the logs (logcat, server, emulator) stay in app-mobile/build/e2e-logs/.
-# Run from android/ (the Taskfile does). Needs server/bin/slouchcat (task server:build).
+# waits. On a failure the logs (logcat, server, relay, emulator) stay in app-mobile/build/e2e-logs/.
+# Run from android/ (the Taskfile does). Needs server/bin/slouchcat (task server:build) and
+# relay/bin/pair (task relay:build).
 set -euo pipefail
 
 port=${PORT:-8597}
+relay_port=${RELAY_PORT:-8181}
 avd=${AVD:-sc_phone}
 emu_port=${EMU_PORT:-5580}
 shots=${SHOTS:-}
@@ -50,6 +54,7 @@ app=com.slouchcat.app.dev
 root=$(mktemp -d -t slouchcat-e2e-XXXXXX)
 logs=app-mobile/build/e2e-logs
 server_pid=""
+relay_pid=""
 emulator_pid=""
 radio_pid=""
 
@@ -58,6 +63,7 @@ cleanup() {
   if [ "$status" -ne 0 ]; then
     mkdir -p "$logs"
     [ -f "$root/server.log" ] && cp "$root/server.log" "$logs/"
+    [ -f "$root/relay.log" ] && cp "$root/relay.log" "$logs/"
     [ -f "$root/emulator.log" ] && cp "$root/emulator.log" "$logs/"
     if [ -n "$emulator_pid" ]; then
       adb_brief logcat -d >"$logs/logcat.txt" 2>/dev/null || true
@@ -65,8 +71,9 @@ cleanup() {
       adb_brief pull "/sdcard/Android/data/$app/files/failures" "$logs/" >/dev/null 2>&1 || true
     fi
   fi
-  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
-  if [ -n "$radio_pid" ]; then kill "$radio_pid" 2>/dev/null || true; wait "$radio_pid" 2>/dev/null || true; fi
+  for pid in "$server_pid" "$relay_pid" "$radio_pid"; do
+    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+  done
   if [ -n "$emulator_pid" ]; then
     adb_brief emu kill >/dev/null 2>&1 || true
     # Also before the emulator reached adb: the process itself (code review minor 31).
@@ -92,6 +99,7 @@ started=$(date +%s)
 # the small media tree of scripts/android-test-media.sh (DetailFlowTest), real video for the
 # player's flow (PlayerFlowTest, needs ffmpeg) and, when `task testdata:media` made them, the
 # synthetic media that apicheck seeds (stage 4 browses a library).
+[ -x ../relay/bin/pair ] || fail "relay/bin/pair is missing: task relay:build (TvLinkFlowTest needs the relay)"
 mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
 ../scripts/android-test-video.sh "$root/media"
@@ -123,12 +131,17 @@ env "${radio_env[@]}" SLOUCHCAT_BROWSE_ROOTS="$root/media${media:+,$media}" SLOU
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
 server_pid=$!
+# The pairing relay for «Fernseher verbinden» (TvLinkFlowTest), as the TV's flow starts it.
+RELAY_LISTEN="127.0.0.1:$relay_port" RELAY_LOG_FORMAT=text ../relay/bin/pair >"$root/relay.log" 2>&1 &
+relay_pid=$!
 for _ in $(seq 1 120); do
   kill -0 "$server_pid" 2>/dev/null || fail "the server stopped while starting (port $port taken?)"
-  if grep -q 'msg=listening' "$root/server.log"; then break; fi
+  kill -0 "$relay_pid" 2>/dev/null || fail "the relay stopped while starting (port $relay_port taken?)"
+  if grep -q 'msg=listening' "$root/server.log" && curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1; then break; fi
   sleep 0.5
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
+curl -fsS "http://127.0.0.1:$relay_port/v1/healthz" >/dev/null 2>&1 || fail "the relay did not answer within 60 s"
 
 # With media: apicheck sets the server up as its fixture (account, primary profile with PIN,
 # films, audiobooks, podcasts, scanned); the flow signs in with that account. Without media
@@ -204,6 +217,7 @@ for _ in $(seq 1 60); do
 done
 
 server_url="http://10.0.2.2:$port"
+relay_url="http://10.0.2.2:$relay_port"
 if [ -z "$shots" ]; then
   gradle_args=()
   for ((i = 0; i < ${#flow_args[@]}; i += 2)); do
@@ -211,6 +225,7 @@ if [ -z "$shots" ]; then
   done
   ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:connectedPlayDebugAndroidTest \
     "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" \
+    "-Pandroid.testInstrumentationRunnerArguments.slouchcatRelay=$relay_url" \
     "-Pandroid.testInstrumentationRunnerArguments.slouchcatMedia=$root/media" "${gradle_args[@]}" \
     ${only:+"-Pandroid.testInstrumentationRunnerArguments.class=$only"} || fail "the flow failed"
 else
@@ -220,7 +235,7 @@ else
   if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
   am_args=()
   for ((i = 0; i < ${#flow_args[@]}; i += 2)); do am_args+=(-e "${flow_args[i]}" "${flow_args[i + 1]}"); done
-  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatMedia "$root/media" -e slouchcatShots 1 "${am_args[@]}" ${only:+-e class "$only"} \
+  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatRelay "$relay_url" -e slouchcatMedia "$root/media" -e slouchcatShots 1 "${am_args[@]}" ${only:+-e class "$only"} \
     "$app.test/androidx.test.runner.AndroidJUnitRunner")
   echo "$out" | grep -E "^(OK|FAILURES|Tests run)|Exception|Error" | head -n 12
   echo "$out" | grep -q '^OK (' || fail "the flow failed"

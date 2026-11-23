@@ -2,7 +2,7 @@ package com.slouchcat.app.tv.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.SessionManager

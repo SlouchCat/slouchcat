@@ -61,6 +61,45 @@ Einordnung ist unbelegt; eine Ablehnung bei der Prüfung kostet eine Runde.
 - Geteilt: nichts. Google (Push) und die zwei Dienste sind Dienstleister im Auftrag; der eigene
   Server ist eine Übertragung, die der Nutzer selbst anstösst.
 
+### 1.3 Fernseher verbinden: Kamera und Vermittlung (Stufe 9)
+
+So gebaut (K27 Abschnitt 10, 7.2, 7.6; `android/app-mobile/.../tvlink/`):
+
+| Teil | Was die App tut | Was sie nicht tut |
+|---|---|---|
+| Kamera, Bauart `play` (Store) | Der «Google code scanner» der Google-Play-Dienste zeigt seinen eigenen Bildschirm und gibt der App nur den gelesenen Text des QR-Codes. Nur QR-Codes | keine Kamera-Berechtigung im Manifest; die App sieht kein Kamerabild |
+| Kamera, Bauart `foss` (nicht im Store) | Eigene Kameraseite (CameraX) und ZXing auf dem Gerät; die Berechtigung `CAMERA` wird erst beim Öffnen des Scanners erfragt, eine Ablehnung zeigt den Weg in die Einstellungen | kein Bild verlässt das Gerät, keins wird gespeichert |
+| Gelesener Code | Nur ein Code der TV-App für die eingestellte Vermittlung wird angenommen (Fassung, Kennung, Schlüssel, Adresse der Vermittlung). Er lebt im Arbeitsspeicher der Seite und endet mit der Kopplung | nie als Link geöffnet, nie gespeichert, nie gesichert, nie im Log |
+| Vermittlung (`pair.slouchcat.com`) | Bekommt vom Handy ein Paket (`PUT /v1/pair/{Kennung}`), das nur der Fernseher öffnen kann (HPKE). Sie sieht die Internet-Adresse des Handys, den Zeitpunkt, die Kennung des Treffpunkts und Geheimtext | sieht weder Serveradresse noch Gutschein, Konto oder Schlüssel des Servers; spricht nie mit dem Server |
+| Eigener Server | Stellt den Gutschein aus (`createPairingVoucher`) und listet danach den Fernseher unter «Meine Geräte» | – |
+
+Für das Formular heisst das: **keine neue Datenart.** Der Code des Fernsehers ist keine Angabe über
+den Nutzer; die Vermittlung bekommt Ende-zu-Ende verschlüsselten Inhalt und die Internet-Adresse nur
+für die Ratenbegrenzung (wie bei den Diensten in 1.2). Die Bauart `play` erklärt keine
+Kamera-Berechtigung; die Bauart `foss` erscheint nicht im Store. Beides prüft der Bau selbst
+(`:app-mobile:checkFlavourSeparation` in `task android:check`: kein `CAMERA` im zusammengeführten
+Manifest von `play`, keine Bibliothek der Play-Dienste, von ML Kit oder Firebase in `foss`).
+
+**Was der Code-Scanner von Google sendet** (Googles Seite «ML Kit Android data disclosure»,
+<https://developers.google.com/ml-kit/android-data-disclosure>, Stand der Seite 14. Mai 2025, gelesen am
+22. November 2026). Für alle Funktionen von ML Kit, also auch `play-services-code-scanner`:
+
+| Art | Was | Zweck laut Google |
+|---|---|---|
+| Geräte- oder andere IDs | Kennungen je Installation, «not intended to uniquely identify a user or physical device» | Diagnose, Nutzungsanalyse |
+| App-Info und -Leistung | Gerät (Hersteller, Modell, Android-Fassung), Paketname und Fassung der App, Leistungswerte (Latenz), API-Einstellungen (Bildformat, Auflösung) | Diagnose, Nutzungsanalyse |
+
+Google nennt dazu: verschlüsselt übertragen (HTTPS), nicht an Dritte weitergegeben. Zusätzliche Daten
+(Sitzungskennung, Zoomstufen, Lage des Codes) gibt es nur mit «auto zoom»; die App schaltet ihn nicht ein
+(`GmsBarcodeScannerOptions` ohne `enableAutoZoom`). **Weiter unbelegt:** Die Seite sagt nicht ausdrücklich,
+ob Kamerabilder des Code-Scanners das Gerät verlassen; die App selbst bekommt nur den gelesenen Text.
+
+Für das Formular heisst das (Vorschlag): in der Bauart `play` zusätzlich «App-Info und -Leistung ›
+Diagnose» und «Geräte- oder andere IDs» mit Zweck «Analysen» ankreuzen, erhoben von einer Bibliothek,
+nicht geteilt, verschlüsselt. Die Angabe von Google gilt für die Bibliothek; ob Google sie im Formular
+der App sehen will, ist eine Auslegung (Hilfeseite «Datensicherheit»: Daten, die Bibliotheken erheben,
+zählen mit).
+
 ## 2. Vordergrunddienste
 
 Für Ziel-API 34 und höher verlangt Google je Art des Vordergrunddienstes eine Beschreibung und ein
@@ -240,7 +279,7 @@ nachtragen (`deploy/demo/README.md`, «Was das Einrichten tut»).
 | Gesundheits-, Finanz-, Behörden-App | Nein |
 | COVID-19 | Nicht zutreffend |
 | Datenschutzerklärung | `<Adresse der Datenschutzerklärung>` |
-| Berechtigungen mit eigener Erklärung | voraussichtlich keine: Benachrichtigungen, Internet und Vordergrunddienste brauchen keine eigene Erklärung ausser den Vordergrunddiensten (Abschnitt 2); der QR-Scanner braucht keine Kamera-Berechtigung (K27 2.7). Am Manifest des fertigen Baus prüfen |
+| Berechtigungen mit eigener Erklärung | voraussichtlich keine: Benachrichtigungen, Internet und Vordergrunddienste brauchen keine eigene Erklärung ausser den Vordergrunddiensten (Abschnitt 2); der QR-Scanner der Bauart `play` braucht keine Kamera-Berechtigung (K27 2.7; Stufe 9: das Manifest der Bauart `play` erklärt keine, nur `foss` erklärt `CAMERA`, Abschnitt 1.3). Am Manifest des fertigen Baus prüfen |
 | Ziel-API | Handy 36, TV 34 (Festlegungen des Baus) |
 
 ## Noch einzutragen
