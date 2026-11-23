@@ -3,6 +3,8 @@ package com.slouchcat.app.tv.store
 import android.graphics.Bitmap
 import android.os.SystemClock
 import android.view.KeyEvent
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -79,6 +81,20 @@ class StoreShotsTest {
 
     private fun waitForText(text: String, timeout: Long = 60_000) = waitFor(hasText(text, substring = true), timeout)
 
+    /** The way of the spooling in its bubble above the bar («+5:40», `tv_player_ahead`), nothing else with a «+». */
+    private val spoolWay: SemanticsMatcher by lazy {
+        val marked = s(R.string.tv_player_ahead, MARK)
+        val before = marked.substringBefore(MARK)
+        val after = marked.substringAfter(MARK)
+        SemanticsMatcher("the way of the spooling") { node ->
+            node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { line ->
+                val t = line.text
+                t.length > before.length + after.length && t.startsWith(before) && t.endsWith(after) &&
+                    t.substring(before.length, t.length - after.length).first().isDigit()
+            }
+        }
+    }
+
     private fun present(text: String): Boolean =
         compose.nodesOrNull(hasText(text, substring = true) or hasContentDescription(text, substring = true), unmerged = true)?.isNotEmpty() == true
 
@@ -111,16 +127,18 @@ class StoreShotsTest {
         key(KeyEvent.KEYCODE_DPAD_CENTER)
     }
 
-    /** A photo once the screen holds still (two screenshots in a row the same), at most [settleMs] long. */
+    /** A photo once the screen holds still ([STILL_COUNT] screenshots in a row the same), at most [settleMs] long. */
     private fun photo(name: String, settleMs: Long = SETTLE_MS) {
         compose.waitForIdle()
         instrumentation.waitForIdleSync()
         val deadline = SystemClock.uptimeMillis() + settleMs
         var last: Bitmap? = null
         var bitmap: Bitmap
+        var same = 1
         while (true) {
             bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "no screenshot" }
-            if (last != null && bitmap.sameAs(last)) break
+            same = if (last != null && bitmap.sameAs(last)) same + 1 else 1
+            if (same >= STILL_COUNT) break
             last?.recycle()
             last = bitmap
             if (SystemClock.uptimeMillis() > deadline) break
@@ -135,7 +153,11 @@ class StoreShotsTest {
     /** The lines «first picture» the player logged (debug build). */
     private fun firstPictures(): Int {
         val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "raw", "-s", "SlouchcatTv/player:I"))
-        return InputStreamReader(process.inputStream).readLines().count { it.contains("first picture") }
+        return try {
+            InputStreamReader(process.inputStream).use { reader -> reader.readLines().count { it.contains("first picture") } }
+        } finally {
+            process.destroy()
+        }
     }
 
     /** Along a row of the start page to the card [title]: to the right, else back to the left. */
@@ -215,8 +237,9 @@ class StoreShotsTest {
         focused(s(R.string.player_seek))
         compose.waitUntil(PLAY_MS) { firstPictures() >= 1 }
         key(KeyEvent.KEYCODE_DPAD_RIGHT, SPOOL_STEPS)
+        waitFor(spoolWay)
         key(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.waitUntil(PLAY_MS) { !present("+") }
+        compose.waitUntil(PLAY_MS) { compose.nodesOrNull(spoolWay, unmerged = true)?.isEmpty() == true }
         key(KeyEvent.KEYCODE_DPAD_DOWN)
         along(s(R.string.player_tracks_audio), KeyEvent.KEYCODE_DPAD_LEFT)
         key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -227,12 +250,23 @@ class StoreShotsTest {
 
     private companion object {
         const val TEARS = "Tears of Steel"
+
+        /** A placeholder of the format of `tv_player_ahead`. */
+        const val MARK = "\u0001"
+
+        /** The first scan of four films and an audiobook, probes included (seconds on this machine). */
         const val SCAN_MS = 120_000L
+
+        /** A start in the emulator's software decoder, possibly after a remux on the server. */
         const val PLAY_MS = 120_000L
+
+        /** Long enough for the posters of a page to load from the local server. */
         const val SETTLE_MS = 15_000L
 
         /** The code page counts its validity down every second: it never holds still. */
         const val QR_SETTLE_MS = 2_000L
+        /** Two alone once caught a poster still on its way (phone). */
+        const val STILL_COUNT = 3
         const val STILL_MS = 500L
         const val STILL_MAX_MS = 3_000L
         const val ROW_MAX = 6

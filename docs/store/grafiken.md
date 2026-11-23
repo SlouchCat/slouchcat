@@ -58,10 +58,12 @@ Schatten (Google legt Maske und Schatten selbst darüber).
 **Feature-Grafik:** nur Zeichen und Name «Slouchcat», mittig auf dem dunklen Hintergrund der Tokens
 (`docs/store/grafiken/feature-graphic.svg`). Kein Handy, kein Bildschirmfoto, kein Slogan.
 
-**Bildschirmfotos Handy** (Hochformat 1080 × 1920 oder 1080 × 2400 aus `sc_phone`, je Sprache ein
-Satz; die Oberfläche in der Sprache des Eintrags):
+**Bildschirmfotos Handy** (Hochformat 1080 × 2424 aus `sc_phone`, das Mass der AVD; die lange
+Seite ist 2,24-mal die kurze, unter der Grenze von 2,3; je Sprache ein Satz; die Oberfläche in der
+Sprache des Eintrags):
 
-1. Startseite mit Spotlight und Reihen (vier Filme)
+1. Startseite mit Reihen (vier Filme); ein Spotlight nur, wenn der Server einen hat (der
+   Vorführserver hat keinen, siehe «Was vorliegt»)
 2. Detailseite «Tears of Steel» mit Tonspur und Untertiteln
 3. Videoplayer im Querformat beim Spulen mit Vorschaubild (Querformat-Foto 1920 × 1080)
 4. Seite «Downloads» mit einem gespeicherten Film und dem belegten Platz
@@ -148,6 +150,14 @@ PNG mit 24 Bit ohne Alphakanal.
 | `tv` | Detailseite «Tears of Steel» | `02-detail.png` | 1920 × 1080 |
 | `tv` | Videoplayer mit offenem Tonmenü | `03-player-audio.png` | 1920 × 1080 |
 | `tv` | Einrichten mit QR-Code (Treffpunkt abgelaufen) | `04-setup-qr.png` | 1920 × 1080 |
+
+**Namensnennung:** Die Fotos zeigen Bilder aus den vier Filmen der Blender Foundation: Plakate
+und Hintergründe sind zugeschnittene Standbilder aus den Filmen (kein Plakat des Films), der Player
+zeigt Filmbilder. Die Lizenzen (CC BY 2.5 und 3.0) verlangen die Namensnennung; die Nennungen und
+Lizenzen stehen in `deploy/demo/README.md`, Abschnitt «Filme». Darum gehört in die
+Beschreibung des Store-Eintrags eine Zeile wie: «Bildschirmfotos mit Bildern aus den Open Movies
+der Blender Foundation: Elephants Dream (2006), Big Buck Bunny (2008), Sintel (2010), Tears of
+Steel (2012), CC BY, blender.org.» (Wortlaut der Nennungen aus `deploy/demo/README.md`).
 
 Was abweicht oder fehlt:
 
