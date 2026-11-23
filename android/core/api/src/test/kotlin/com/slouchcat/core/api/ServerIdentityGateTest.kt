@@ -932,10 +932,11 @@ class ServerIdentityGateTest {
         assertTrue("one break cost two proofs", gate.isProvenNow())
     }
 
-    @Test
-    fun aRequestOfAnotherNetworkThatBreaksSaysNothingAboutTheNetworkOfNow() {
-        // After a network change the connections of the old network break, often several at once.
-        // The new network has its own proof by then, and those breaks are no news about it.
+    /**
+     * A request leaves, the network changes and proves itself anew, and [later] the connection of
+     * that request breaks. Returns the gate, the client and how many proofs the server gave by then.
+     */
+    private fun aRequestOfTheNetworkBeforeBreaks(later: Duration): Triple<ServerIdentityGate, OkHttpClient, Signer> {
         val reached = CountDownLatch(1)
         val answer = CountDownLatch(1)
         server.dispatcher = object : Dispatcher() {
@@ -956,15 +957,130 @@ class ServerIdentityGateTest {
             generation.incrementAndGet()
             assertEquals(200, get(http))
             assertEquals(2, signer.calls.get())
+            now += later.toNanos()
             answer.countDown()
             val broken = old.get(5, TimeUnit.SECONDS).exceptionOrNull()
             assertTrue("no broken connection: $broken", broken is IOException && broken !is ServerNotProvenException)
-            assertTrue("a break in the old network cost the proof of the new one", gate.isProvenNow())
-            assertEquals(1, http.connectionPool.idleConnectionCount())
-            assertEquals(200, get(http))
-            assertEquals(2, signer.calls.get())
         } finally {
             answer.countDown()
+        }
+        return Triple(gate, http, signer)
+    }
+
+    @Test
+    fun aRequestOfAnotherNetworkThatBreaksSaysNothingAboutTheNetworkOfNow() {
+        // After a network change the connections of the old network break, often several at once.
+        // The new network has its own proof by then, and those breaks are no news about it.
+        val (gate, http, signer) = aRequestOfTheNetworkBeforeBreaks(later = Duration.ofSeconds(29))
+        assertTrue("a break in the old network cost the proof of the new one", gate.isProvenNow())
+        assertEquals(1, http.connectionPool.idleConnectionCount())
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+    }
+
+    @Test
+    fun aConnectionThatOutlivedANetworkChangeAndBreaksLaterIsNewsAgain() {
+        // Not every change of the networks takes the connections with it (mobile data comes while
+        // the Wi-Fi stays). A connection that was still there half a minute later and breaks then
+        // breaks for a reason of its own.
+        val (gate, http, signer) = aRequestOfTheNetworkBeforeBreaks(later = Duration.ofSeconds(31))
+        assertFalse("the proof survived a break long after the network change", gate.isProvenNow())
+        assertEquals(0, http.connectionPool.idleConnectionCount())
+        assertEquals(200, get(http))
+        assertEquals(3, signer.calls.get())
+    }
+
+    @Test
+    fun breaksThatKeepComingWhileTheServerProvesFailNoRequest() {
+        // The server came back from an update and a page loads in waves: connections from before
+        // break one after the other, each while a proof runs. Every such proof counts for nothing,
+        // and none of them says anything against the server.
+        val breaksAtATime = 4
+        val reached = CountDownLatch(breaksAtATime)
+        val answers = List(breaksAtATime) { CountDownLatch(1) }
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val slow = request.url.encodedPath.removePrefix("/slow/").toIntOrNull() ?: return MockResponse(body = "{}")
+                reached.countDown()
+                answers[slow].await(10, TimeUnit.SECONDS)
+                return MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build()
+            }
+        }
+        val began = List(breaksAtATime) { CountDownLatch(1) }
+        val finish = List(breaksAtATime) { CountDownLatch(1) }
+        val calls = AtomicInteger()
+        val prover = ServerProver { _, nonce ->
+            val call = calls.incrementAndGet() - 2
+            if (call in 0 until breaksAtATime) {
+                began[call].countDown()
+                finish[call].await(10, TimeUnit.SECONDS)
+            }
+            ProofAnswer(sign(serverKeys, nonce), serverKey)
+        }
+        val http = client(gate(prover))
+        assertEquals(200, get(http))
+        try {
+            val unretried = http.newBuilder().retryOnConnectionFailure(false).build()
+            val old = List(breaksAtATime) { onItsOwnThread { get(unretried, "/slow/$it") } }
+            assertTrue(reached.await(5, TimeUnit.SECONDS))
+            now += Duration.ofMinutes(11).toNanos()
+            val request = onItsOwnThread { get(http) }
+            repeat(breaksAtATime) {
+                assertTrue("no proof on its way in round $it", began[it].await(5, TimeUnit.SECONDS))
+                answers[it].countDown()
+                assertTrue(old[it].get(5, TimeUnit.SECONDS).exceptionOrNull() is IOException)
+                finish[it].countDown()
+            }
+            assertEquals(200, request.get(5, TimeUnit.SECONDS).getOrThrow())
+            assertEquals(breaksAtATime + 2, calls.get())
+        } finally {
+            answers.forEach { it.countDown() }
+            finish.forEach { it.countDown() }
+        }
+    }
+
+    @Test
+    fun breaksThatKeepComingEndARequestWhenItsTimeIsUp() {
+        // No request waits for ever for a proof that every break overtakes: the time a request
+        // waits for the proof of another is also the time it gives its own rounds.
+        val reached = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath != "/slow") return MockResponse(body = "{}")
+                reached.countDown()
+                answer.await(10, TimeUnit.SECONDS)
+                return MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build()
+            }
+        }
+        val began = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val prover = ServerProver { _, nonce ->
+            if (calls.incrementAndGet() == 2) {
+                began.countDown()
+                finish.await(10, TimeUnit.SECONDS)
+            }
+            ProofAnswer(sign(serverKeys, nonce), serverKey)
+        }
+        val http = client(gate(prover, timeout = Duration.ofMillis(200)))
+        assertEquals(200, get(http))
+        try {
+            val old = onItsOwnThread { get(http.newBuilder().retryOnConnectionFailure(false).build(), "/slow") }
+            assertTrue(reached.await(5, TimeUnit.SECONDS))
+            now += Duration.ofMinutes(11).toNanos()
+            val request = onItsOwnThread { get(http) }
+            assertTrue("no proof on its way", began.await(5, TimeUnit.SECONDS))
+            answer.countDown()
+            assertTrue(old.get(5, TimeUnit.SECONDS).exceptionOrNull() is IOException)
+            Thread.sleep(300)
+            finish.countDown()
+            val refused = request.get(5, TimeUnit.SECONDS).exceptionOrNull()
+            assertTrue("$refused", refused is ServerNotProvenException)
+            assertEquals("a round began after the time was up", 2, calls.get())
+        } finally {
+            answer.countDown()
+            finish.countDown()
         }
     }
 

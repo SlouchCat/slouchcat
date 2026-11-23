@@ -110,7 +110,9 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  *
  * Concurrent requests share one proof; a proof that began before the network changed or before a
  * connection broke counts for nothing. After a failure the gate answers at once for [backoff] (the
- * server allows 30 proofs a minute per address). A proof the app aborted is no failure.
+ * server allows 30 proofs a minute per address). A proof the app aborted is no failure. For
+ * [settle] after a network change, a request that left before it ends without consequence: the
+ * connections of the old network break then, and that is no news about the new one.
  */
 class ServerIdentityGate(
     private val trusted: TrustedServer,
@@ -121,6 +123,7 @@ class ServerIdentityGate(
     private val maxAge: Duration = Duration.ofMinutes(10),
     private val clock: () -> Long = System::nanoTime,
     private val renewAfter: Duration = Duration.ofMinutes(1),
+    private val settle: Duration = SlouchcatHttp.READ_TIMEOUT,
 ) : Interceptor {
     private sealed interface Outcome {
         data object Proven : Outcome
@@ -167,6 +170,10 @@ class ServerIdentityGate(
 
     /** Broken connections so far; a proof that began before the latest of them counts for nothing. */
     private var breaks = 0L
+
+    /** The newest network the gate has seen, and when it saw it first. */
+    private var sighted = Long.MIN_VALUE
+    private var sightedAt = 0L
 
     /** Requests waiting for another request's proof (tests wait for them). */
     internal val waiting = AtomicInteger()
@@ -292,14 +299,17 @@ class ServerIdentityGate(
      * (OkHttp's retry would take the next of them from the pool and break again; they go for every
      * host of the shared client, the pool has no narrower way).
      *
-     * Not for a request that left in a network that is gone: after a network change its
+     * Not for a request that left in a network that has just gone: after a network change its
      * connections break, often several at once, and that is no news about the network of now,
-     * which has its own proof or gets one.
+     * which has its own proof or gets one. So for [settle] such a request neither forgets nor
+     * counts nor doubts. Later it does again: a connection that outlived the change (not every
+     * change takes them along, mobile data may come while the Wi-Fi stays) breaks for a reason of
+     * its own.
      */
     private fun note(call: Call, pool: ConnectionPool, e: IOException) {
         if (e is ServerNotProvenException) return
         val trip = call.tag(Trip::class)
-        if (trip != null && trip.generation != network.generation()) return
+        if (trip != null && leftBeforeAChangeJustNow(trip)) return
         if (trip?.noted === e) return
         trip?.noted = e
         if (endedByTheApp(call, e)) {
@@ -309,6 +319,24 @@ class ServerIdentityGate(
             if (forget()) Log.i(TAG, "connection broke, proof forgotten", error = e)
             pool.evictAll()
         }
+    }
+
+    private fun leftBeforeAChangeJustNow(trip: Trip): Boolean = synchronized(lock) {
+        val generation = network.generation()
+        trip.generation != generation && knownFor(generation) < settle.toNanos()
+    }
+
+    /**
+     * How long the gate has known the network [generation], under [lock]. It learns of a change
+     * with the first request or break after it, so never before the change and never after the
+     * first proof in the new network.
+     */
+    private fun knownFor(generation: Long): Long {
+        if (generation > sighted) {
+            sighted = generation
+            sightedAt = clock()
+        }
+        return clock() - sightedAt
     }
 
     /**
@@ -356,12 +384,19 @@ class ServerIdentityGate(
     /** Returns with a valid proof of the server, and the generation of the network it is for. */
     private fun awaitProof(server: HttpUrl): Long {
         // A proof counts for nothing when the network changed or a connection broke while it ran,
-        // and it is no verdict when its owner was interrupted; a few rounds cover that.
-        repeat(ROUNDS) {
+        // and it is no verdict when its owner was interrupted. A few rounds cover a network that
+        // keeps changing and owners that keep being interrupted. Breaks do not count as rounds:
+        // connections from before break one after the other while the server proves again and
+        // again (it came back from an update and a page loads in waves), and none of those rounds
+        // says anything against the server. They end with [timeout], by the clock of the device.
+        val deadline = System.nanoTime() + timeout.toNanos()
+        var rounds = 0
+        while (rounds < ROUNDS && System.nanoTime() - deadline < 0) {
             val generation = network.generation()
             val key = candidateKey ?: trusted.serverKey ?: throw ServerNotProvenException("no key remembered")
             var mine = false
             val attempt = synchronized(lock) {
+                knownFor(generation)
                 val proof = validProof()
                 // A proof in doubt goes on counting for the requests on their way ([hop]); a new
                 // request renews it once it is old enough.
@@ -376,8 +411,12 @@ class ServerIdentityGate(
                 }
             }
             val outcome = if (mine) own(server, attempt) else wait(attempt) ?: throw ServerNotProvenException("the proof took too long")
-            val counts = synchronized(lock) { network.generation() == generation && breaks == attempt.breaks }
-            if (outcome == Outcome.Aborted || !counts) return@repeat
+            val (moved, broke) = synchronized(lock) { (network.generation() != generation) to (breaks != attempt.breaks) }
+            if (outcome == Outcome.Aborted || moved) {
+                rounds++
+                continue
+            }
+            if (broke) continue
             when (outcome) {
                 Outcome.Proven -> {
                     if (key == trusted.serverKey) _newKey.value = null
@@ -397,6 +436,7 @@ class ServerIdentityGate(
      */
     private fun own(server: HttpUrl, attempt: Attempt): Outcome {
         var outcome: Outcome = Outcome.Aborted
+        var recorded = false
         try {
             outcome = run(server, attempt.key)
             synchronized(lock) {
@@ -405,7 +445,7 @@ class ServerIdentityGate(
                     if (outcome == Outcome.Proven) {
                         proven = Proof(attempt.generation, attempt.key, clock())
                         failure = null
-                        Log.i(TAG, "server proven")
+                        recorded = true
                     } else {
                         // Also a proof in doubt that was to be renewed: whoever answers now did not
                         // prove to be the server, and a foreign machine answers just like a server
@@ -423,6 +463,7 @@ class ServerIdentityGate(
             synchronized(lock) { if (inFlight === attempt) inFlight = null }
             attempt.result.complete(outcome)
         }
+        if (recorded) Log.i(TAG, "server proven")
         return outcome
     }
 
