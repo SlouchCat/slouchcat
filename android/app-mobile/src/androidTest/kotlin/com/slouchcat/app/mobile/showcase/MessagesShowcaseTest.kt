@@ -26,6 +26,7 @@ import com.slouchcat.app.mobile.wishes.WishTitleRoute
 import com.slouchcat.app.mobile.wishes.WishesFeature
 import com.slouchcat.app.mobile.wishes.WishesRoute
 import com.slouchcat.core.api.push.PushMessage
+import com.slouchcat.core.media.DevicePushState
 import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.strings.R
 import org.junit.After
@@ -90,6 +91,9 @@ class MessagesShowcaseTest {
         show.open(WishesFeature.TARGET, WishesRoute(), WishTitleRoute("movie", data.requestedId))
         show.waitFor(hasText(s(R.string.wishes_withdraw_action)))
         show.shot("w13-wish")
+        show.open(WishesFeature.TARGET, WishesRoute(), WishTitleRoute("movie", data.approvedId))
+        show.waitFor(hasText("Kupfermond") and isHeading())
+        show.shot("w13b-wish-approved")
         show.open(WishesFeature.TARGET, WishesRoute(), WishTitleRoute("show", data.seriesId))
         show.waitFor(hasText(s(R.string.app_wishes_request)))
         show.shot("w14-wish-series")
@@ -113,6 +117,10 @@ class MessagesShowcaseTest {
         show.open("more", MoreRoute, NotificationSettingsRoute)
         show.waitFor(hasText(s(R.string.app_notifications_push)))
         show.shot("w18-settings-notifications")
+        // Switched off without the server's answer: the removal waits (code review M-3).
+        data.pushState.value = DevicePushState.OffPending
+        show.waitFor(hasText(s(R.string.app_notifications_pushOffPending)))
+        show.shot("w18b-settings-off-pending")
 
         // The notification itself, in the shade of the system.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

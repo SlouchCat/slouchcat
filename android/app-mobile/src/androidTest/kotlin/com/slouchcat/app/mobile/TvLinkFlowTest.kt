@@ -21,7 +21,7 @@ import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.features
 import com.slouchcat.app.mobile.tvlink.CodeScanner
-import com.slouchcat.app.mobile.tvlink.MemoryRelaySettings
+import com.slouchcat.app.mobile.tvlink.ScannerTrouble
 import com.slouchcat.app.mobile.tvlink.TvLinkFeature
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ClientIdentity
@@ -44,11 +44,15 @@ import com.slouchcat.core.pairing.RelayClient
 import com.slouchcat.core.pairing.TvPairing
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.ActiveProfile
+import com.slouchcat.core.session.MemoryRelaySettings
 import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.StoredCredentials
 import com.slouchcat.core.session.TokenStore
 import com.slouchcat.core.strings.R
+import java.io.File
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,9 +65,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.concurrent.thread
 
 /**
  * The scanner of the emulator flows (no camera there): what the TV shows, handed over when the flow
@@ -76,9 +77,16 @@ internal class HandedScanner : CodeScanner {
     override val asksForCamera: Boolean = false
 
     @Composable
-    override fun Camera(onCode: (String) -> Unit, onClose: () -> Unit, onUnavailable: () -> Unit, modifier: Modifier) {
+    override fun Camera(
+        accepts: (String) -> Boolean,
+        onCode: (String) -> Unit,
+        onClose: () -> Unit,
+        onLoading: (Boolean) -> Unit,
+        onTrouble: (ScannerTrouble) -> Unit,
+        modifier: Modifier,
+    ) {
         val waiting = next
-        LaunchedEffect(waiting) { waiting.await()?.let(onCode) ?: onUnavailable() }
+        LaunchedEffect(waiting) { waiting.await()?.let(onCode) ?: onTrouble(ScannerTrouble.NoPlayServices) }
         Box(modifier)
     }
 }
@@ -278,11 +286,23 @@ class TvLinkFlowTest {
         waitForText(s(R.string.app_tv_done_title), timeout = 60_000)
         waitForText("Flow TV")
         shot("t06-connected")
-        button(s(R.string.app_tv_done_finish)).performScrollTo().performClick()
-        waitForText(s(R.string.app_tv_moreHint))
-        button(s(R.string.app_tv_title)).performScrollTo().performClick()
-        waitForText("Flow TV")
-        shot("t07-intro-linked")
+        // «Nicht mein Fernseher – abmelden» signs exactly this TV out at the server (security review L-2).
+        button(s(R.string.app_tv_done_notMine)).performScrollTo().performClick()
+        waitForText(s(R.string.app_tv_notMine_body))
+        shot("t07-not-mine")
+        button(s(R.string.settings_devices_signOut_confirm)).performScrollTo().performClick()
+        waitForText(s(R.string.app_tv_notMine_done, "Flow TV"))
+        shot("t07b-signed-out")
+        // The TV's token stops working at once.
+        val tvToken = result.answer.token
+        val tvCredentials = object : com.slouchcat.core.api.SessionCredentials {
+            override val server = this@TvLinkFlowTest.server
+            override val bearerToken = tvToken
+            override val deviceId: String? = null
+        }
+        val tvHttp = SlouchcatHttp.client(ClientIdentity(ClientIdentity.Kind.TV, BuildConfig.VERSION_NAME), tvCredentials)
+        val refused = runCatching { SlouchcatApi.create(::AuthApi, server, tvHttp).getSession() }.exceptionOrNull() as? ClientException
+        assertEquals(401, refused?.statusCode)
 
         // The same code again: the relay answers 410 (picked up), the phone warns.
         scan(meeting.code.text)
@@ -304,7 +324,7 @@ class TvLinkFlowTest {
         waitForText(s(R.string.app_tv_problem_notACode))
         shot("t11-not-a-code")
         scan(PairingCode("https://pair.example.test".toHttpUrl(), meeting.code.id, meeting.code.tvKey).text)
-        waitForText(s(R.string.app_tv_problem_otherRelay, "pair.example.test"))
+        waitForText(s(R.string.app_tv_problem_otherRelay))
         shot("t12-other-relay")
         scenario.close()
     }

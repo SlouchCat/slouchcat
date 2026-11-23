@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.zxing.core)
     "playImplementation"(libs.play.code.scanner)
+    "playImplementation"(libs.play.services.base)
     "fossImplementation"(libs.camerax.camera2)
     "fossImplementation"(libs.camerax.lifecycle)
     "fossImplementation"(libs.camerax.view)
@@ -100,3 +101,28 @@ fun setting(property: String, environment: String): String =
     (providers.gradleProperty(property).orNull ?: providers.environmentVariable(environment).orNull).orEmpty().trim()
 
 fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+// The two flavours stay apart (code review m-9, docs/store/datensicherheit.md 1.3): the merged
+// manifest of `play` declares no camera permission (Google's code scanner needs none), and `foss`
+// carries no library of Google's Play services, ML Kit or Firebase. Part of `ciCheck`.
+tasks.register("checkFlavourSeparation") {
+    group = "verification"
+    description = "The merged manifest of play has no CAMERA, foss has no Google Play services, ML Kit or Firebase"
+    val play = layout.buildDirectory.file("intermediates/merged_manifest/playRelease/processPlayReleaseMainManifest/AndroidManifest.xml")
+    val foss = layout.buildDirectory.file("intermediates/merged_manifest/fossRelease/processFossReleaseMainManifest/AndroidManifest.xml")
+    val fossModules = configurations.named("fossReleaseRuntimeClasspath").map { classpath ->
+        classpath.incoming.resolutionResult.allComponents.mapNotNull { (it.id as? ModuleComponentIdentifier)?.let { m -> "${m.group}:${m.module}" } }.sorted()
+    }
+    dependsOn("processPlayReleaseMainManifest", "processFossReleaseMainManifest")
+    inputs.file(play)
+    inputs.file(foss)
+    inputs.property("fossModules", fossModules)
+    doLast {
+        val playManifest = play.get().asFile.readText()
+        check("android.permission.CAMERA" !in playManifest) { "the merged manifest of play declares the camera permission" }
+        val fossManifest = foss.get().asFile.readText()
+        check("com.google.android.gms" !in fossManifest && "com.google.mlkit" !in fossManifest) { "the merged manifest of foss names Google Play services or ML Kit" }
+        val google = fossModules.get().filter { it.startsWith("com.google.android.gms:") || it.startsWith("com.google.mlkit:") || it.startsWith("com.google.firebase:") }
+        check(google.isEmpty()) { "foss carries Google's libraries: $google" }
+    }
+}

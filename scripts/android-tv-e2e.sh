@@ -14,12 +14,12 @@
 #
 # PORT        port of the test server (default 8697); 127.0.0.1 only, the emulator reaches it as
 #             http://10.0.2.2:PORT
-# RELAY_PORT  port of the relay (default 8180), the same way
+# RELAY_PORT  port of the relay (default PORT+85), the same way
 # AVD         emulator to start (default sc_tv); EMU_PORT its console port (default 5584)
 # SHOTS=DIR   or --shots DIR: photograph every page and menu and copy the photos to DIR
 # LOCALE      language of the app (de-CH, en …; default: the device's)
 # EMU_OPTS    more options for the emulator, split at spaces (CI: -feature -Vulkan)
-# WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
+# WAIT_MAX    seconds to wait for the emulator lock and while another emulator runs (default 600; 0 fails at once)
 # PHONE       who plays the phone: apicheck (default, Go) or kotlin (the phone app's own Kotlin of
 #             :core:pairing as a JVM program, :core:pairing:phoneCheck; task android:e2e:pair)
 #
@@ -30,7 +30,7 @@
 set -euo pipefail
 
 port=${PORT:-8697}
-relay_port=${RELAY_PORT:-8180}
+relay_port=${RELAY_PORT:-$((port + 85))}
 avd=${AVD:-sc_tv}
 emu_port=${EMU_PORT:-5584}
 shots=${SHOTS:-}
@@ -74,6 +74,7 @@ cleanup() {
     for _ in $(seq 1 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 1; done
     kill "$emulator_pid" 2>/dev/null || true
   fi
+  emulator_unlock
   rm -rf "$root"
 }
 trap cleanup EXIT
@@ -112,11 +113,13 @@ for _ in $(seq 1 120); do
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
 
-# One emulator at a time: wait while another one runs (another agent's).
+# One emulator at a time: the machine-wide lock (scripts/android-helpers.sh), then still a look
+# for an emulator that a run without the lock started (an older script, by hand).
+emulator_lock "$wait_max" "$root" || fail "another run holds the emulator; one at a time on this machine"
 waited=0
 while pgrep -f '^[^ ]*qemu-system' >/dev/null; do
   [ "$waited" -lt "$wait_max" ] || fail "another emulator runs; one at a time on this machine"
-  echo "android-tv-e2e: another emulator runs, waiting ($waited s)"
+  echo "android-tv-e2e: another emulator runs without the lock, waiting ($waited s)"
   sleep 60
   waited=$((waited + 60))
 done
@@ -198,8 +201,8 @@ if [ -z "$code" ]; then
 fi
 if [ "${PHONE:-apicheck}" = kotlin ]; then
   # The phone app's own Kotlin (:core:pairing) as a JVM program (task android:e2e:pair).
-  ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port packetServer=http://10.0.2.2:$port \
-relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email password=$password pin=$pin" \
+  SLOUCHCAT_PAIR_PASSWORD=$password SLOUCHCAT_PAIR_PIN=$pin ./gradlew --console=plain -q :core:pairing:phoneCheck --args="server=http://127.0.0.1:$port \
+packetServer=http://10.0.2.2:$port relay=http://127.0.0.1:$relay_port codeRelay=http://10.0.2.2:$relay_port code=$code email=$email" \
     >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "the phone's Kotlin could not pair"; }
   grep '^phonecheck:' "$root/apicheck.log"
 else

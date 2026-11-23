@@ -5,6 +5,7 @@ import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.crypto.Base64Url
 import com.slouchcat.core.api.generated.models.MyDevice
+import com.slouchcat.core.api.generated.models.SessionKind
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -58,16 +59,19 @@ class PhonePairingTest {
 
     private fun code(relay: HttpUrl = relayUrl) = PairingCode(relay, id, tv.publicText)
 
-    private fun tvDevice(id: String, name: String = "Living room") = MyDevice(
+    /** A TV whose device session started [at] (after the vouchers of the tests by default). */
+    private fun tvDevice(id: String, name: String = "Living room", at: String = "2026-11-22T10:00:30Z") = MyDevice(
         id = id,
-        lastSeenAt = OffsetDateTime.parse("2026-11-22T10:00:00Z"),
+        lastSeenAt = OffsetDateTime.parse(at),
         downloads = 0,
         current = false,
         name = name,
         type = MyDevice.Type.TV,
+        sessionKind = SessionKind.DEVICE,
+        signedInAt = OffsetDateTime.parse(at),
     )
 
-    private fun phoneDevice(id: String) = tvDevice(id, "Pixel").copy(type = MyDevice.Type.PHONE, current = true)
+    private fun phoneDevice(id: String) = tvDevice(id, "Pixel").copy(type = MyDevice.Type.PHONE, current = true, sessionKind = SessionKind.APP)
 
     /** The own server: a voucher for every key, «Meine Geräte» as the test sets it. */
     private class FakeServer : PairingServer {
@@ -103,6 +107,11 @@ class PhonePairingTest {
         val relay = "https://pair.slouchcat.com".toHttpUrl()
         val text = code(relay).text.replace("#v=1&", "#v=2&")
         assertEquals(ScannedCode.Read.OtherVersion, ScannedCode.read(text, relay))
+        // In another order of the fields, or with other fields of a newer version, as well.
+        val reordered = "https://pair.slouchcat.com/tv#k=${tv.publicText}&v=2&i=$id"
+        assertEquals(ScannedCode.Read.OtherVersion, ScannedCode.read(reordered, relay))
+        assertEquals(ScannedCode.Read.OtherVersion, ScannedCode.read("https://pair.slouchcat.com/tv#v=2", relay))
+        assertEquals(ScannedCode.Read.NotACode, ScannedCode.read("https://pair.slouchcat.com/tv#v=x", relay))
     }
 
     @Test
@@ -261,6 +270,43 @@ class PhonePairingTest {
         val linked = phone().awaitTv(IssuedVoucher("x", start, setOf("p", "old")))
         assertEquals("new", (linked as PhonePairing.Linked.Ok).device.id)
         assertEquals(4, fake.listed)
+    }
+
+    @Test
+    fun aTvThatSignedInBeforeTheVoucherOrAnotherKindIsNotThisOne() = runTest {
+        // Issued 10:00:00 (expires 10:02): a TV of 09:50 that the list missed before, a TV signed in by
+        // hand (an app session), then this TV.
+        val voucher = IssuedVoucher("x", start.plusSeconds(120), setOf("p"))
+        var round = 0
+        fake.list = {
+            round++
+            val earlier = listOf(tvDevice("early", at = "2026-11-22T09:50:00Z"), tvDevice("hand").copy(sessionKind = SessionKind.APP))
+            ApiResult.Ok(if (round < 3) earlier else earlier + tvDevice("mine"))
+        }
+        assertEquals("mine", (phone().awaitTv(voucher) as PhonePairing.Linked.Ok).device.id)
+    }
+
+    @Test
+    fun twoNewTvsAtOnceAreNoGuess() = runTest {
+        fake.list = { ApiResult.Ok(listOf(tvDevice("a", "Kitchen"), tvDevice("b", "Living room"))) }
+        assertEquals(PhonePairing.Linked.Several, phone().awaitTv(issued()))
+    }
+
+    @Test
+    fun aSessionThatMayNoLongerAskEndsTheWait() = runTest {
+        for (answer in listOf(ApiResult.SignedOut, ApiResult.AppTooOld, ApiResult.NotAllowed("client_not_allowed"))) {
+            fake.list = { answer }
+            fake.listed = 0
+            assertEquals(answer.toString(), PhonePairing.Linked.Ended, phone().awaitTv(issued()))
+            assertEquals(1, fake.listed)
+        }
+    }
+
+    @Test
+    fun theShortLookAfterARefusalEndsInTime() = runTest {
+        fake.list = { ApiResult.Ok(emptyList()) }
+        assertEquals(PhonePairing.Linked.TimedOut, phone().awaitTv(issued(), PhonePairing.LOOK_FOR_TV))
+        assertEquals(PhonePairing.LOOK_FOR_TV.toMillis(), testScheduler.currentTime)
     }
 
     @Test

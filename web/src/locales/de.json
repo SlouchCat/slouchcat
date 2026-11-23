@@ -609,13 +609,17 @@
         "close": "Scanner schliessen",
         "aim": "Richte die Kamera auf den Code am Fernseher.",
         "denied": "Ohne Kamera kann die App den Code nicht lesen. Erlaube die Kamera in den Einstellungen der App.",
-        "settings": "Einstellungen öffnen"
+        "settings": "Einstellungen öffnen",
+        "loading": "Der Scanner wird geladen …"
       },
       "problem": {
         "notACode": "Das ist kein Code der Slouchcat-TV-App. Scanne den QR-Code, den der Fernseher unter «Mit dem Handy einrichten» zeigt.",
         "otherVersion": "Dieser Code stammt von einer neueren TV-App. Aktualisiere die App auf diesem Handy.",
-        "otherRelay": "Der Code nennt eine andere Vermittlung ({{host}}). Stelle am Handy und am Fernseher dieselbe Vermittlung ein.",
-        "unavailable": "Auf diesem Gerät gibt es keinen Scanner: Es fehlt eine Kamera oder die Google-Play-Dienste."
+        "otherRelay": "Dieser Code gehört zu einer anderen Vermittlung. Betreibst du keine eigene Vermittlung, ist das kein Code deiner TV-App.",
+        "loading": "Der Scanner der Google-Play-Dienste wird noch geladen. Versuche es gleich nochmals.",
+        "noPlayServices": "Auf diesem Gerät fehlen die Google-Play-Dienste oder sie sind zu alt. Ohne sie gibt es keinen Scanner.",
+        "noCamera": "Dieses Gerät hat keine Kamera, mit der die App den Code lesen kann.",
+        "scannerFailed": "Der Scanner liess sich nicht öffnen. Versuche es nochmals."
       },
       "confirm": {
         "title": "Diesen Fernseher mit deinem Konto verbinden?",
@@ -625,7 +629,7 @@
         "by": "Bestätigt von",
         "primary": "{{name}} (Hauptprofil)",
         "profile": "{{name}} (Profil)",
-        "hint": "Der Fernseher bekommt Zugang zu den Profilen dieses Kontos, aber nicht zur Verwaltung. Du bekommst eine Meldung, sobald er verbunden ist.",
+        "hint": "Der Fernseher bekommt Zugang zu den Profilen dieses Kontos, aber nicht zur Verwaltung. Er bleibt angemeldet, bis du ihn unter «Meine Geräte» abmeldest.",
         "plainHttp": "Die Verbindung zum Server ist nicht verschlüsselt (HTTP). Auch der Fernseher schickt seinen Zugang dann offen über das Netz. Richte für den Server HTTPS ein.",
         "go": "Verbinden"
       },
@@ -651,16 +655,25 @@
         "leftBefore": "Du hast die Seite verlassen, bevor der Fernseher den Zugang bekam. Scanne den Code nochmals.",
         "leftAfter": "Du hast die Seite verlassen. Ob der Fernseher verbunden ist, siehst du unter «Meine Geräte».",
         "ok": "Verstanden",
-        "again": "Nochmals scannen"
+        "again": "Nochmals scannen",
+        "tooMany_one": "Zu viele Versuche. Warte {{count}} Sekunde und scanne den Code dann nochmals.",
+        "tooMany_other": "Zu viele Versuche. Warte {{count}} Sekunden und scanne den Code dann nochmals."
       },
       "done": {
         "title": "Verbunden",
-        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Du findest ihn unter «Meine Geräte».",
-        "finish": "Fertig"
+        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Er steht unter «Meine Geräte». Über die eingerichteten Benachrichtigungskanäle geht die Meldung «Neues Gerät verbunden» hinaus.",
+        "finish": "Fertig",
+        "named": "Der Fernseher nennt sich «{{name}}»",
+        "several": "Ein neuer Fernseher ist verbunden. Im selben Moment kam noch ein Gerät dazu: Prüfe unter «Meine Geräte», welcher deiner ist.",
+        "notMine": "Nicht mein Fernseher – abmelden"
       },
       "relay": {
-        "line": "Vermittlung: {{host}}",
-        "change": "Vermittlung ändern"
+        "primaryOnly": "Die Vermittlung ändert nur das Hauptprofil."
+      },
+      "notMine": {
+        "title": "«{{name}}» abmelden?",
+        "body": "Der Fernseher verliert den Zugang zu diesem Konto sofort. Danach steht er nicht mehr unter «Meine Geräte».",
+        "done": "«{{name}}» ist abgemeldet."
       }
     }
   },

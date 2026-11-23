@@ -22,12 +22,20 @@ interface CodeScanner {
 
     /**
      * Draws what the scanner shows inside the camera area of the page (the camera picture, or nothing
-     * while Google's scanner covers the screen) and reports once: [onCode] with the text read,
-     * [onClose] when the user closed the scanner, [onUnavailable] when there is no scanner (no camera,
-     * no Google Play services).
+     * while Google's scanner covers the screen) and reports once: [onCode] with the text read (a
+     * scanner that sees several codes reports only one [accepts]), [onClose] when the user closed the
+     * scanner, [onTrouble] when there is no scanner, and [onLoading] while Google's scanner module is
+     * being downloaded.
      */
     @Composable
-    fun Camera(onCode: (String) -> Unit, onClose: () -> Unit, onUnavailable: () -> Unit, modifier: Modifier)
+    fun Camera(
+        accepts: (String) -> Boolean,
+        onCode: (String) -> Unit,
+        onClose: () -> Unit,
+        onLoading: (Boolean) -> Unit,
+        onTrouble: (ScannerTrouble) -> Unit,
+        modifier: Modifier,
+    )
 }
 
 /**

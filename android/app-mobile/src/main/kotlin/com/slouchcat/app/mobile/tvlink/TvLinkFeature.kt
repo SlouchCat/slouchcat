@@ -1,7 +1,9 @@
 package com.slouchcat.app.mobile.tvlink
 
 import android.content.Context
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -21,14 +23,20 @@ import com.slouchcat.core.pairing.ApiPairingServer
 import com.slouchcat.core.pairing.PhonePairing
 import com.slouchcat.core.pairing.PhonePairingFlow
 import com.slouchcat.core.pairing.RelayClient
+import com.slouchcat.core.session.DataStoreRelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.core.strings.R
+import java.time.Duration
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import java.time.Duration
 
 @Serializable
 data object TvLinkRoute
+
+/** «Adresse der Vermittlung» (F-21), under «Mehr › Einstellungen». */
+@Serializable
+data object RelayRoute
 
 /**
  * «Mehr › Fernseher verbinden» (concept 27 section 10, stage 9; mockup `/tv`): the row under
@@ -37,13 +45,22 @@ data object TvLinkRoute
  */
 class TvLinkFeature(
     private val scanner: CodeScanner = flavorScanner(),
-    private val relaySettings: (Context) -> RelaySettings = ::DataStoreRelaySettings,
+    private val relaySettings: (Context) -> RelaySettings = { DataStoreRelaySettings(it, "pairing") },
     /** The steps of a pairing; `null`: over the relay and the server. The showcase scripts its own. */
     private val pairing: ((AppGraph, relay: HttpUrl, server: HttpUrl) -> PhonePairingFlow)? = null,
 ) : Feature {
     override val more = listOf(
         MoreEntry("tv", MoreSection.Devices, 10, R.string.app_tv_title, SlouchcatIcon.Tv, TvLinkRoute, subtitle = { stringResource(R.string.app_tv_moreHint) }),
+        MoreEntry("relay", MoreSection.Settings, 80, R.string.tv_relay_title, SlouchcatIcon.Link, RelayRoute, subtitle = { relayHost(it) }),
     )
+
+    @Composable
+    private fun relayHost(graph: AppGraph): String {
+        val context = LocalContext.current.applicationContext
+        val settings = remember(graph) { relaySettings(context) }
+        val relay by settings.relay.collectAsStateWithLifecycle(RelaySettings.DEFAULT)
+        return relay.host
+    }
 
     override fun NavGraphBuilder.register(app: AppScope) {
         val graph = app.graph
@@ -53,7 +70,12 @@ class TvLinkFeature(
             val vm = viewModel {
                 // The relay never sees the credentials of the server and follows no redirect: a 307
                 // would carry the packet to another host (as on the TV, review N-5).
-                val relayHttp = SlouchcatHttp.client(graph.identity, builder = OkHttpClient.Builder().callTimeout(RELAY_TIMEOUT).followRedirects(false))
+                // No repeat of a request after a lost connection either: a second `PUT` of the own
+                // packet would answer 409/410 and look like a foreign packet (security review L-1).
+                val relayHttp = SlouchcatHttp.client(
+                    graph.identity,
+                    builder = OkHttpClient.Builder().callTimeout(RELAY_TIMEOUT).followRedirects(false).retryOnConnectionFailure(false),
+                )
                 TvLinkViewModel(graph.session, relaySettings(context), graph.devices, graph.serverRepository) { relay, server ->
                     pairing?.invoke(graph, relay, server) ?: PhonePairing(RelayClient(relayHttp, relay), ApiPairingServer(graph.api, graph.http, server))
                 }
@@ -73,16 +95,25 @@ class TvLinkFeature(
                     onScan = vm::onScan,
                     onScanned = vm::onScanned,
                     onScanClosed = vm::onScanClosed,
-                    onScannerUnavailable = vm::onScannerUnavailable,
+                    accepts = vm::accepts,
+                    onScannerLoading = vm::onScannerLoading,
+                    onScannerTrouble = vm::onScannerTrouble,
                     onConfirm = vm::onConfirm,
                     onBackToIntro = vm::onBackToIntro,
                     onSwitchProfile = navigator::toProfiles,
                     onDevices = { navigator.navigate(DevicesRoute) },
                     onFinish = navigator::back,
-                    onEditRelay = vm::onEditRelay,
-                    onRelay = vm::onRelay,
+                    onNotMine = vm::onNotMine,
+                    onNotMineConfirm = vm::onNotMineConfirm,
+                    onNotMineDismiss = vm::onNotMineDismiss,
                 ),
             )
+        }
+        composable<RelayRoute> {
+            val context = LocalContext.current.applicationContext
+            val vm = viewModel { RelayViewModel(graph.session, relaySettings(context)) }
+            val relay by vm.relay.collectAsStateWithLifecycle()
+            RelayScreen(relay = relay, primary = vm.primary, onBack = navigator::back, onSave = { vm.onSave(it) { navigator.back() } })
         }
     }
 

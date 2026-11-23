@@ -193,6 +193,52 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Regeln je Serie oder Podcast, Vorgabe «Qualität für neue Downloads», Lizenzfristen.
   - **Bekannte Grenzen (Papier 9.4, 9.5):** Die Dateien liegen unverschlüsselt im Speicher der App; ein
     Gerät ohne Kontakt zum Server behält seine Downloads ohne Frist.
+- **Konzept 27, Stufe 8 «Wünsche und Meldungen»:** Bereich «Wünsche» über Seerr (Ziel der unteren Leiste;
+  «Entdecken», «Meine Wünsche», Seite eines Titels ausserhalb der Bibliothek, Anfordern mit Staffelwahl,
+  Zurückziehen; in der Suche «Noch nicht in der Bibliothek?»), Benachrichtigungen mit Glocke und Abzeichen
+  auf «Start», Ankündigungen, Einstellungen › Benachrichtigungen (Kanäle E-Mail, Telegram, Push; ändern
+  darf nur das Hauptprofil), Push.
+  - **Push in der Bauart `play`:** Firebase wird ohne `google-services.json` aus vier Werten beim Bau
+    eingerichtet (`slouchcat.firebase.*`; fehlen sie, baut die App ohne Push und sagt es). Das Gerät
+    registriert sich bei der Push-Weiterleitung, trägt sein Abo mit eigenem Schlüsselpaar beim Server ein
+    und **entschlüsselt die Meldung selbst** (Web-Push nach RFC 8291); Google und die Weiterleitung sehen
+    nur Verschlüsseltes. Ein Tipp auf die Mitteilung öffnet nur Seiten der App. Bauart `foss`: ohne
+    Google, Meldungen stehen in der Liste der App.
+  - Regel 11: nur anlegen, Zustand zeigen, zurückziehen; nichts der Verwaltung.
+  - Neu `scripts/android-helpers.sh`: startet für die Abläufe und den Vertragstest alle Helfer
+    (Vermittlung, Push-Weiterleitung, Attrappe für Googles Dienst, Seerr- und TMDB-Attrappen) und hält
+    eine maschinenweite Sperre für den Emulator.
+  - **Geprüft:** Entschlüsselung gegen die gemeinsamen Vektoren; Push Ende zu Ende lokal (Server →
+    Weiterleitung → Attrappe für Googles Dienst → Entschlüsselung); Vertragstest; Ablauf im Emulator an
+    Handy und Tablet; Code-Review und Sicherheits-Review mit Korrekturrunde (1 Blocker am Ablauf-Skript,
+    4 Major; 1 Medium: Das Ziel einer Mitteilung liess sich von aussen setzen).
+  - **Nicht geprüft, weil es ein Firebase-Projekt und ein Gerät braucht:** echte Zustellung über Google,
+    Meldung bei geschlossener App und im Stromsparmodus. Die Schritte stehen in
+    `docs/perf/K27-android-handy.md`, «Stufe 8».
+  - **Grenzen:** Eine alte Meldung lässt sich nach 64 neueren oder nach einer Neuinstallation erneut
+    einspielen (die Nutzlast des Servers trägt weder Zeit noch Kennung). Die Adresse der Weiterleitung
+    ist nur beim Bau änderbar (F-21). Das Ziel «Wünsche» steht immer in der Leiste, auch wenn der Server
+    keine Wünsche anbietet (die Web-App blendet es dann aus).
+- **Konzept 27, Stufe 9 «Fernseher verbinden»:** Eintrag unter «Mehr › Geräte». Das Handy liest den
+  QR-Code des Fernsehers (Bauart `play`: Code-Scanner von Google ohne Kamera-Berechtigung der App; Bauart
+  `foss`: eigener Scanner mit CameraX und ZXing), zeigt Konto, Server und Profil zur Bestätigung, holt
+  einen Kopplungsgutschein, versiegelt das Paket für den Schlüssel des Fernsehers (`:core:pairing`) und
+  legt es bei der Vermittlung ab. Danach wartet die Seite, bis der Fernseher unter «Meine Geräte»
+  erscheint, und bietet «Nicht mein Fernseher – abmelden».
+  - Die App ruft immer die eingestellte Vermittlung auf, nie eine Adresse aus dem Code; ändern darf sie
+    nur das Hauptprofil. Die Kopplung läuft nur, solange die Seite sichtbar ist.
+  - **Geprüft:** Versiegeln gegen die gemeinsamen Vektoren und gegen die TV-Seite; `task android:pair:host`
+    (Kotlin versiegelt, Go öffnet und löst ein); `task android:e2e:pair` (echte TV-App im Emulator, die
+    Handy-Logik als Programm auf dem Host); Ablauf im Emulator an Handy und Tablet; Code-Review und
+    Sicherheits-Review mit Korrekturrunde (2 Major: Kamera lief nach schnellem Schliessen weiter; Scanner
+    von Google beim ersten Mal noch nicht geladen).
+  - **Nicht geprüft, weil es echte Geräte braucht:** Scan mit echter Kamera in beiden Bauarten, beide
+    echten Apps gegeneinander über die echte Vermittlung, die Meldung «Neues Gerät verbunden». Die
+    Checkliste steht in `docs/perf/K27-android-handy.md`, «Stufe 9».
+  - **Bewusst nicht gebaut:** ein Prüfwert zum Abgleich auf beiden Bildschirmen (K26 4.6 sieht keinen vor)
+    und eine PIN-Abfrage vor dem Koppeln im Hauptprofil (wäre eine Vertragsänderung). Koppeln zwei
+    Fernseher zugleich im selben Konto, nennt die Seite keinen Namen, sondern verweist auf «Meine Geräte»
+    (der Vertrag erlaubt keine sichere Zuordnung).
 - **Gemeinsame Module der zwei Apps (Nachtrag ADR 0039):** `:core:browse` hält die ViewModels der
   Stöber-Seiten ohne Oberfläche (Start, Bibliothek, Listen, Detail, Person, Suche, Merkliste, Gesehen,
   Sammlungen, Profile verwalten) samt ihren Tests; Handy- und TV-App benutzen dieselben. Dazu
