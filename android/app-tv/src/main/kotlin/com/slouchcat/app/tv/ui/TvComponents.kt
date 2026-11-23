@@ -289,13 +289,21 @@ enum class BadgeTone { Plain, Accent, Ok, Warn }
 
 /** `.badge`: a small framed label, optionally with an icon or the accent dot. */
 @Composable
-fun TvBadge(text: String, modifier: Modifier = Modifier, tone: BadgeTone = BadgeTone.Plain, icon: ImageVector? = null) {
+fun TvBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    tone: BadgeTone = BadgeTone.Plain,
+    icon: ImageVector? = null,
+    /** On a light (focused) row: frame, icon and text in the ground colour (`.md-wmain.is-f .badge`). */
+    onLight: Boolean = false,
+) {
     val c = SlouchcatTheme.colors
-    val frame = when (tone) {
-        BadgeTone.Plain -> c.frame
-        BadgeTone.Accent -> c.accent
-        BadgeTone.Ok -> c.ok
-        BadgeTone.Warn -> c.warn
+    val frame = when {
+        onLight -> c.bg
+        tone == BadgeTone.Plain -> c.frame
+        tone == BadgeTone.Accent -> c.accent
+        tone == BadgeTone.Ok -> c.ok
+        else -> c.warn
     }
     val shape = RoundedCornerShape(TvDimens.radiusBadge)
     Row(
@@ -308,7 +316,7 @@ fun TvBadge(text: String, modifier: Modifier = Modifier, tone: BadgeTone = Badge
     ) {
         if (tone == BadgeTone.Accent) Box(Modifier.size(TvDimens.Badge.Dot).clip(CircleShape).background(c.accent))
         if (icon != null) TvIcon(icon, TvDimens.Badge.Icon, tint = frame)
-        Text(text, style = TvType.badge, color = if (tone == BadgeTone.Plain) c.tx2 else c.tx, maxLines = 1)
+        Text(text, style = TvType.badge, color = if (onLight) c.bg else if (tone == BadgeTone.Plain) c.tx2 else c.tx, maxLines = 1)
     }
 }
 

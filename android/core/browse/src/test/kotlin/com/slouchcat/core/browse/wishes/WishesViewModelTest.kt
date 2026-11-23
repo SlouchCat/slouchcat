@@ -6,6 +6,7 @@ import com.slouchcat.core.api.generated.models.WishCreate
 import com.slouchcat.core.api.generated.models.WishSeasonOffer
 import com.slouchcat.core.api.generated.models.WishState
 import com.slouchcat.core.browse.testing.FakeWishes
+import com.slouchcat.core.browse.testing.externalRef
 import com.slouchcat.core.browse.testing.externalTitle
 import com.slouchcat.core.browse.testing.itemRef
 import com.slouchcat.core.browse.testing.rights
@@ -38,6 +39,11 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class WishesViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+
+    private companion object {
+        /** The pause of the TV's search (any value; the model takes it as given). */
+        const val PAUSE = 400L
+    }
 
     @Before
     fun main() = Dispatchers.setMain(dispatcher)
@@ -123,6 +129,92 @@ class WishesViewModelTest {
         val vm = area(repository, query = "seven")
         assertEquals("seven", vm.state.value.text)
         assertTrue("search:seven:1" in repository.calls)
+    }
+
+    @Test
+    fun theTvSearchesByItselfAPauseAfterTheLastKey() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        val s = session(backgroundScope)
+        settle()
+        val vm = WishesViewModel(s, repository, LiveCount(), searchPauseMs = PAUSE)
+        settle()
+        vm.onText("fo")
+        advanceTimeBy(PAUSE / 2)
+        vm.onText("found")
+        advanceTimeBy(PAUSE - 1)
+        assertFalse(repository.calls.any { it.startsWith("search:") })
+        advanceTimeBy(2)
+        settle()
+        // One search for the last text, none for «fo».
+        assertEquals(listOf("search:found:1"), repository.calls.filter { it.startsWith("search:") })
+        assertEquals(listOf("Found Seven", "Found Eight"), (vm.state.value.results!!.items as Loadable.Ready).value.map { it.title })
+        // The same text again (a key and its deletion) does not ask Seerr once more.
+        vm.onText("found ")
+        vm.onText("found")
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("search:") })
+        // The phone's model (no pause) waits for its search key.
+        val phone = area(FakeWishes())
+        phone.onText("found")
+        settle()
+        assertNull(phone.state.value.results)
+    }
+
+    @Test
+    fun aKeyAndItsDeletionDoNotSearchAgainAndALateAnswerIsDropped() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        val s = session(backgroundScope)
+        settle()
+        val vm = WishesViewModel(s, repository, LiveCount(), searchPauseMs = PAUSE)
+        settle()
+        vm.onText("found")
+        advanceTimeBy(PAUSE + 1)
+        settle()
+        // «x» and its deletion within the pause: the planned search goes, nothing is asked again.
+        vm.onText("foundx")
+        vm.onText("found")
+        advanceTimeBy(PAUSE * 2)
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("search:") })
+        // «fo» answers slowly, «found» at once: the hits of «found» stay.
+        repository.searchDelayMs = { if (it == "fo") PAUSE * 10 else 0 }
+        repository.searchHits = listOf(externalRef(9, "Found Nine"))
+        vm.onText("fo")
+        advanceTimeBy(PAUSE + 1)
+        vm.onText("found!")
+        advanceTimeBy(PAUSE * 20)
+        settle()
+        assertEquals(listOf("Found Nine"), (vm.state.value.results!!.items as Loadable.Ready).value.map { it.title })
+        assertEquals("found!", vm.state.value.text)
+    }
+
+    @Test
+    fun aRowOfDiscoverLoadsItsNextPagesUntilSeerrHasNoMore() = runTest(dispatcher) {
+        val repository = FakeWishes()
+        repository.rows[0] = repository.rows[0].copy(nextPage = 2)
+        repository.rowPages[com.slouchcat.core.api.generated.models.DiscoverRowKey.TRENDING] = listOf(listOf(externalRef(3, "Trend Three"), externalRef(1, "Trend One")))
+        val vm = area(repository)
+        val key = com.slouchcat.core.api.generated.models.DiscoverRowKey.TRENDING
+        vm.onMoreRow(key)
+        settle()
+        val row = (vm.state.value.rows as Loadable.Ready).value.single()
+        // The new tile only once (Seerr's pages overlap), and page 2 was the last.
+        assertEquals(listOf("Trend One", "Trend Two", "Trend Three"), row.cards.map { it.title })
+        assertNull(row.nextPage)
+        vm.onMoreRow(key)
+        settle()
+        assertEquals(1, repository.calls.count { it.startsWith("row:") })
+    }
+
+    @Test
+    fun theTvReadsTheLimitWithTheOwnWishes() = runTest(dispatcher) {
+        val s = session(backgroundScope)
+        settle()
+        val tv = WishesViewModel(s, FakeWishes(), LiveCount(), WishesTab.Mine, withQuota = true)
+        settle()
+        assertEquals(5, tv.state.value.quota?.movie?.limit)
+        assertEquals(1, tv.state.value.quota?.movie?.used)
+        assertNull(area(FakeWishes()).state.value.quota)
     }
 
     @Test

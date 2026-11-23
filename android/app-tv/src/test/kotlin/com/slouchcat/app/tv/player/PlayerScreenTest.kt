@@ -18,6 +18,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import com.slouchcat.core.api.generated.models.Chapter
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
@@ -105,7 +106,8 @@ class PlayerScreenTest {
         assertEquals(listOf("toggle"), events.calls)
         val bar = compose.onNode(hasContentDescription(s(R.string.player_seek))).fetchSemanticsNode()
         assertTrue(bar.config.contains(SemanticsProperties.ProgressBarRangeInfo))
-        assertEquals(s(R.string.player_time, "0:01", "2:25:00"), bar.config[SemanticsProperties.StateDescription])
+        // The time and the chapter there (code review L-2 of stage 5).
+        assertEquals(s(R.string.player_time, "0:01", "2:25:00") + s(R.string.format_listSeparator) + "Anfang", bar.config[SemanticsProperties.StateDescription])
         // Paused: the page says so.
         compose.onNode(hasText(s(R.string.tv_player_paused))).assertExists()
     }
@@ -354,6 +356,39 @@ class PlayerScreenTest {
         remote.settle()
         remote.settle()
         remote.assertFocused(s(R.string.common_retry))
+    }
+
+    @Test
+    fun theBarMarksTheChaptersAndSpoolingNamesTheChapter() {
+        val end = filmState().durationMs
+        val chapters = listOf(Chapter(0, 30_000, "Opening"), Chapter(30_000, 600_000), Chapter(600_000, end, "Finale"))
+        // The rules: the chapter at a position, and the marks without the very start.
+        assertEquals(-1, chapterIndexAt(emptyList(), 5_000))
+        assertEquals(0, chapterIndexAt(chapters, 29_999))
+        assertEquals(1, chapterIndexAt(chapters, 30_000))
+        assertEquals(listOf(30_000L, 600_000L), chapterMarks(chapters, end))
+        assertEquals(emptyList<Long>(), chapterMarks(chapters, 0))
+        // Marks closer than the gap to the one before are left out (many chapters).
+        assertEquals(listOf(30_000L), chapterMarks(chapters, end, minGapMs = 600_000))
+        show(filmState().copy(chapters = chapters))
+        assertEquals(2, compose.onAllNodes(hasTestTag(PlayerKeys.CHAPTER_MARK)).fetchSemanticsNodes().size)
+        // One step: 0:11 lies in «Opening»; the bubble names it.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        compose.waitForIdle()
+        compose.onNode(hasText("Opening")).assertExists()
+        // Two more within the streak: 0:41 lies in the second chapter, which has no title.
+        compose.onRoot().performKeyInput {
+            advanceEventTime(100)
+            pressKey(Key.DirectionRight)
+            advanceEventTime(100)
+            pressKey(Key.DirectionRight)
+        }
+        compose.waitForIdle()
+        compose.onNode(hasText(s(R.string.player_chapters_untitled, "2"))).assertExists()
+        // Without chapters neither marks nor a name.
+        state = filmState().copy(chapters = emptyList())
+        remote.settle()
+        assertTrue(compose.onAllNodes(hasTestTag(PlayerKeys.CHAPTER_MARK)).fetchSemanticsNodes().isEmpty())
     }
 
     private companion object {

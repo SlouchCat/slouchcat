@@ -120,7 +120,8 @@ tasks:
   e2e:tv:
     desc: >-
       Instrumentation test of the TV app in its own TV emulator: set up by hand, profile with PIN, settings, sign out;
-      set up by scan through a local relay with apicheck as the phone (PORT 8697, RELAY_PORT PORT+85, EMU_PORT 5584); SHOTS=<dir> takes photos
+      set up by scan through a local relay with apicheck as the phone; the player; wishes and notifications through
+      the Seerr and TMDB mocks of scripts/android-helpers.sh (PORT 8697, RELAY_PORT PORT+85, EMU_PORT 5584); SHOTS=<dir> takes photos
     cmds:
       - task: :server:build
       - task: :relay:build

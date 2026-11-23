@@ -33,6 +33,14 @@ import com.slouchcat.core.api.generated.models.WishFailReason
 import com.slouchcat.core.api.generated.models.WishRequestReason
 import com.slouchcat.core.api.generated.models.WishState
 import com.slouchcat.core.api.generated.models.WishStateDetail
+import com.slouchcat.core.browse.wishes.WishText
+import com.slouchcat.core.browse.wishes.cardMarkText
+import com.slouchcat.core.browse.wishes.failRes
+import com.slouchcat.core.browse.wishes.mediaKindRes
+import com.slouchcat.core.browse.wishes.reasonRes
+import com.slouchcat.core.browse.wishes.wishDetailRes
+import com.slouchcat.core.browse.wishes.wishErrorRes
+import com.slouchcat.core.browse.wishes.wishStateRes
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.media.ExternalCard
@@ -46,76 +54,27 @@ import com.slouchcat.core.strings.R
 
 @Composable
 fun wishStateText(state: WishState, detail: WishStateDetail? = null): String {
-    val text = stringResource(
-        when (state) {
-            WishState.QUEUED -> R.string.wishes_state_queued
-            WishState.PENDING -> R.string.wishes_state_pending
-            WishState.PROCESSING -> R.string.wishes_state_processing
-            WishState.PARTIAL -> R.string.wishes_state_partial
-            WishState.AVAILABLE -> R.string.wishes_state_available
-            WishState.DECLINED -> R.string.wishes_state_declined
-            WishState.FAILED -> R.string.wishes_state_failed
-            WishState.WITHDRAWN, WishState.UNKNOWN_DEFAULT_OPEN_API -> R.string.wishes_state_withdrawn
-        },
-    )
-    val more = when (detail) {
-        WishStateDetail.IMPORTING -> stringResource(R.string.wishes_detail_importing)
-        WishStateDetail.NOT_FOUND_IN_LIBRARY -> stringResource(R.string.wishes_detail_not_found_in_library)
-        else -> null
-    }
+    val text = stringResource(wishStateRes(state))
+    val more = wishDetailRes(detail)?.let { stringResource(it) }
     return if (more != null) text + stringResource(R.string.format_separator) + more else text
 }
 
 @Composable
-fun failText(reason: WishFailReason): String? = when (reason) {
-    WishFailReason.QUOTA -> R.string.wishes_fail_quota
-    WishFailReason.BLOCKLISTED -> R.string.wishes_fail_blocklisted
-    WishFailReason.NO_PERMISSION -> R.string.wishes_fail_no_permission
-    WishFailReason.ARR_FAILED -> R.string.wishes_fail_arr_failed
-    WishFailReason.UNREACHABLE_24H -> R.string.wishes_fail_unreachable_24h
-    WishFailReason.SEERR_REQUEST_GONE -> R.string.wishes_fail_seerr_request_gone
-    WishFailReason.SEERR_MEDIA_DELETED -> R.string.wishes_fail_seerr_media_deleted
-    WishFailReason.SEERR_USER_GONE -> R.string.wishes_fail_seerr_user_gone
-    WishFailReason.TVDB_ID_MISSING -> R.string.wishes_fail_tvdb_id_missing
-    WishFailReason.ACCOUNT_DELETED -> R.string.wishes_fail_account_deleted
-    else -> null
-}?.let { stringResource(it) }
+fun failText(reason: WishFailReason): String? = failRes(reason)?.let { stringResource(it) }
 
 @Composable
-fun reasonText(reason: WishRequestReason?): String = stringResource(
-    when (reason) {
-        WishRequestReason.DISABLED -> R.string.wishes_reason_disabled
-        WishRequestReason.ACCOUNT_NOT_ALLOWED -> R.string.wishes_reason_account_not_allowed
-        WishRequestReason.PROFILE_NOT_ALLOWED -> R.string.wishes_reason_profile_not_allowed
-        WishRequestReason.NO_MAPPING -> R.string.wishes_reason_no_mapping
-        WishRequestReason.SEERR_USER_GONE -> R.string.wishes_reason_seerr_user_gone
-        WishRequestReason.MOVIES_NOT_ALLOWED -> R.string.wishes_reason_movies_not_allowed
-        WishRequestReason.SHOWS_NOT_ALLOWED -> R.string.wishes_reason_shows_not_allowed
-        WishRequestReason.STATUS_ONLY -> R.string.wishes_reason_status_only
-        WishRequestReason.ALREADY_REQUESTED -> R.string.wishes_reason_already_requested
-        else -> R.string.titles_cannotRequest
-    },
-)
+fun reasonText(reason: WishRequestReason?): String = stringResource(reasonRes(reason))
 
 /** A refused change of the wishes in the viewer's words (web `wishProblemMessage`). */
 @Composable
-fun wishErrorText(code: String?): String = stringResource(
-    when (code) {
-        "tmdb_unreachable" -> R.string.wishes_tmdbUnreachable
-        "seerr_unreachable" -> R.string.errors_code_seerr_unreachable
-        "seerr_failed" -> R.string.errors_code_seerr_failed
-        "wish_not_allowed" -> R.string.errors_code_wish_not_allowed
-        "quota_exceeded" -> R.string.errors_code_quota_exceeded
-        "already_available" -> R.string.errors_code_already_available
-        "wish_not_withdrawable" -> R.string.errors_code_wish_not_withdrawable
-        "not_found" -> R.string.app_state_notFound
-        "offline" -> R.string.app_state_offline
-        else -> R.string.app_wishes_failed
-    },
-)
+fun wishErrorText(code: String?): String = stringResource(wishErrorRes(code))
 
 @Composable
-fun mediaKind(media: ExternalMedia): String = stringResource(if (media == ExternalMedia.SHOW) R.string.wishes_kind_show else R.string.wishes_kind_movie)
+fun mediaKind(media: ExternalMedia): String = stringResource(mediaKindRes(media))
+
+/** A text of the shared words about wishes ([WishText]). */
+@Composable
+fun WishText.text(): String = stringResource(id, *args.toTypedArray())
 
 /** «2024 · Film»; the kind alone without a year. */
 @Composable
@@ -153,12 +112,7 @@ fun ExternalPosterCard(card: ExternalCard, onClick: (() -> Unit)?, modifier: Mod
 
 /** What a tile says next to its title: in the library, the own wish, requested by someone. */
 @Composable
-fun cardMark(card: ExternalCard): String? = when {
-    card.itemId != null -> stringResource(R.string.wishes_discover_inLibrary)
-    card.wishState != null -> wishStateText(card.wishState!!)
-    card.requested -> stringResource(R.string.wishes_discover_requested)
-    else -> null
-}
+fun cardMark(card: ExternalCard): String? = cardMarkText(card)?.text()
 
 /** `.chip` with a frame: a state, «Nicht in der Bibliothek». */
 @Composable

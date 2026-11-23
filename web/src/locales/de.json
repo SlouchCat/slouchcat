@@ -8407,6 +8407,9 @@
     "audio": {},
     "radio": {},
     "wishes": {},
+    "notifications": {
+      "allRead": "Alles gelesen"
+    },
     "settings": {
       "title": "Einstellungen",
       "active": "Aktiv: {{name}}",

@@ -7,7 +7,8 @@
 # «Einstellungen», sign out; (b) set up by scan: the test hands out the content of the QR code, this
 # script lets `apicheck -pair-phone` play the phone, the TV redeems and shows server and account;
 # (c) the player of stage 3 with real video: play, pause, spool, sound and subtitles, leave,
-# resume, an episode up to the countdown, «Wiedergabe» of the settings.
+# resume, an episode up to the countdown, «Wiedergabe» of the settings; (d) «Wünsche» and
+# «Benachrichtigungen» of stage 5 through the Seerr and TMDB mocks of scripts/android-helpers.sh.
 #
 #   scripts/android-tv-e2e.sh [--shots DIR]
 #
@@ -38,7 +39,8 @@ if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 
 sdk=${ANDROID_HOME:-$HOME/.local/share/android-sdk}
 serial="emulator-$emu_port"
-adb() { "$sdk/platform-tools/adb" -s "$serial" "$@"; }
+# Every adb call has a limit: adb waits without end when the emulator has died (21 November 2026).
+adb() { timeout 300 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 # For the cleanup: adb waits without end when the emulator has died, so these calls get a limit.
 adb_brief() { timeout 30 "$sdk/platform-tools/adb" -s "$serial" "$@"; }
 app=com.slouchcat.app.dev
@@ -166,7 +168,8 @@ if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --loca
 
 extra=()
 if [ -n "$shots" ]; then extra=(-e slouchcatShots 1); fi
-adb shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
+# The whole flow under one adb call: its own, longer limit.
+timeout 3600 "$sdk/platform-tools/adb" -s "$serial" shell am instrument -w -r -e slouchcatServer "http://10.0.2.2:$port" -e slouchcatRelay "http://10.0.2.2:$relay_port" \
   -e slouchcatEmail "$email" -e slouchcatPassword "$password" -e slouchcatPin "$pin" -e slouchcatMedia "$root/media" "${extra[@]}" \
   "$app.test/androidx.test.runner.AndroidJUnitRunner" >"$root/instrument.txt" 2>&1 &
 instrument_pid=$!

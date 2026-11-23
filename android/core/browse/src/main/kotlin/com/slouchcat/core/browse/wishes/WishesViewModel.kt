@@ -6,6 +6,7 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.DiscoverRowKey
 import com.slouchcat.core.api.generated.models.Wish
 import com.slouchcat.core.api.generated.models.WishCounts
+import com.slouchcat.core.api.generated.models.WishQuota
 import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.api.map
 import com.slouchcat.core.media.ExternalCard
@@ -24,6 +25,7 @@ import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,8 +40,16 @@ import okhttp3.HttpUrl
 /** The two parts of the area «Wünsche» (mockup `/wishes`): «Entdecken» and «Meine Wünsche». */
 enum class WishesTab { Discover, Mine }
 
-/** One row of «Entdecken» with its tiles (the genre rows stay in the web app). */
-data class DiscoverRowCards(val key: DiscoverRowKey, val cards: List<ExternalCard>)
+/**
+ * One row of «Entdecken» with its tiles (the genre rows stay in the web app). [nextPage]: the page
+ * Seerr has after the loaded ones (`null`: none); [more] while it loads ([onMoreRow]).
+ */
+data class DiscoverRowCards(
+    val key: DiscoverRowKey,
+    val cards: List<ExternalCard>,
+    val nextPage: Int? = null,
+    val more: MoreState = MoreState.Idle,
+)
 
 /**
  * The area «Wünsche». [rights]: what the server says the profile may do; [Loadable.Empty] when the
@@ -63,6 +73,8 @@ data class WishesUiState(
     val withdrawing: WishCard? = null,
     /** Wishes whose change is on its way. */
     val busy: Set<Long> = emptySet(),
+    /** The limit of the account (`getWishQuota`), read with «Meine Wünsche» when the page asks for it. */
+    val quota: WishQuota? = null,
 ) {
     /** «Entdecken» is there only when the server shows its pages to the profile (`WishRights.discover`). */
     val discover: Boolean get() = (rights as? Loadable.Ready)?.value?.discover == true
@@ -94,6 +106,13 @@ class WishesViewModel(
     private val openCount: LiveCount,
     initialTab: WishesTab = WishesTab.Discover,
     initialQuery: String? = null,
+    /** Reads the limit with «Meine Wünsche» ([WishesUiState.quota]); the TV shows it above the list (mockup `.md-quota`). */
+    private val withQuota: Boolean = false,
+    /**
+     * Searches by itself this long after the last change of the text (the TV types with the remote,
+     * key by key); `null`: only [onSubmit] searches (the phone's field with its search key).
+     */
+    private val searchPauseMs: Long? = null,
 ) : ViewModel() {
     private val images = session.server?.let(::ServerImages)
     private val local = MutableStateFlow(WishesUiState(tab = initialTab, text = initialQuery.orEmpty()))
@@ -103,6 +122,9 @@ class WishesViewModel(
     private var searchQuery = ""
     private var searchJob: Job? = null
 
+    /** The search waiting for the pause after the last key ([searchPauseMs]). */
+    private var pauseJob: Job? = null
+
     private val mine = PageLoader(viewModelScope, pageSize = PAGE, map = { it: Wish -> WishCard.from(it, images!!) }, key = { it.id }) { offset, limit ->
         val server = session.server
         if (images == null || server == null) return@PageLoader ApiResult.Offline
@@ -110,6 +132,7 @@ class WishesViewModel(
             if (result is ApiResult.Ok) {
                 local.update { it.copy(counts = result.value.counts) }
                 openCount.set(result.value.counts.open)
+                if (withQuota && offset == 0) (repository.quota(server) as? ApiResult.Ok)?.let { quota -> local.update { it.copy(quota = quota.value) } }
             }
         }.map { Page(it.items, it.total) }
     }
@@ -150,7 +173,7 @@ class WishesViewModel(
         local.update { it.copy(rows = Loadable.Loading) }
         val result = repository.discover(server)
         val rows = result.map { discover ->
-            discover.rows.filter { it.propertyEntries.isNotEmpty() }.map { row -> DiscoverRowCards(row.key, row.propertyEntries.map { ExternalCard.from(it, images!!) }) }
+            discover.rows.filter { it.propertyEntries.isNotEmpty() }.map { row -> DiscoverRowCards(row.key, row.propertyEntries.map { ExternalCard.from(it, images!!) }, row.nextPage) }
         }
         local.update { state ->
             state.copy(
@@ -161,6 +184,32 @@ class WishesViewModel(
     }
 
     fun retry() = load()
+
+    /** The next page of the row [key] of «Entdecken» (the TV at the end of a row; code review m-4). */
+    fun onMoreRow(key: DiscoverRowKey) {
+        val server = session.server ?: return
+        val row = (local.value.rows as? Loadable.Ready)?.value?.firstOrNull { it.key == key } ?: return
+        val page = row.nextPage ?: return
+        if (row.more == MoreState.Loading || images == null) return
+        updateRow(key) { it.copy(more = MoreState.Loading) }
+        viewModelScope.launch {
+            when (val result = repository.discoverRow(server, key, page)) {
+                is ApiResult.Ok -> updateRow(key) { now ->
+                    val known = now.cards.mapTo(HashSet()) { it.key }
+                    val added = result.value.propertyEntries.map { ExternalCard.from(it, images) }.filter { known.add(it.key) }
+                    val last = result.value.totalPages ?: result.value.page
+                    now.copy(cards = now.cards + added, nextPage = if (added.isNotEmpty() && result.value.page < last) result.value.page + 1 else null, more = MoreState.Idle)
+                }
+                ApiResult.NotFound -> updateRow(key) { it.copy(nextPage = null, more = MoreState.Idle) }
+                else -> updateRow(key) { it.copy(more = MoreState.Failed) }
+            }
+        }
+    }
+
+    private fun updateRow(key: DiscoverRowKey, change: (DiscoverRowCards) -> DiscoverRowCards) = local.update { state ->
+        val rows = (state.rows as? Loadable.Ready)?.value ?: return@update state
+        state.copy(rows = Loadable.Ready(rows.map { if (it.key == key) change(it) else it }))
+    }
 
     fun onTab(tab: WishesTab) {
         local.update { it.copy(tab = tab) }
@@ -177,7 +226,19 @@ class WishesViewModel(
 
     fun onText(text: String) {
         local.update { it.copy(text = text) }
-        if (text.isBlank()) clearSearch()
+        if (text.isBlank()) {
+            clearSearch()
+            return
+        }
+        val pause = searchPauseMs ?: return
+        // A planned search goes with every key (code review m-2): back at the text of the last
+        // search, nothing is asked again; a running search is left to [onSubmit], which cancels it.
+        pauseJob?.cancel()
+        if (text.trim() == searchQuery) return
+        pauseJob = viewModelScope.launch {
+            delay(pause)
+            onSubmit()
+        }
     }
 
     fun onClear() {
@@ -186,6 +247,7 @@ class WishesViewModel(
     }
 
     private fun clearSearch() {
+        pauseJob?.cancel()
         searchJob?.cancel()
         search.value = null
         searchQuery = ""
@@ -201,6 +263,8 @@ class WishesViewModel(
         search.value = Paged()
         searchJob = viewModelScope.launch {
             val result = repository.search(server, query, 1)
+            // An answer to an earlier text that arrives late is dropped (code review m-2).
+            if (searchQuery != query) return@launch
             search.value = when (result) {
                 is ApiResult.Ok -> {
                     searchPage = result.value.page

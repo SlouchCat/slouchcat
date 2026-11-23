@@ -14,6 +14,8 @@ dependencies {
     api(project(":core:api"))
     api(project(":core:session"))
     api(project(":core:media"))
+    // The keys of the words about wishes (WishWords): the apps draw them with stringResource.
+    implementation(project(":core:strings"))
     api(libs.androidx.lifecycle.viewmodel)
     implementation(libs.coroutines.android)
     testImplementation(project(":core:browse-testing"))

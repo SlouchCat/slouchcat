@@ -50,6 +50,7 @@ import com.slouchcat.core.browse.wishes.WishTitleViewModel
 import com.slouchcat.core.browse.wishes.WishesMessage
 import com.slouchcat.core.browse.wishes.WishesTab
 import com.slouchcat.core.browse.wishes.WishesViewModel
+import com.slouchcat.core.browse.wishes.wishErrorRes
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatIconImage
 import com.slouchcat.core.design.SlouchcatTheme
@@ -207,15 +208,8 @@ private fun openCard(navigator: Navigator, card: ExternalCard, fromSearch: Boole
 }
 
 /** The text of a problem code of the wishes, `null` for one the app has no own text for. */
-private fun android.content.res.Resources.errorText(code: String?): String? = when (code) {
-    "tmdb_unreachable" -> getString(R.string.wishes_tmdbUnreachable)
-    "seerr_unreachable" -> getString(R.string.errors_code_seerr_unreachable)
-    "wish_not_withdrawable" -> getString(R.string.errors_code_wish_not_withdrawable)
-    "quota_exceeded" -> getString(R.string.errors_code_quota_exceeded)
-    "already_available" -> getString(R.string.errors_code_already_available)
-    "wish_not_allowed" -> getString(R.string.errors_code_wish_not_allowed)
-    else -> null
-}
+private fun android.content.res.Resources.errorText(code: String?): String? =
+    wishErrorRes(code).takeIf { it != R.string.app_wishes_failed }?.let(::getString)
 
 /**
  * «Noch nicht in der Bibliothek?» under the search's hits (mockup handy 67; web `SearchMissing`):
