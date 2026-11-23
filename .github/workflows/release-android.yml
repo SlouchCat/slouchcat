@@ -1,23 +1,30 @@
-# Publishes a release of one Android app (ADR 0039, addendum of 23 November 2026): a tag
-# `app-vX.Y.Z` the phone app (android/app-mobile), a tag `tv-vX.Y.Z` the TV app (android/app-tv).
-# The tag must match the versionName of the app's version.properties (scripts/android-tag-check.sh).
-# The server's release workflow (`v*.*.*`) and the relay's (`relay-v*.*.*`) do not match these
-# tags, and this one matches none of theirs.
+# Publishes a release of one Android app (ADR 0039, addenda of 23 November 2026): a tag `app-vX.Y.Z`
+# the phone app (android/app-mobile), a tag `tv-vX.Y.Z` the TV app (android/app-tv). The tag must
+# match the versionName of the app's version.properties (scripts/android-tag-check.sh) and its
+# commit must be in main. The server's release workflow (`v*.*.*`) and the relay's
+# (`relay-v*.*.*`) do not match these tags, and this one matches none of theirs.
 #
 # The release this creates is NEVER "latest" (`--latest=false`). The update check of every
 # Slouchcat server and its updater read
 #   https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json
-# and an app release has no manifest.json; as "latest" it would break that check.
+# and an app release has no manifest.json; as "latest" it would break that check. Should the
+# server's latest release ever be deleted, set the newest server release again with
+# `gh release edit vX.Y.Z --latest` (docs/dev/HANDOVER.md, section 5).
 #
-# The files are those of `task android:dist` (docs/dev/ANDROID-INBETRIEBNAHME.md): debug APKs to
-# install with adb, the release APKs, the bundle for the store and SHA256SUMS. They are signed with
-# the upload key only when all four signing secrets are set:
-#   SLOUCHCAT_SIGNING_KEYSTORE_BASE64  the keystore (upload.jks) as base64 (`base64 -w0 upload.jks`)
-#   SLOUCHCAT_SIGNING_STORE_PASSWORD, SLOUCHCAT_SIGNING_KEY_ALIAS, SLOUCHCAT_SIGNING_KEY_PASSWORD
-# Without them the release files are unsigned and the release text says so. Push of the phone app
-# (`play`) comes from four more secrets, SLOUCHCAT_FIREBASE_PROJECT_ID, _APP_ID, _API_KEY and
-# _SENDER_ID; without them `play` builds without push. A tag protection rule for app-v* and tv-v*
-# keeps others from triggering this.
+# Three jobs, so the upload key never meets third-party code and the right to write never meets
+# either (security review of the package «Ausgabe», M-2):
+#   build    no secrets, contents: read. Checks, then `task android:dist` unsigned (pnpm, Gradle,
+#            their dependencies). Firebase's four values are no secrets (they are in every APK):
+#            repository variables SLOUCHCAT_FIREBASE_PROJECT_ID, _APP_ID, _API_KEY, _SENDER_ID.
+#   sign     environment android-release (required reviewer, only the tags app-v* and tv-v*),
+#            contents: read. Only scripts/android-sign.sh: zipalign and apksigner of the build
+#            tools, jarsigner of the JDK; no pnpm, no Gradle. Its secrets:
+#              SLOUCHCAT_SIGNING_KEYSTORE_BASE64  the keystore (upload.jks) as base64
+#              SLOUCHCAT_SIGNING_STORE_PASSWORD, SLOUCHCAT_SIGNING_KEY_ALIAS, SLOUCHCAT_SIGNING_KEY_PASSWORD
+#            None set: the files pass unsigned (the release text says so). Some set: the job fails.
+#   publish  contents: write, no secrets. Only `gh release create` (or `upload` on a second run).
+# Debug APKs are not published: each run would carry a new debug key, and a debug build lets
+# `run-as` read the app's data. docs/dev/ANDROID-INBETRIEBNAHME.md, section 7, sets it all up.
 name: release-android
 
 on:
@@ -27,20 +34,25 @@ on:
 # Nothing by default; each job names what it needs (security review L-4, as release-relay.yml).
 permissions: {}
 
+# One run per tag at a time; a second push of the same tag waits instead of racing the first.
+concurrency:
+  group: release-android-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # The checks of the CI job "android", without any right to write and without the secrets: code
-  # that came in with the tag cannot use them while its own checks run.
-  test:
+  build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     permissions:
       contents: read
     outputs:
       app: ${{ steps.tag.outputs.app }}
+      push: ${{ steps.firebase.outputs.push }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Check the tag against version.properties
         id: tag
@@ -48,6 +60,34 @@ jobs:
           set -euo pipefail
           app=$(scripts/android-tag-check.sh "${GITHUB_REF_NAME}")
           echo "app=$app" >> "$GITHUB_OUTPUT"
+
+      # A tag on a commit outside main would run that commit's own copy of this workflow; the
+      # environment of the job "sign" is the protection, this check makes such a run fail early.
+      - name: Check that the tagged commit is in main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main; then
+            echo "::error::${GITHUB_REF_NAME} (${GITHUB_SHA}) is not a commit of main" >&2
+            exit 1
+          fi
+
+      - name: Check the Firebase values (all four or none)
+        id: firebase
+        env:
+          PROJECT_ID: ${{ vars.SLOUCHCAT_FIREBASE_PROJECT_ID }}
+          APP_ID: ${{ vars.SLOUCHCAT_FIREBASE_APP_ID }}
+          API_KEY: ${{ vars.SLOUCHCAT_FIREBASE_API_KEY }}
+          SENDER_ID: ${{ vars.SLOUCHCAT_FIREBASE_SENDER_ID }}
+        run: |
+          set -euo pipefail
+          set=0
+          for v in "$PROJECT_ID" "$APP_ID" "$API_KEY" "$SENDER_ID"; do [ -z "$v" ] || set=$((set + 1)); done
+          if [ "$set" -ne 0 ] && [ "$set" -ne 4 ]; then
+            echo "::error::$set of the four SLOUCHCAT_FIREBASE_* variables are set; set all four or none" >&2
+            exit 1
+          fi
+          if [ "$set" -eq 4 ]; then echo "push=true" >> "$GITHUB_OUTPUT"; else echo "push=false" >> "$GITHUB_OUTPUT"; fi
 
       - uses: ./.github/actions/node
 
@@ -74,25 +114,41 @@ jobs:
 
       - run: task android:test
 
-  release:
-    needs: test
+      - name: Build the APKs and the bundle (unsigned)
+        env:
+          APPS: ${{ steps.tag.outputs.app }}
+          SLOUCHCAT_FIREBASE_PROJECT_ID: ${{ vars.SLOUCHCAT_FIREBASE_PROJECT_ID }}
+          SLOUCHCAT_FIREBASE_APP_ID: ${{ vars.SLOUCHCAT_FIREBASE_APP_ID }}
+          SLOUCHCAT_FIREBASE_API_KEY: ${{ vars.SLOUCHCAT_FIREBASE_API_KEY }}
+          SLOUCHCAT_FIREBASE_SENDER_ID: ${{ vars.SLOUCHCAT_FIREBASE_SENDER_ID }}
+        run: task android:dist APPS="$APPS"
+
+      # Only the release files; the debug APKs stay on the runner.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-unsigned
+          path: |
+            android/dist/*-release*.apk
+            android/dist/*-release*.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
+    environment: android-release
     permissions:
-      contents: write
+      contents: read
     steps:
+      # Only the signing script of the tagged commit; nothing of the workspace is installed.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: scripts/android-sign.sh
+          sparse-checkout-cone-mode: false
 
-      - uses: ./.github/actions/node
-
-      - uses: ./.github/actions/task
-
-      - name: Check the Gradle wrapper
-        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
-
-      - name: JDK 21 and the Android SDK packages
+      - name: JDK 21 and the build tools
         run: |
           set -euo pipefail
           echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
@@ -100,81 +156,94 @@ jobs:
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           log=$(mktemp)
           if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
-          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
-            cat "$log"
-            exit 1
-          fi
+          if ! "$sdkmanager" --install "build-tools;37.0.0" >"$log" 2>&1; then cat "$log"; exit 1; fi
 
-      # The keystore goes to a file of the runner's temp folder only for this step; Gradle reads
-      # the four values from the environment (build-logic, Signing.kt) and never prints them.
-      - name: Build the APKs and the bundle
-        id: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: android-unsigned
+          path: dist
+
+      # The keystore lives in the runner's temp folder only while this step runs; the script reads
+      # the passwords from the environment and never prints them.
+      - name: Sign the release files
         env:
-          APPS: ${{ needs.test.outputs.app }}
           KEYSTORE_BASE64: ${{ secrets.SLOUCHCAT_SIGNING_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.SLOUCHCAT_SIGNING_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.SLOUCHCAT_SIGNING_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.SLOUCHCAT_SIGNING_KEY_PASSWORD }}
-          SLOUCHCAT_FIREBASE_PROJECT_ID: ${{ secrets.SLOUCHCAT_FIREBASE_PROJECT_ID }}
-          SLOUCHCAT_FIREBASE_APP_ID: ${{ secrets.SLOUCHCAT_FIREBASE_APP_ID }}
-          SLOUCHCAT_FIREBASE_API_KEY: ${{ secrets.SLOUCHCAT_FIREBASE_API_KEY }}
-          SLOUCHCAT_FIREBASE_SENDER_ID: ${{ secrets.SLOUCHCAT_FIREBASE_SENDER_ID }}
+          SLOUCHCAT_SIGNING_STORE_PASSWORD: ${{ secrets.SLOUCHCAT_SIGNING_STORE_PASSWORD }}
+          SLOUCHCAT_SIGNING_KEY_ALIAS: ${{ secrets.SLOUCHCAT_SIGNING_KEY_ALIAS }}
+          SLOUCHCAT_SIGNING_KEY_PASSWORD: ${{ secrets.SLOUCHCAT_SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          signed=false
-          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            keystore="$RUNNER_TEMP/upload.jks"
+          umask 077
+          keystore="$RUNNER_TEMP/upload.jks"
+          trap 'rm -f "$keystore"' EXIT
+          if [ -n "$KEYSTORE_BASE64" ]; then
             printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$keystore"
-            chmod 600 "$keystore"
             export SLOUCHCAT_SIGNING_STORE_FILE="$keystore"
-            export SLOUCHCAT_SIGNING_STORE_PASSWORD="$STORE_PASSWORD"
-            export SLOUCHCAT_SIGNING_KEY_ALIAS="$KEY_ALIAS"
-            export SLOUCHCAT_SIGNING_KEY_PASSWORD="$KEY_PASSWORD"
-            signed=true
           fi
-          push=false
-          if [ -n "$SLOUCHCAT_FIREBASE_PROJECT_ID" ] && [ -n "$SLOUCHCAT_FIREBASE_APP_ID" ] && [ -n "$SLOUCHCAT_FIREBASE_API_KEY" ] && [ -n "$SLOUCHCAT_FIREBASE_SENDER_ID" ]; then
-            push=true
-          fi
-          status=0
-          task android:dist APPS="$APPS" || status=$?
-          rm -f "$RUNNER_TEMP/upload.jks"
-          [ "$status" -eq 0 ] || exit "$status"
-          echo "signed=$signed" >> "$GITHUB_OUTPUT"
-          echo "push=$push" >> "$GITHUB_OUTPUT"
+          scripts/android-sign.sh dist
 
-      - name: Create the release (never latest)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [build, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: android-release
+          path: dist
+
+      # Signed or not is read from the files (their names), not from the secrets. A second run of
+      # the same tag replaces the files of the release instead of failing on it.
+      - name: Create or update the release (never latest)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APP: ${{ needs.test.outputs.app }}
-          SIGNED: ${{ steps.dist.outputs.signed }}
-          PUSH: ${{ steps.dist.outputs.push }}
+          APP: ${{ needs.build.outputs.app }}
+          PUSH: ${{ needs.build.outputs.push }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           if [ "$APP" = app ]; then title="Slouchcat phone app"; else title="Slouchcat TV app"; fi
           version="${GITHUB_REF_NAME#*-v}"
+          cd dist
+          files=(./*.apk ./*.aab SHA256SUMS)
+          unsigned=(./*-unsigned.*)
+          sha256sum --check --strict SHA256SUMS
           {
             echo "$title $version (tag \`${GITHUB_REF_NAME}\`)."
             echo
-            echo "- \`*-debug.apk\`: for \`adb install\`; debug key, application id with \`.dev\`."
-            echo "- \`*-release*.apk\`, \`*-release*.aab\`: the release build (R8); the bundle is the file for the Play Console."
+            echo "- \`*-release*.apk\`: the release build (R8) to install directly."
+            echo "- \`*-release*.aab\`: the bundle for the Play Console."
             echo "- \`SHA256SUMS\`: \`sha256sum -c SHA256SUMS\`."
             echo
-            if [ "$SIGNED" = true ]; then
+            if [ "${#unsigned[@]}" -eq 0 ]; then
               echo "The release files are signed with the upload key."
             else
-              echo "The release files are unsigned (no signing secrets in this repository); sign them by hand as docs/dev/ANDROID-INBETRIEBNAHME.md describes."
+              echo "The release files are unsigned (no signing secrets); sign them as docs/dev/ANDROID-INBETRIEBNAHME.md, section 6, describes."
             fi
             if [ "$APP" = app ] && [ "$PUSH" != true ]; then
-              echo "This build of \`play\` has no push (no Firebase secrets)."
+              echo "This build of \`play\` has no push (no Firebase values)."
             fi
             echo
             echo "Setup: docs/dev/ANDROID-INBETRIEBNAHME.md. Not a server release: the server's update check ignores it."
-          } > release-notes.md
-          cd android/dist
-          gh release create "${GITHUB_REF_NAME}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "$title $version" \
-            --notes-file ../../release-notes.md \
-            --latest=false \
-            ./*.apk ./*.aab SHA256SUMS
+          } > "$RUNNER_TEMP/release-notes.md"
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber "${files[@]}"
+            gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" --latest=false
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "$title $version" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --latest=false \
+              "${files[@]}"
+          fi
