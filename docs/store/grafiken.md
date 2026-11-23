@@ -18,6 +18,21 @@ besser «Tears of Steel» und «Sintel».
 
 Die Bilder liegen nicht im Repo. Ablage: `<Ordner für die Store-Grafiken>`.
 
+**App-Symbol, Feature-Grafik und TV-Banner** entstehen aus den SVG-Quellen in `docs/store/grafiken/`
+(`app-icon.svg`, `feature-graphic.svg`, `tv-banner.svg`; Zeichen und Name aus dem Banner der TV-App,
+Farben aus den Tokens):
+
+```bash
+scripts/store-graphics.sh <Ordner für die Store-Grafiken>
+```
+
+Das Skript schreibt `app-icon.png` (512 × 512, RGBA), `feature-graphic.png` (1024 × 500, RGB) und
+`tv-banner.png` (1280 × 720, RGB), prüft Mass und Farbtyp jeder Datei und verweigert einen Zielordner
+im Repo. Es braucht den Workspace (`pnpm install`) und das Chromium von Playwright
+(`pnpm --dir web exec playwright install chromium`), wie die e2e-Tests. Die Feature-Grafik zeigt nur
+Zeichen und Name, kein Handy (Entscheid beim Bau: keine Bildschirmfotos im Repo, kein Geräte-Foto);
+wer das Handy daneben will, legt ein Bildschirmfoto nach dem Abschnitt unten darüber.
+
 ## Pflicht und Mass
 
 | Grafik | Pflicht | Mass | Format | Quelle |
