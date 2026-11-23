@@ -22,3 +22,12 @@ tasks.named<Test>("test") {
     inputs.dir(vectors).withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("slouchcat.vectors", vectors.asFile.absolutePath)
 }
+
+// The phone's side as a JVM program against the TV app in the emulator (task android:e2e:pair,
+// scripts/android-tv-e2e.sh with PHONE=kotlin): src/test/.../PhoneCheck.kt, no test.
+tasks.register<JavaExec>("phoneCheck") {
+    group = "verification"
+    description = "Plays the phone app's pairing against a TV (--args=\"server=… packetServer=… relay=… codeRelay=… code=… email=… password=… pin=…\")"
+    classpath = project.the<SourceSetContainer>()["test"].runtimeClasspath
+    mainClass.set("com.slouchcat.core.pairing.PhoneCheckKt")
+}

@@ -10,7 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.TvGraph
 import com.slouchcat.app.tv.browse.PlayerRoute
-import com.slouchcat.app.tv.common.MemoryRelaySettings
+import com.slouchcat.core.session.MemoryRelaySettings
 import com.slouchcat.app.tv.navigation.TvNavHost
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope

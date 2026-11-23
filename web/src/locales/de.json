@@ -518,7 +518,94 @@
     "radio": {},
     "wishes": {},
     "notifications": {},
-    "tv": {}
+    "tv": {
+      "title": "Fernseher verbinden",
+      "moreHint": "QR-Code am Fernseher scannen",
+      "intro": {
+        "title": "Fernseher mit dem Handy verbinden",
+        "lede": "Kein Tippen mit der Fernbedienung: Das Handy gibt dem Fernseher den Zugang.",
+        "step1": "Öffne am Fernseher die Slouchcat-App. Sie zeigt einen QR-Code.",
+        "step2": "Scanne den Code mit diesem Handy.",
+        "step3": "Bestätige hier. Der Fernseher meldet sich mit deinem Konto an.",
+        "scan": "Scanner öffnen",
+        "cameraHint": "Die App fragt beim ersten Mal nach der Kamera.",
+        "googleHint": "Den Code liest der Scanner der Google-Play-Dienste. Die App selbst bekommt keinen Zugriff auf die Kamera.",
+        "primaryOnly": "Einen Fernseher verbindet nur das Hauptprofil. So hängt niemand aus einem Kinderprofil ein Gerät an dein Konto.",
+        "linked": "Verbunden",
+        "since": "seit {{date}}"
+      },
+      "scan": {
+        "title": "QR-Code scannen",
+        "close": "Scanner schliessen",
+        "aim": "Richte die Kamera auf den Code am Fernseher.",
+        "denied": "Ohne Kamera kann die App den Code nicht lesen. Erlaube die Kamera in den Einstellungen der App.",
+        "settings": "Einstellungen öffnen",
+        "loading": "Der Scanner wird geladen …"
+      },
+      "problem": {
+        "notACode": "Das ist kein Code der Slouchcat-TV-App. Scanne den QR-Code, den der Fernseher unter «Mit dem Handy einrichten» zeigt.",
+        "otherVersion": "Dieser Code stammt von einer neueren TV-App. Aktualisiere die App auf diesem Handy.",
+        "otherRelay": "Dieser Code gehört zu einer anderen Vermittlung. Betreibst du keine eigene Vermittlung, ist das kein Code deiner TV-App.",
+        "loading": "Der Scanner der Google-Play-Dienste wird noch geladen. Versuche es gleich nochmals.",
+        "noPlayServices": "Auf diesem Gerät fehlen die Google-Play-Dienste oder sie sind zu alt. Ohne sie gibt es keinen Scanner.",
+        "noCamera": "Dieses Gerät hat keine Kamera, mit der die App den Code lesen kann.",
+        "scannerFailed": "Der Scanner liess sich nicht öffnen. Versuche es nochmals."
+      },
+      "confirm": {
+        "title": "Diesen Fernseher mit deinem Konto verbinden?",
+        "lede": "Tu das nur, wenn der Code auf deinem eigenen Fernseher steht.",
+        "account": "Konto",
+        "server": "Server",
+        "by": "Bestätigt von",
+        "primary": "{{name}} (Hauptprofil)",
+        "profile": "{{name}} (Profil)",
+        "hint": "Der Fernseher bekommt Zugang zu den Profilen dieses Kontos, aber nicht zur Verwaltung. Er bleibt angemeldet, bis du ihn unter «Meine Geräte» abmeldest.",
+        "plainHttp": "Die Verbindung zum Server ist nicht verschlüsselt (HTTP). Auch der Fernseher schickt seinen Zugang dann offen über das Netz. Richte für den Server HTTPS ein.",
+        "go": "Verbinden"
+      },
+      "run": {
+        "title": "Verbinde …",
+        "failedTitle": "Nicht verbunden",
+        "voucher": "Gutschein vom Server geholt",
+        "handedOver": "Verschlüsselt an den Fernseher übergeben",
+        "waiting": "Fernseher meldet sich an …",
+        "done": "Erledigt",
+        "busy": "Läuft",
+        "failed": "Fehlgeschlagen",
+        "pending": "Wartet"
+      },
+      "fail": {
+        "occupied": "Am Treffpunkt liegt schon ein Paket. Der Fernseher ist womöglich mit einem fremden Server verbunden. Prüfe, welchen Server und welches Konto der Fernseher anzeigt.",
+        "lapses": "Dein Gutschein verfällt ungenutzt.",
+        "timedOut": "Das hat nicht geklappt. Zeige am Fernseher einen neuen Code an.",
+        "expired": "Der Code ist abgelaufen. Zeige am Fernseher einen neuen Code an.",
+        "relay": "Die Vermittlung antwortet nicht. Richte den Fernseher von Hand ein: Wähle am Fernseher «Von Hand einrichten» und melde dich mit deinem Konto an.",
+        "server": "Der Server antwortet nicht. Prüfe die Verbindung und scanne den Code nochmals.",
+        "notAllowed": "Mit dieser Anmeldung lässt sich kein Fernseher verbinden.",
+        "leftBefore": "Du hast die Seite verlassen, bevor der Fernseher den Zugang bekam. Scanne den Code nochmals.",
+        "leftAfter": "Du hast die Seite verlassen. Ob der Fernseher verbunden ist, siehst du unter «Meine Geräte».",
+        "ok": "Verstanden",
+        "again": "Nochmals scannen",
+        "tooMany_one": "Zu viele Versuche. Warte {{count}} Sekunde und scanne den Code dann nochmals.",
+        "tooMany_other": "Zu viele Versuche. Warte {{count}} Sekunden und scanne den Code dann nochmals."
+      },
+      "done": {
+        "title": "Verbunden",
+        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Er steht unter «Meine Geräte». Über die eingerichteten Benachrichtigungskanäle geht die Meldung «Neues Gerät verbunden» hinaus.",
+        "finish": "Fertig",
+        "named": "Der Fernseher nennt sich «{{name}}»",
+        "several": "Ein neuer Fernseher ist verbunden. Im selben Moment kam noch ein Gerät dazu: Prüfe unter «Meine Geräte», welcher deiner ist.",
+        "notMine": "Nicht mein Fernseher – abmelden"
+      },
+      "relay": {
+        "primaryOnly": "Die Vermittlung ändert nur das Hauptprofil."
+      },
+      "notMine": {
+        "title": "«{{name}}» abmelden?",
+        "body": "Der Fernseher verliert den Zugang zu diesem Konto sofort. Danach steht er nicht mehr unter «Meine Geräte».",
+        "done": "«{{name}}» ist abgemeldet."
+      }
+    }
   },
   "common": {
     "back": "Zurück",

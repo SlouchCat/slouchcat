@@ -13,7 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.tv.material3.Text
 import com.slouchcat.app.tv.BuildConfig
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.ui.NoteTone
 import com.slouchcat.app.tv.ui.TvActions
 import com.slouchcat.app.tv.ui.TvButton
@@ -25,20 +25,10 @@ import com.slouchcat.app.tv.ui.TvTextField
 import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
-import com.slouchcat.core.session.ParsedAddress
 import com.slouchcat.core.session.ServerAddress
+import com.slouchcat.core.session.parseRelay
 import com.slouchcat.core.strings.R
 import okhttp3.HttpUrl
-
-/**
- * A relay address as the user typed it; `null` when it is none. Only `https`: over plain HTTP the
- * pickup secret travels in the open and whoever reads along takes the packet first (review N-7).
- * Plain HTTP only in the debug build (a local relay in development) or [allowPlainHttp].
- */
-fun parseRelay(text: String, allowPlainHttp: Boolean = BuildConfig.DEBUG): HttpUrl? {
-    val url = (ServerAddress.parse(text) as? ParsedAddress.Valid)?.url ?: return null
-    return url.takeIf { it.isHttps || allowPlainHttp }
-}
 
 /**
  * «Adresse der Vermittlung» (advanced, F-21): the relay the QR code names. Only for whoever runs a
@@ -70,7 +60,7 @@ fun RelayMenu(current: HttpUrl, onSave: (HttpUrl?) -> Unit, onDismiss: () -> Uni
             TvButton(
                 stringResource(R.string.tv_relay_save),
                 onClick = {
-                    val relay = parseRelay(text)
+                    val relay = parseRelay(text, allowPlainHttp = BuildConfig.DEBUG)
                     if (relay == null) invalid = true else onSave(relay)
                 },
                 icon = SlouchcatIcon.Check.vector,
