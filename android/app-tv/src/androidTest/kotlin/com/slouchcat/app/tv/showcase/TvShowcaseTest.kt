@@ -356,6 +356,14 @@ class TvShowcaseTest {
         waitFor("Wartung am Sonntag")
         focused(s(R.string.announcements_acknowledge))
         shot("c28-notifications")
+
+        // The main search with «Noch nicht in der Bibliothek?» and the card «„…“ wünschen».
+        rail(s(R.string.nav_search))
+        focused("q")
+        "licht".forEach { key(KeyEvent.KEYCODE_A + (it - 'a')) }
+        waitFor(s(R.string.app_wishes_missingTitle))
+        waitFor(s(R.string.app_wishes_searchCard, "licht"))
+        shot("c33-search-missing")
         scenario.close()
     }
 
