@@ -792,6 +792,18 @@ func (s *Service) matchEpisode(ctx context.Context, item systemq.Item) error {
 	if !ok || series.MetadataState != stateMatched {
 		return s.setState(ctx, item, stateSkipped, errSeriesUnmatched)
 	}
+	if err := s.matchEpisodeOf(ctx, item, series); err != nil {
+		return err
+	}
+	// The episode came after the match of its series (a later scan, a season the download tool
+	// imports on its own): the series is reported again, whatever the provider knows of the
+	// episode, so that a wish waiting for this season is reconciled now and not by the hourly run.
+	s.matchedHook(ctx, series)
+	return nil
+}
+
+// matchEpisodeOf fetches and writes one episode of a matched series.
+func (s *Service) matchEpisodeOf(ctx context.Context, item, series systemq.Item) error {
 	prov, pid, ok := s.seriesProvider(series)
 	if !ok {
 		return s.setState(ctx, item, stateSkipped, errSeriesUnmatched)

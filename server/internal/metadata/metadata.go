@@ -374,8 +374,10 @@ type MatchedTitle struct {
 // WithMatched sets the hook a match calls once the provider ids of a film or series are written:
 // after the relink hook found no twin (also when the relink is skipped), for a series after its
 // seasons (concept 25, architecture 11: package wishes reconciles its wishes with the library).
-// A title with a twin gets no call; the twin's match makes it. The hook must not fail the match:
-// it logs its own errors. Set it before the workers start.
+// A title with a twin gets no call; the twin's match makes it. A series is reported again after
+// the job of one of its episodes ended (matched or not): a later scan brought an episode the
+// series job did not write, so the playable episodes of the series changed. The hook must not
+// fail the match: it logs its own errors. Set it before the workers start.
 func (s *Service) WithMatched(fn func(ctx context.Context, m MatchedTitle)) { s.matched = fn }
 
 // matchedHook calls the hook of WithMatched with the written ids of item.
