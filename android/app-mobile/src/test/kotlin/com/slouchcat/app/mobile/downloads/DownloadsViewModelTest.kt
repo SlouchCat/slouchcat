@@ -105,6 +105,9 @@ class DownloadsViewModelTest {
         until { vm.state.value.sheet == DownloadsSheet.Delete }
         vm.onDeleteConfirm()
         until { vm.state.value.rows.isEmpty() }
+        // The row leaves the list as soon as the download is marked for deletion; the engine asks the
+        // server after that (OfflineEngine.delete), so the call has to be waited for as well.
+        until { server.deletes.isNotEmpty() }
         assertEquals(listOf(DL1), server.deletes)
     }
 
