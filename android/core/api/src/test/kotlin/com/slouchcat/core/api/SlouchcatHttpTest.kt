@@ -44,8 +44,10 @@ class SlouchcatHttpTest {
         val http = SlouchcatHttp.client(identity, keepAlive = Duration.ofMillis(200))
         server.enqueue(MockResponse(body = "{}"))
         // Counted while the answer is open: once it is idle, a slow machine may find it gone already.
+        // And read to its end, so that the connection goes back to the pool and is not just closed.
         http.newCall(Request.Builder().url(server.url("/")).build()).execute().use {
             assertEquals(1, http.connectionPool.connectionCount())
+            assertEquals("{}", it.body.string())
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (http.connectionPool.connectionCount() > 0 && System.nanoTime() < deadline) Thread.sleep(20)
