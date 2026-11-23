@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## CI: Job `android-emulator` rund 3,5 Minuten schneller (23. November 2026, PR #215)
+## CI: Job `android-emulator` rund 3,5 Minuten schneller (23. November 2026, PR #216)
 
 Marco am 23. November 2026: Der Job `android-emulator (flow, informational)` dauert viel zu lange. Gemessen an
 drei Pull-Request-Läufen: 15,2 bis 15,6 min. Davon waren 8 min der Ablauf am Gerät, 4 min der Gradle-Bau und
