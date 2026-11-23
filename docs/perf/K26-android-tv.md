@@ -350,7 +350,7 @@ das so.
 |---|---|---|
 | TV-ML | `<intent-filter>` mit `MAIN` und `LEANBACK_LAUNCHER` auf der Start-Aktivität | im Manifest; Eintrag im Startbildschirm nicht angesehen |
 | TV-MT | `<uses-feature android:name="android.hardware.touchscreen" android:required="false"/>` und die übrigen Geräte aus «Declare hardware requirements for TV» (Mikrofon, Kamera, GPS …) nur mit `required="false"` | Touchscreen ja |
-| Leanback | `<uses-feature android:name="android.software.leanback" android:required="false"/>` (eine App für Handy und TV, E-20) | ja |
+| Leanback | `<uses-feature android:name="android.software.leanback" android:required="true"/>`: die TV-App ist ein eigenes Artefakt in der Spur «Android TV» und erreicht nur Fernseher (berichtigt am 23. November 2026, Nachtrag zu ADR 0039; zuvor `required="false"`) | ja |
 | TV-LB, TV-BN | `android:banner` 320 × 180 px (xhdpi) mit App-Namen, dazu Symbol ≥ 160 × 160 px | Banner ja, Symbol nein |
 | TV-LO | Querformat ohne Balken | `screenOrientation="landscape"` |
 | TV-DB | Zurück führt bis zum Startbildschirm | ja (Punkt 6) |

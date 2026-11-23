@@ -228,8 +228,11 @@ Push-Meldungen».
    baut Debug und Release mit denselben vier Werten; mit der App-ID von `com.slouchcat.app` ist Push nur
    im Release-Bau zu erwarten (nicht geprüft).
 5. Im Firebase-Projekt unter Projekteinstellungen › Dienstkonten einen privaten Schlüssel erzeugen.
-   Diese Datei gehört nur zur Push-Weiterleitung (`RELAY_FCM_CREDENTIALS`, `docs/relay/BETRIEB.md`
-   Abschnitt 3), nie in die App und nie ins Repo.
+   Diese Datei gehört nur zur Push-Weiterleitung: Auf deren Maschine als `secrets/firebase.json` in
+   den Ordner `RELAY_SECRETS_DIR` legen (Vorgabe `./secrets` neben der Compose-Datei, Besitzer
+   `65532:65532`, Rechte `0400`; `docs/relay/BETRIEB.md` Abschnitte 2 und 3). Die Compose-Datei bindet
+   den Ordner schreibgeschützt als `/run/secrets` ein, der Dienst liest `/run/secrets/firebase.json`.
+   Nie in die App und nie ins Repo.
 6. **Prüfen:** App einspielen, anmelden, «Mehr › Benachrichtigungen»: «Push-Meldungen» an (Android
    fragt nach der Erlaubnis für Mitteilungen). Mit dem Hauptprofil den Kanal «Push» einschalten und
    im Blatt «Testmeldung senden». Dann die App wegwischen und eine Testmeldung aus der Web-App senden
@@ -381,17 +384,22 @@ Nicht geprüft, der Workflow lief noch nie.
    - **sign** (Environment `android-release`, wartet auf deine Freigabe): signiert mit
      `scripts/android-sign.sh`, ohne pnpm und ohne Gradle. Ohne Secrets reicht er unsigniert durch.
    - **publish** (Schreibrecht, ohne Secrets): hängt Release-APKs, Bundle und `SHA256SUMS` an ein
-     GitHub-Release des Tags; die Debug-APKs nicht. Läuft derselbe Tag ein zweites Mal, ersetzt er die
-     Dateien.
+     GitHub-Release des Tags; die Debug-APKs nicht. Läuft derselbe Tag ein zweites Mal, löscht er
+     zuerst alle Dateien des Releases und lädt dann die neuen hoch.
 4. Das Release wird **nie «latest»**: Der Server und sein Updater lesen das neueste Release
    (`releases/latest/download/manifest.json`); ein App-Release darf das Server-Release dort nicht
    verdrängen. Die Workflows des Servers (`v*.*.*`) und der Dienste (`relay-v*.*.*`) laufen bei
    App-Tags nicht. Wird das «latest»-Release des Servers gelöscht oder zur Vorabversion, kann GitHub auf
    ein App-Release zurückfallen: dann `gh release edit vX.Y.Z --latest` mit dem neuesten Server-Release.
 
-## 8. Nur im Emulator geprüft, nur auf echten Geräten möglich
+**Restrisiko:** Der Job «sign» signiert, was der Job «build» liefert, ohne es selbst bauen oder prüfen
+zu können. Eine vergiftete Gradle-Abhängigkeit, ein vergiftetes Plugin oder ein vergifteter Cache im
+Job «build» ergäbe eine Datei, die danach mit deinem Upload-Schlüssel signiert ist. Den Schlüssel
+selbst sieht der Job «build» nie. Die Prüfsummen-Datei für die Gradle-Abhängigkeiten
+(`android/gradle/verification-metadata.xml`), die das eingrenzen würde, ist noch offen: Sie braucht
+einen eigenen Ablauf, damit Dependabot-Updates sie mitführen.
 
-Stand dieser Anleitung; der Koordinator ergänzt ihn am Schluss des Baus.
+## 8. Nur im Emulator geprüft, nur auf echten Geräten möglich
 
 **Im Emulator oder auf dem Rechner geprüft:**
 

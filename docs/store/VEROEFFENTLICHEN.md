@@ -271,6 +271,7 @@ Testern für die TV-Geräteart erneut anfällt.
 |---|---|
 | `<Name des Entwicklers>` | 2 (Zertifikat) |
 | `<Ort der Sicherung des Upload-Schlüssels>` | 2 |
+| `<versionName>` (kein Platzhalter zum Ausfüllen: der `versionName` aus `android/app-mobile/version.properties` bzw. `android/app-tv/version.properties` der Ausgabe) | 3, 9 |
 | `<Liste der internen Tester>` | 4 |
 | `<Adresse der Datenschutzerklärung>` | 5 |
 | `<Liste der geschlossenen Tester>` | 6 |

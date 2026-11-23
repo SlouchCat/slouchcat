@@ -30,8 +30,7 @@ Das Skript schreibt `app-icon.png` (512 × 512, RGBA), `feature-graphic.png` (10
 `tv-banner.png` (1280 × 720, RGB), prüft Mass und Farbtyp jeder Datei und verweigert einen Zielordner
 im Repo. Es braucht den Workspace (`pnpm install`) und das Chromium von Playwright
 (`pnpm --dir web exec playwright install chromium`), wie die e2e-Tests. Die Feature-Grafik zeigt nur
-Zeichen und Name, kein Handy (Entscheid beim Bau: keine Bildschirmfotos im Repo, kein Geräte-Foto);
-wer das Handy daneben will, legt ein Bildschirmfoto nach dem Abschnitt unten darüber.
+Zeichen und Name, kein Handy (Entscheid beim Bau: keine Bildschirmfotos im Repo, kein Geräte-Foto).
 
 ## Pflicht und Mass
 
@@ -56,9 +55,8 @@ nicht eindeutig. Vorschlag: liefern, weil die App Tablets und Querformat können
 auf 512 × 512 gerendert, auf dem dunklen Hintergrund der Tokens. Kein Text, keine Rahmen oder
 Schatten (Google legt Maske und Schatten selbst darüber).
 
-**Feature-Grafik:** Zeichen und Name «Slouchcat» links, rechts ein angeschnittenes Handy mit der
-Startseite des Vorführservers. Dunkler Hintergrund aus den Tokens. Kein Slogan, der nach Inhalten
-klingt; wenn Text, dann «Deine Sammlung. Dein Server.» / «Your collection. Your server.»
+**Feature-Grafik:** nur Zeichen und Name «Slouchcat», mittig auf dem dunklen Hintergrund der Tokens
+(`docs/store/grafiken/feature-graphic.svg`). Kein Handy, kein Bildschirmfoto, kein Slogan.
 
 **Bildschirmfotos Handy** (Hochformat 1080 × 1920 oder 1080 × 2400 aus `sc_phone`, je Sprache ein
 Satz; die Oberfläche in der Sprache des Eintrags):
