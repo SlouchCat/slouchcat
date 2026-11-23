@@ -97,7 +97,8 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
  * Two places in the shared client: as the first application interceptor it waits for the proof;
  * [hop], a network interceptor before the credentials, checks every hop to the server again (a
  * retry of OkHttp, a redirect). A hop without a proof fails when the network changed since the
- * request left; in the same network it proves again first, once per request.
+ * request left; in the same network it proves again first, until the request's own connection
+ * broke a second time.
  *
  * A connection that breaks forgets the proof, at the hop where it breaks: OkHttp's own retry of
  * that request is the next hop and waits for the new proof like every later request. That holds
@@ -144,14 +145,15 @@ class ServerIdentityGate(
 
     /**
      * What the gate remembers of one request on its way. A call runs its interceptors on one
-     * thread; only [noted] is also written by whoever reads the answer, on a thread of its own.
+     * thread; [noted] and [broken] are also written by whoever reads the answer, on a thread of
+     * its own, when the request itself is over.
      */
     private class Trip {
         /** The network the request left in. */
         var generation = 0L
 
-        /** A hop of the request had no proof and waited for a new one; there is no second time. */
-        var provenAgain = false
+        /** How often a connection of this request broke. */
+        @Volatile var broken = 0
 
         /** The error [hop] has taken note of, so that [intercept] does not count it again. */
         @Volatile var noted: IOException? = null
@@ -185,11 +187,12 @@ class ServerIdentityGate(
      */
     val newKey: StateFlow<String?> = _newKey.asStateFlow()
 
-    /** Forget every proof and the new key (a new server, a confirmed key). */
+    /** Forget every proof and the new key (a new server, a confirmed key); a proof on its way counts for nothing. */
     fun reset() {
         synchronized(lock) {
             proven = null
             failure = null
+            breaks++
         }
         _newKey.value = null
     }
@@ -236,6 +239,8 @@ class ServerIdentityGate(
      * The body of an answer, which is read after its hop returned. A connection that breaks in it
      * ends no request the gate could see: OkHttp does not retry, the reader (the player in a
      * segment, a download) asks again with a new request, and that one must not find the old proof.
+     * A body without a length that is not chunked ends where its connection ends, so there a
+     * connection closed too early looks like the end; the server sends no such answers.
      */
     private inner class Watched(private val body: ResponseBody, private val call: Call, private val pool: ConnectionPool) : ResponseBody() {
         /** One break per body: a reader that tries again meets the same broken connection, not a new one. */
@@ -261,17 +266,21 @@ class ServerIdentityGate(
     }
 
     /**
-     * A hop without a proof. The request had one when it left ([intercept]) and it is gone: a
+     * A hop without a proof. As a rule the request had one when it left ([intercept]) and it is gone: a
      * connection broke (the request's own, and this hop is OkHttp's retry; or another request's),
      * the proof ran out, or its renewal failed. After a network change the request fails; what
      * becomes of it in the new network is for the app to decide. In the network it left in, the hop
-     * waits for a new proof, once per request: a machine that signs and then breaks every
-     * connection costs a request one proof and not one per retry of OkHttp.
+     * waits for a new proof, unless the request's own connection has broken twice: a machine that
+     * signs and then breaks every connection costs a request one proof on its way and not one per
+     * retry of OkHttp. A proof lost to the break of another request does not count against that:
+     * when several connections from before break one after the other, a request loses the proof
+     * to another's break first and to its own next.
      */
     private fun proveOnTheWay(server: HttpUrl, trip: Trip?) {
-        if (trip == null || trip.generation != network.generation()) throw ServerNotProvenException("the network changed before the request left")
-        if (trip.provenAgain) throw ServerNotProvenException("the proof was lost again before the request left")
-        trip.provenAgain = true
+        // No trip: the request came to the server by a redirect from elsewhere and never waited for a proof.
+        if (trip == null) throw ServerNotProvenException("no proof for a request that did not set out for the server")
+        if (trip.generation != network.generation()) throw ServerNotProvenException("the network changed before the request left")
+        if (trip.broken >= OWN_BREAKS) throw ServerNotProvenException("the connection broke again after a new proof")
         // The proof may be one of a newer network by now.
         if (awaitProof(server) != trip.generation) throw ServerNotProvenException("the network changed before the request left")
     }
@@ -280,16 +289,23 @@ class ServerIdentityGate(
      * Takes note of how a request ended, once per error. The app's own doing puts the proof in
      * doubt. Anything else is a connection that broke, and maybe the network went with it: the
      * proof is forgotten, and so are the idle connections, which are from before the break as well
-     * (OkHttp's retry would take the next of them from the pool and break again).
+     * (OkHttp's retry would take the next of them from the pool and break again; they go for every
+     * host of the shared client, the pool has no narrower way).
+     *
+     * Not for a request that left in a network that is gone: after a network change its
+     * connections break, often several at once, and that is no news about the network of now,
+     * which has its own proof or gets one.
      */
     private fun note(call: Call, pool: ConnectionPool, e: IOException) {
         if (e is ServerNotProvenException) return
         val trip = call.tag(Trip::class)
+        if (trip != null && trip.generation != network.generation()) return
         if (trip?.noted === e) return
         trip?.noted = e
         if (endedByTheApp(call, e)) {
             doubt()
         } else {
+            if (trip != null) trip.broken++
             if (forget()) Log.i(TAG, "connection broke, proof forgotten", error = e)
             pool.evictAll()
         }
@@ -389,9 +405,13 @@ class ServerIdentityGate(
                     if (outcome == Outcome.Proven) {
                         proven = Proof(attempt.generation, attempt.key, clock())
                         failure = null
+                        Log.i(TAG, "server proven")
                     } else {
-                        // Also a proof in doubt that was to be renewed: whoever answers now is not the server.
-                        proven = null
+                        // Also a proof in doubt that was to be renewed: whoever answers now did not
+                        // prove to be the server, and a foreign machine answers just like a server
+                        // that is briefly unwell. Not the proof of another key (the remembered one,
+                        // while a new key the user is confirming fails).
+                        if (proven?.key == attempt.key) proven = null
                         failure = Triple(attempt.generation, attempt.key, outcome)
                         failedAt = clock()
                     }
@@ -403,7 +423,6 @@ class ServerIdentityGate(
             synchronized(lock) { if (inFlight === attempt) inFlight = null }
             attempt.result.complete(outcome)
         }
-        if (outcome == Outcome.Proven) Log.i(TAG, "server proven")
         return outcome
     }
 
@@ -444,6 +463,7 @@ class ServerIdentityGate(
         } catch (e: TimeoutException) {
             null
         } catch (e: ExecutionException) {
+            // Never today: the owner completes the future with an outcome, also after an Error.
             Outcome.Failed
         } catch (e: InterruptedException) {
             // As Okio reports it, so that it counts as the app's own doing where a hop waited.
@@ -462,5 +482,8 @@ class ServerIdentityGate(
     private companion object {
         const val TAG = "identity"
         const val ROUNDS = 3
+
+        /** The break of its own connection that ends a request; before it, a hop proves again. */
+        const val OWN_BREAKS = 2
     }
 }

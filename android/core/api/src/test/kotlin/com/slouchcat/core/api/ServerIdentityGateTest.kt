@@ -290,6 +290,23 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aNewKeyThatDoesNotProveItselfLeavesTheProofOfTheRememberedKey() {
+        // The user opens the confirmation of a new key and gives it up: the server never signed
+        // with that key, which says nothing against the proof of the remembered one.
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        gate.candidateKey = otherKey
+        assertRefused { signIn(http) }
+        assertEquals(2, signer.calls.get())
+        gate.candidateKey = null
+        assertTrue("the failed proof of another key cost the proof of the remembered one", gate.isProvenNow())
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+    }
+
+    @Test
     fun theRememberedKeyProvingAgainClearsTheNewKey() {
         val signer = Signer(otherKeys)
         val gate = gate(signer)
@@ -706,7 +723,9 @@ class ServerIdentityGateTest {
         assertEquals(200, get(http))
         // OkHttp sends the request again by itself. That hop gets one new proof (the server is
         // there and signs); when its connection breaks as well, the request ends.
-        assertRefused { get(http, "/hangup") }
+        val refused = assertRefused { get(http, "/hangup") }
+        // What the app sees: the third hop (OkHttp retries once more) is held back, «not reachable».
+        assertTrue("$refused", refused is ServerNotProvenException)
         assertEquals("one new proof for a request on its way, no second", 2, signer.calls.get())
         assertEquals("the request left once after its new proof, and not a third time", 2, hangups.get())
         assertFalse("the proof survived a connection the server closed", gate.isProvenNow())
@@ -736,9 +755,12 @@ class ServerIdentityGateTest {
     }
 
     @Test
-    fun aForeignMachineBehindABrokenConnectionGetsNoCredentials() {
+    fun aForeignMachineBehindABrokenConnectionGetsNoSecondRequest() {
         // The case M-1 is for: another network with the same addresses, which the device did not
-        // see coming. The machine there resets the old connection, accepts a new one and cannot sign.
+        // see coming. The machine there resets the old connection, accepts a new one and cannot
+        // sign. The request on the old connection had left with the token, and whoever holds the
+        // address can read it (the log below shows it): the gate cannot take that back. What it
+        // stops is everything after the break.
         val log = Collections.synchronizedList(mutableListOf<String>())
         server.dispatcher = recording(log) { request -> if (request.url.encodedPath == "/dropped") null else MockResponse(body = "{}") }
         val foreign = AtomicBoolean()
@@ -911,6 +933,109 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aRequestOfAnotherNetworkThatBreaksSaysNothingAboutTheNetworkOfNow() {
+        // After a network change the connections of the old network break, often several at once.
+        // The new network has its own proof by then, and those breaks are no news about it.
+        val reached = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath != "/slow") return MockResponse(body = "{}")
+                reached.countDown()
+                answer.await(10, TimeUnit.SECONDS)
+                return MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build()
+            }
+        }
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        try {
+            val old = onItsOwnThread { get(http.newBuilder().retryOnConnectionFailure(false).build(), "/slow") }
+            assertTrue(reached.await(5, TimeUnit.SECONDS))
+            generation.incrementAndGet()
+            assertEquals(200, get(http))
+            assertEquals(2, signer.calls.get())
+            answer.countDown()
+            val broken = old.get(5, TimeUnit.SECONDS).exceptionOrNull()
+            assertTrue("no broken connection: $broken", broken is IOException && broken !is ServerNotProvenException)
+            assertTrue("a break in the old network cost the proof of the new one", gate.isProvenNow())
+            assertEquals(1, http.connectionPool.idleConnectionCount())
+            assertEquals(200, get(http))
+            assertEquals(2, signer.calls.get())
+        } finally {
+            answer.countDown()
+        }
+    }
+
+    @Test
+    fun manyConnectionsThatBreakAtOnceFailNoRequest() {
+        // The server went away and came back while the app held five connections, and a page asks
+        // for five things at once. Every break counts for itself (a proof from before any of them
+        // is worth nothing), so this may cost a proof per break, but no request fails.
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        val together = CountDownLatch(5)
+        val release = CountDownLatch(1)
+        val gone = AtomicInteger(-1)
+        server.dispatcher = recording(log) { request ->
+            if (request.url.encodedPath == "/together") {
+                together.countDown()
+                release.await(10, TimeUnit.SECONDS)
+            }
+            if (request.connectionIndex <= gone.get()) null else MockResponse(body = "{}")
+        }
+        val signer = Signer()
+        val http = client(gate(signer))
+        try {
+            val five = List(5) { onItsOwnThread { get(http, "/together") } }
+            assertTrue("no five connections at once", together.await(5, TimeUnit.SECONDS))
+            release.countDown()
+            five.forEach { assertEquals(200, it.get(5, TimeUnit.SECONDS).getOrThrow()) }
+        } finally {
+            release.countDown()
+        }
+        assertEquals(5, http.connectionPool.idleConnectionCount())
+        gone.set(4)
+        val start = CountDownLatch(1)
+        val again = List(5) {
+            onItsOwnThread {
+                start.await(5, TimeUnit.SECONDS)
+                get(http)
+            }
+        }
+        start.countDown()
+        again.forEach { assertEquals(200, it.get(10, TimeUnit.SECONDS).getOrThrow()) }
+        assertTrue("more proofs than broken connections: ${signer.calls.get()}", signer.calls.get() in 2..6)
+    }
+
+    @Test
+    fun aProofThatBeganBeforeAResetCountsForNothing() {
+        // «Server wechseln» while a proof is on its way: that proof is of the server before.
+        val began = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val prover = ServerProver { _, nonce ->
+            if (calls.incrementAndGet() == 1) {
+                began.countDown()
+                finish.await(10, TimeUnit.SECONDS)
+            }
+            ProofAnswer(sign(serverKeys, nonce), serverKey)
+        }
+        val gate = gate(prover)
+        val http = client(gate)
+        try {
+            val first = onItsOwnThread { get(http) }
+            assertTrue(began.await(5, TimeUnit.SECONDS))
+            gate.reset()
+            finish.countDown()
+            assertEquals(200, first.get(5, TimeUnit.SECONDS).getOrThrow())
+            assertEquals("the proof from before the reset counted", 2, calls.get())
+        } finally {
+            finish.countDown()
+        }
+    }
+
+    @Test
     fun aNetworkChangeWhileAHopProvesAgainStopsTheRequest() {
         // The new proof of a hop is for the network the request left in, or for none.
         val log = Collections.synchronizedList(mutableListOf<String>())
@@ -977,6 +1102,42 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aRequestThatLostTheProofBeforeItLeftSurvivesItsOwnBrokenConnectionToo() {
+        // Several connections from before break one after the other (the server came back from an
+        // update): a request loses the proof to the break of another before it leaves, proves
+        // again, and then finds its own connection dead. That is its first own break, not its second.
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        val seconds = AtomicInteger()
+        server.dispatcher = recording(log) { request ->
+            when (request.url.encodedPath) {
+                "/dropped" -> null
+                "/second" -> if (seconds.getAndIncrement() == 0) null else MockResponse(body = "{}")
+                else -> MockResponse(body = "{}")
+            }
+        }
+        val held = Held("/second")
+        val signer = Signer(log = log)
+        val http = client(gate(signer), OkHttpClient.Builder().addNetworkInterceptor(held))
+        assertEquals(200, get(http))
+        try {
+            val second = onItsOwnThread { get(http, "/second") }
+            assertTrue(held.arrived.await(5, TimeUnit.SECONDS))
+            assertRefused { get(http.newBuilder().retryOnConnectionFailure(false).build(), "/dropped") }
+            held.release.countDown()
+            assertEquals(200, second.get(5, TimeUnit.SECONDS).getOrThrow())
+            assertEquals(
+                listOf(
+                    "proof", "/api/v1/auth/session on 0 with token", "/dropped on 1 with token",
+                    "proof", "/second on 0 with token", "proof", "/second on 2 with token",
+                ),
+                log.toList(),
+            )
+        } finally {
+            held.release.countDown()
+        }
+    }
+
+    @Test
     fun aProofThatBeganBeforeABreakCountsForNothing() {
         // A proof is on its way (the old one ran out) when a connection breaks. Whatever that proof
         // ends with, the server signed before the break: the request whose connection broke asks again.
@@ -1001,7 +1162,8 @@ class ServerIdentityGateTest {
             }
             ProofAnswer(sign(serverKeys, nonce), serverKey)
         }
-        val http = client(gate(prover))
+        // A request that waited for the proof on its way would wait longer than this test does.
+        val http = client(gate(prover, timeout = Duration.ofSeconds(30)))
         assertEquals(200, get(http))
         try {
             val broken = onItsOwnThread { get(http, "/slow") }
@@ -1010,7 +1172,7 @@ class ServerIdentityGateTest {
             val other = onItsOwnThread { get(http) }
             assertTrue("no proof on its way", began.await(5, TimeUnit.SECONDS))
             answer.countDown()
-            assertEquals("the request waited for the proof from before its break", 200, broken.get(3, TimeUnit.SECONDS).getOrThrow())
+            assertEquals("the request waited for the proof from before its break", 200, broken.get(5, TimeUnit.SECONDS).getOrThrow())
             assertEquals(3, calls.get())
             finish.countDown()
             assertEquals(200, other.get(5, TimeUnit.SECONDS).getOrThrow())
@@ -1072,9 +1234,14 @@ class ServerIdentityGateTest {
         val call = http.newCall(Request.Builder().url(server.url("/long")).build())
         call.execute().use { answer ->
             assertEquals(200, answer.code)
-            val reading = onItsOwnThread { answer.body.string() }
-            Thread.sleep(100)
-            assertFalse("the answer was read to its end", reading.isDone)
+            val reader = AtomicReference<Thread>()
+            val reading = onItsOwnThread(reader) { answer.body.string() }
+            // In the middle of the answer: the reader waits in the socket for the part the server holds back.
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (reader.get()?.stackTrace?.any { it.className.startsWith("java.net.Socket") && it.methodName == "read" } != true) {
+                if (System.nanoTime() > deadline) fail("the answer was never read")
+                Thread.sleep(5)
+            }
             call.cancel()
             assertTrue("the cancelled answer was read to its end", reading.get(5, TimeUnit.SECONDS).exceptionOrNull() is IOException)
         }
