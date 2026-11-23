@@ -17,7 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.MainActivity
 import com.slouchcat.app.tv.TvGraph
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.navigation.TvNavHost
 import com.slouchcat.app.tv.ui.LocalTvImageLoader
 import com.slouchcat.core.api.ApiResult

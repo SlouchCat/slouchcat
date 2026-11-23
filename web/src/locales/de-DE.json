@@ -5,6 +5,7 @@
         "close": "Scanner schließen"
       },
       "problem": {
+        "scannerFailed": "Der Scanner ließ sich nicht öffnen. Versuche es nochmals.",
         "notACode": "Das ist kein Code der Slouchcat-TV-App. Scanne den QR-Code, den der Fernseher unter „Mit dem Handy einrichten“ zeigt."
       },
       "fail": {
@@ -12,7 +13,17 @@
         "leftAfter": "Du hast die Seite verlassen. Ob der Fernseher verbunden ist, siehst du unter „Meine Geräte“."
       },
       "done": {
-        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Du findest ihn unter „Meine Geräte“."
+        "lede": "Der Fernseher zeigt jetzt die Profilwahl. Er steht unter „Meine Geräte“. Über die eingerichteten Benachrichtigungskanäle geht die Meldung „Neues Gerät verbunden“ hinaus.",
+        "named": "Der Fernseher nennt sich „{{name}}“",
+        "several": "Ein neuer Fernseher ist verbunden. Im selben Moment kam noch ein Gerät dazu: Prüfe unter „Meine Geräte“, welcher deiner ist."
+      },
+      "confirm": {
+        "hint": "Der Fernseher bekommt Zugang zu den Profilen dieses Kontos, aber nicht zur Verwaltung. Er bleibt angemeldet, bis du ihn unter „Meine Geräte“ abmeldest."
+      },
+      "notMine": {
+        "title": "„{{name}}“ abmelden?",
+        "body": "Der Fernseher verliert den Zugang zu diesem Konto sofort. Danach steht er nicht mehr unter „Meine Geräte“.",
+        "done": "„{{name}}“ ist abgemeldet."
       }
     },
     "downloads": {

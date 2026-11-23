@@ -4,6 +4,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.slouchcat.core.api.crypto.Base64Url
 import com.slouchcat.core.pairing.PairingCode
+import com.slouchcat.core.session.parseRelay
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

@@ -9,16 +9,15 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
-import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.mobile.HandedScanner
 import com.slouchcat.app.mobile.MainActivity
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.features
-import com.slouchcat.app.mobile.tvlink.MemoryRelaySettings
-import com.slouchcat.app.mobile.tvlink.RelaySettings
 import com.slouchcat.app.mobile.tvlink.TvLinkFeature
+import com.slouchcat.app.mobile.tvlink.RelayRoute
 import com.slouchcat.app.mobile.tvlink.TvLinkRoute
 import com.slouchcat.core.api.crypto.Base64Url
 import com.slouchcat.core.api.generated.models.MyDevice
@@ -27,15 +26,17 @@ import com.slouchcat.core.pairing.IssuedVoucher
 import com.slouchcat.core.pairing.PairingCode
 import com.slouchcat.core.pairing.PhonePairing
 import com.slouchcat.core.pairing.PhonePairingFlow
+import com.slouchcat.core.session.MemoryRelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.core.strings.R
+import java.time.Instant
+import java.time.OffsetDateTime
 import kotlinx.coroutines.CompletableDeferred
 import okhttp3.HttpUrl
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.Instant
-import java.time.OffsetDateTime
 
 /**
  * «Fernseher verbinden» with every answer the page knows (concept 27 section 10), for the visual
@@ -63,7 +64,7 @@ class TvLinkShowcaseTest {
 
         override suspend fun deliver(code: PairingCode, voucher: IssuedVoucher, serverAddress: HttpUrl, serverKey: String) = PhonePairing.Deliver.Delivered
 
-        override suspend fun awaitTv(voucher: IssuedVoucher): PhonePairing.Linked {
+        override suspend fun awaitTv(voucher: IssuedVoucher, within: java.time.Duration): PhonePairing.Linked {
             gate.await()
             return linked
         }
@@ -143,7 +144,7 @@ class TvLinkShowcaseTest {
         // The server's answers.
         failure(PhonePairing.Issue.PrimaryOnly, s(R.string.app_tv_intro_primaryOnly), "p06-primary-only")
         failure(PhonePairing.Issue.Offline, s(R.string.app_tv_fail_server), "p07-server-offline", dismiss = R.string.common_cancel)
-        failure(PhonePairing.Issue.TooManyAttempts(40), s(R.string.errors_code_too_many_attempts), "p08-too-many", dismiss = R.string.common_cancel)
+        failure(PhonePairing.Issue.TooManyAttempts(40), context.resources.getQuantityString(R.plurals.app_tv_fail_tooMany, 40, 40), "p08-too-many", dismiss = R.string.common_cancel)
         failure(PhonePairing.Issue.ServerUnconfirmed, s(R.string.app_serverKey_unconfirmedBody), "p09-server-unconfirmed")
         failure(PhonePairing.Issue.NotAllowed("app_session_required"), s(R.string.app_tv_fail_notAllowed), "p10-not-allowed")
 
@@ -177,9 +178,28 @@ class TvLinkShowcaseTest {
         scanner.next = CompletableDeferred()
         button(s(R.string.app_tv_intro_scan)).performScrollTo().performClick()
         scanner.next.complete(null)
-        waitForText(s(R.string.app_tv_problem_unavailable))
+        waitForText(s(R.string.app_tv_problem_noPlayServices))
         showcase.shot("p13-no-scanner")
-        button(s(R.string.app_tv_relay_change)).performScrollTo().performClick()
+
+        // «Ein neuer Fernseher» without a name, and «Nicht mein Fernseher – abmelden».
+        script.issue = PhonePairing.Issue.Ok(IssuedVoucher("v".repeat(43), Instant.EPOCH, emptySet()))
+        script.gate = CompletableDeferred<Unit>().apply { complete(Unit) }
+        script.linked = PhonePairing.Linked.Several
+        scanAndConnect()
+        waitForText(s(R.string.app_tv_done_several))
+        showcase.shot("p15-several")
+        button(s(R.string.app_tv_done_finish)).performScrollTo().performClick()
+        open("more", TvLinkRoute)
+        waitForText(s(R.string.app_tv_intro_title))
+        script.linked = PhonePairing.Linked.Ok(MyDevice("tv-3", OffsetDateTime.now(), 0, current = false, name = "Schlafzimmer-TV", type = MyDevice.Type.TV))
+        scanAndConnect()
+        waitForText(s(R.string.app_tv_done_title))
+        button(s(R.string.app_tv_done_notMine)).performScrollTo().performClick()
+        waitForText(s(R.string.app_tv_notMine_body))
+        showcase.shot("p16-not-mine")
+
+        // «Adresse der Vermittlung» under «Mehr › Einstellungen» (F-21).
+        open("more", RelayRoute)
         waitForText(s(R.string.tv_relay_lead))
         showcase.shot("p14-relay")
     }

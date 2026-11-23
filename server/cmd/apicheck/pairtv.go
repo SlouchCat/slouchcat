@@ -32,6 +32,7 @@ type pairTVOptions struct {
 	wantServer string        // the server address the packet must carry (empty: any)
 	wantEmail  string        // the account the sealed answer must name (empty: any)
 	expiry     time.Duration // how long to wait for the packet at most (the meeting point lives 5 minutes)
+	hold       time.Duration // how long the paired TV stays signed in, so the phone sees it under «Meine Geräte»
 }
 
 // runPairTV plays the TV until the voucher is redeemed and the device token opened.
@@ -56,6 +57,8 @@ func runPairTV(ctx context.Context, s *state, o pairTVOptions) error {
 	if err := os.WriteFile(o.codeFile, []byte(code+"\n"), 0o600); err != nil {
 		return fmt.Errorf("write the code: %w", err)
 	}
+	// The meeting point is worthless after five minutes; the file goes with the run anyway.
+	defer func() { _ = os.Remove(o.codeFile) }()
 	fmt.Println("apicheck: TV shows its code (written to the file)")
 
 	sealed, err := meeting.awaitPacket(ctx, o.expiry)
@@ -76,6 +79,9 @@ func runPairTV(ctx context.Context, s *state, o pairTVOptions) error {
 		return fmt.Errorf("TV: packet v=%d with a voucher of %d characters", packet.V, len(packet.Voucher))
 	}
 	fmt.Printf("apicheck: TV opened the packet: server %s\n", packet.Server)
+	if o.wantServer == "" {
+		fmt.Println("apicheck: the packet's server address is not checked (no -pair-want-server); the TV redeems at -base")
+	}
 	if o.wantServer != "" && strings.TrimRight(packet.Server, "/") != strings.TrimRight(o.wantServer, "/") {
 		return fmt.Errorf("TV: the packet names the server %q, want %q", packet.Server, o.wantServer)
 	}
@@ -122,6 +128,19 @@ func runPairTV(ctx context.Context, s *state, o pairTVOptions) error {
 		return fmt.Errorf("TV: the new device token: %w", err)
 	}
 	fmt.Printf("apicheck: TV paired with the account %s\n", device.AccountEmail)
+	// The phone looks for the TV under «Meine Geräte» every two seconds: stay long enough to be seen.
+	select {
+	case <-ctx.Done():
+	case <-time.After(o.hold):
+	}
+	// No device session «apicheck TV» without end left on the checked server (security review I-6).
+	if resp, err = s.c.sendTV(ctx, http.MethodPost, "/auth/logout", device.Token, nil); err != nil {
+		return err
+	}
+	if err := resp.expect(http.MethodPost, "/auth/logout", http.StatusNoContent); err != nil {
+		return fmt.Errorf("TV: sign the device session out again: %w", err)
+	}
+	fmt.Println("apicheck: TV signed out again")
 	return nil
 }
 

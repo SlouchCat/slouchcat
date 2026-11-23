@@ -90,6 +90,7 @@ started=$(date +%s)
 # the small media tree of scripts/android-test-media.sh (DetailFlowTest), real video for the
 # player's flow (PlayerFlowTest, needs ffmpeg) and, when `task testdata:media` made them, the
 # synthetic media that apicheck seeds (stage 4 browses a library).
+[ -x ../relay/bin/pair ] || fail "relay/bin/pair is missing: task relay:build (TvLinkFlowTest needs the relay)"
 mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
 ../scripts/android-test-video.sh "$root/media"

@@ -34,6 +34,7 @@ import com.slouchcat.app.mobile.wishes.WishTitleRoute
 import com.slouchcat.app.mobile.notifications.NotificationSettingsRoute
 import com.slouchcat.app.mobile.browse.NotificationsRoute
 import com.slouchcat.app.mobile.wishes.WishesRoute
+import com.slouchcat.app.mobile.tvlink.RelayRoute
 import com.slouchcat.app.mobile.tvlink.TvLinkRoute
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryKind
@@ -77,7 +78,7 @@ class RegistryTest {
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
         DownloadsRoute::class, OfflinePlayerRoute::class,
         WishesRoute::class, WishTitleRoute::class, NotificationsRoute::class, NotificationSettingsRoute::class,
-        TvLinkRoute::class,
+        TvLinkRoute::class, RelayRoute::class,
     )
 
     @Test

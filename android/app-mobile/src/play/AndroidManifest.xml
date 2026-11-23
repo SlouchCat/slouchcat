@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The bundle `play` (stage 8): Google's push through the push relay (concept 27, 7.3). The
-     permission is asked for when the person switches push on, never at the start. -->
+<!-- The bundle `play`: Google's push through the push relay (concept 27, 7.3; stage 8) and
+     Google's code scanner of «Fernseher verbinden» (concept 27 5.2; stage 9).
+     The notification permission is asked for when the person switches push on, never at the start.
+     The code scanner is a module of the Play services; the meta-data asks Google Play to download it
+     with the install, so the first scan does not wait for it (code review M-2). No camera
+     permission: the scanner is Google's own screen. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
         <service
             android:name=".push.SlouchcatMessagingService"
             android:exported="false">

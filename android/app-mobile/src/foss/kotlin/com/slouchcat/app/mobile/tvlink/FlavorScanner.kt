@@ -58,7 +58,14 @@ private object CameraCodeScanner : CodeScanner {
     override val asksForCamera: Boolean = true
 
     @Composable
-    override fun Camera(onCode: (String) -> Unit, onClose: () -> Unit, onUnavailable: () -> Unit, modifier: Modifier) {
+    override fun Camera(
+        accepts: (String) -> Boolean,
+        onCode: (String) -> Unit,
+        onClose: () -> Unit,
+        onLoading: (Boolean) -> Unit,
+        onTrouble: (ScannerTrouble) -> Unit,
+        modifier: Modifier,
+    ) {
         val context = LocalContext.current
         var granted by remember { mutableStateOf(hasCamera(context)) }
         var refused by remember { mutableStateOf(false) }
@@ -76,7 +83,7 @@ private object CameraCodeScanner : CodeScanner {
             onPauseOrDispose {}
         }
         when {
-            granted -> CameraPicture(onCode, onUnavailable, modifier)
+            granted -> CameraPicture(accepts, onCode, { onTrouble(it) }, modifier)
             refused -> Refused(context, modifier)
             else -> Box(modifier)
         }
@@ -104,49 +111,66 @@ private object CameraCodeScanner : CodeScanner {
         }
     }
 
-    /** The picture of the back camera and the analysis of every frame until the first QR code. */
+    /**
+     * The picture of the back camera and the analysis of every frame until the first pairing code
+     * ([accepts]); other QR codes in the picture are skipped (code review m-4). The camera is bound
+     * through a [CameraLease]: closed before the provider arrived, it is never bound (M-1).
+     */
     @Composable
-    private fun CameraPicture(onCode: (String) -> Unit, onUnavailable: () -> Unit, modifier: Modifier) {
+    private fun CameraPicture(accepts: (String) -> Boolean, onCode: (String) -> Unit, onTrouble: (ScannerTrouble) -> Unit, modifier: Modifier) {
         val context = LocalContext.current
         val owner = LocalLifecycleOwner.current
         val code by rememberUpdatedState(onCode)
-        val unavailable by rememberUpdatedState(onUnavailable)
+        val wanted by rememberUpdatedState(accepts)
+        val trouble by rememberUpdatedState(onTrouble)
         val preview = remember { PreviewView(context) }
         DisposableEffect(owner) {
             val main = ContextCompat.getMainExecutor(context)
             val analyzer = Executors.newSingleThreadExecutor()
             val found = AtomicBoolean(false)
+            val picture = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
+            val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
+            analysis.setAnalyzer(analyzer) { image ->
+                val text = image.use { read(it) }
+                // A text the page would refuse ends nothing: the user keeps aiming at the TV.
+                if (text != null && !found.get()) {
+                    main.execute { if (wanted(text) && found.compareAndSet(false, true)) code(text) }
+                }
+            }
+            val lease = CameraLease<ProcessCameraProvider>(
+                bind = { provider ->
+                    try {
+                        provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, picture, analysis)
+                        true
+                    } catch (e: IllegalArgumentException) {
+                        // No back camera on this device.
+                        Log.w(TAG, "no back camera", error = e)
+                        trouble(ScannerTrouble.NoCamera)
+                        false
+                    } catch (e: IllegalStateException) {
+                        Log.w(TAG, "camera not bound", error = e)
+                        trouble(ScannerTrouble.Failed)
+                        false
+                    }
+                },
+                unbind = { provider -> provider.unbind(picture, analysis) },
+                release = {
+                    analysis.clearAnalyzer()
+                    analyzer.shutdown()
+                },
+            )
             val future = ProcessCameraProvider.getInstance(context)
             future.addListener({
                 val provider = try {
                     future.get()
                 } catch (e: ExecutionException) {
                     Log.w(TAG, "no camera provider", error = e)
-                    unavailable()
+                    trouble(ScannerTrouble.NoCamera)
                     return@addListener
                 }
-                val picture = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
-                val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
-                analysis.setAnalyzer(analyzer) { image ->
-                    val text = image.use { read(it) }
-                    if (text != null && found.compareAndSet(false, true)) main.execute { code(text) }
-                }
-                try {
-                    provider.unbindAll()
-                    provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, picture, analysis)
-                } catch (e: IllegalArgumentException) {
-                    // No back camera on this device.
-                    Log.w(TAG, "no back camera", error = e)
-                    unavailable()
-                } catch (e: IllegalStateException) {
-                    Log.w(TAG, "camera not bound", error = e)
-                    unavailable()
-                }
+                lease.onProvider(provider)
             }, main)
-            onDispose {
-                if (future.isDone) runCatching { future.get().unbindAll() }
-                analyzer.shutdown()
-            }
+            onDispose { lease.close() }
         }
         AndroidView(factory = { preview }, modifier = modifier)
     }

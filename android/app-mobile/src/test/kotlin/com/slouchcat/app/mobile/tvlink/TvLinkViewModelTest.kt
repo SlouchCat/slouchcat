@@ -16,7 +16,11 @@ import com.slouchcat.core.pairing.IssuedVoucher
 import com.slouchcat.core.pairing.PairingCode
 import com.slouchcat.core.pairing.PhonePairing
 import com.slouchcat.core.pairing.PhonePairingFlow
+import com.slouchcat.core.session.MemoryRelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.core.session.ServerRepository
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +38,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.time.Instant
 
 /** The page «Fernseher verbinden» (concept 27 section 10): every answer of server and relay, cancel, leaving. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -46,21 +49,32 @@ class TvLinkViewModelTest {
     private val devices = FakeDevices(ApiResult.Ok(listOf(device("me", "Pixel", current = true), oldTv)))
 
     /** Scripted steps; [delivered] holds the deliver until the test lets it go. */
-    private class FakeFlow : PhonePairingFlow {
+    private val newTv = device("tv-new", "Living room", type = MyDevice.Type.TV, kind = SessionKind.DEVICE)
+
+    private inner class FakeFlow : PhonePairingFlow {
         var issue: PhonePairing.Issue = PhonePairing.Issue.Ok(IssuedVoucher("v".repeat(43), Instant.EPOCH, setOf("me")))
         var deliver: PhonePairing.Deliver = PhonePairing.Deliver.Delivered
-        var linked: PhonePairing.Linked = PhonePairing.Linked.Ok(device("tv-new", "Living room", type = MyDevice.Type.TV, kind = SessionKind.DEVICE))
+        var linked: PhonePairing.Linked = PhonePairing.Linked.Ok(newTv)
+
+        /** What the short look after a refusal of the relay finds. */
+        var looked: PhonePairing.Linked = PhonePairing.Linked.TimedOut
         var gate: CompletableDeferred<Unit>? = null
+        var deliverGate: CompletableDeferred<Unit>? = null
         val calls = mutableListOf<String>()
 
         override suspend fun issue(code: PairingCode) = issue.also { calls += "issue:${code.tvKey}" }
 
         override suspend fun deliver(code: PairingCode, voucher: IssuedVoucher, serverAddress: HttpUrl, serverKey: String): PhonePairing.Deliver {
             calls += "deliver:$serverAddress:$serverKey"
+            deliverGate?.await()
             return deliver
         }
 
-        override suspend fun awaitTv(voucher: IssuedVoucher): PhonePairing.Linked {
+        override suspend fun awaitTv(voucher: IssuedVoucher, within: Duration): PhonePairing.Linked {
+            if (within != PhonePairing.WAIT_FOR_TV) {
+                calls += "look"
+                return looked
+            }
             calls += "await"
             gate?.await()
             return linked
@@ -109,7 +123,7 @@ class TvLinkViewModelTest {
         assertTrue(flow.calls.isEmpty())
         vm.onConfirm()
         settle()
-        assertEquals(TvLinkStep.Done("Living room"), vm.state.value.step)
+        assertEquals(TvLinkStep.Done(newTv), vm.state.value.step)
         assertEquals(listOf("issue:${code.tvKey}", "deliver:http://192.0.2.10:8096/:server-key", "await"), flow.calls)
         assertEquals(listOf(RelaySettings.DEFAULT to "http://192.0.2.10:8096/".toHttpUrl()), relays)
         assertEquals(listOf("tv-old", "tv-new"), vm.state.value.tvs.map { it.id })
@@ -124,12 +138,10 @@ class TvLinkViewModelTest {
         assertEquals(TvLinkStep.Running(0), vm.state.value.step)
         settle()
         assertEquals(TvLinkStep.Running(2), vm.state.value.step)
-        // A second «Verbinden», a scan or the relay sheet do nothing while it runs.
+        // A second «Verbinden» or a scan do nothing while it runs.
         vm.onConfirm()
         vm.onScan()
-        vm.onEditRelay(true)
         assertEquals(TvLinkStep.Running(2), vm.state.value.step)
-        assertFalse(vm.state.value.editingRelay)
         flow.gate!!.complete(Unit)
         settle()
         assertTrue(vm.state.value.step is TvLinkStep.Done)
@@ -164,7 +176,7 @@ class TvLinkViewModelTest {
         vm.scan(code.text.replace("#v=1&", "#v=3&"))
         assertEquals(ScanProblem.OtherVersion, vm.state.value.scanProblem)
         vm.scan(PairingCode("https://pair.example.test".toHttpUrl(), code.id, code.tvKey).text)
-        assertEquals(ScanProblem.OtherRelay("pair.example.test"), vm.state.value.scanProblem)
+        assertEquals(ScanProblem.OtherRelay, vm.state.value.scanProblem)
         // A scan that finds a good code clears the old message; «Verbinden» without a code does nothing.
         vm.onConfirm()
         assertTrue(flow.calls.isEmpty())
@@ -177,20 +189,16 @@ class TvLinkViewModelTest {
     fun anotherRelaySetHereIsTheOneTheCodeMustName() = runTest(dispatcher) {
         val (vm, settings) = vm()
         val own = "https://pair.example.test".toHttpUrl()
-        vm.onEditRelay(true)
-        assertTrue(vm.state.value.editingRelay)
-        vm.onRelay(own)
+        settings.set(own)
         settle()
-        assertEquals(own, settings.flow.value)
         assertEquals(own, vm.state.value.relay)
-        assertFalse(vm.state.value.editingRelay)
         vm.scan()
-        assertEquals(ScanProblem.OtherRelay(RelaySettings.DEFAULT.host), vm.state.value.scanProblem)
+        assertEquals(ScanProblem.OtherRelay, vm.state.value.scanProblem)
         vm.scan(PairingCode(own, code.id, code.tvKey).text)
         vm.onConfirm()
         settle()
         assertEquals(own, relays.single().first)
-        vm.onRelay(null)
+        settings.set(null)
         settle()
         assertEquals(RelaySettings.DEFAULT, vm.state.value.relay)
     }
@@ -203,8 +211,8 @@ class TvLinkViewModelTest {
         assertEquals(TvLinkStep.Intro, vm.state.value.step)
         assertNull(vm.state.value.scanProblem)
         vm.onScan()
-        vm.onScannerUnavailable()
-        assertEquals(ScanProblem.Unavailable, vm.state.value.scanProblem)
+        vm.onScannerTrouble(ScannerTrouble.NoPlayServices)
+        assertEquals(ScanProblem.Scanner(ScannerTrouble.NoPlayServices), vm.state.value.scanProblem)
         // A late answer of a scanner that is closed already counts for nothing.
         vm.onScanned(code.text)
         assertEquals(TvLinkStep.Intro, vm.state.value.step)
@@ -262,6 +270,93 @@ class TvLinkViewModelTest {
             vm.onBackToIntro()
         }
         assertFalse(flow.calls.contains("await"))
+        assertEquals(2, flow.calls.count { it == "look" })
+    }
+
+    @Test
+    fun ownPacketAlreadyThereIsNoForeignPacket() = runTest(dispatcher) {
+        // A repeated PUT (lost answer) finds the own packet: the TV appears, no warning (security review L-1).
+        val (vm, _) = vm()
+        flow.deliver = PhonePairing.Deliver.Occupied
+        flow.looked = PhonePairing.Linked.Ok(newTv)
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        assertEquals(TvLinkStep.Done(newTv), vm.state.value.step)
+        flow.deliver = PhonePairing.Deliver.RelayUnreachable
+        vm.onBackToIntro()
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        assertEquals(TvLinkStep.Done(newTv), vm.state.value.step)
+    }
+
+    @Test
+    fun twoNewTvsOrASessionThatEndedAreNoGuess() = runTest(dispatcher) {
+        val (vm, _) = vm()
+        flow.linked = PhonePairing.Linked.Several
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        assertEquals(TvLinkStep.Done(null), vm.state.value.step)
+        vm.onNotMine()
+        assertNull(vm.state.value.notMine)
+        vm.onBackToIntro()
+        flow.linked = PhonePairing.Linked.Ended
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        assertEquals(TvLinkStep.Failed(TvLinkFailure.Failed, 2), vm.state.value.step)
+    }
+
+    @Test
+    fun notMyTvSignsExactlyThatTvOut() = runTest(dispatcher) {
+        val (vm, _) = vm()
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        vm.onNotMine()
+        assertEquals(newTv, vm.state.value.notMine?.device)
+        devices.signOut = ApiResult.Offline
+        vm.onNotMineConfirm("unnamed")
+        settle()
+        assertEquals(com.slouchcat.app.mobile.devices.DeviceSignOutError.Unreachable, vm.state.value.notMine?.error)
+        devices.signOut = ApiResult.Ok(Unit)
+        vm.onNotMineConfirm("unnamed")
+        settle()
+        assertEquals(listOf("tv-new"), devices.signedOut)
+        assertEquals(TvLinkStep.Intro, vm.state.value.step)
+        assertEquals("Living room", vm.state.value.signedOutTv)
+        assertFalse(vm.state.value.tvs.any { it.id == "tv-new" })
+    }
+
+    @Test
+    fun leavingWhileThePacketGoesOutMayHaveConnected() = runTest(dispatcher) {
+        // Code review m-3: hidden during the PUT, the packet may be at the relay already.
+        val (vm, _) = vm()
+        flow.deliverGate = CompletableDeferred()
+        vm.scan()
+        vm.onConfirm()
+        settle()
+        assertEquals(TvLinkStep.Running(1), vm.state.value.step)
+        vm.onHidden()
+        assertEquals(TvLinkStep.Failed(TvLinkFailure.Left(delivered = true), 1), vm.state.value.step)
+    }
+
+    @Test
+    fun theScannerLoadsAndTheOwnScannerSkipsOtherCodes() = runTest(dispatcher) {
+        val (vm, _) = vm()
+        vm.onScan()
+        vm.onScannerLoading(true)
+        assertTrue(vm.state.value.scannerLoading)
+        vm.onScannerLoading(false)
+        assertFalse(vm.state.value.scannerLoading)
+        vm.onScannerTrouble(ScannerTrouble.Loading)
+        assertEquals(ScanProblem.Scanner(ScannerTrouble.Loading), vm.state.value.scanProblem)
+        // What the own scanner ends for: pairing codes of any relay and version, nothing else.
+        assertTrue(vm.accepts(code.text))
+        assertTrue(vm.accepts(PairingCode("https://pair.example.test".toHttpUrl(), code.id, code.tvKey).text))
+        assertFalse(vm.accepts("WIFI:S:home;T:WPA;P:x;;"))
     }
 
     @Test

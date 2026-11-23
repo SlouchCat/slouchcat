@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -42,7 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.slouchcat.app.mobile.BuildConfig
 import com.slouchcat.app.mobile.common.RowGroup
+import com.slouchcat.app.mobile.devices.DeviceSignOutError
 import com.slouchcat.core.api.generated.models.MyDevice
 import com.slouchcat.core.design.BarNavigation
 import com.slouchcat.core.design.ButtonKind
@@ -50,6 +53,7 @@ import com.slouchcat.core.design.ListRow
 import com.slouchcat.core.design.Note
 import com.slouchcat.core.design.SectionTitle
 import com.slouchcat.core.design.SheetActions
+import com.slouchcat.core.design.SheetHeadIcon
 import com.slouchcat.core.design.SheetText
 import com.slouchcat.core.design.SheetTitle
 import com.slouchcat.core.design.SlouchcatButton
@@ -62,12 +66,14 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
 import com.slouchcat.core.design.gutter
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.core.session.ServerAddress
+import com.slouchcat.core.session.parseRelay
 import com.slouchcat.core.strings.R
-import okhttp3.HttpUrl
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import okhttp3.HttpUrl
 
 /** What the page does on a tap; one object so the screen stays readable. */
 class TvLinkActions(
@@ -75,14 +81,17 @@ class TvLinkActions(
     val onScan: () -> Unit = {},
     val onScanned: (String) -> Unit = {},
     val onScanClosed: () -> Unit = {},
-    val onScannerUnavailable: () -> Unit = {},
+    val accepts: (String) -> Boolean = { true },
+    val onScannerLoading: (Boolean) -> Unit = {},
+    val onScannerTrouble: (ScannerTrouble) -> Unit = {},
     val onConfirm: () -> Unit = {},
     val onBackToIntro: () -> Unit = {},
     val onSwitchProfile: () -> Unit = {},
     val onDevices: () -> Unit = {},
     val onFinish: () -> Unit = {},
-    val onEditRelay: (Boolean) -> Unit = {},
-    val onRelay: (HttpUrl?) -> Unit = {},
+    val onNotMine: () -> Unit = {},
+    val onNotMineConfirm: (String) -> Unit = {},
+    val onNotMineDismiss: () -> Unit = {},
 )
 
 /**
@@ -94,7 +103,7 @@ class TvLinkActions(
 fun TvLinkScreen(state: TvLinkUiState, scanner: CodeScanner, actions: TvLinkActions, modifier: Modifier = Modifier) {
     val c = SlouchcatTheme.colors
     if (state.step == TvLinkStep.Scan) {
-        ScanPage(scanner, actions, modifier)
+        ScanPage(scanner, state.scannerLoading, actions, modifier)
         return
     }
     // Steps after the intro go back to it first, as the mockup's arrow does; «Verbunden» leaves.
@@ -128,7 +137,7 @@ fun TvLinkScreen(state: TvLinkUiState, scanner: CodeScanner, actions: TvLinkActi
             }
         }
     }
-    if (state.editingRelay) RelaySheet(state.relay, actions)
+    state.notMine?.let { NotMineSheet(it, actions) }
 }
 
 /** `.su-hero`: the big icon on its rounded surface; [tone] for «ok» and «bad». */
@@ -187,6 +196,9 @@ private fun Intro(state: TvLinkUiState, scanner: CodeScanner, actions: TvLinkAct
         IntroStep(2, SlouchcatIcon.Qr, stringResource(R.string.app_tv_intro_step2))
         IntroStep(3, SlouchcatIcon.Check, stringResource(R.string.app_tv_intro_step3))
     }
+    state.signedOutTv?.let { name ->
+        Note(stringResource(R.string.app_tv_notMine_done, name), icon = SlouchcatIcon.Check, modifier = Modifier.padding(top = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
+    }
     state.scanProblem?.let { problem ->
         Note(problemText(problem), warning = true, modifier = Modifier.padding(top = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
     }
@@ -210,15 +222,8 @@ private fun Intro(state: TvLinkUiState, scanner: CodeScanner, actions: TvLinkAct
         SectionTitle(stringResource(R.string.app_tv_intro_linked), inset = false, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         RowGroup(rows = state.tvs.map { tv -> { TvRow(tv, actions.onDevices) } })
     }
-    Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.app_tv_relay_line, state.relay.host),
-            style = SlouchcatType.caption,
-            color = SlouchcatTheme.colors.tx3,
-            modifier = Modifier.weight(1f),
-        )
-        SlouchcatButton(stringResource(R.string.app_tv_relay_change), onClick = { actions.onEditRelay(true) }, kind = ButtonKind.Ghost, small = true)
-    }
+    // An own relay (F-21, set under «Mehr › Einstellungen»): said, so a refused code is no riddle.
+    if (state.relay != RelaySettings.DEFAULT) Hint(stringResource(R.string.tv_pair_ownRelay, state.relay.host), Modifier.padding(top = 16.dp))
 }
 
 /** `.su-steps li`: the number, the icon and the text in a framed row. */
@@ -262,8 +267,16 @@ private fun TvRow(tv: MyDevice, onDevices: () -> Unit) {
 private fun problemText(problem: ScanProblem): String = when (problem) {
     ScanProblem.NotACode -> stringResource(R.string.app_tv_problem_notACode)
     ScanProblem.OtherVersion -> stringResource(R.string.app_tv_problem_otherVersion)
-    is ScanProblem.OtherRelay -> stringResource(R.string.app_tv_problem_otherRelay, problem.host)
-    ScanProblem.Unavailable -> stringResource(R.string.app_tv_problem_unavailable)
+    ScanProblem.OtherRelay -> stringResource(R.string.app_tv_problem_otherRelay)
+    ScanProblem.NoSession -> stringResource(R.string.app_state_failed)
+    is ScanProblem.Scanner -> stringResource(
+        when (problem.trouble) {
+            ScannerTrouble.Loading -> R.string.app_tv_problem_loading
+            ScannerTrouble.NoPlayServices -> R.string.app_tv_problem_noPlayServices
+            ScannerTrouble.NoCamera -> R.string.app_tv_problem_noCamera
+            ScannerTrouble.Failed -> R.string.app_tv_problem_scannerFailed
+        },
+    )
 }
 
 /**
@@ -271,14 +284,16 @@ private fun problemText(problem: ScanProblem): String = when (problem) {
  * title on top, the hint below. With Google's scanner its own screen lies above all of this.
  */
 @Composable
-private fun ScanPage(scanner: CodeScanner, actions: TvLinkActions, modifier: Modifier) {
+private fun ScanPage(scanner: CodeScanner, loading: Boolean, actions: TvLinkActions, modifier: Modifier) {
     val c = SlouchcatTheme.colors
     BackHandler(onBack = actions.onScanClosed)
     Box(modifier.fillMaxSize().background(c.bg)) {
         scanner.Camera(
+            accepts = actions.accepts,
             onCode = actions.onScanned,
             onClose = actions.onScanClosed,
-            onUnavailable = actions.onScannerUnavailable,
+            onLoading = actions.onScannerLoading,
+            onTrouble = actions.onScannerTrouble,
             modifier = Modifier.fillMaxSize(),
         )
         Viewfinder(Modifier.align(Alignment.Center))
@@ -290,13 +305,22 @@ private fun ScanPage(scanner: CodeScanner, actions: TvLinkActions, modifier: Mod
             SlouchcatIconButton(SlouchcatIcon.Close, contentDescription = stringResource(R.string.app_tv_scan_close), onClick = actions.onScanClosed)
             Text(stringResource(R.string.app_tv_scan_title), style = SlouchcatType.barTitle, color = c.tx, modifier = Modifier.semantics { heading() })
         }
-        Text(
-            stringResource(R.string.app_tv_scan_aim),
-            style = SlouchcatType.body,
-            color = c.tx,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = gutter(), vertical = 32.dp),
-        )
+        // While Google's scanner module downloads, the page says so (code review M-2).
+        Row(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = gutter(), vertical = 32.dp).semantics(mergeDescendants = true) {
+                liveRegion = LiveRegionMode.Polite
+            },
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = c.tx2, strokeWidth = 2.dp)
+            Text(
+                stringResource(if (loading) R.string.app_tv_scan_loading else R.string.app_tv_scan_aim),
+                style = SlouchcatType.body,
+                color = c.tx,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -436,12 +460,15 @@ private fun Failure(step: TvLinkStep.Failed, actions: TvLinkActions) {
         TvLinkFailure.ServerOffline -> stringResource(R.string.app_tv_fail_server) to SlouchcatIcon.Alert
         TvLinkFailure.PrimaryOnly -> stringResource(R.string.app_tv_intro_primaryOnly) to SlouchcatIcon.Lock
         TvLinkFailure.NotAllowed -> stringResource(R.string.app_tv_fail_notAllowed) to SlouchcatIcon.Lock
-        is TvLinkFailure.TooManyAttempts -> stringResource(R.string.errors_code_too_many_attempts) to SlouchcatIcon.Clock
+        is TvLinkFailure.TooManyAttempts -> failure.seconds?.takeIf { it > 0 }?.toInt()
+            ?.let { pluralStringResource(R.plurals.app_tv_fail_tooMany, it, it) }
+            .let { (it ?: stringResource(R.string.errors_code_too_many_attempts)) to SlouchcatIcon.Clock }
         TvLinkFailure.ServerUnconfirmed -> stringResource(R.string.app_serverKey_unconfirmedBody) to SlouchcatIcon.Shield
         is TvLinkFailure.Left -> stringResource(if (failure.delivered) R.string.app_tv_fail_leftAfter else R.string.app_tv_fail_leftBefore) to SlouchcatIcon.Info
         TvLinkFailure.Failed -> stringResource(R.string.app_state_failed) to SlouchcatIcon.Alert
     }
-    Note(text, warning = true, icon = icon, modifier = Modifier.padding(top = 16.dp))
+    // A new node is not read out by a polite region: the message of the end says itself (code review m-5).
+    Note(text, warning = true, icon = icon, modifier = Modifier.padding(top = 16.dp).semantics { liveRegion = LiveRegionMode.Assertive })
     if (failure == TvLinkFailure.Occupied) Hint(stringResource(R.string.app_tv_fail_lapses))
     val again = failure in setOf(TvLinkFailure.Expired, TvLinkFailure.TimedOut, TvLinkFailure.ServerOffline) ||
         failure is TvLinkFailure.TooManyAttempts || failure == TvLinkFailure.Left(delivered = false)
@@ -460,51 +487,83 @@ private fun Failure(step: TvLinkStep.Failed, actions: TvLinkActions) {
     }
 }
 
+/**
+ * «Verbunden»: the name as the TV gave it, marked as its own (K-7, security review L-2), and
+ * «Nicht mein Fernseher – abmelden». With two new TVs at once, no name and the way to «Meine Geräte».
+ */
 @Composable
 private fun Done(step: TvLinkStep.Done, actions: TvLinkActions) {
     val c = SlouchcatTheme.colors
     Hero(SlouchcatIcon.Check, HeroTone.Ok)
-    Title(stringResource(R.string.app_tv_done_title))
-    Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SlouchcatIconImage(SlouchcatIcon.Tv, contentDescription = null, size = 20.dp, tint = c.tx2)
-        Text(step.name ?: stringResource(R.string.settings_devices_unnamed), style = SlouchcatType.strong, color = c.tx)
+    Text(
+        stringResource(R.string.app_tv_done_title),
+        style = SlouchcatType.pageTitle,
+        color = c.tx,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().semantics {
+            heading()
+            liveRegion = LiveRegionMode.Assertive
+        },
+    )
+    val tv = step.device
+    if (tv != null) {
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SlouchcatIconImage(SlouchcatIcon.Tv, contentDescription = null, size = 20.dp, tint = c.tx2)
+            Text(
+                stringResource(R.string.app_tv_done_named, tv.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.settings_devices_unnamed)),
+                style = SlouchcatType.strong,
+                color = c.tx,
+            )
+        }
+        Lede(stringResource(R.string.app_tv_done_lede))
+    } else {
+        Note(stringResource(R.string.app_tv_done_several), icon = SlouchcatIcon.Info, modifier = Modifier.padding(top = 16.dp))
     }
-    Lede(stringResource(R.string.app_tv_done_lede))
     Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         SlouchcatButton(stringResource(R.string.nav_devices), onClick = actions.onDevices, kind = ButtonKind.Ghost, modifier = Modifier.weight(1f))
         SlouchcatButton(stringResource(R.string.app_tv_done_finish), onClick = actions.onFinish, modifier = Modifier.weight(1f))
     }
+    if (tv != null) {
+        SlouchcatButton(
+            stringResource(R.string.app_tv_done_notMine),
+            onClick = actions.onNotMine,
+            kind = ButtonKind.Danger,
+            block = true,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+    }
 }
 
-/** «Adresse der Vermittlung» (F-21): the same texts as on the TV; https only. */
+/** «„Wohnzimmer“ abmelden?»: exactly the TV of this pairing (`signOutMyDevice`). */
 @Composable
-private fun RelaySheet(current: HttpUrl, actions: TvLinkActions) {
-    var text by rememberSaveable { mutableStateOf(ServerAddress.display(current)) }
-    var invalid by rememberSaveable { mutableStateOf(false) }
-    val title = stringResource(R.string.tv_relay_title)
-    SlouchcatSheet(title = title, onDismiss = { actions.onEditRelay(false) }) {
-        SheetTitle(title)
-        SheetText(stringResource(R.string.tv_relay_lead))
-        SlouchcatTextField(
-            value = text,
-            onValueChange = {
-                text = it
-                invalid = false
-            },
-            label = stringResource(R.string.tv_relay_label),
-            placeholder = RelaySettings.DEFAULT.host,
-            error = if (invalid) stringResource(R.string.tv_relay_invalid) else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
-            modifier = Modifier.padding(horizontal = gutter()).padding(top = 12.dp).imePadding(),
-        )
+private fun NotMineSheet(asking: NotMine, actions: TvLinkActions) {
+    val unnamed = stringResource(R.string.settings_devices_unnamed)
+    val name = asking.device.name?.takeIf { it.isNotBlank() } ?: unnamed
+    val title = stringResource(R.string.app_tv_notMine_title, name)
+    SlouchcatSheet(title = title, onDismiss = actions.onNotMineDismiss) {
+        SheetHeadIcon(SlouchcatIcon.Tv, warning = true)
+        SheetTitle(title, centered = true)
+        SheetText(stringResource(R.string.app_tv_notMine_body), centered = true)
+        asking.error?.let {
+            Note(
+                stringResource(
+                    when (it) {
+                        DeviceSignOutError.PrimaryOnly -> R.string.errors_code_primary_profile_required
+                        DeviceSignOutError.Unreachable -> R.string.app_setup_error_unreachable
+                        DeviceSignOutError.Failed -> R.string.app_state_failed
+                    },
+                ),
+                warning = true,
+                modifier = Modifier.padding(start = gutter(), end = gutter(), top = 12.dp),
+            )
+        }
         SheetActions {
-            SlouchcatButton(stringResource(R.string.tv_relay_reset), onClick = { actions.onRelay(null) }, kind = ButtonKind.Ghost, modifier = Modifier.weight(1f))
+            SlouchcatButton(stringResource(R.string.common_cancel), onClick = actions.onNotMineDismiss, kind = ButtonKind.Ghost, enabled = !asking.signingOut, modifier = Modifier.weight(1f))
             SlouchcatButton(
-                stringResource(R.string.tv_relay_save),
-                onClick = {
-                    val relay = parseRelay(text)
-                    if (relay == null) invalid = true else actions.onRelay(relay)
-                },
+                stringResource(R.string.settings_devices_signOut_confirm),
+                onClick = { actions.onNotMineConfirm(unnamed) },
+                kind = ButtonKind.Danger,
+                busy = asking.signingOut,
                 modifier = Modifier.weight(1f),
             )
         }

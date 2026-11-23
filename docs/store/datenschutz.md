@@ -138,9 +138,12 @@ schicken, die das Gerät nicht mehr lesen kann und verwirft.
 - **Play Store:** Installation, Updates und Kauf über Google Play verarbeitet Google nach eigener
   Erklärung. Der Entwickler sieht davon nur zusammengefasste Zahlen der Play Console.
 
-> **Hinweis für den Auftraggeber:** Ob der Code-Scanner und die Push-Bibliothek von sich aus
-> Diagnosedaten an Google senden, ist in den Papieren unbelegt. Vor dem Veröffentlichen in den
-> Unterlagen von Google nachlesen und den Absatz anpassen.
+> **Hinweis für den Auftraggeber:** Für den Code-Scanner nennt Google (Seite «ML Kit Android data
+> disclosure», Stand 14. Mai 2025, gelesen am 22. November 2026) Diagnose- und Nutzungsdaten: Angaben
+> zu Gerät und App, Leistungswerte, Einstellungen der Schnittstelle und eine Kennung je Installation,
+> verschlüsselt übertragen und nicht an Dritte gegeben (Einzelheiten `datensicherheit.md` 1.3). Ob
+> die Push-Bibliothek von sich aus Diagnosedaten sendet, ist weiter unbelegt; vor dem Veröffentlichen
+> nachlesen und den Absatz anpassen.
 
 ## 8. Rechtsgrundlagen
 

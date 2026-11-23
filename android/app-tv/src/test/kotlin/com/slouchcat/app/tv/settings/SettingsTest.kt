@@ -11,8 +11,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.tv.common.MemoryRelaySettings
-import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.core.session.MemoryRelaySettings
+import com.slouchcat.core.session.RelaySettings
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.app.tv.common.TvSessionHooks
 import com.slouchcat.app.tv.testing.Dpad
