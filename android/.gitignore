@@ -6,3 +6,5 @@ local.properties
 .idea/
 *.iml
 captures/
+# The files of `task android:dist` (APKs, bundles, SHA256SUMS); never checked in.
+dist/
