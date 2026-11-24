@@ -1,8 +1,9 @@
 # Aktueller Stand
 
-## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026)
+## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026, PR #223)
 
-Zweig `claude/android-netzwechsel-wiederholung`, offen, nicht gemergt. Betrifft beide Apps.
+PR #223, gemergt am 24. November 2026 (`71d3fbab`), nach PR #224. Betrifft beide Apps. Kein Release nötig:
+der Server ist unverändert.
 
 - **Der Befund:** CI-Lauf 45253038403 (PR #221), `PlayerFlowTest.filmAndEpisodes` rot in `signIn`. Direkt
   nach der Anmeldung meldete der Emulator drei Netzwechsel in 136 ms; `listMyProfiles` ging im zweiten Netz
@@ -26,9 +27,12 @@ Zweig `claude/android-netzwechsel-wiederholung`, offen, nicht gemergt. Betrifft 
 - **Review:** Code-Review ohne Blocker; die Lücken in den Tests (Ausschlüsse ungeprüft, ein Fall ohne
   Aussage) sind geschlossen, die Hinweise zu Startnetz, Bruchzahl und der eigenen Wiederholung von OkHttp
   stehen im ADR.
+- **CI:** Der erste Lauf (45365030231) war rot, nur an `SetupBackTest` (Abschnitt unten), nicht an dieser
+  Änderung. Nach PR #224 und dem Nachziehen von `main` waren alle 24 Prüfungen grün, auch
+  `android-emulator`.
 - **Nicht gebaut:** neues Laden einer Seite, wenn das Netz nach einer Zeit ohne Netz zurückkommt.
 
-## `SetupBackTest` abgeschottet (24. November 2026)
+## `SetupBackTest` abgeschottet (24. November 2026, PR #224)
 
 PR #224, gemergt am 24. November 2026 (`67887d77`). Nur ein Test der Handy-App.
 
