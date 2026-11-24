@@ -109,7 +109,7 @@ class TvGraph(
     val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT)
 
     /** The one HTTP client for API, images and (stage 3) player. */
-    val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate)
+    val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate, network = network)
 
     val serverProbe: ServerProbe = serverProbe ?: HealthServerProbe(publicClient, AndroidTrustInspector())
     val auth: AuthRepository = auth ?: ApiAuthRepository(api, http)

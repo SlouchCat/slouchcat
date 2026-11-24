@@ -313,6 +313,39 @@ kürzte das letzte Fenster und kostete laufend Beweise, auch im eigenen Netz. Da
 
 Ganz schliessen kann die Grenze weiter nur HTTPS.
 
+### Nachtrag 24. November 2026: was die App nach einem Netzwechsel unterwegs tut
+
+Die Regel «Netzwechsel» lässt offen, was aus einer Anfrage wird, die ein Netzwechsel unterwegs beendet. Gebaut
+war nichts: Die Anfrage endete als «nicht erreichbar» (`ApiResult.Offline`), und jede Seite zeigte die Meldung
+mit «Erneut versuchen», bis der Nutzer tippte. Keine Seite fragt von selbst neu, wenn das Netz wieder da ist.
+
+**Der Fall.** CI-Lauf 45253038403 (PR #221), `PlayerFlowTest.filmAndEpisodes`: Direkt nach der Anmeldung
+meldete der Emulator dreimal einen Netzwechsel (neues Standardnetz, zweimal neue Adressen, zusammen 136 ms).
+`listMyProfiles` ging mit dem Beweis aus dem zweiten Netz los, der dritte Wechsel kam vor dem Sprung, und das
+Gate hielt die Anfrage an («the network changed before the request left»). Danach kam kein Wechsel mehr, das
+Netz erreichte den Server. Die Profilwahl zeigte «nicht erreichbar», der Test wartete 20 s auf die Profile und
+tippte nie auf «Erneut versuchen». Auf einem echten Handy geschieht dasselbe bei jedem Wechsel, den der Nutzer
+nicht sieht (WLAN wird bestätigt, eine IPv6-Adresse kommt oder geht): eine Seite meldet «nicht erreichbar»,
+obwohl der Server erreichbar ist. Das ist ein Fehler der App, nicht nur des Tests.
+
+| Punkt | Entscheid |
+|---|---|
+| Lesende Anfragen | Eine Anfrage mit GET, HEAD oder OPTIONS, die scheitert, nachdem sich das Netz seit ihrem Start geändert hat, geht einmal neu hinaus (`SlouchcatHttp.NetworkChangeRetry`). Das gilt für den Halt durch das Gate wie für eine Verbindung, die mit dem alten Netz bricht. Für Seiten, Bilder, Player und Downloads gleich |
+| Wo | Im gemeinsamen Client vor dem Gate. Der zweite Versuch geht wie jede neue Anfrage durch das Gate und wartet auf den Beweis des neuen Netzes. Das Gate bleibt, wie es ist: Es wiederholt nichts selbst, und ein Sprung über einen Netzwechsel hinweg scheitert weiter |
+| Schreibende Anfragen | Nie von selbst. Der Sprung kann den Server erreicht haben, bevor die Verbindung brach; ob die Seite ihn noch einmal senden darf, weiss nur sie. Sie zeigt weiter ihre Meldung (die Profilwahl «nicht erreichbar», das Profil bleibt antippbar) |
+| Nicht wiederholt | Ein Abbruch durch die App (abgebrochener Aufruf, unterbrochener Thread), ein anderer Schlüssel unter der Adresse des Servers, und jedes Scheitern im selben Netz: Das ist eine Aussage über den Server |
+| Wie oft | Einmal. Ändert sich das Netz auch im zweiten Versuch, endet die Anfrage als «nicht erreichbar» |
+
+**Was es kostet.** Höchstens eine Anfrage mehr je lesende Anfrage, die ein Netzwechsel trifft; die Anfragen
+eines Moments teilen sich den Beweis des neuen Netzes. Im selben Netz nichts.
+
+**Was es für die Sicherheit heisst:** nichts Neues. Der zweite Versuch ist eine neue Anfrage im neuen Netz und
+braucht dort einen eigenen Beweis, bevor Token und Gerätekennung hinausgehen. Er ist dasselbe, was der Tipp
+auf «Erneut versuchen» schon tat.
+
+Nicht gebaut: ein neues Laden der Seiten, wenn das Netz nach einer Zeit ohne Netz zurückkommt. Wo eine Seite
+«nicht erreichbar» zeigt, weil es wirklich kein Netz gab, bleibt «Erneut versuchen».
+
 ## Folgen
 
 - Vertrag 1.42.0 ist zusätzlich. Neu sind `appLogin`, `AppLoginRequest`, `AppLogin`, `SessionKind`,
