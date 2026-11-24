@@ -435,6 +435,13 @@ sind nicht «latest»: «Latest» blieb das Server-Release. Das sind keine Store
 `docs/dev/VERTRAEGLICHKEIT.md` wird erst mit der ersten Ausgabe im Play Store verbindlich. Einen Tag
 `relay-v1.0.1` gibt es nicht (A-18).
 
+**Ausgabe 1.0.1 (24. November 2026):** `app-v1.0.1` und `tv-v1.0.1` (`versionCode` 2 und 1 000 002) nehmen auf,
+was seit 1.0.0 an den Apps korrigiert wurde: der Serverbeweis nach abgebrochenen Aufrufen, je Sprung und nach
+einem Netzwechsel (PR #219 bis #223), die Anmeldung an der Push-Weiterleitung abseits des Haupt-Threads und
+das zentrierte Zeichen in Starter-Symbol und TV-Banner. Die Dateien von 1.0.0 enthalten diese Korrekturen
+nicht. Wie 1.0.0 sind es unsignierte Dateien an GitHub-Releases, die nicht «latest» werden, keine
+Store-Ausgaben.
+
 ### Eigene Entscheide des Baus
 
 Die Entscheide A-1 bis A-18 hat der Bau selbst getroffen, wo das Papier eine Lücke liess oder ein Review
