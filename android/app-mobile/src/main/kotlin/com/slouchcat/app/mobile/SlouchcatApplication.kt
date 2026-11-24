@@ -118,7 +118,7 @@ class AppGraph(
     val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT)
 
     /** The one HTTP client for API, images and player (concept 27, 5.2). */
-    val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate)
+    val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate, network = network)
 
     val serverProbe: ServerProbe = HealthServerProbe(publicClient, AndroidTrustInspector())
     val serverRepository: ServerRepository = ApiServerRepository(api, http)

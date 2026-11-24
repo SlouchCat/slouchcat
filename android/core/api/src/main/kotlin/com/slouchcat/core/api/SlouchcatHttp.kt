@@ -1,10 +1,12 @@
 package com.slouchcat.core.api
 
+import com.slouchcat.core.api.log.Log
 import okhttp3.ConnectionPool
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
@@ -48,6 +50,8 @@ interface SessionCredentials {
  * - [gate] first: «Server weist sich aus» holds every request to a server over HTTP back until the
  *   server proved itself in this network ([ServerIdentityGate], F-38); its `hop` checks every
  *   network hop again (retries, redirects), before the credentials are added.
+ * - With [network], in front of the gate: a read that a network change ended on its way goes once
+ *   more, in the new network ([NetworkChangeRetry]).
  * - Idle connections go after [KEEP_ALIVE]: before the server closes them, and not before a proof
  *   of the server has lapsed for want of use ([PROOF_IDLE]). The client gets a pool of its own for
  *   that; a pool on the builder that is passed in is replaced.
@@ -81,6 +85,7 @@ object SlouchcatHttp {
         credentials: SessionCredentials = SessionCredentials.None,
         builder: OkHttpClient.Builder = OkHttpClient.Builder(),
         gate: ServerIdentityGate? = null,
+        network: NetworkState? = null,
         keepAlive: Duration = KEEP_ALIVE,
     ): OkHttpClient = builder
         .connectTimeout(CONNECT_TIMEOUT)
@@ -88,11 +93,50 @@ object SlouchcatHttp {
         .writeTimeout(WRITE_TIMEOUT)
         .followSslRedirects(false)
         .connectionPool(ConnectionPool(IDLE_CONNECTIONS, keepAlive.toMillis(), TimeUnit.MILLISECONDS))
+        .apply { if (network != null) addInterceptor(NetworkChangeRetry(network)) }
         .apply { if (gate != null) addInterceptor(gate) }
         .addInterceptor(Headers(identity))
         .apply { if (gate != null) addNetworkInterceptor(gate.hop) }
         .addNetworkInterceptor(Credentials(credentials))
         .build()
+
+    /**
+     * A read that failed while the network changed goes once more, in the new network (ADR 0040,
+     * addendum of 24 November 2026). The gate stops a hop when the network changed since the
+     * request left, and the connections of the old network break: either way the request says
+     * nothing about the server, and a page would show «not reachable» while the new network
+     * reaches it. In front of the gate, so that the second try waits for the proof of the new
+     * network like any new request; the gate's rules stay as they are.
+     *
+     * Only GET, HEAD and OPTIONS: a write may have reached the server before its connection broke,
+     * and only the page knows whether it may send it again. Not when the app ended the call
+     * (cancelled, interrupted), not for another key under the server's address, and not when the
+     * network stayed the same: then the failure is news about the server.
+     */
+    class NetworkChangeRetry(private val network: NetworkState) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request()
+            val left = network.generation()
+            return try {
+                chain.proceed(request)
+            } catch (e: IOException) {
+                val again = request.method in SAFE_METHODS && e !is ServerKeyChangedException &&
+                    !chain.call().isCanceled() && !Thread.currentThread().isInterrupted && network.generation() != left
+                if (!again) throw e
+                Log.i(TAG, "network changed on the way, asking again", error = e)
+                try {
+                    chain.proceed(request)
+                } catch (second: IOException) {
+                    second.addSuppressed(e)
+                    throw second
+                }
+            }
+        }
+
+        private companion object {
+            const val TAG = "network"
+        }
+    }
 
     /** The headers every request carries, whatever host it reaches. */
     class Headers(private val identity: ClientIdentity) : Interceptor {
