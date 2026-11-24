@@ -1,5 +1,43 @@
 # Aktueller Stand
 
+## Serverbeweis: Verfall nach Ruhe (23. November 2026, PR #221)
+
+Marco am 23. November 2026: bauen. Der Vorschlag kam aus dem Sicherheits-Review von PR #220 und stand dort
+als offener Entscheid. PR #221 baut auf #220 und #219 auf (Zweig `claude/android-beweis-verfall-nach-ruhe`),
+offen, nicht gemergt. Betroffen sind nur Server über HTTP.
+
+- **Die Regel:** Ein Beweis des Servers zählt nicht mehr, wenn 60 s lang keine Anfrage zum Server hinausging
+  (`SlouchcatHttp.PROOF_IDLE`). Die erste Anfrage nach einer solchen Pause beweist zuerst neu; scheitert der
+  Beweis, geht nichts hinaus. Bisher ging nach einer Pause die erste Anfrage mit Token hinaus, auf einem
+  Beweis, der bis zu 10 min alt sein durfte. Ein verdeckter Netzwechsel fällt meist genau in eine Pause.
+- **Dazu die Haltedauer der Verbindungen:** 90 s statt der 5 min von OkHttp (`SlouchcatHttp.KEEP_ALIVE`).
+  Kürzer als die 2 min des Servers, also endet eine Pause nicht mehr an einer Verbindung, die der Server
+  geschlossen hat; länger als die 60 s, also hält die App ihre alten Verbindungen noch, solange ein Beweis
+  ohne neuen gilt. Ein Test hält beide Abstände fest.
+- **Was als Benutzung zählt:** eine Anfrage, die mit gültigem Beweis hinausgeht. Nicht das Lesen einer langen
+  Antwort (ein Radiostrom) und nicht die Frage, ob der Beweis gilt.
+- **Kosten:** ein Beweis nach jeder Pause über 60 s, also eine Antwortzeit des Servers mehr vor der ersten
+  Anfrage, höchstens einer je Minute. Die Kosten aus PR #220 nach einer Pause von 2 bis 5 min (ein Beweis je
+  gebrochene Verbindung) fallen weg.
+- **Was bleibt (ADR 0040, «Nachtrag 23. November 2026, dritter Teil»):** der Netzwechsel mitten in der
+  Benutzung, weniger als 60 s nach der letzten Anfrage. Die nächste Anfrage geht mit Token hinaus. Bricht das
+  fremde Gerät oder schweigt es, greifen Bruch und Zweifel aus PR #220. Antwortet es statt dessen, hält jede
+  weitere Anfrage den Beweis in Benutzung, bis er 10 min alt ist. Eine kürzere Höchstdauer in der Benutzung
+  ist nicht gebaut; das wäre ein eigener Entscheid.
+- **Tests:** `ServerIdentityGateTest` 57 Fälle (drei neue), `SlouchcatHttpTest` 8 (einer neu); alle vier vor
+  der Änderung rot. Sechs Fälle zum Zweifel nach einem Abbruch lassen ihre Minute jetzt mit einer Anfrage in
+  der Mitte vergehen (`aMinutePassesInUse`), sonst prüften sie die Pause statt den Zweifel; sie werden weiter
+  rot, wenn man den Zweifel entfernt. Jede neue Bedingung einzeln entfernt: je ein Test rot.
+- **Geprüft:** `task check:fast BASE=origin/main` grün. `task ci:android -- --no-daemon` grün auf `419917de`
+  (5 min; 13 Testaufgaben, 1844 Fälle, 0 rot, 0 übersprungen), danach nur noch eine Testzeile und Dokumente.
+  `task android:e2e` auf `6b18ce99`: 16 von 16 grün, 315 s. In den 16 Logcats: «the network changed before the
+  request left» 0-mal; «the server did not prove itself» 11-mal, alle in `OfflineFlowTest` (3, Netz aus) und
+  zwei Schaukästen gegen `192.0.2.10` (je 4); «the proof kept starting over» 0-mal; «server proven» 8-mal im
+  ganzen Lauf, gleich viele wie vor der Regel.
+- **Reviews:** Sicherheits-Review und Code-Review je zweimal gelesen, kein offener Befund. Das
+  Sicherheits-Review fand eine zu günstige Aussage im ADR (das Fenster mitten in der Benutzung ist nicht auf
+  60 s begrenzt); sie ist berichtigt.
+
 ## Serverbeweis: jeder Sprung merkt seinen Bruch, Zweifel nach einem Abbruch (23. November 2026, PR #220)
 
 Die drei Lücken im `ServerIdentityGate` (`android/core/api`), die PR #219 und ADR 0040 offen liessen, sind
@@ -50,7 +88,7 @@ geschlossen, dazu eine vierte, die beim Bau auffiel. PR #220 baut auf #219 auf (
   des Sicherheits-Reviews ist die bekannte Grenze selbst und steht jetzt deutlich in ADR 0040: Die erste
   Anfrage nach einem verdeckten Netzwechsel geht mit Token hinaus, und wer die Adresse des Servers hält, kann
   sie lesen. Das Gate nimmt das nicht zurück.
-- **Offen, Marcos Entscheid:** «Verfall nach Ruhe» (Vorschlag des Sicherheits-Reviews, nicht gebaut): Ein
+- **Entschieden und gebaut mit PR #221 (siehe oben):** «Verfall nach Ruhe» (Vorschlag des Sicherheits-Reviews): Ein
   Beweis zählt nicht mehr, wenn 60 s kein Sprung zum Server lief, dazu eine kürzere Haltedauer der
   Verbindungen (90 s). Es schlösse das Fenster «erste Anfrage nach einer Pause» und kostet einen Beweis nach
   jeder Pause über 60 s. Begründung und Kosten in ADR 0040, «Nachtrag 23. November 2026, zweiter Teil»,

@@ -1,10 +1,12 @@
 package com.slouchcat.core.api
 
+import okhttp3.ConnectionPool
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 /** Which app sends a request, as the server reads it from `X-Slouchcat-Client` (`mobile/1.0.0`). */
 data class ClientIdentity(val kind: Kind, val version: String) {
@@ -46,6 +48,9 @@ interface SessionCredentials {
  * - [gate] first: «Server weist sich aus» holds every request to a server over HTTP back until the
  *   server proved itself in this network ([ServerIdentityGate], F-38); its `hop` checks every
  *   network hop again (retries, redirects), before the credentials are added.
+ * - Idle connections go after [KEEP_ALIVE]: before the server closes them, and not before a proof
+ *   of the server has lapsed for want of use ([PROOF_IDLE]). The client gets a pool of its own for
+ *   that; a pool on the builder that is passed in is replaced.
  * - No logging interceptor: headers and addresses carry the token and stream tokens (rule 10).
  */
 object SlouchcatHttp {
@@ -58,16 +63,31 @@ object SlouchcatHttp {
     val READ_TIMEOUT: Duration = Duration.ofSeconds(30)
     val WRITE_TIMEOUT: Duration = Duration.ofSeconds(30)
 
+    /** How long a proof of the server counts without a request to the server ([ServerIdentityGate]). */
+    val PROOF_IDLE: Duration = Duration.ofSeconds(60)
+
+    /**
+     * How long an idle connection stays in the pool. Shorter than the server keeps it (two
+     * minutes, `IdleTimeout` in `server/cmd/slouchcat/main.go`), so that a pause does not end at a
+     * connection the server closed. Longer than [PROOF_IDLE], so that the app still holds its old
+     * connections for as long as a proof counts without a new one: where the network changed
+     * unseen, it is their break that tells.
+     */
+    val KEEP_ALIVE: Duration = Duration.ofSeconds(90)
+    private const val IDLE_CONNECTIONS = 5
+
     fun client(
         identity: ClientIdentity,
         credentials: SessionCredentials = SessionCredentials.None,
         builder: OkHttpClient.Builder = OkHttpClient.Builder(),
         gate: ServerIdentityGate? = null,
+        keepAlive: Duration = KEEP_ALIVE,
     ): OkHttpClient = builder
         .connectTimeout(CONNECT_TIMEOUT)
         .readTimeout(READ_TIMEOUT)
         .writeTimeout(WRITE_TIMEOUT)
         .followSslRedirects(false)
+        .connectionPool(ConnectionPool(IDLE_CONNECTIONS, keepAlive.toMillis(), TimeUnit.MILLISECONDS))
         .apply { if (gate != null) addInterceptor(gate) }
         .addInterceptor(Headers(identity))
         .apply { if (gate != null) addNetworkInterceptor(gate.hop) }
