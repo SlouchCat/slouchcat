@@ -1,5 +1,26 @@
 # Aktueller Stand
 
+## `SetupBackTest` abgeschottet (24. November 2026)
+
+Zweig `claude/android-setupbacktest-abschotten`, offen, nicht gemergt. Nur ein Test der Handy-App.
+
+- **Der Anlass:** Im CI-Lauf 45365030231 (PR #223) waren `SetupBackTest.backLeavesPhone` und
+  `backLeavesTablet` rot, beide nach genau 5 s Warten auf die erste Seite. Lokal war das am 23. November
+  schon einmal vorgekommen. Die Seite erscheint erst, wenn die Sitzung geladen ist; geladen sind es
+  ungestört 0 bis 50 ms. Die Sitzung blieb also für die ganze Klasse beim Laden stehen, über zwei neu
+  gestartete Apps hinweg.
+- **Was ich nicht gefunden habe: die Ursache.** 14 Läufe der ganzen Suite von `:app-mobile` (auf 1, 2, 4
+  und 8 Kernen, auch unter Last, in der Reihenfolge der CI) waren grün. In 100 CI-Läufen war der Test nur
+  dieses eine Mal rot.
+- **Was der Test teilte:** Er war der einzige im Modul, der auf die echten Speicher der App wartet. Die sind
+  prozessweit: Die DataStores aus `preferencesDataStore` bleiben am Datenordner des ersten Tests der JVM
+  hängen (mit einem Wegwerf-Test belegt: jeder Robolectric-Test bekommt einen neuen Ordner), und jeder
+  Robolectric-Test startet die ganze App darauf.
+- **Die Änderung:** `SetupBackTest` baut die Navigation über Speicher im Arbeitsspeicher, wie die übrigen
+  Tests für «Zurück». Wartet er trotzdem wieder zu lange, schreibt er den Zustand der Sitzung und die
+  Threads der App in sein Protokoll; einmal absichtlich ausgelöst (ein Server-Speicher, der nie antwortet):
+  «session Loading».
+
 ## Serverbeweis: Verfall nach Ruhe (23. November 2026, PR #221)
 
 Marco am 23. November 2026: bauen. Der Vorschlag kam aus dem Sicherheits-Review von PR #220 und stand dort
@@ -152,7 +173,7 @@ Server über HTTP.
   - **Ein unterbrochener Beweis sperrt 5 s. Behoben mit PR #220.** Wird der Thread der Anfrage unterbrochen, die gerade den Beweis
     holt, gilt er als gescheitert, und jede Anfrage scheitert 5 s lang sofort mit «the server did not prove
     itself». Belegt mit einem Wegwerf-Test; in den Messläufen und im Emulator-Lauf kam es nicht vor.
-  - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen.
+  - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen. Abgeschottet am 24. November 2026 (siehe oben).
   - Ob der Job `android-emulator` ins Gate kommt, ist ein eigener Entscheid.
 
 ## Emulator-Job: sechs Testfehler behoben, ein App-Fehler gefunden (23. November 2026, PR #218)
