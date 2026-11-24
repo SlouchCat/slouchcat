@@ -3,6 +3,7 @@ package com.slouchcat.app.mobile.setup
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
@@ -20,7 +21,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.MainActivity
+import com.slouchcat.app.mobile.AppGraph
+import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
+import com.slouchcat.core.browse.testing.FakeAccounts
+import com.slouchcat.core.browse.testing.FakeServers
+import com.slouchcat.core.browse.testing.FakeTokens
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.strings.R
@@ -182,21 +187,53 @@ class SetupScreenTest {
     fun insecureWarningTablet() = insecureWarning()
 }
 
-/** Back on the first page leaves the app (rule 8: «Zurück führt hinaus»). */
+/**
+ * Back on the first page leaves the app (rule 8: «Zurück führt hinaus»).
+ *
+ * Over stores in memory, like the other back tests: the stores of the app are process-wide (the
+ * DataStores of `preferencesDataStore` stay with the data folder of the first test of the JVM, and
+ * every Robolectric test starts the whole app on them). Twice, in CI run 45365030231 and in a
+ * local run on 23 November 2026, the session stayed loading for the whole class here and the
+ * first page never came; the cause is not found. Should it wait too long again, the test writes
+ * the state of the session and the threads of the app to its log.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class SetupBackTest {
     @get:Rule
-    val compose = createAndroidComposeRule<MainActivity>()
+    val compose = createAndroidComposeRule<ComponentActivity>()
+
+    private val graph = AppGraph(
+        ApplicationProvider.getApplicationContext(),
+        serverStore = FakeServers(null),
+        tokenStore = FakeTokens(),
+        accountStore = FakeAccounts(),
+    )
 
     private fun backLeaves() {
-        // The first page waits for the stored server (DataStore, off the main thread).
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithText(s(R.string.app_setup_title)).fetchSemanticsNodes().isNotEmpty()
+        compose.setContent { SlouchcatTheme { SlouchcatNavHost(graph) } }
+        try {
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithText(s(R.string.app_setup_title)).fetchSemanticsNodes().isNotEmpty()
+            }
+        } catch (e: ComposeTimeoutException) {
+            report()
+            throw e
         }
         compose.onNodeWithText(s(R.string.app_setup_title)).assertExists()
-        compose.activityRule.scenario.onActivity { (it as ComponentActivity).onBackPressedDispatcher.onBackPressed() }
+        compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         compose.activityRule.scenario.onActivity { assertTrue(it.isFinishing) }
+    }
+
+    /** What the next failure needs: where the session stands and what the threads of the app are doing. */
+    private fun report() {
+        System.err.println("SetupBackTest: session ${graph.session.state.value::class.simpleName}")
+        for ((thread, stack) in Thread.getAllStackTraces()) {
+            if (thread == Thread.currentThread()) continue
+            if (stack.none { it.className.startsWith("com.slouchcat") || it.className.startsWith("androidx.datastore") }) continue
+            System.err.println("SetupBackTest: thread ${thread.name} ${thread.state}")
+            stack.take(STACK_LINES).forEach { System.err.println("    at $it") }
+        }
     }
 
     @Test
@@ -206,4 +243,8 @@ class SetupBackTest {
     @Test
     @Config(qualifiers = TABLET)
     fun backLeavesTablet() = backLeaves()
+
+    private companion object {
+        const val STACK_LINES = 40
+    }
 }

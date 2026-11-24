@@ -28,11 +28,34 @@ Zweig `claude/android-netzwechsel-wiederholung`, offen, nicht gemergt. Betrifft 
   stehen im ADR.
 - **Nicht gebaut:** neues Laden einer Seite, wenn das Netz nach einer Zeit ohne Netz zurückkommt.
 
+## `SetupBackTest` abgeschottet (24. November 2026)
+
+PR #224, gemergt am 24. November 2026 (`67887d77`). Nur ein Test der Handy-App.
+
+- **Der Anlass:** Im CI-Lauf 45365030231 (PR #223) waren `SetupBackTest.backLeavesPhone` und
+  `backLeavesTablet` rot, beide nach genau 5 s Warten auf die erste Seite. Lokal war das am 23. November
+  schon einmal vorgekommen. Die Seite erscheint erst, wenn die Sitzung geladen ist; geladen sind es
+  ungestört 0 bis 50 ms. Die Sitzung blieb also für die ganze Klasse beim Laden stehen, über zwei neu
+  gestartete Apps hinweg.
+- **Was ich nicht gefunden habe: die Ursache.** 14 Läufe der ganzen Suite von `:app-mobile` (auf 1, 2, 4
+  und 8 Kernen, auch unter Last, in der Reihenfolge der CI) waren grün. In 100 CI-Läufen war der Test nur
+  dieses eine Mal rot.
+- **Was der Test teilte:** Er war der einzige im Modul, der auf die echten Speicher der App wartet. Die sind
+  prozessweit: Die DataStores aus `preferencesDataStore` bleiben am Datenordner des ersten Tests der JVM
+  hängen (mit einem Wegwerf-Test belegt: jeder Robolectric-Test bekommt einen neuen Ordner), und jeder
+  Robolectric-Test startet die ganze App darauf.
+- **Die Änderung:** `SetupBackTest` baut die Navigation über Speicher im Arbeitsspeicher, wie die übrigen
+  Tests für «Zurück». Wartet er trotzdem wieder zu lange, schreibt er den Zustand der Sitzung und die
+  Threads der App in sein Protokoll; einmal absichtlich ausgelöst (ein Server-Speicher, der nie antwortet):
+  «session Loading».
+
 ## Serverbeweis: Verfall nach Ruhe (23. November 2026, PR #221)
 
 Marco am 23. November 2026: bauen. Der Vorschlag kam aus dem Sicherheits-Review von PR #220 und stand dort
-als offener Entscheid. PR #221 baut auf #220 und #219 auf (Zweig `claude/android-beweis-verfall-nach-ruhe`),
-offen, nicht gemergt. Betroffen sind nur Server über HTTP.
+als offener Entscheid. PR #221 baut auf #220 und #219 auf (Zweig `claude/android-beweis-verfall-nach-ruhe`).
+Auf Marcos Wort gemergt am 24. November 2026 (Merge-Commit `87fa0efe`), nach #219 (`8fcec552`) und #220
+(`86583a66`); alle drei mit grünem Gate `ci`, kein Tag, kein Release der Apps. Betroffen sind nur Server über
+HTTP.
 
 - **Die Regel:** Ein Beweis des Servers zählt nicht mehr, wenn 60 s lang keine Anfrage zum Server hinausging
   (`SlouchcatHttp.PROOF_IDLE`). Die erste Anfrage nach einer solchen Pause beweist zuerst neu; scheitert der
@@ -65,12 +88,19 @@ offen, nicht gemergt. Betroffen sind nur Server über HTTP.
 - **Reviews:** Sicherheits-Review und Code-Review je zweimal gelesen, kein offener Befund. Das
   Sicherheits-Review fand eine zu günstige Aussage im ADR (das Fenster mitten in der Benutzung ist nicht auf
   60 s begrenzt); sie ist berichtigt.
+- **Emulator-Job in der CI von #221 rot** (informativ, nicht im Gate; Lauf 45253038403):
+  `PlayerFlowTest.filmAndEpisodes` wartete bei der Anmeldung 20 s vergeblich auf die Profilwahl. Direkt nach der
+  Anmeldung meldete der Emulator drei Netzwechsel in 0,14 s; die Profilanfrage, die unterwegs war, scheiterte
+  mit «the network changed before the request left», und die Profilwahl fragte nicht neu. Die Regel dahinter
+  gibt es seit #219 unverändert. **Offen:** Die Profilwahl erholt sich nicht von selbst, wenn ihre erste
+  Anfrage an einem Netzwechsel scheitert; eigene Untersuchung läuft.
 
 ## Serverbeweis: jeder Sprung merkt seinen Bruch, Zweifel nach einem Abbruch (23. November 2026, PR #220)
 
 Die drei Lücken im `ServerIdentityGate` (`android/core/api`), die PR #219 und ADR 0040 offen liessen, sind
 geschlossen, dazu eine vierte, die beim Bau auffiel. PR #220 baut auf #219 auf (Zweig
-`claude/android-beweis-drei-luecken`), offen, nicht gemergt. Betroffen sind nur Server über HTTP.
+`claude/android-beweis-drei-luecken`), gemergt am 23. November 2026 (Merge-Commit `86583a66`). Betroffen sind
+nur Server über HTTP.
 
 - **1. Wiederholung von OkHttp (Sicherheit, M-1).** Bricht eine Verbindung aus dem Vorrat, wiederholt OkHttp
   die Anfrage selbst auf einer neuen; diese Wiederholung trug Token und Gerätekennung mit dem alten Beweis.
@@ -127,7 +157,7 @@ geschlossen, dazu eine vierte, die beim Bau auffiel. PR #220 baut auf #219 auf (
 
 ## Korrektur: Ein Abbruch in der App kostet den Serverbeweis nicht mehr (23. November 2026, PR #219)
 
-Der App-Fehler aus PR #218 ist behoben. `ServerIdentityGate` (`android/core/api`) verwarf den Beweis des
+Gemergt am 23. November 2026 (Merge-Commit `8fcec552`). Der App-Fehler aus PR #218 ist behoben. `ServerIdentityGate` (`android/core/api`) verwarf den Beweis des
 Servers nach jeder gescheiterten Anfrage, auch wenn die App sie selbst beendet hatte: ein Bild beim Verlassen
 einer Seite, ein Segment beim Spulen, ein Aufruf, dessen Coroutine abgebrochen wurde. Anfragen, die in dem
 Moment unterwegs waren, scheiterten mit «the network changed before the request left». Betroffen waren nur
@@ -171,7 +201,7 @@ Server über HTTP.
   - **Ein unterbrochener Beweis sperrt 5 s. Behoben mit PR #220.** Wird der Thread der Anfrage unterbrochen, die gerade den Beweis
     holt, gilt er als gescheitert, und jede Anfrage scheitert 5 s lang sofort mit «the server did not prove
     itself». Belegt mit einem Wegwerf-Test; in den Messläufen und im Emulator-Lauf kam es nicht vor.
-  - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen.
+  - **`SetupBackTest` wackelt** (oben), einmal in drei Ausführungen gesehen. Abgeschottet am 24. November 2026 (siehe oben).
   - Ob der Job `android-emulator` ins Gate kommt, ist ein eigener Entscheid.
 
 ## Emulator-Job: sechs Testfehler behoben, ein App-Fehler gefunden (23. November 2026, PR #218)
