@@ -150,8 +150,39 @@ class NetworkChangeRetryTest {
         // The server refuses to prove itself: no network change, so no second try (and no second proof).
         val calls = AtomicInteger()
         val http = client(prover = { _, _ -> null.also { calls.incrementAndGet() } })
-        refused { get(http) }
+        // A second try would carry the first error as suppressed (the gate's pause would hide its proof).
+        assertEquals(0, refused { get(http) }.suppressed.size)
         assertEquals(1, calls.get())
+        assertEquals(emptyList<String>(), seen.toList())
+    }
+
+    @Test
+    fun aCallTheAppCancelledIsNotRepeated() {
+        val builder = OkHttpClient.Builder().addNetworkInterceptor { chain ->
+            generation.incrementAndGet()
+            chain.call().cancel()
+            chain.proceed(chain.request())
+        }
+        val gate = ServerIdentityGate(trusted, { generation.get() }, prover, timeout = Duration.ofSeconds(5))
+        val http = SlouchcatHttp.client(identity, credentials, builder, gate, network = { generation.get() })
+        assertEquals(0, refused { get(http) }.suppressed.size)
+        assertEquals(emptyList<String>(), seen.toList())
+    }
+
+    @Test
+    fun anotherKeyIsNotAskedForAgain() {
+        // Another key under the server's address while the network changes: the gate's verdict stands.
+        val other = Ed25519Sign.KeyPair.newKeyPair()
+        val calls = AtomicInteger()
+        val http = client(
+            prover = { _, nonce ->
+                if (calls.incrementAndGet() == 1) generation.incrementAndGet()
+                ProofAnswer(Base64Url.encode(Ed25519Sign(other.privateKey).sign(ServerProof.message(nonce))), Base64Url.encode(other.publicKey))
+            },
+        )
+        val refused = refused { get(http) }
+        assertTrue("$refused", refused is ServerKeyChangedException)
+        assertEquals(0, refused.suppressed.size)
         assertEquals(emptyList<String>(), seen.toList())
     }
 }

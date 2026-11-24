@@ -1,5 +1,33 @@
 # Aktueller Stand
 
+## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026)
+
+Zweig `claude/android-netzwechsel-wiederholung`, offen, nicht gemergt. Betrifft beide Apps.
+
+- **Der Befund:** CI-Lauf 45253038403 (PR #221), `PlayerFlowTest.filmAndEpisodes` rot in `signIn`. Direkt
+  nach der Anmeldung meldete der Emulator drei Netzwechsel in 136 ms; `listMyProfiles` ging im zweiten Netz
+  los, das Gate hielt den Sprung im dritten an («the network changed before the request left»). Die
+  Profilwahl hing nicht, sie zeigte «nicht erreichbar» mit «Erneut versuchen». Der Test tippte nicht darauf.
+  Ein Fehler der App, nicht nur des Tests: Der Server war erreichbar, und jede Seite verhielt sich so; keine
+  fragt von selbst neu. Auf einem Handy genügt ein Wechsel, den der Nutzer nicht sieht (IPv6-Adresse).
+- **Die Korrektur (ADR 0040, «Nachtrag 24. November 2026»):** `SlouchcatHttp.NetworkChangeRetry` vor dem
+  Gate sendet eine Anfrage mit GET, HEAD oder OPTIONS einmal neu, wenn sie scheitert, nachdem sich das Netz
+  seit ihrem Start geändert hat. Der zweite Versuch wartet auf den Beweis des neuen Netzes. Schreibende
+  Anfragen, Abbrüche durch die App, ein anderer Schlüssel und Fehler im selben Netz bleiben, wie sie waren.
+  Das Gate ist unverändert.
+- **Tests:** `NetworkChangeRetryTest` 7 Fälle. Ohne die Verdrahtung 3 rot (der Fall aus der CI, eine
+  Verbindung, die mit dem alten Netz bricht, «nur einmal»); ohne den Netzvergleich, ohne den Ausschluss
+  abgebrochener Aufrufe und ohne den Ausschluss eines anderen Schlüssels je einer rot. Der Fall «Schreibendes
+  nicht neu» hält fest, was die Methodenprüfung verhindert. `:core:api:test` 99 Fälle grün.
+- **Geprüft:** `task check:fast BASE=origin/main` grün. `task android:e2e` auf `11368c8a`: 16 von 16 grün,
+  4 min 47 s. In den 16 Logcats «the network changed before the request left» 0-mal, «asking again» 2-mal,
+  beide in Schaukästen gegen `192.0.2.10` (absichtlich unerreichbar, Netzwechsel beim Start des Emulators);
+  der zweite Versuch scheiterte dort nach 32 ms an der Pause des Gates.
+- **Review:** Code-Review ohne Blocker; die Lücken in den Tests (Ausschlüsse ungeprüft, ein Fall ohne
+  Aussage) sind geschlossen, die Hinweise zu Startnetz, Bruchzahl und der eigenen Wiederholung von OkHttp
+  stehen im ADR.
+- **Nicht gebaut:** neues Laden einer Seite, wenn das Netz nach einer Zeit ohne Netz zurückkommt.
+
 ## Serverbeweis: Verfall nach Ruhe (23. November 2026, PR #221)
 
 Marco am 23. November 2026: bauen. Der Vorschlag kam aus dem Sicherheits-Review von PR #220 und stand dort

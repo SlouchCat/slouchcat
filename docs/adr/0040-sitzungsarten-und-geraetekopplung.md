@@ -332,9 +332,11 @@ obwohl der Server erreichbar ist. Das ist ein Fehler der App, nicht nur des Test
 |---|---|
 | Lesende Anfragen | Eine Anfrage mit GET, HEAD oder OPTIONS, die scheitert, nachdem sich das Netz seit ihrem Start geändert hat, geht einmal neu hinaus (`SlouchcatHttp.NetworkChangeRetry`). Das gilt für den Halt durch das Gate wie für eine Verbindung, die mit dem alten Netz bricht. Für Seiten, Bilder, Player und Downloads gleich |
 | Wo | Im gemeinsamen Client vor dem Gate. Der zweite Versuch geht wie jede neue Anfrage durch das Gate und wartet auf den Beweis des neuen Netzes. Das Gate bleibt, wie es ist: Es wiederholt nichts selbst, und ein Sprung über einen Netzwechsel hinweg scheitert weiter |
-| Schreibende Anfragen | Nie von selbst. Der Sprung kann den Server erreicht haben, bevor die Verbindung brach; ob die Seite ihn noch einmal senden darf, weiss nur sie. Sie zeigt weiter ihre Meldung (die Profilwahl «nicht erreichbar», das Profil bleibt antippbar) |
+| Schreibende Anfragen | Nie durch diese Wiederholung. Der Sprung kann den Server erreicht haben, bevor die Verbindung brach; ob die Seite ihn noch einmal senden darf, weiss nur sie. Sie zeigt weiter ihre Meldung (die Profilwahl «nicht erreichbar», das Profil bleibt antippbar). Unverändert bleibt die eigene Wiederholung von OkHttp nach einem Verbindungsfehler (`retryOnConnectionFailure`), auch für Schreibendes: über HTTP nur im selben Netz und nach einem neuen Beweis am Sprung, über HTTPS ohne Gate |
 | Nicht wiederholt | Ein Abbruch durch die App (abgebrochener Aufruf, unterbrochener Thread), ein anderer Schlüssel unter der Adresse des Servers, und jedes Scheitern im selben Netz: Das ist eine Aussage über den Server |
 | Wie oft | Einmal. Ändert sich das Netz auch im zweiten Versuch, endet die Anfrage als «nicht erreichbar» |
+| Start | Das Netz beim Aufruf, vor dem Warten auf den Beweis. Ändert es sich schon während dieses Wartens und scheitert die Anfrage dann im neuen Netz aus eigenem Grund (Verbindung abgelehnt, Zeitlimit), geht sie trotzdem ein zweites Mal; das kostet höchstens ein Zeitlimit mehr. In welchem Netz der Sprung hinausging, weiss nur das Gate |
+| Brüche | Der zweite Versuch ist derselbe OkHttp-Aufruf und erbt im Gate dessen Zahl eigener Brüche. Er bekommt deshalb unter Umständen einen Beweis unterwegs weniger als eine neue Anfrage; das ist die sichere Seite |
 
 **Was es kostet.** Höchstens eine Anfrage mehr je lesende Anfrage, die ein Netzwechsel trifft; die Anfragen
 eines Moments teilen sich den Beweis des neuen Netzes. Im selben Netz nichts.
