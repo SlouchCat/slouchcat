@@ -394,10 +394,16 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     var focused by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     if (rotate && section.items.size > 1 && !exploring && !focused && !pressed) {
-        LaunchedEffect(pager, section.intervalSeconds, pager.currentPage) {
+        // Keyed on the settled page: `currentPage` already turns halfway through a change, which
+        // started this effect again, cancelled the change and left half of each picture.
+        LaunchedEffect(pager, section.intervalSeconds, pager.settledPage) {
             delay(section.intervalSeconds * 1_000L)
-            // The number of titles now, not of the first drawing (code review L-6 of part a).
-            if (!pager.isScrollInProgress && pager.pageCount > 0) pager.animateScrollToPage((pager.currentPage + 1) % pager.pageCount)
+            // The number of titles now, not of the first drawing (code review L-6 of part a). The
+            // change runs in `scope`: a hold that begins during it must not stop it halfway either.
+            if (!pager.isScrollInProgress && pager.pageCount > 0) {
+                val next = (pager.currentPage + 1) % pager.pageCount
+                scope.launch { pager.animateScrollToPage(next) }
+            }
         }
     }
     val region = stringResource(R.string.home_rows_spotlight)

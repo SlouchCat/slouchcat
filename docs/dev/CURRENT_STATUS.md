@@ -1,5 +1,26 @@
 # Aktueller Stand
 
+## Korrektur: Die Bühne der Handy-App bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen (25. November 2026, Zweig `claude/android-spotlight-wechsel`)
+
+Betrifft nur die Handy-App (Startseite, Reihe «Spotlight»). Noch in keiner Ausgabe: `app-v1.0.1` hat den
+Fehler.
+
+- **Der Befund (Marco, am Handy):** Nach dem Wechsel, den die Bühne von selbst macht, standen zwei halbe
+  Bilder nebeneinander statt eines ganzen.
+- **Die Ursache:** Der Zeitgeber des Wechsels hing an `pager.currentPage`. Dieser Wert springt schon in der
+  Mitte der Bewegung auf die nächste Seite. Das startete den Zeitgeber neu und brach die Bewegung ab, die er
+  selbst angestossen hatte. Der bisherige Test `theStageMovesOnByItself` blieb grün: Er prüft nur, ob der
+  neue Titel ganz im Bild steht, nicht ob die Bühne auf ihm ruht.
+- **Die Korrektur (`HomeScreen.kt`, `Spotlight`):** Der Zeitgeber hängt an `pager.settledPage`; der Wert
+  ändert erst, wenn die Bewegung steht (in Foundation 1.13.0 nachgesehen). Die Bewegung läuft im Scope der
+  Bühne, wie beim Tippen auf die Punkte: Ein Halt, der während des Wechsels beginnt (Screenreader, Fokus),
+  bricht sie nicht mehr ab.
+- **Tests:** `StageRotationTest` hat zwei neue Fälle, `aChangeEndsOnTheNextTitle` und
+  `aHoldDuringAChangeLetsItEnd`. Vor der Korrektur beide rot (5 Fälle, 2 rot), danach die 18 Fälle von
+  `com.slouchcat.app.mobile.home.*` grün.
+- **Geprüft:** `task check:fast` grün.
+- **Nicht geprüft:** auf einem echten Gerät. Die TV-App ist nicht geändert; ihre Bühne nutzt keinen Pager.
+
 ## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026, PR #223)
 
 PR #223, gemergt am 24. November 2026 (`71d3fbab`), nach PR #224. Betrifft beide Apps. Kein Release nötig:

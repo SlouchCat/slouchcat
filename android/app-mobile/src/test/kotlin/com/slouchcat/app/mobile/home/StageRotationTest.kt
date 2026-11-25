@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import kotlin.math.abs
 
 /**
  * The stage moves on by itself, but holds still for a screen reader and while it has the focus
@@ -58,6 +59,15 @@ class StageRotationTest {
         }
     }
 
+    /** The stage rests on [title]: its text sits in the middle of the screen, not between two titles. */
+    private fun restsOn(title: String): Boolean {
+        val width = compose.onRoot().fetchSemanticsNode().size.width
+        return compose.onAllNodes(hasText(title)).fetchSemanticsNodes().any { node ->
+            val bounds = node.boundsInRoot
+            bounds.width > 0f && abs((bounds.left + bounds.right) / 2f - width / 2f) <= 1f
+        }
+    }
+
     /** Past the interval and the animation of the change. */
     private fun waitAnInterval() {
         compose.mainClock.advanceTimeBy(8_000)
@@ -74,6 +84,36 @@ class StageRotationTest {
         assertTrue(shown("Stage One"))
         waitAnInterval()
         assertTrue(shown("Stage Two"))
+    }
+
+    /** A change ends on the next title; it used to stop halfway, with half of each picture. */
+    @Test
+    fun aChangeEndsOnTheNextTitle() {
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.waitForIdle()
+        assertTrue(restsOn("Stage One"))
+        waitAnInterval()
+        assertTrue(restsOn("Stage Two"))
+    }
+
+    /** A hold that begins during a change lets the change end; only the next one waits. */
+    @Test
+    fun aHoldDuringAChangeLetsItEnd() {
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(7_050)
+        compose.waitForIdle()
+        assertFalse(restsOn("Stage One"))
+        assertFalse(restsOn("Stage Two"))
+        shadowOf(context.getSystemService(AccessibilityManager::class.java)).setTouchExplorationEnabled(true)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        assertTrue(restsOn("Stage Two"))
+        waitAnInterval()
+        assertTrue(restsOn("Stage Two"))
     }
 
     @Test
