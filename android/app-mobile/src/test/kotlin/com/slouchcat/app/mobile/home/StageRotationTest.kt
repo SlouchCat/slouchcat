@@ -2,6 +2,11 @@ package com.slouchcat.app.mobile.home
 
 import android.content.Context
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -44,11 +49,12 @@ class StageRotationTest {
 
     private val stage = HomeSection.Spotlight("spotlight", listOf(card(1, "Stage One"), card(2, "Stage Two")), start = 0, intervalSeconds = 7)
 
-    private fun show() = compose.setContent {
-        SlouchcatTheme {
-            HomeScreen(HomeUiState(Loadable.Ready(listOf(stage))), HomeLinks(), onRetry = {}, onRefresh = {}, onRowEnd = {}, onWatchlist = {}, rotate = true)
-        }
+    @Composable
+    private fun Home() = SlouchcatTheme {
+        HomeScreen(HomeUiState(Loadable.Ready(listOf(stage))), HomeLinks(), onRetry = {}, onRefresh = {}, onRowEnd = {}, onWatchlist = {}, rotate = true)
     }
+
+    private fun show() = compose.setContent { Home() }
 
     /** [title] on the screen, not on the page of the stage beside it. */
     private fun shown(title: String): Boolean {
@@ -114,6 +120,33 @@ class StageRotationTest {
         assertTrue(restsOn("Stage Two"))
         waitAnInterval()
         assertTrue(restsOn("Stage Two"))
+    }
+
+    /** A change cut short, because the stage left the screen in the middle of it, comes back on one title. */
+    @Test
+    fun aChangeCutShortComesBackOnOneTitle() {
+        compose.mainClock.autoAdvance = false
+        var onScreen by mutableStateOf(true)
+        compose.setContent {
+            // As a list does with a row that leaves the screen: its state is kept, the row is not.
+            val kept = rememberSaveableStateHolder()
+            if (onScreen) kept.SaveableStateProvider("stage") { Home() }
+        }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(7_050)
+        compose.waitForIdle()
+        assertFalse(restsOn("Stage One"))
+        assertFalse(restsOn("Stage Two"))
+        onScreen = false
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        assertTrue(compose.onAllNodes(hasText("Stage One") or hasText("Stage Two")).fetchSemanticsNodes().isEmpty())
+        onScreen = true
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        assertTrue(restsOn("Stage One") || restsOn("Stage Two"))
     }
 
     @Test

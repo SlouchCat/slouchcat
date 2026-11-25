@@ -386,6 +386,11 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     val wide = isWideLayout()
     val pager = rememberPagerState(initialPage = section.start) { section.items.size }
     val scope = rememberCoroutineScope()
+    // A change cut short because the stage left the screen in the middle of it is kept as it stood,
+    // between two titles: back on the screen, the stage rests on the nearer one.
+    LaunchedEffect(pager) {
+        if (!pager.isScrollInProgress && pager.currentPageOffsetFraction != 0f) pager.scrollToPage(pager.currentPage)
+    }
     // The stage holds still while a screen reader explores, while it has the focus and while a finger
     // rests on it (WCAG 2.2.2, code review m-5 of part a); after each change of title the time starts again.
     val exploring = touchExploration()

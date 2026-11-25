@@ -15,9 +15,17 @@ Fehler.
   ändert erst, wenn die Bewegung steht (in Foundation 1.13.0 nachgesehen). Die Bewegung läuft im Scope der
   Bühne, wie beim Tippen auf die Punkte: Ein Halt, der während des Wechsels beginnt (Screenreader, Fokus),
   bricht sie nicht mehr ab.
-- **Tests:** `StageRotationTest` hat zwei neue Fälle, `aChangeEndsOnTheNextTitle` und
-  `aHoldDuringAChangeLetsItEnd`. Vor der Korrektur beide rot (5 Fälle, 2 rot), danach die 18 Fälle von
-  `com.slouchcat.app.mobile.home.*` grün.
+- **Ein zweiter Weg zum selben Bild (Befund des Reviews, belegt):** Verlässt die Bühne mitten im Wechsel den
+  Bildschirm (die Startseite wird weggeschoben), endet die Bewegung dort, und die Liste merkt sich den Stand.
+  Zurück im Bild stand die Bühne wieder zwischen zwei Titeln, gemessen bei Seite 1 mit Versatz −0,45. Jetzt
+  stellt sie sich beim Zurückkommen auf den näheren Titel.
+- **Tests:** `StageRotationTest` hat drei neue Fälle: `aChangeEndsOnTheNextTitle`,
+  `aHoldDuringAChangeLetsItEnd` (mit dem Screenreader als Halt) und `aChangeCutShortComesBackOnOneTitle`.
+  Jeder war ohne seine Korrektur rot; mit beiden sind die 19 Fälle von `com.slouchcat.app.mobile.home.*`
+  grün.
+- **Review:** Code-Review ohne Blocker. Nicht geändert, weil schon vorher so und nicht Teil des Befunds:
+  Läuft das Intervall ab, während die Bühne ohne Finger bewegt wird (Mausrad, Schalterzugriff), fällt der
+  Wechsel aus; endet die Bewegung auf demselben Titel, steht die Bühne bis zur nächsten Berührung.
 - **Geprüft:** `task check:fast` grün.
 - **Nicht geprüft:** auf einem echten Gerät. Die TV-App ist nicht geändert; ihre Bühne nutzt keinen Pager.
 
