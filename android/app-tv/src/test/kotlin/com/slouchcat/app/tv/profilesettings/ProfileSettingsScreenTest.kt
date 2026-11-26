@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.slouchcat.app.tv.testing.Pages
 import com.slouchcat.app.tv.testing.TV
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.browse.testing.CHILD
 import com.slouchcat.core.browse.testing.FakeHome
 import com.slouchcat.core.browse.testing.FakeProfileSettings
@@ -62,12 +63,16 @@ class ProfileSettingsScreenTest {
 
     @Test
     fun aProfileIsChangedInItsMenuAndSaved() {
+        // The wishes are on, yet the TV sets no request right (no switch, concept 25 on the phone only).
+        repo.wishes = WishRights(enabled = true, canRequest = true, movies = true, shows = true)
         open()
         remote.down()
         remote.assertFocused("Kid")
         remote.ok()
         remote.assertFocused(pages.s(R.string.profiles_settings_form_name))
         remote.assertEveryControlReachable(menu)
+        assertTrue(compose.onAllNodes(androidx.compose.ui.test.hasText(pages.s(R.string.profiles_settings_form_wishes)) and menu).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodes(androidx.compose.ui.test.hasText(pages.s(R.string.profiles_settings_form_canRequest))).fetchSemanticsNodes().isEmpty())
         // A colour, then «Speichern».
         remote.down()
         remote.right()
@@ -76,6 +81,7 @@ class ProfileSettingsScreenTest {
         remote.assertFocused(pages.s(R.string.profiles_settings_form_save))
         remote.ok()
         compose.waitUntil(5_000) { repo.calls.contains("update:2") }
+        assertEquals(null, repo.updated.single().second.canRequest)
         remote.settle()
         remote.assertFocused("Kid")
         assertTrue(repo.calls.none { it.startsWith("offline") })

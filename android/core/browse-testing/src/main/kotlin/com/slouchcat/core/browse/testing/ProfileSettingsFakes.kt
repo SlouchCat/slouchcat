@@ -65,6 +65,9 @@ class FakeProfileSettings(
     /** `SessionInfo.wishes`; `null`: the server says nothing of wishes (they count as off). */
     var wishes: WishRights? = null
 
+    /** The answer of `getSession` instead of the session (once offline, say). */
+    var sessionFailure: ApiResult<Nothing>? = null
+
     /** The answer of `listProfiles` instead of the list (403 `primary_profile_required`). */
     var listAnswer: ApiResult<List<Profile>>? = null
     var saveFailure: ApiResult<Nothing>? = null
@@ -86,8 +89,8 @@ class FakeProfileSettings(
 
     override suspend fun libraries(server: HttpUrl) = ApiResult.Ok(libraries)
 
-    override suspend fun session(server: HttpUrl) =
-        ApiResult.Ok(SessionInfo(account().copy(maxRating = ceiling), ratingSystem = system, wishes = wishes))
+    override suspend fun session(server: HttpUrl): ApiResult<SessionInfo> =
+        sessionFailure ?: ApiResult.Ok(SessionInfo(account().copy(maxRating = ceiling), ratingSystem = system, wishes = wishes))
 
     override suspend fun create(server: HttpUrl, request: ProfileRequest): ApiResult<Profile> {
         calls += "create:${request.name}:pin=${request.pin?.length ?: 0}"

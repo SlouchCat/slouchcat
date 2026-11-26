@@ -331,7 +331,7 @@ class ProfileSettingsViewModelTest {
     }
 
     @Test
-    fun theTvNeverShowsTheSwitchNorSendsTheRight() = runTest(dispatcher) {
+    fun withoutRequestRightTheSwitchIsHiddenAndTheFieldOmitted() = runTest(dispatcher) {
         val repository = requesting()
         val vm = model(repository)
         assertFalse(vm.state.value.requestShown)
@@ -363,6 +363,23 @@ class ProfileSettingsViewModelTest {
         settle()
         assertEquals(true, repository.updated.single().second.canRequest)
         assertEquals(true, vm.list()[1].canRequest)
+        // The quiet reload after the save keeps the switch.
+        assertTrue(vm.state.value.requestShown)
+        assertTrue(vm.state.value.requestAllowed)
+    }
+
+    @Test
+    fun aFailedSessionIsReadAgainOnTheQuietReload() = runTest(dispatcher) {
+        val repository = requesting().apply { sessionFailure = ApiResult.Offline }
+        val vm = model(repository, requestRight = true)
+        assertFalse(vm.state.value.requestShown)
+        assertEquals(2, vm.state.value.libraries.size)
+        repository.sessionFailure = null
+        vm.onEdit(vm.list()[1])
+        vm.onSave()
+        settle()
+        assertTrue(vm.state.value.requestShown)
+        assertEquals("FSK 12", vm.state.value.ratingLabel(12))
     }
 
     @Test

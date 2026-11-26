@@ -157,7 +157,8 @@ class ProfileSettingsScreenTest {
     private fun request() {
         show(state(ProfileEditor(id = 2, name = "Lea", rating = 16, canRequest = true)).copy(requestShown = true))
         compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_wishes)) and isHeading())).assertIsDisplayed()
-        compose.reveal(compose.onNodeWithText(s(R.string.profiles_settings_form_canRequestHelp))).assertIsDisplayed()
+        // The help is part of the switch's node.
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_canRequestHelp)) and isToggleable())).assertIsDisplayed()
         compose.assertEveryControlLabelledAndTappableWhenScrolled()
         compose.reveal(requestSwitch).assertIsOn().performClick()
         assertEquals(listOf("request:false"), events)
@@ -174,7 +175,8 @@ class ProfileSettingsScreenTest {
 
     private fun requestCapped(state: ProfileSettingsUiState) {
         show(state)
-        compose.reveal(compose.onNodeWithText(s(R.string.profiles_settings_form_canRequestCapped))).assertIsDisplayed()
+        // The reason is read with the locked switch (one node).
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_canRequestCapped)) and isToggleable())).assertIsDisplayed()
         assertTrue(compose.onAllNodes(hasText(s(R.string.profiles_settings_form_canRequestHelp))).fetchSemanticsNodes().isEmpty())
         compose.reveal(requestSwitch).assertIsOff().assertIsNotEnabled().performClick()
         assertTrue(events.isEmpty())

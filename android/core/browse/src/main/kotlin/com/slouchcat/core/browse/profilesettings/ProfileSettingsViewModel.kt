@@ -202,6 +202,9 @@ class ProfileSettingsViewModel(
 
     private var loading: Job? = null
 
+    /** `getSession` answered once: the rating steps and the request switch are set (a quiet reload may skip them). */
+    private var choicesLoaded = false
+
     init {
         load()
     }
@@ -222,7 +225,7 @@ class ProfileSettingsViewModel(
                 is ApiResult.Ok -> {
                     _state.update { it.copy(profiles = Loadable.Ready(result.value)) }
                     profilesCount?.set(result.value.size)
-                    if (_state.value.libraries.isEmpty() || !quiet) loadChoices(server)
+                    if (!choicesLoaded || !quiet) loadChoices(server)
                 }
                 is ApiResult.NotAllowed -> {
                     // The server says this profile may not (rule 12: it decides, the page follows).
@@ -244,6 +247,7 @@ class ProfileSettingsViewModel(
     private suspend fun loadChoices(server: HttpUrl) {
         (repository.libraries(server) as? ApiResult.Ok)?.let { libs -> _state.update { it.copy(libraries = libs.value) } }
         (repository.session(server) as? ApiResult.Ok)?.value?.let { info ->
+            choicesLoaded = true
             val ceiling = info.account.maxRating
             val steps = info.ratingSystem?.steps?.map { it.age to it.label } ?: ProfileSettingsUiState.FALLBACK_AGES.map { it to null }
             val ages = (steps.map { it.first } + ceiling).distinct().sorted()

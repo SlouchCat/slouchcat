@@ -350,18 +350,15 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
             if (state.requestShown) {
                 Label(stringResource(R.string.profiles_settings_form_wishes))
                 Framed {
+                    // The help or the reason in the switch's own node: TalkBack reads why it is locked.
                     SwitchRow(
                         stringResource(R.string.profiles_settings_form_canRequest),
                         checked = state.requestAllowed && editor.canRequest,
                         onCheckedChange = events::onCanRequest,
+                        subtitle = stringResource(if (state.requestAllowed) R.string.profiles_settings_form_canRequestHelp else R.string.profiles_settings_form_canRequestCapped),
                         enabled = state.requestAllowed,
                     )
                 }
-                Text(
-                    stringResource(if (state.requestAllowed) R.string.profiles_settings_form_canRequestHelp else R.string.profiles_settings_form_canRequestCapped),
-                    style = SlouchcatType.caption,
-                    color = c.tx2,
-                )
             }
             Label(stringResource(R.string.app_profiles_manage_protection))
             PinRow(PinKind.Pin, editor, events)
