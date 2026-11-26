@@ -15,16 +15,14 @@ import (
 // an owner and joined profiles, events), notifications and deliveries of wishes, spotlight entries
 // with a TMDB, a TVDB-only and an IMDb id, the series catalog, profile and wish tags, progress, a
 // cached discover page, the home row «wishes» and a seerr webhook with an event.
-// TestFrozenStatesMigrate replays it like every state with all migrations; this test checks that
-// each of those is really in it at its own migration 00081. Later migrations may change these rows
-// on purpose: since 00086 (ADR 0045) the request rights follow the ratings, and the frozen account
-// and invitation with a right have an age limit.
+// TestFrozenStatesMigrate replays it like every state; this test checks that each of those is
+// really in it after the later migrations. Since 00086 (ADR 0045) the request rights follow the
+// ratings: the frozen guest account and the invitation with a right have an age limit and lose it.
 func TestFrozenWuenscheStateCoversTheConcept(t *testing.T) {
 	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "wuensche.sql"))
-	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		migrations: migrationsBefore(t, "00082")})
+	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,9 +35,9 @@ func TestFrozenWuenscheStateCoversTheConcept(t *testing.T) {
 		"a Seerr user with quotas":                  `SELECT count(*) FROM seerr_users WHERE movie_quota_limit > 0 AND tv_quota_limit > 0 AND is_shared = 0`,
 		"a linked and a created mapping":            `SELECT count(*) FROM wish_account_map WHERE origin IN ('linked', 'created') AND state = 'ready' HAVING count(DISTINCT origin) = 2`,
 		"an account limit":                          `SELECT count(*) FROM wish_account_limits WHERE mode = 'custom'`,
-		"request rights of an account":              `SELECT count(*) FROM accounts WHERE can_request = 1 AND is_owner = 0`,
+		"the guest's right gone with its age limit": `SELECT count(*) FROM accounts WHERE is_owner = 0 AND max_rating < 18 AND can_request = 0`,
 		"request rights of a profile":               `SELECT count(*) FROM profiles WHERE can_request = 1 AND is_default = 0`,
-		"an invitation with a wish limit":           `SELECT count(*) FROM invitations WHERE can_request = 1 AND wish_limit_mode = 'custom'`,
+		"an invitation with a wish limit":           `SELECT count(*) FROM invitations WHERE wish_limit_mode = 'custom' AND can_request = (max_rating >= 18)`,
 		"the Seerr log":                             `SELECT count(*) FROM seerr_log`,
 		"a title outside the library with seasons":  `SELECT count(*) FROM external_titles WHERE media = 'show' AND json_array_length(seasons) > 0 AND used_at IS NOT NULL`,
 		"texts of an outside title":                 `SELECT count(*) FROM external_title_texts`,

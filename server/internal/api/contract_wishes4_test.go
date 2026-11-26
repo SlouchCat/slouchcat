@@ -46,17 +46,17 @@ func (c *wishContract) withTitles(titles wishes.Titles) {
 	c.h = NewHandler(o)
 }
 
-// keepRightsBelow18 drops the guards and triggers of migration 00086 from a contract database. Since
+// keepRightsBelow18 drops the two update guards of migration 00086 from a contract database. Since
 // ADR 0045 no profile and no account below 18 has the request right (TestContractRequestRightFollowsRating);
-// the wish contracts keep giving it to P12, P16 and the guest as before, so the age checks of every
-// wish operation stay tested as the server's second line.
+// the wish contracts keep giving it to P12, P16 and the guest (12) as before, so the age checks of
+// every wish operation stay tested as the server's second line. Only the guards on writing
+// can_request stand in the way of that: the triggers that move the right with a rating and the
+// guards on inserts stay, because the fixtures change no rating and insert no rows with a right.
 func keepRightsBelow18(exec func(query string, args ...any)) {
-	for _, trigger := range []string{
-		"accounts_request_needs_no_age_limit_update", "profiles_request_needs_no_age_limit_update",
-		"accounts_request_follows_rating", "profiles_request_follows_rating",
-	} {
-		exec(`DROP TRIGGER ` + trigger)
-	}
+	// UPDATE accounts SET can_request = 1 for the guest account aged 12.
+	exec(`DROP TRIGGER accounts_request_needs_no_age_limit_update`)
+	// UPDATE profiles SET can_request = 1 for P0, P12 and P16.
+	exec(`DROP TRIGGER profiles_request_needs_no_age_limit_update`)
 }
 
 func newWishContract(t *testing.T) wishContract {

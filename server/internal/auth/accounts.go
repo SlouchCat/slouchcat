@@ -18,16 +18,34 @@ import (
 // administration views read system-wide and without a profile check. For an administrator this
 // answers model.ErrAdminLimitsFixed; an unknown id is model.ErrNotFound.
 func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.AccountAccessUpdate) error {
-	acc, err := s.read.GetAccount(ctx, id)
+	// The account is read inside the write transaction, so the check of the request right below and
+	// the write see the same rating (ADR 0045: the guards of migration 00086 would abort otherwise).
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.write.WithTx(tx)
+	acc, err := q.GetAccount(ctx, id)
 	if err != nil {
 		return notFoundOr(err, "get account")
 	}
+	now := s.now().UnixMilli()
 	if acc.Role == model.RoleAdmin {
 		// An administrator has no access limits; only the request right (block «Wünsche»).
 		if in.MaxRating != nil || in.AllLibraries != nil || in.LibraryIDs != nil || in.Limits != nil || in.CanRequest == nil {
 			return model.ErrAdminLimitsFixed
 		}
-		return s.setAccountCanRequest(ctx, acc, *in.CanRequest)
+		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*in.CanRequest), Now: now, ID: acc.ID}); err != nil {
+			return fmt.Errorf("set request right: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit: %w", err)
+		}
+		if boolInt(*in.CanRequest) != acc.CanRequest {
+			s.rightChanged(ctx, acc.ID)
+		}
+		return nil
 	}
 	var verr *model.ValidationError
 	maxRating, all := acc.MaxRating, acc.AllLibraries
@@ -80,13 +98,6 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 		return verr
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := s.write.WithTx(tx)
-	now := s.now().UnixMilli()
 	if err := q.UpdateAccountLimits(ctx, appq.UpdateAccountLimitsParams{
 		ID: acc.ID, MaxRating: maxRating, AllLibraries: all, MaxBitrateKbps: bitrate, MaxHeight: height, MaxStreams: streams, Now: now,
 	}); err != nil {
@@ -119,17 +130,6 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 		return fmt.Errorf("commit: %w", err)
 	}
 	if after != acc.CanRequest {
-		s.rightChanged(ctx, acc.ID)
-	}
-	return nil
-}
-
-// setAccountCanRequest writes the request right of an account alone (administrators).
-func (s *Service) setAccountCanRequest(ctx context.Context, acc appq.Account, on bool) error {
-	if _, err := s.write.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(on), Now: s.now().UnixMilli(), ID: acc.ID}); err != nil {
-		return fmt.Errorf("set request right: %w", err)
-	}
-	if boolInt(on) != acc.CanRequest {
 		s.rightChanged(ctx, acc.ID)
 	}
 	return nil
