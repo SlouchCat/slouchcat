@@ -25,8 +25,10 @@ func frozenRadioDB(t *testing.T, state, extra string) *store.DB {
 		t.Fatal(err)
 	}
 	cfg := t.TempDir()
+	// synchronous(OFF): one fsync-bound transaction per line of the dump otherwise (replay in
+	// internal/store/frozen_test.go has the measurement).
 	dsn := (&url.URL{Scheme: "file", Path: filepath.Join(cfg, store.FileName),
-		RawQuery: url.Values{"_pragma": {"foreign_keys(0)"}}.Encode()}).String()
+		RawQuery: url.Values{"_pragma": {"foreign_keys(0)", "synchronous(OFF)"}}.Encode()}).String()
 	raw, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)
