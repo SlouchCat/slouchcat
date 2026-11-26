@@ -179,7 +179,7 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 		return model.Profile{}, fmt.Errorf("insert profile: %w", err)
 	}
 	if in.CanRequest != nil {
-		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, *in.CanRequest, p.Now); err != nil {
+		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, p.MaxRating, *in.CanRequest, p.Now); err != nil {
 			return model.Profile{}, err
 		}
 	}
@@ -274,8 +274,12 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	if err := q.UpdateProfile(ctx, p); err != nil {
 		return model.Profile{}, fmt.Errorf("update profile: %w", err)
 	}
-	if in.CanRequest != nil {
-		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, *in.CanRequest, p.Now); err != nil {
+	// A rating that crosses 18 sets the right itself (the trigger of migration 00086, ADR 0045), and
+	// a canRequest sent with it is the client's old value: the rating wins, nothing is refused.
+	if crossed := (row.MaxRating >= model.MaxRatingAge) != (p.MaxRating >= model.MaxRatingAge); crossed {
+		row.CanRequest = boolInt(p.MaxRating >= model.MaxRatingAge)
+	} else if in.CanRequest != nil {
+		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, p.MaxRating, *in.CanRequest, p.Now); err != nil {
 			return model.Profile{}, err
 		}
 	}
@@ -297,16 +301,20 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	return toProfile(row, libs, acc.Limits), nil
 }
 
-// setProfileCanRequest writes the request right of a profile inside the transaction. The cap rule
-// (concept 25, users and profiles 9): a profile never gets the right its account does not have
-// (*model.ValidationError canRequest account_not_allowed); taking it away always works.
-func (s *Service) setProfileCanRequest(ctx context.Context, q *appq.Queries, accountID, profileID int64, on bool, now int64) (int64, error) {
+// setProfileCanRequest writes the request right of a profile with the rating maxRating inside the
+// transaction. A profile with an age limit, or of an account with one, never gets it (question 36,
+// ADR 0045: *model.ValidationError canRequest age_restricted), nor one whose account does not have
+// it (the cap, concept 25, users and profiles 9: account_not_allowed); taking it away always works.
+func (s *Service) setProfileCanRequest(ctx context.Context, q *appq.Queries, accountID, profileID, maxRating int64, on bool, now int64) (int64, error) {
 	if on {
 		acc, err := q.GetAccount(ctx, accountID)
 		if err != nil {
 			return 0, notFoundOr(err, "get account")
 		}
-		if acc.CanRequest != 1 {
+		switch {
+		case maxRating < model.MaxRatingAge || acc.MaxRating < model.MaxRatingAge:
+			return 0, (&model.ValidationError{}).Add("canRequest", model.WishReasonAgeRestricted)
+		case acc.CanRequest != 1:
 			return 0, (&model.ValidationError{}).Add("canRequest", "account_not_allowed")
 		}
 	}

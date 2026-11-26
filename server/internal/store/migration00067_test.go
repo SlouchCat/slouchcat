@@ -9,11 +9,21 @@ import (
 // (ordner-metadaten.sql: owner account 1 with the primary profile 1 and the profiles 2 and 3,
 // account 2 with the primary profile 4, two invitations): the owner account and the primary
 // profiles may request, every other account, profile and invitation may not; the invitations get
-// the default limit, and the CHECKs of the new columns hold.
+// the default limit, and the CHECKs of the new columns hold. The state is migrated up to 00067
+// only: migration 00086 (ADR 0045) replaces this backfill by one that follows the ratings
+// (TestMigration00086RequestRightFollowsRating).
 func TestMigration00067WishesRights(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := openFrozenMigrated(t)
+	cfg := t.TempDir()
+	replay(t, cfg+"/"+FileName, frozenState(t, "ordner-metadaten.sql"))
+	opts := testOptions(t, cfg)
+	opts.migrations = migrationsBefore(t, "00068")
+	db, err := Open(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
 	count := func(query string) int {
 		t.Helper()
 		var n int

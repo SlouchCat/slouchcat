@@ -220,7 +220,7 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 
 const insertAccount = `-- name: InsertAccount :one
 INSERT INTO accounts (email, password_hash, role, is_owner, can_request, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?5)
+VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)
 RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request
 `
 
@@ -234,7 +234,8 @@ type InsertAccountParams struct {
 
 // The setup wizard's account is the owner; every other account comes from an invitation and is
 // inserted by InsertInvitedAccount, which writes its role as a literal (ADR 0014).
-// The owner may request titles from the start (concept 25, F-5): can_request follows is_owner.
+// The account starts at 18 and may request titles (question 36, ADR 0045: every account without an
+// age limit).
 func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (Account, error) {
 	row := q.db.QueryRowContext(ctx, insertAccount,
 		arg.Email,
@@ -268,7 +269,7 @@ const insertProfile = `-- name: InsertProfile :one
 INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, can_request, pin_hash,
                       max_bitrate_kbps, max_height, max_streams, watch_limit_minutes,
                       audio_languages, subtitle_mode, subtitle_languages, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8,
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CAST(?3 >= 18 AS INTEGER), ?8,
         ?9, ?10, ?11, ?12,
         ?13, ?14, ?15, ?16, ?16)
 RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request
@@ -293,8 +294,8 @@ type InsertProfileParams struct {
 	Now               int64
 }
 
-// A primary profile may request titles, a further one not until the primary profile says so
-// (concept 25, F-5): can_request follows is_default.
+// A profile without an age limit may request titles, one with an age limit may not (question 36,
+// ADR 0045): can_request follows max_rating; the account's right still caps it.
 func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (Profile, error) {
 	row := q.db.QueryRowContext(ctx, insertProfile,
 		arg.AccountID,

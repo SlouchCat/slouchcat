@@ -7,9 +7,10 @@ SELECT count(*) FROM accounts;
 -- name: InsertAccount :one
 -- The setup wizard's account is the owner; every other account comes from an invitation and is
 -- inserted by InsertInvitedAccount, which writes its role as a literal (ADR 0014).
--- The owner may request titles from the start (concept 25, F-5): can_request follows is_owner.
+-- The account starts at 18 and may request titles (question 36, ADR 0045: every account without an
+-- age limit).
 INSERT INTO accounts (email, password_hash, role, is_owner, can_request, created_at, updated_at)
-VALUES (@email, @password_hash, @role, @is_owner, @is_owner, @now, @now)
+VALUES (@email, @password_hash, @role, @is_owner, 1, @now, @now)
 RETURNING *;
 
 -- name: GetAccountByEmail :one
@@ -19,12 +20,12 @@ SELECT * FROM accounts WHERE email = @email;
 SELECT * FROM accounts WHERE id = @id;
 
 -- name: InsertProfile :one
--- A primary profile may request titles, a further one not until the primary profile says so
--- (concept 25, F-5): can_request follows is_default.
+-- A profile without an age limit may request titles, one with an age limit may not (question 36,
+-- ADR 0045): can_request follows max_rating; the account's right still caps it.
 INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, can_request, pin_hash,
                       max_bitrate_kbps, max_height, max_streams, watch_limit_minutes,
                       audio_languages, subtitle_mode, subtitle_languages, created_at, updated_at)
-VALUES (@account_id, @name, @max_rating, @language, sqlc.narg('accent'), @all_libraries, @is_default, @is_default, sqlc.narg('pin_hash'),
+VALUES (@account_id, @name, @max_rating, @language, sqlc.narg('accent'), @all_libraries, @is_default, CAST(@max_rating >= 18 AS INTEGER), sqlc.narg('pin_hash'),
         sqlc.narg('max_bitrate_kbps'), sqlc.narg('max_height'), sqlc.narg('max_streams'), sqlc.narg('watch_limit_minutes'),
         @audio_languages, @subtitle_mode, @subtitle_languages, @now, @now)
 RETURNING *;

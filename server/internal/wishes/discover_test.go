@@ -168,6 +168,10 @@ func age(n int) *int { return &n }
 func newDiscoverFixture(t *testing.T) *dfix {
 	t.Helper()
 	r := newRequestFixture(t)
+	// Since migration 00086 (ADR 0045) a profile below 18 has no right and so no discover pages
+	// (TestDiscoverAgeLimitHasNoPages). The age steps stay the server's second line: these tests
+	// keep Noah's right at 12 as before, without the trigger that would take it.
+	r.exec(`DROP TRIGGER profiles_request_follows_rating`)
 	r.exec(`UPDATE profiles SET max_rating = 12 WHERE id = 2`)
 	store := &titleStore{stored: map[string]metadata.ExternalTitle{}, tmdb: map[string]metadata.ExternalTitle{}}
 	d := &dfix{rfix: r, store: store, noah12: model.Profile{ID: 2, AccountID: 1, Language: "de", MaxRating: 12},
@@ -195,6 +199,20 @@ func tmdbIDs(es []DiscoverEntry) []string {
 		out = append(out, fmt.Sprintf("%s:%d", e.Media, e.TMDBID))
 	}
 	return out
+}
+
+// A profile with an age limit has no right (question 36, ADR 0045) and so no discover pages: 404
+// like every refusal.
+func TestDiscoverAgeLimitHasNoPages(t *testing.T) {
+	r := newRequestFixture(t)
+	r.exec(`UPDATE profiles SET max_rating = 12 WHERE id = 2`)
+	noah := model.Profile{ID: 2, AccountID: 1, Language: "de", MaxRating: 12}
+	if _, err := r.svc.DiscoverTitles(r.ctx, noah, TitlesQuery{Media: model.WishMediaMovie}); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("titles for 12 = %v, want not found", err)
+	}
+	if rights, _ := r.svc.ForProfile(r.ctx, 1, 2); rights.CanRequest || rights.Reason != model.WishReasonAgeRestricted {
+		t.Errorf("rights at 12 = %+v, want age_restricted", rights)
+	}
 }
 
 // A second read within the hour makes no call to Seerr; after the hour it reads again; another

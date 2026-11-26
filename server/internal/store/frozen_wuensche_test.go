@@ -15,13 +15,16 @@ import (
 // an owner and joined profiles, events), notifications and deliveries of wishes, spotlight entries
 // with a TMDB, a TVDB-only and an IMDb id, the series catalog, profile and wish tags, progress, a
 // cached discover page, the home row «wishes» and a seerr webhook with an event.
-// TestFrozenStatesMigrate replays it like every state; this test checks that each of those is
-// really in it after the later migrations.
+// TestFrozenStatesMigrate replays it like every state with all migrations; this test checks that
+// each of those is really in it at its own migration 00081. Later migrations may change these rows
+// on purpose: since 00086 (ADR 0045) the request rights follow the ratings, and the frozen account
+// and invitation with a right have an age limit.
 func TestFrozenWuenscheStateCoversTheConcept(t *testing.T) {
 	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "wuensche.sql"))
-	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		migrations: migrationsBefore(t, "00082")})
 	if err != nil {
 		t.Fatal(err)
 	}

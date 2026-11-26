@@ -97,7 +97,8 @@ func TestContractWishes(t *testing.T) {
 	if err := pf.wishes.MarkShared(ctx, contractSharedID); err != nil {
 		t.Fatal(err)
 	}
-	// Every account and profile may request, except P6 (F-5 by hand).
+	// Every account and profile may request, except P6 (F-5 by hand), also below 18 (keepRightsBelow18).
+	keepRightsBelow18(exec)
 	exec(`UPDATE accounts SET can_request = 1`)
 	exec(`UPDATE profiles SET can_request = CASE WHEN id = ? THEN 0 ELSE 1 END`, f.P6.ID)
 	// The stored titles outside the library (metadata writes them after a TMDB fetch).
@@ -192,7 +193,8 @@ func TestContractWishes(t *testing.T) {
 	exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, created_at, updated_at) VALUES (900, 'movie', ?, 'Wunsch Null', 'slouchcat', 'declined', 1, 2)`, tmdbMissing0)
 	exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (900, ?, ?, 'owner', 1)`, f.P6.ID, f.P6.AccountID)
 	own := expect("p6", http.MethodGet, title(tmdbMissing0), "", http.StatusOK, "")
-	if own["canRequest"] != false || own["requestReason"] != "profile_not_allowed" || own["lastWish"].(map[string]any)["state"] != "declined" {
+	// P6 has an age limit: the reason says so since contract 1.44.0 (ADR 0045).
+	if own["canRequest"] != false || own["requestReason"] != "age_restricted" || own["lastWish"].(map[string]any)["state"] != "declined" {
 		t.Errorf("own wish without the right = %v", own)
 	}
 	// A library title: 409 with the ItemRef for a profile that sees it, 404 for one that does not.
@@ -258,7 +260,7 @@ func TestContractWishes(t *testing.T) {
 	if joined := expect("p16", http.MethodPost, "/wishes", body, http.StatusOK, ""); joined["id"] != wishID || joined["role"] != "joined" {
 		t.Errorf("co-wish = %v", joined)
 	}
-	if p := expect("p6", http.MethodPost, "/wishes", `{"media":"movie","tmdbId":9000}`, http.StatusForbidden, "wish_not_allowed"); p["reason"] != "profile_not_allowed" {
+	if p := expect("p6", http.MethodPost, "/wishes", `{"media":"movie","tmdbId":9000}`, http.StatusForbidden, "wish_not_allowed"); p["reason"] != "age_restricted" {
 		t.Errorf("no right = %v", p)
 	}
 	expect("p12", http.MethodPost, "/wishes", `{"media":"movie","tmdbId":9016}`, http.StatusNotFound, "not_found")

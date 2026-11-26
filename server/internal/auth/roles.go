@@ -81,5 +81,10 @@ func (s *Service) SetAccountRole(ctx context.Context, id int64, role string) err
 		return fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "account role changed", "account_id", acc.ID, "role", role, "sessions_revoked", demotion)
+	// The appointment lifts an account with an age limit to 18, and the request right comes with it
+	// (question 36, ADR 0045; the trigger of migration 00086).
+	if role == model.RoleAdmin && acc.MaxRating < model.MaxRatingAge {
+		s.rightChanged(ctx, acc.ID)
+	}
 	return nil
 }

@@ -42,7 +42,7 @@ func (f *fixture) withAuth() *auth.Service {
 // (TestCreatedUserWithoutRequestRightWaitsForTheRights).
 func (f *fixture) accept(a *auth.Service, email, password string) model.Session {
 	f.t.Helper()
-	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 12, AllLibraries: true, CanRequest: new(true)})
+	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 18, AllLibraries: true, CanRequest: new(true)})
 	if err != nil {
 		f.t.Fatal(err)
 	}

@@ -312,6 +312,9 @@ const (
 	WishReasonProfileNotAllowed = "profile_not_allowed"
 	WishReasonNoMapping         = "no_mapping"
 	WishReasonSeerrUserGone     = "seerr_user_gone"
+	// The account or the profile has an age limit: no right, and the switch cannot be set (question
+	// 36, ADR 0045). Also the code of the field error canRequest that refuses it.
+	WishReasonAgeRestricted = "age_restricted"
 )
 
 // WishRights is the request right of a profile (SessionInfo.wishes, build step 1.6).

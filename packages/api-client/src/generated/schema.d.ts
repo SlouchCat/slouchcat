@@ -6931,8 +6931,10 @@ export interface components {
             subtitleLanguages: components["schemas"]["PlaybackLanguages"];
             /**
              * @description Since contract 1.41.0 (concept 25): the request right of the profile, set by the primary
-             *     profile; it applies only when the account has the right too (the cap). Primary profiles
-             *     start with it, further profiles without.
+             *     profile; it applies only when the account has the right too (the cap). Since contract
+             *     1.44.0 (ADR 0045) it follows the rating: a profile without an age limit (`maxRating` 18)
+             *     starts with it, one with an age limit has it never; when a profile gets an age limit it
+             *     loses the right, and when the limit goes the right comes back.
              */
             canRequest?: boolean;
         };
@@ -6981,7 +6983,11 @@ export interface components {
             subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
             /**
              * @description Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
-             *     account has no right is refused (422 `canRequest` `account_not_allowed`).
+             *     account has no right is refused (422 `canRequest` `account_not_allowed`), since contract
+             *     1.44.0 also for a profile or an account with an age limit (422 `canRequest`
+             *     `age_restricted`, ADR 0045). Absent on creation: on without an age limit, off with one.
+             *     When the request moves `maxRating` across 18 the rating sets the right and this field is
+             *     ignored.
              */
             canRequest?: boolean;
         };
@@ -7011,7 +7017,11 @@ export interface components {
             subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
             /**
              * @description Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
-             *     account has no right is refused (422 `canRequest` `account_not_allowed`).
+             *     account has no right is refused (422 `canRequest` `account_not_allowed`), since contract
+             *     1.44.0 also for a profile or an account with an age limit (422 `canRequest`
+             *     `age_restricted`, ADR 0045). Absent on creation: on without an age limit, off with one.
+             *     When the request moves `maxRating` across 18 the rating sets the right and this field is
+             *     ignored.
              */
             canRequest?: boolean;
         };
@@ -7117,7 +7127,9 @@ export interface components {
             libraryIds?: number[];
             /**
              * @description Since contract 1.41.0 (concept 25): the request right the new account gets; absent = the
-             *     setting «Neue Konten dürfen anfordern».
+             *     setting «Neue Konten dürfen anfordern». Since contract 1.44.0 (ADR 0045) an invitation
+             *     with an age limit (`maxRating` below 18) never carries it: absent gives `false`, `true` is
+             *     refused (422 `canRequest` `age_restricted`).
              */
             canRequest?: boolean;
             /** @description Since contract 1.41.0. The wish limit the new account gets; absent = `default`. */
@@ -7144,7 +7156,10 @@ export interface components {
              * @description E-mail of the guest account that accepted the link, while that account exists.
              */
             usedByEmail?: string;
-            /** @description Since contract 1.41.0. The request right the account of this invitation gets. */
+            /**
+             * @description Since contract 1.41.0. The request right the account of this invitation gets; since
+             *     contract 1.44.0 always off with an age limit (ADR 0045).
+             */
             canRequest?: boolean;
             wishLimit?: components["schemas"]["InvitationWishLimit"];
         };
@@ -7206,7 +7221,10 @@ export interface components {
             /**
              * @description Since contract 1.41.0 (concept 25): the request right of the account, the cap of all its
              *     profiles. The only field an administrator account takes (block «Wünsche»); the rights of a
-             *     Seerr user Slouchcat opened follow it.
+             *     Seerr user Slouchcat opened follow it. Since contract 1.44.0 (ADR 0045) it follows the
+             *     rating: `true` for an account with an age limit is refused (422 `canRequest`
+             *     `age_restricted`), and when the request moves `maxRating` across 18 the rating sets the
+             *     right and this field is ignored.
              */
             canRequest?: boolean;
         };
@@ -11953,12 +11971,13 @@ export interface components {
         /** @enum {string} */
         WishFailReason: "quota" | "blocklisted" | "no_permission" | "arr_failed" | "unreachable_24h" | "seerr_request_gone" | "seerr_media_deleted" | "seerr_user_gone" | "tvdb_id_missing" | "account_deleted";
         /**
-         * @description Why `canRequest` is false: the reasons of `WishRights`, films or series not allowed, `status_only`
+         * @description Why `canRequest` is false: the reasons of `WishRights` (`age_restricted` since contract 1.44.0),
+         *     films or series not allowed, `status_only`
          *     («Bereits angeforderte Titel: Nur Zustand zeigen» and another profile's wish holds it),
          *     `already_requested` (the profile has an open wish for it, or every season is requested).
          * @enum {string}
          */
-        WishRequestReason: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "movies_not_allowed" | "shows_not_allowed" | "status_only" | "already_requested";
+        WishRequestReason: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "movies_not_allowed" | "shows_not_allowed" | "status_only" | "already_requested" | "age_restricted";
         /**
          * @description The images of a title outside the library as `ImageRef`, like `ItemImages`: Slouchcat's
          *     addresses (`getExternalTitleImage`, never TMDB's) with the cache-busting `v` and the profile
@@ -12600,10 +12619,11 @@ export interface components {
             enabled: boolean;
             canRequest: boolean;
             /**
-             * @description Why `canRequest` is false.
+             * @description Why `canRequest` is false. `age_restricted` (since contract 1.44.0, ADR 0045): the profile
+             *     or its account has an age limit, so neither may request.
              * @enum {string}
              */
-            reason?: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone";
+            reason?: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "age_restricted";
             /** @description Films may be requested («Filme erlauben» and the right of the Seerr user). */
             movies: boolean;
             shows: boolean;
@@ -12805,6 +12825,11 @@ export interface components {
              * @enum {string}
              */
             unmapped: "fallback" | "deny";
+            /**
+             * @description «Neue Konten dürfen anfordern»: the request right an invitation gives when it sends none.
+             *     On by default since contract 1.44.0 (ADR 0045); an invitation with an age limit never
+             *     gives it.
+             */
             newAccountsCanRequest: boolean;
             allowWithdraw: boolean;
             pinExternalHideTitle: boolean;
@@ -13092,7 +13117,10 @@ export interface components {
              *     profile of the account. `watchLimitMinutes` is a profile setting and always absent here.
              */
             limits: components["schemas"]["PlaybackLimits"];
-            /** @description Since contract 1.41.0. The request right of the account (concept 25). */
+            /**
+             * @description Since contract 1.41.0. The request right of the account (concept 25); since contract
+             *     1.44.0 always off while the account has an age limit (ADR 0045).
+             */
             canRequest?: boolean;
             /**
              * @description Since contract 1.41.0. The chip of the account: `allowed` (right and a ready Seerr user),
@@ -25179,7 +25207,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             /**
              * @description No right to request this (`wish_not_allowed`, `reason`: `disabled`, `account_not_allowed`,
-             *     `profile_not_allowed`, `no_mapping`, `seerr_user_gone`, `movies_not_allowed`, `shows_not_allowed`,
+             *     `profile_not_allowed`, `age_restricted`, `no_mapping`, `seerr_user_gone`, `movies_not_allowed`, `shows_not_allowed`,
              *     `source_not_allowed`, `tvdb_id_missing`, `status_only`).
              */
             403: {

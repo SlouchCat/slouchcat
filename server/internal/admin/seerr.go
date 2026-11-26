@@ -68,13 +68,13 @@ const (
 
 // DefaultWishSettings are the settings of a new server (data model 2.12; F-4, F-7, F-15, F-17,
 // F-26, N-8): wishes off, the shared user for accounts without a Seerr user, 10 films and 5 seasons
-// in 7 days.
+// in 7 days; «Neue Konten dürfen anfordern» on since question 36 (ADR 0045).
 var DefaultWishSettings = model.WishSettings{
 	AllowMovies: true, AllowShows: true, FromSearch: true, FromDetail: true,
 	AlreadyRequested: model.WishesAlreadyJoin, Unmapped: model.WishesUnmappedFallback,
 	AllowWithdraw: true, PINExternalHideTitle: true, ProvisionAccounts: true, SyncPassword: true,
 	DefaultLimit: model.WishLimits{Movie: model.WishLimit{Limit: 10, Days: 7}, TV: model.WishLimit{Limit: 5, Days: 7}},
-	ProfileTags:  true, TagPrefix: "sc-", ShowProgress: true, DiscoverPages: true,
+	ProfileTags:  true, TagPrefix: "sc-", ShowProgress: true, DiscoverPages: true, NewAccountsCanRequest: true,
 }
 
 // wishTagPrefix is the form of the prefix of the profile tags (data model 2.12).

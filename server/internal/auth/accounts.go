@@ -66,6 +66,16 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 	if all == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
 	}
+	// The request right follows the rating (question 36, ADR 0045): a rating that crosses 18 sets it
+	// (the trigger of migration 00086), and a canRequest sent with it is the form's old value; an
+	// account with an age limit never gets it.
+	canRequest := in.CanRequest
+	crossed := (acc.MaxRating >= model.MaxRatingAge) != (maxRating >= model.MaxRatingAge)
+	if crossed {
+		canRequest = nil
+	} else if canRequest != nil && *canRequest && maxRating < model.MaxRatingAge && !hasField(verr, "maxRating") {
+		verr = verr.Add("canRequest", model.WishReasonAgeRestricted)
+	}
 	if verr != nil {
 		return verr
 	}
@@ -95,15 +105,20 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 			return fmt.Errorf("insert account library: %w", err)
 		}
 	}
-	if in.CanRequest != nil {
-		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*in.CanRequest), Now: now, ID: acc.ID}); err != nil {
+	after := acc.CanRequest
+	switch {
+	case crossed:
+		after = boolInt(maxRating >= model.MaxRatingAge)
+	case canRequest != nil:
+		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*canRequest), Now: now, ID: acc.ID}); err != nil {
 			return fmt.Errorf("set request right: %w", err)
 		}
+		after = boolInt(*canRequest)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
-	if in.CanRequest != nil && boolInt(*in.CanRequest) != acc.CanRequest {
+	if after != acc.CanRequest {
 		s.rightChanged(ctx, acc.ID)
 	}
 	return nil
