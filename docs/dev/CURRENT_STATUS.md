@@ -26,7 +26,14 @@ Fehler.
 - **Review:** Code-Review ohne Blocker. Nicht geändert, weil schon vorher so und nicht Teil des Befunds:
   Läuft das Intervall ab, während die Bühne ohne Finger bewegt wird (Mausrad, Schalterzugriff), fällt der
   Wechsel aus; endet die Bewegung auf demselben Titel, steht die Bühne bis zur nächsten Berührung.
-- **Geprüft:** `task check:fast` grün.
+- **Geprüft:** `task check:fast` grün. `task ci` in sieben Teilen auf `ce2ac658` grün (52 Minuten).
+- **GitHub-CI, erster Lauf (45714878704) rot, nicht an dieser Korrektur:** nur `e2e (shard 3)`, dort
+  `e2e/hdr.spec.ts` in Firefox mit 5040 und 5036 ms statt unter 5000 ms. Der Test misst den Start der
+  Web-Wiedergabe mit Tonemapping in Software; die Runner haben keine GPU. Derselbe Test war schon am
+  3. und am 11. November so rot.
+- **Marcos Entscheid dazu (26. November 2026, im selben Pull Request):** Ohne GPU gilt im Test 5500 ms statt
+  5000 ms. Mit GPU bleibt es bei 5000 ms (W-3). Eintrag im Entscheidungsprotokoll. Die höchste bisher
+  notierte Messung auf einem Runner war 5321 ms; der Abstand zur neuen Grenze ist also klein.
 - **Nicht geprüft:** auf einem echten Gerät. Die TV-App ist nicht geändert; ihre Bühne nutzt keinen Pager.
 
 ## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026, PR #223)
