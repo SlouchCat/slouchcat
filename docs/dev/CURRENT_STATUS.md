@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, Zweig `claude/intelligent-tu-a7d091`)
+## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, PR #231)
 
 Betrifft nur die CI und Testhelfer; Server, Web-App und Apps sind unverändert. Auftrag von Marco: die
 zwei längsten Jobs kürzen, ohne dass eine Prüfung wegfällt. Entscheide: ADR 0013, Nachtrag vom
@@ -22,6 +22,9 @@ zwei längsten Jobs kürzen, ohne dass eine Prüfung wegfällt. Entscheide: ADR 
 - **Gemessen auf dem Runner (Wegwerf-Läufe 45791696144 und 45798911327):** `store` vorher 995 bis
   1520 s, eine Hälfte 470 bis 585 s; Android nach einer Änderung an `core:api` 571 s statt 957 s
   (frischer Cache) bzw. 1033 s (alter Cache), ohne Android-Änderung 135 s.
+- **PR #231, Lauf 45808439520 grün:** Gate nach 885 s statt 1313 bis 1596 s. `server tests (2)`,
+  `(2b)`, `(2c)` 576, 487, 569 s; Android (noch alter Cache) 647 und 587 s; längster Job ein
+  e2e-Shard (778 s).
 - **Offen, Frage an Marco im PR:** Race-Instrumentierung in `modernc.org/...` abschalten wäre 3,9-mal
   schneller, ist aber eine Lockerung und darum nicht gebaut.
 - **Wirkung erst nach dem Merge voll:** Den Android-Build-Cache speichert nur `main`. Der erste

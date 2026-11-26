@@ -316,3 +316,17 @@ Messlauf 45798911327, die zwei Hälften so, wie `ci.yml` sie jetzt hat (Job-Daue
 
 Mehr Jobs kosten keine Wartezeit: In Lauf 45779414360 starteten 22 Jobs innerhalb von 3 s nach
 ihrer Erzeugung.
+
+### Pull Request #231
+
+Lauf 45808439520, grün, noch mit dem alten Android-Build-Cache (nur `main` speichert ihn):
+
+| Job | Dauer |
+|---|---|
+| `server tests (2)` / `(2b)` / `(2c)` | 576 / 487 / 569 s (Testschritt 524 / 397 / 476 s) |
+| `android (lint, tests, debug builds, generators)` / `(release builds, R8)` | 647 / 587 s |
+| `server tests (1)` | 555 s |
+| längster e2e-Shard | 778 s |
+| Gate fertig nach | **885 s** (vorher 1313 bis 1596 s) |
+
+Der längste Job ist damit wieder ein e2e-Shard.
