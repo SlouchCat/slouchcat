@@ -91,6 +91,7 @@ interface ProfileSettingsEvents {
     fun onAllLibraries(all: Boolean)
     fun onLibrary(id: Long, on: Boolean)
     fun onWatchLimit(text: String)
+    fun onCanRequest(on: Boolean)
     fun onPinForm(kind: PinKind?)
     fun onPinFirst(digits: String)
     fun onPinSecond(digits: String)
@@ -269,7 +270,8 @@ private fun Label(text: String) {
 
 /**
  * «Profil bearbeiten» / «Neues Profil» (mockup `editHtml`, reference photo handy 68): name, colour,
- * rating with its hint, language, libraries, watch time per day, «Schutz» with PIN and offline PIN
+ * rating with its hint, language, libraries, watch time per day, «Wünsche» with «Darf Titel
+ * anfordern» (while the wishes are on, as the web form), «Schutz» with PIN and offline PIN
  * (each with its own form), «Profil löschen» with its warning, «Abbrechen» and «Speichern».
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -345,6 +347,22 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
                 error = if (editor.watchLimitInvalid) stringResource(R.string.app_profiles_manage_watchLimitInvalid) else null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
+            if (state.requestShown) {
+                Label(stringResource(R.string.profiles_settings_form_wishes))
+                Framed {
+                    SwitchRow(
+                        stringResource(R.string.profiles_settings_form_canRequest),
+                        checked = state.requestAllowed && editor.canRequest,
+                        onCheckedChange = events::onCanRequest,
+                        enabled = state.requestAllowed,
+                    )
+                }
+                Text(
+                    stringResource(if (state.requestAllowed) R.string.profiles_settings_form_canRequestHelp else R.string.profiles_settings_form_canRequestCapped),
+                    style = SlouchcatType.caption,
+                    color = c.tx2,
+                )
+            }
             Label(stringResource(R.string.app_profiles_manage_protection))
             PinRow(PinKind.Pin, editor, events)
             PinRow(PinKind.Offline, editor, events)

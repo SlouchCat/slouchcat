@@ -15,6 +15,7 @@ import com.slouchcat.core.api.generated.models.RatingStep
 import com.slouchcat.core.api.generated.models.RatingSystem
 import com.slouchcat.core.api.generated.models.SessionInfo
 import com.slouchcat.core.api.generated.models.SubtitleMode
+import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import okhttp3.HttpUrl
 
@@ -29,6 +30,7 @@ fun profile(
     watchLimit: Int? = null,
     allLibraries: Boolean = true,
     libraryIds: List<Long> = emptyList(),
+    canRequest: Boolean? = null,
 ) = Profile(
     id = id,
     name = name,
@@ -45,6 +47,7 @@ fun profile(
     subtitleMode = SubtitleMode.FORCED,
     subtitleLanguages = setOf("de"),
     accent = accent,
+    canRequest = canRequest,
 )
 
 /** The FSK steps with their labels, as a server in Germany sends them. */
@@ -58,6 +61,9 @@ class FakeProfileSettings(
     var libraries: List<LibrarySummary> = listOf(LibrarySummary(1, "Filme", LibraryKind.VIDEO), LibrarySummary(2, "Serien", LibraryKind.VIDEO))
     var ceiling = 18
     var system: RatingSystem? = FSK
+
+    /** `SessionInfo.wishes`; `null`: the server says nothing of wishes (they count as off). */
+    var wishes: WishRights? = null
 
     /** The answer of `listProfiles` instead of the list (403 `primary_profile_required`). */
     var listAnswer: ApiResult<List<Profile>>? = null
@@ -81,7 +87,7 @@ class FakeProfileSettings(
     override suspend fun libraries(server: HttpUrl) = ApiResult.Ok(libraries)
 
     override suspend fun session(server: HttpUrl) =
-        ApiResult.Ok(SessionInfo(account().copy(maxRating = ceiling), ratingSystem = system))
+        ApiResult.Ok(SessionInfo(account().copy(maxRating = ceiling), ratingSystem = system, wishes = wishes))
 
     override suspend fun create(server: HttpUrl, request: ProfileRequest): ApiResult<Profile> {
         calls += "create:${request.name}:pin=${request.pin?.length ?: 0}"
@@ -89,7 +95,7 @@ class FakeProfileSettings(
         created += request.copy(pin = request.pin?.let { "*".repeat(it.length) })
         val made = profile(
             nextId++, request.name, rating = request.maxRating ?: 18, hasPin = request.pin != null, accent = request.accent,
-            watchLimit = request.limits?.watchLimitMinutes,
+            watchLimit = request.limits?.watchLimitMinutes, canRequest = request.canRequest ?: false,
         )
         profiles += made
         return ApiResult.Ok(made)
@@ -109,6 +115,7 @@ class FakeProfileSettings(
             allLibraries = update.allLibraries ?: now.allLibraries,
             libraryIds = update.libraryIds?.toList() ?: now.libraryIds,
             limits = update.limits ?: now.limits,
+            canRequest = update.canRequest ?: now.canRequest,
         )
         profiles[index] = next
         return ApiResult.Ok(next)
