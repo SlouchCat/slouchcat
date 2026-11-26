@@ -170,9 +170,19 @@ func TestDumpRoundTrip(t *testing.T) {
 	}
 }
 
+// replay writes script into a new database file at path with the plain driver.
+//
+// synchronous(OFF): the dump is one statement per line, and on a new file the plain driver is in
+// rollback-journal mode, so every INSERT is a transaction of its own with four fsyncs (journal,
+// directory, journal, database). A state of 1600 rows cost 33 s of waiting on the disk, and the
+// fsyncs of parallel tests queue behind each other in the file system's journal: the package
+// used 3 of 24 cores, and its migration tests took 150 s each (measured 26 November 2026). The
+// file is a throwaway copy in the test's own directory that store.Open reads in the same process
+// right after, so durability across a power loss buys nothing here; the rows, the schema and
+// what store.Open then does with them are the same.
 func replay(t *testing.T, path, script string) {
 	t.Helper()
-	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: url.Values{"_pragma": {"foreign_keys(0)"}}.Encode()}).String()
+	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: url.Values{"_pragma": {"foreign_keys(0)", "synchronous(OFF)"}}.Encode()}).String()
 	raw, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)

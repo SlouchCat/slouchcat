@@ -178,6 +178,19 @@ tasks:
       - task: android:check
       - task: android:test
 
+  # The two CI jobs of "android" side by side; together they are ci:android (android:check is
+  # ciCheckDebug and ciCheckRelease, android/build.gradle.kts).
+  ci:android:debug:
+    desc: 'CI job "android (lint, tests, debug builds)": android:check:debug and android:test'
+    cmds:
+      - task: android:check:debug
+      - task: android:test
+
+  ci:android:release:
+    desc: 'CI job "android (release builds, R8)": android:check:release'
+    cmds:
+      - task: android:check:release
+
   ci:web:
     desc: The web linters and unit tests of `task ci` (CI job "web")
     cmds:

@@ -18,6 +18,17 @@ tasks:
     cmds:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheck {{.CLI_ARGS}}
 
+  # The two halves of check, as the two CI jobs of "android" run them (ciCheckDebug, ciCheckRelease).
+  check:debug:
+    desc: Debug builds of both flavours and of the TV app, lint of every module, the generators (half of android:check)
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheckDebug {{.CLI_ARGS}}
+
+  check:release:
+    desc: Unsigned release builds (R8) of both flavours and of the TV app (the other half of android:check)
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheckRelease {{.CLI_ARGS}}
+
   test:
     desc: All JVM tests of the apps, the lint rules and the generators (Robolectric, no emulator)
     cmds:
