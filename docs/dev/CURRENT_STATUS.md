@@ -1,5 +1,36 @@
 # Aktueller Stand
 
+## Handy-App: Das Hauptprofil setzt das Wunschrecht eines Profils (26. November 2026, Zweig `claude/app-wunschrecht-profil`)
+
+Betrifft nur die Handy-App (Blatt «Profil bearbeiten» und «Neues Profil»). Kein Wechsel am Server und am
+Vertrag: `canRequest` steht seit Vertrag 1.41.0 in `Profile`, `ProfileRequest` und `ProfileUpdate`, und
+`createProfile` und `updateProfile` sind für `app` freigegeben. Noch in keiner Ausgabe der App.
+
+- **Der Befund (Marco, am Handy):** Mit den Profilen «Katrin» und «Marco» liess sich nichts wünschen, nur
+  mit dem Hauptprofil. Auf CT 190 (Server 1.43.1, Datenbank nur gelesen) hatten beide Profile
+  `can_request = 0`. Das ist der Ausgangsstand aus Migration 00067 (Konzept 25, F-5): Nur Hauptprofile
+  starten mit dem Recht. Der Schalter «Darf Titel anfordern» stand bisher nur in der Web-App.
+- **Die Änderung:** Das Blatt hat den Abschnitt «Wünsche» mit dem Schalter «Darf Titel anfordern», zwischen
+  «Zeit pro Tag» und «Schutz», wie im Web-Formular (`ProfileForm.tsx`). Er erscheint nur, solange die
+  Wünsche an sind (`SessionInfo.wishes.enabled`). Darf das Konto nicht anfordern (`account_not_allowed`, aus
+  der Sitzung oder als 422 beim Speichern), steht er aus und gesperrt, mit dem Grund in derselben Zeile.
+  Die App schickt `canRequest` nur, wenn der Schalter sichtbar und frei ist. Der Server entscheidet
+  (Regel 12).
+- **TV-App:** bekommt den Schalter nicht. Das gemeinsame `ProfileSettingsViewModel` zeigt und schickt das
+  Recht nur mit `requestRight = true`; das setzt nur die Handy-App.
+- **Nebenbei behoben (Befund des Reviews):** Scheiterte die Sitzungsabfrage beim ersten Laden oder brach
+  ein Speichern sie ab, las die Seite sie nicht mehr neu; die Freigabestufen blieben dann auf den
+  Ersatzwerten. Jetzt liest das stille Nachladen sie, bis sie einmal gelungen ist.
+- **Tests:** `ProfileSettingsViewModelTest` 21 Fälle (8 neu), `ProfileSettingsScreenTest` der Handy-App 23
+  (7 neu, zwei Breiten und 200 % Schrift), `ProfileSettingsScreenTest` der TV-App 6 (prüft neu, dass das
+  Menü keinen Schalter hat und kein `canRequest` schickt).
+- **Review:** Code-Review ohne Blocker; vier Punkte eingearbeitet (zweiter Commit). Nicht geändert, weil
+  schon vorher so: Ein gesperrter Schalter aus `core/design` sieht aus wie ein freier, der aus ist.
+- **Geprüft:** `task check:fast BASE=origin/main` grün, `task ci:android` grün. Die anderen Teile von
+  `task ci` liefen lokal nicht: Die Änderung liegt nur in `android/`; die GitHub-CI prüft alles.
+- **Nicht geprüft:** auf einem echten Gerät und gegen einen echten Server (die Antwort 422 nur im Test mit
+  nachgebauter Antwort).
+
 ## Korrektur: Die Bühne der Handy-App bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen (25. November 2026, PR #227)
 
 PR #227, gemergt am 26. November 2026 (`d9279517`). Betrifft nur die Handy-App (Startseite, Reihe
