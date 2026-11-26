@@ -112,6 +112,12 @@ Altersgrenze.
   Änderungen, die der Test nicht sieht. Die Regel ist bis zur ersten öffentlichen App-Version
   Übung, 1.0.3 läuft nur im geschlossenen Test, und der Erfolg von früher hätte jetzt Marcos Regel
   verletzt. Die nächste Handy-App sperrt den Schalter selbst.
+  Dieselbe Liste zählt auch «ein anderer Vorgabewert eines freiwilligen Feldes» zu den Brüchen.
+  Davon gibt es hier zwei: Ein fehlendes `canRequest` bei `createProfile` und `createInvitation`
+  heisst jetzt «an» bei Stufe 18 (bisher beim weiteren Profil «aus», bei der Einladung die
+  Einstellung, die ab Werk aus war), und ein mitgeschicktes `canRequest` wird nicht beachtet, wenn
+  die Stufe in derselben Anfrage die Grenze 18 überschreitet (Punkt 4). Beides gilt bewusst in der
+  Übungszeit; `createInvitation` ruft keine App auf.
 - **TV-App:** schickt nie `canRequest`; nur der neue Grund kommt dazu (Text aus `web/src/locales`).
 
 ## Verworfen
@@ -128,12 +134,37 @@ Altersgrenze.
 - Die Altersgrenze eines Profils ist jetzt auch die Grenze des Wunschrechts; F-6 («Kinderprofile
   mit Recht dürfen anfordern») gilt nur noch für Profile ohne Altersgrenze.
 - Tests, die die alten Vorgaben (F-5) prüften, sind auf die neue Regel umgestellt.
+- Jede Stufe unter 18 nimmt die Wünsche weg, auch eine knapp darunter: «ab 16», in den USA «R»
+  (17), in Grossbritannien «15».
+- Hebt ein Administrator die Altersgrenze eines Kontos auf, bekommt das Konto sein Recht zurück,
+  seine Profile aber nicht: Die Obergrenze hatte ihre Stufen gesenkt, und die bleiben auf dem
+  tieferen Wert, bis das Hauptprofil sie auf 18 hebt; dann kommt auch ihr Recht zurück.
+- Erwachsene Gäste ohne eigenen Seerr-Benutzer dürfen jetzt anfordern und senden, solange
+  «Konten ohne Seerr-Benutzer» auf «Sammelbenutzer» steht, als der Sammelbenutzer
+  «slouchcat-gaeste» mit dem geteilten Standard-Limit.
+- Der Wächter der Profile prüft nur die eigene Stufe des Profils, nicht die des Kontos. Das reicht,
+  weil ein Profil nie über der Obergrenze seines Kontos steht (`ClampProfileRatings`, die Prüfung
+  `above_account_limit`); die Migration nimmt für den Bestand die tiefere der beiden Stufen.
+- Die Migration schreibt auch die Geschichte der Einladungen um: Eine benutzte, zurückgezogene
+  oder abgelaufene Einladung mit Altersgrenze zeigt danach «ohne Recht», auch wenn sie es unter
+  F-5 einmal gab. Das Konto, das sie angelegt hat, folgt ohnehin seiner eigenen Stufe.
+- **Hingenommen:** Ein Wunsch, der in der Warteschlange wartet (Seerr nicht erreichbar), und dessen
+  Profil inzwischen eine Altersgrenze bekam oder dessen Recht jemand ausschaltete, schlägt beim
+  nächsten Versuch mit `seerr_user_gone` fehl, Text «Den verknüpften Seerr-Benutzer gibt es nicht
+  mehr.» (`wishes/submit.go`, `orphanSender`; ebenso `repoint` in `wishes/accountgone.go`). Der
+  richtige Grund bräuchte einen neuen Wert von `WishFailReason`, und den erlaubt die Prüfung
+  `fail_reason IN (…)` der Tabelle `wishes` (Migration 00069) nur nach einem Neubau dieser Tabelle
+  mit ihren abhängigen Tabellen und Triggern. Das ist für diesen seltenen Fall zu breit; der Fall
+  ist hier festgehalten und kann mit dem nächsten Neubau von `wishes` einen eigenen Grund bekommen.
 - Die Entdecken-Seiten und das Anfordern verlangen das Recht; ein Profil unter 18 hat sie darum
   nicht mehr, und die Altersstufen unter 18 im Zwischenspeicher von Entdecken (`max_age`) kommen
   im Betrieb nicht mehr vor. Die Prüfungen nach Alter bleiben als zweite Linie im Server. Damit
-  sie getestet bleiben, entfernen die Vertragstests der Wünsche (`keepRightsBelow18`) und die
-  Entdecken-Tests in `internal/wishes` die Trigger aus ihrer Testdatenbank und geben Profilen
-  unter 18 das Recht wie vor 00086; die neue Regel prüfen eigene Tests
+  sie getestet bleiben, geben zwei Testaufbauten Profilen unter 18 das Recht wie vor 00086: Die
+  Vertragstests der Wünsche (`keepRightsBelow18`) entfernen nur die beiden Wächter auf dem
+  Schreiben von `can_request`, die Entdecken-Tests in `internal/wishes` nur den Trigger, der
+  einem Profil mit neuer Stufe das Recht nimmt. Die neue Regel prüfen eigene Tests
   (`TestContractRequestRightFollowsRating`, `TestMigration00086RequestRightFollowsRating`,
-  `TestCanRequest`).
+  `TestCanRequest`); `profile_not_allowed` prüft der Vertragstest an PX (Stufe 18, Schalter aus).
+- `updateAccountAccess` liest das Konto in der Schreibtransaktion, damit Prüfung und Schreiben
+  dieselbe Stufe sehen und ein Wächter nie als 500 durchschlägt.
 - Neue Texte: der Grund `age_restricted` (Titel, Fehler, Formulare) in `de`, `de-DE` und `en`.
