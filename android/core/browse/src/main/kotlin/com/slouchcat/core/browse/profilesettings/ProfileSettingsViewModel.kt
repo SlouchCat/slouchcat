@@ -11,6 +11,7 @@ import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileRequest
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.api.generated.models.ProfileUpdate
+import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.data.ProfileSettingsRepository
@@ -27,6 +28,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl
 
 /** The two PINs of a profile (K-2 and the offline PIN of AN-19). */
@@ -68,6 +72,10 @@ data class ProfileEditor(
     val watchLimit: String = "",
     /** The other limits of the profile, sent back unchanged (`limits` is one field). */
     val limits: PlaybackLimits = PlaybackLimits(),
+    /** «Darf Titel anfordern» (concept 25, M-11): the profile's request right as the switch shows it. */
+    val canRequest: Boolean = false,
+    /** The server refused the right (422 `canRequest` `account_not_allowed`): the switch stays off and locked. */
+    val requestRefused: Boolean = false,
     val hasPin: Boolean = false,
     val hasOfflinePin: Boolean = false,
     val pin: PinChange = PinChange.Keep,
@@ -111,8 +119,19 @@ data class ProfileSettingsUiState(
     val summaries: Loadable<List<ProfileSummary>> = Loadable.Loading,
     val libraries: List<LibrarySummary> = emptyList(),
     val ratings: List<RatingChoice> = FALLBACK_AGES.map { RatingChoice(it, null, true) },
+    /** The sheet shows «Darf Titel anfordern»: the app offers it and the wishes are on (`SessionInfo.wishes`). */
+    val requestShown: Boolean = false,
+    /** The account has no request right (`account_not_allowed`): the switch is off and locked. */
+    val requestCapped: Boolean = false,
     val editor: ProfileEditor? = null,
 ) {
+    /**
+     * Whether the switch can be set: not while the account has no right, or after the server refused
+     * it. A mirror of the server's cap only; the server refuses a right above it itself (rule 12).
+     */
+    val requestAllowed: Boolean
+        get() = !requestCapped && editor?.requestRefused != true
+
     /**
      * E-9, F-19 (web `advisePin`): the account has a profile with an age limit and its primary
      * profile has no PIN. A recommendation, no requirement.
@@ -166,6 +185,11 @@ class ProfileSettingsViewModel(
      * never calls the two operations.
      */
     private val offlinePin: Boolean = true,
+    /**
+     * Whether the app sets the request right (concept 25, M-11): the phone does, the TV has no
+     * switch. Without it the sheet never shows the switch and saving never sends `canRequest`.
+     */
+    private val requestRight: Boolean = false,
     private val onActiveChanged: suspend (before: Profile?, saved: Profile, partly: Boolean) -> Unit = { _, _, _ -> },
 ) : ViewModel() {
     // A mirror of the server's rule, not a decision: the server answers `primary_profile_required`
@@ -177,6 +201,9 @@ class ProfileSettingsViewModel(
     val messages: Flow<ProfileMessage> = _messages.receiveAsFlow()
 
     private var loading: Job? = null
+
+    /** `getSession` answered once: the rating steps and the request switch are set (a quiet reload may skip them). */
+    private var choicesLoaded = false
 
     init {
         load()
@@ -198,7 +225,7 @@ class ProfileSettingsViewModel(
                 is ApiResult.Ok -> {
                     _state.update { it.copy(profiles = Loadable.Ready(result.value)) }
                     profilesCount?.set(result.value.size)
-                    if (_state.value.libraries.isEmpty() || !quiet) loadChoices(server)
+                    if (!choicesLoaded || !quiet) loadChoices(server)
                 }
                 is ApiResult.NotAllowed -> {
                     // The server says this profile may not (rule 12: it decides, the page follows).
@@ -220,12 +247,19 @@ class ProfileSettingsViewModel(
     private suspend fun loadChoices(server: HttpUrl) {
         (repository.libraries(server) as? ApiResult.Ok)?.let { libs -> _state.update { it.copy(libraries = libs.value) } }
         (repository.session(server) as? ApiResult.Ok)?.value?.let { info ->
+            choicesLoaded = true
             val ceiling = info.account.maxRating
             val steps = info.ratingSystem?.steps?.map { it.age to it.label } ?: ProfileSettingsUiState.FALLBACK_AGES.map { it to null }
             val ages = (steps.map { it.first } + ceiling).distinct().sorted()
             // Steps above the account's ceiling are only shown as not available; the server refuses them
             // itself (`validation_failed`, rule 12, code review L-11).
-            _state.update { s -> s.copy(ratings = ages.map { age -> RatingChoice(age, steps.firstOrNull { it.first == age }?.second, age <= ceiling) }) }
+            _state.update { s ->
+                s.copy(
+                    ratings = ages.map { age -> RatingChoice(age, steps.firstOrNull { it.first == age }?.second, age <= ceiling) },
+                    requestShown = requestRight && info.wishes?.enabled == true,
+                    requestCapped = info.wishes?.reason == WishRights.Reason.ACCOUNT_NOT_ALLOWED,
+                )
+            }
         }
     }
 
@@ -246,6 +280,7 @@ class ProfileSettingsViewModel(
                     libraryIds = profile.libraryIds.toSet(),
                     watchLimit = profile.limits.watchLimitMinutes?.toString().orEmpty(),
                     limits = profile.limits,
+                    canRequest = profile.canRequest ?: false,
                     hasPin = profile.hasPin,
                     hasOfflinePin = profile.hasOfflinePin,
                     pinForm = pinForm,
@@ -289,6 +324,8 @@ class ProfileSettingsViewModel(
     fun onLibrary(id: Long, on: Boolean) = edit { it.copy(libraryIds = if (on) it.libraryIds + id else it.libraryIds - id) }
 
     fun onWatchLimit(text: String) = edit { it.copy(watchLimit = text.filter(Char::isDigit).take(4), watchLimitInvalid = false) }
+
+    fun onCanRequest(on: Boolean) = edit { if (_state.value.requestAllowed) it.copy(canRequest = on) else it }
 
     fun onPinForm(kind: PinKind?) {
         if (kind == PinKind.Offline && !offlinePin) return
@@ -366,6 +403,8 @@ class ProfileSettingsViewModel(
         viewModelScope.launch {
             val limits = now.limits.copy(watchLimitMinutes = minutes)
             val libraries = if (now.allLibraries) emptySet() else now.libraryIds
+            // Only while the switch is shown and can be set (web `ProfileForm`); otherwise the right stays as it is.
+            val canRequest = now.canRequest.takeIf { _state.value.requestShown && _state.value.requestAllowed }
             val saved = if (now.id == null) {
                 repository.create(
                     server,
@@ -378,6 +417,7 @@ class ProfileSettingsViewModel(
                         libraryIds = libraries,
                         pin = (now.pin as? PinChange.Set)?.digits,
                         limits = limits,
+                        canRequest = canRequest,
                     ),
                 )
             } else {
@@ -392,11 +432,13 @@ class ProfileSettingsViewModel(
                         allLibraries = now.allLibraries,
                         libraryIds = libraries,
                         limits = limits,
+                        canRequest = canRequest,
                     ),
                 )
             }
             if (saved !is ApiResult.Ok) {
-                edit { it.copy(busy = false, error = code(saved)) }
+                val refused = refusesRequest(saved)
+                edit { it.copy(busy = false, error = code(saved), requestRefused = it.requestRefused || refused) }
                 return@launch
             }
             val profile = saved.value
@@ -431,6 +473,15 @@ class ProfileSettingsViewModel(
         }
     }
 
+    /** 422 with the field error `canRequest` `account_not_allowed`: the account has no request right. */
+    private fun refusesRequest(result: ApiResult<*>): Boolean {
+        val problem = (result as? ApiResult.Failed)?.takeIf { it.status == 422 }?.problem ?: return false
+        return (problem["errors"] as? JsonArray).orEmpty().any { error ->
+            val fields = error as? JsonObject ?: return@any false
+            (fields["field"] as? JsonPrimitive)?.content == CAN_REQUEST && (fields["code"] as? JsonPrimitive)?.content == ACCOUNT_NOT_ALLOWED
+        }
+    }
+
     private fun code(result: ApiResult<*>): String = when (result) {
         is ApiResult.Failed -> result.code ?: ProfileEditor.FAILED
         is ApiResult.NotAllowed -> result.code ?: ProfileEditor.FAILED
@@ -448,6 +499,9 @@ class ProfileSettingsViewModel(
 
         const val NOT_FOUND = "not_found"
         const val OFFLINE = "network"
+
+        private const val CAN_REQUEST = "canRequest"
+        private const val ACCOUNT_NOT_ALLOWED = "account_not_allowed"
 
         /** The accents of the contract, in the order of the web app's picker. */
         val ACCENTS = Accent.entries.filter { it != Accent.UNKNOWN_DEFAULT_OPEN_API }

@@ -3,11 +3,15 @@ package com.slouchcat.app.mobile.profilesettings
 import android.content.Context
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -70,6 +74,7 @@ class ProfileSettingsScreenTest {
         override fun onAllLibraries(all: Boolean) { events += "all:$all" }
         override fun onLibrary(id: Long, on: Boolean) { events += "library:$id:$on" }
         override fun onWatchLimit(text: String) { events += "limit:$text" }
+        override fun onCanRequest(on: Boolean) { events += "request:$on" }
         override fun onPinForm(kind: PinKind?) { events += "form:$kind" }
         override fun onPinFirst(digits: String) { events += "first:${digits.length}" }
         override fun onPinSecond(digits: String) { events += "second:${digits.length}" }
@@ -146,6 +151,55 @@ class ProfileSettingsScreenTest {
 
     @Test @Config(qualifiers = TABLET, fontScale = 2f)
     fun editorTabletLargeFont() = editor()
+
+    private val requestSwitch get() = compose.onNode(hasText(s(R.string.profiles_settings_form_canRequest)) and isToggleable())
+
+    private fun request() {
+        show(state(ProfileEditor(id = 2, name = "Lea", rating = 16, canRequest = true)).copy(requestShown = true))
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_wishes)) and isHeading())).assertIsDisplayed()
+        // The help is part of the switch's node.
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_canRequestHelp)) and isToggleable())).assertIsDisplayed()
+        compose.assertEveryControlLabelledAndTappableWhenScrolled()
+        compose.reveal(requestSwitch).assertIsOn().performClick()
+        assertEquals(listOf("request:false"), events)
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun requestPhone() = request()
+
+    @Test @Config(qualifiers = TABLET)
+    fun requestTablet() = request()
+
+    @Test @Config(qualifiers = PHONE, fontScale = 2f)
+    fun requestPhoneLargeFont() = request()
+
+    private fun requestCapped(state: ProfileSettingsUiState) {
+        show(state)
+        // The reason is read with the locked switch (one node).
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_canRequestCapped)) and isToggleable())).assertIsDisplayed()
+        assertTrue(compose.onAllNodes(hasText(s(R.string.profiles_settings_form_canRequestHelp))).fetchSemanticsNodes().isEmpty())
+        compose.reveal(requestSwitch).assertIsOff().assertIsNotEnabled().performClick()
+        assertTrue(events.isEmpty())
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun requestCappedByTheAccountPhone() = requestCapped(state(ProfileEditor(id = 2, name = "Lea", canRequest = true)).copy(requestShown = true, requestCapped = true))
+
+    @Test @Config(qualifiers = TABLET)
+    fun requestRefusedByTheServerTablet() = requestCapped(state(ProfileEditor(id = 2, name = "Lea", canRequest = true, requestRefused = true)).copy(requestShown = true))
+
+    private fun requestHidden() {
+        show(state(ProfileEditor(id = 2, name = "Lea", canRequest = true)))
+        compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_save)) and hasClickAction())).assertIsDisplayed()
+        assertTrue(compose.onAllNodes(hasText(s(R.string.profiles_settings_form_canRequest))).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodes(hasText(s(R.string.profiles_settings_form_wishes))).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun requestHiddenPhone() = requestHidden()
+
+    @Test @Config(qualifiers = TABLET)
+    fun requestHiddenTablet() = requestHidden()
 
     private fun pinForm() {
         val form = ProfileEditor(name = "Neu", pinForm = PinKind.Offline, pinError = PinError.Mismatch)

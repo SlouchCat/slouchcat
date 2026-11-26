@@ -60,7 +60,7 @@ class ProfileSettingsFeature(
         val navigator = app.navigator
         composable<ProfilesSettingsRoute> {
             val vm = viewModel {
-                ProfileSettingsViewModel(graph.session, repository(graph), graph.media.profilesCount) { before, saved, partly -> activeChanged(graph, before, saved, partly) }
+                ProfileSettingsViewModel(graph.session, repository(graph), graph.media.profilesCount, requestRight = true) { before, saved, partly -> activeChanged(graph, before, saved, partly) }
             }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
@@ -109,6 +109,7 @@ internal fun events(vm: ProfileSettingsViewModel, onBack: () -> Unit, onSwitchPr
     override fun onAllLibraries(all: Boolean) = vm.onAllLibraries(all)
     override fun onLibrary(id: Long, on: Boolean) = vm.onLibrary(id, on)
     override fun onWatchLimit(text: String) = vm.onWatchLimit(text)
+    override fun onCanRequest(on: Boolean) = vm.onCanRequest(on)
     override fun onPinForm(kind: PinKind?) = vm.onPinForm(kind)
     override fun onPinFirst(digits: String) = vm.onPinFirst(digits)
     override fun onPinSecond(digits: String) = vm.onPinSecond(digits)

@@ -4,6 +4,7 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
+import com.slouchcat.core.api.generated.models.WishRights
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.browse.testing.CHILD
@@ -22,6 +23,9 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,11 +49,17 @@ class ProfileSettingsViewModelTest {
 
     private fun fake() = FakeProfileSettings(profile(1, "Primary", primary = true), profile(2, "Child", rating = 12, hasPin = true))
 
-    private fun TestScope.model(repository: FakeProfileSettings, primary: Boolean = true): ProfileSettingsViewModel {
+    private fun TestScope.model(repository: FakeProfileSettings, primary: Boolean = true, requestRight: Boolean = false): ProfileSettingsViewModel {
         val s = if (primary) session(backgroundScope) else session(backgroundScope, profile = CHILD)
         settle()
-        return ProfileSettingsViewModel(s, repository) { _, it, partly -> saved += it; partlies += partly }.also { settle() }
+        return ProfileSettingsViewModel(s, repository, requestRight = requestRight) { _, it, partly -> saved += it; partlies += partly }.also { settle() }
     }
+
+    private fun wishes(reason: WishRights.Reason? = null) =
+        WishRights(enabled = true, canRequest = reason == null, movies = true, shows = true, reason = reason)
+
+    /** The primary profile may request, the child may not; the wishes are on. */
+    private fun requesting() = FakeProfileSettings(profile(1, "Primary", primary = true, canRequest = true), profile(2, "Child", rating = 12, canRequest = false)).apply { wishes = wishes() }
 
     private fun ProfileSettingsViewModel.list() = (state.value.profiles as Loadable.Ready).value
 
@@ -310,5 +320,139 @@ class ProfileSettingsViewModelTest {
         assertNull(vm.state.value.editor)
         assertEquals(ProfileMessage.Deleted("Child"), messages.single())
         assertEquals(listOf("Primary"), vm.list().map { it.name })
+    }
+
+    @Test
+    fun theRequestSwitchIsHiddenWhileTheWishesAreOff() = runTest(dispatcher) {
+        val off = model(FakeProfileSettings(profile(1, "P", primary = true)).apply { wishes = wishes().copy(enabled = false) }, requestRight = true)
+        assertFalse(off.state.value.requestShown)
+        val none = model(FakeProfileSettings(profile(1, "P", primary = true)), requestRight = true)
+        assertFalse(none.state.value.requestShown)
+    }
+
+    @Test
+    fun withoutRequestRightTheSwitchIsHiddenAndTheFieldOmitted() = runTest(dispatcher) {
+        val repository = requesting()
+        val vm = model(repository)
+        assertFalse(vm.state.value.requestShown)
+        vm.onEdit(vm.list()[1])
+        vm.onCanRequest(true)
+        vm.onSave()
+        settle()
+        assertNull(repository.updated.single().second.canRequest)
+        vm.onAdd()
+        vm.onName("New")
+        vm.onSave()
+        settle()
+        assertNull(repository.created.single().canRequest)
+    }
+
+    @Test
+    fun theSwitchStartsFromTheProfileAndUpdateSendsIt() = runTest(dispatcher) {
+        val repository = requesting()
+        val vm = model(repository, requestRight = true)
+        assertTrue(vm.state.value.requestShown)
+        assertTrue(vm.state.value.requestAllowed)
+        // The primary profile's own sheet shows the switch too, as the web form.
+        vm.onEdit(vm.list()[0])
+        assertTrue(vm.editor().canRequest)
+        vm.onEdit(vm.list()[1])
+        assertFalse(vm.editor().canRequest)
+        vm.onCanRequest(true)
+        vm.onSave()
+        settle()
+        assertEquals(true, repository.updated.single().second.canRequest)
+        assertEquals(true, vm.list()[1].canRequest)
+        // The quiet reload after the save keeps the switch.
+        assertTrue(vm.state.value.requestShown)
+        assertTrue(vm.state.value.requestAllowed)
+    }
+
+    @Test
+    fun aFailedSessionIsReadAgainOnTheQuietReload() = runTest(dispatcher) {
+        val repository = requesting().apply { sessionFailure = ApiResult.Offline }
+        val vm = model(repository, requestRight = true)
+        assertFalse(vm.state.value.requestShown)
+        assertEquals(2, vm.state.value.libraries.size)
+        repository.sessionFailure = null
+        vm.onEdit(vm.list()[1])
+        vm.onSave()
+        settle()
+        assertTrue(vm.state.value.requestShown)
+        assertEquals("FSK 12", vm.state.value.ratingLabel(12))
+    }
+
+    @Test
+    fun aNewProfileStartsWithoutTheRightAndCreateSendsIt() = runTest(dispatcher) {
+        val repository = requesting()
+        val vm = model(repository, requestRight = true)
+        vm.onAdd()
+        assertFalse(vm.editor().canRequest)
+        vm.onName("Guest")
+        vm.onSave()
+        settle()
+        assertEquals(false, repository.created.single().canRequest)
+        vm.onAdd()
+        vm.onName("Teen")
+        vm.onCanRequest(true)
+        vm.onSave()
+        settle()
+        assertEquals(true, repository.created.last().canRequest)
+    }
+
+    @Test
+    fun anAccountWithoutTheRightLocksTheSwitchAndLeavesTheFieldOut() = runTest(dispatcher) {
+        val repository = requesting().apply { wishes = wishes(WishRights.Reason.ACCOUNT_NOT_ALLOWED) }
+        val vm = model(repository, requestRight = true)
+        assertTrue(vm.state.value.requestShown)
+        assertTrue(vm.state.value.requestCapped)
+        assertFalse(vm.state.value.requestAllowed)
+        vm.onEdit(vm.list()[1])
+        vm.onCanRequest(true)
+        assertFalse(vm.editor().canRequest)
+        vm.onSave()
+        settle()
+        assertNull(repository.updated.single().second.canRequest)
+    }
+
+    @Test
+    fun aRefusedRightLocksTheSwitch() = runTest(dispatcher) {
+        val repository = requesting()
+        repository.saveFailure = ApiResult.Failed(422, "validation_failed").apply {
+            problem = buildJsonObject {
+                put("code", JsonPrimitive("validation_failed"))
+                put("errors", buildJsonArray { add(buildJsonObject { put("field", JsonPrimitive("canRequest")); put("code", JsonPrimitive("account_not_allowed")) }) })
+            }
+        }
+        val vm = model(repository, requestRight = true)
+        vm.onEdit(vm.list()[1])
+        vm.onCanRequest(true)
+        vm.onSave()
+        settle()
+        assertTrue(vm.editor().requestRefused)
+        assertFalse(vm.state.value.requestAllowed)
+        assertEquals("validation_failed", vm.editor().error)
+        vm.onCanRequest(true)
+        repository.saveFailure = null
+        vm.onSave()
+        settle()
+        // The second try leaves the right out.
+        assertNull(repository.updated.single().second.canRequest)
+    }
+
+    @Test
+    fun anotherRefusalLeavesTheSwitchFree() = runTest(dispatcher) {
+        val repository = requesting()
+        repository.saveFailure = ApiResult.Failed(422, "validation_failed").apply {
+            problem = buildJsonObject {
+                put("errors", buildJsonArray { add(buildJsonObject { put("field", JsonPrimitive("name")); put("code", JsonPrimitive("required")) }) })
+            }
+        }
+        val vm = model(repository, requestRight = true)
+        vm.onEdit(vm.list()[1])
+        vm.onSave()
+        settle()
+        assertFalse(vm.editor().requestRefused)
+        assertTrue(vm.state.value.requestAllowed)
     }
 }
