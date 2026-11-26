@@ -44,7 +44,9 @@ tasks:
       # In two steps, not `go test ... $(scripts/testgroups.sh ...)`: a command substitution throws
       # its exit status away, so a broken group would reach `go test` as an empty argument list.
       - |
-        set -eu
+        # -f: a group of a split package is "-run=<pattern> <package>", and a pattern with [ or *
+        # must reach go test as written, not as the file names it happens to match.
+        set -euf
         packages=$(scripts/testgroups.sh "{{.GROUP}}")
         # The whole suite under -race is a heavy run: it waits for a machine-wide slot locally
         # (scripts/heavy-slot.sh, docs/dev/SETUP.md); CI runs it straight away.

@@ -35,7 +35,17 @@
 # playback sit in different groups; both were heavy before and are the first to grow again.
 1 internal/api
 
-2 internal/store
+# internal/store is split by test name (26 November 2026). With the replay of the frozen states
+# no longer waiting for a disk sync per row, its 139 tests take 1460 s one after the other (1357 s
+# of CPU, `-race`, measured one test per process). They do not get faster with more cores in one
+# process: modernc.org/libc guards its allocator with one mutex for the whole process, every
+# SQLite connection of every parallel test allocates through it, and the package used 2.7 cores
+# of 24 -- with twice the CPU time of the serial run spent spinning on that lock (1007 s, 2635 s of
+# CPU). Two jobs are two processes on two runners. Cut by the serial times: the migration tests and
+# the restore tests (687 s) here, the frozen states, backups, triggers and the rest (773 s) in 2b.
+# scripts/testgroups.sh --check counts both halves against the package's tests.
+2 internal/store ^(TestMigration|TestApplyRestore|TestCheckRestorable)
+2b internal/store
 
 3 internal/library
 3 internal/transcode
