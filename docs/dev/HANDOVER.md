@@ -98,7 +98,7 @@ geprüft (Entscheid vom 21. Oktober).
   angemeldet als MarcoBrechbuhl. Marco ist in der Gruppe `docker`; bis zur Neuanmeldung braucht er
   `sg docker -c "…"`. Für die Hauptsession funktioniert `sg docker -c` ebenfalls.
 - Laufender Server: Container `slouchcat` aus `deploy/compose.yaml`, Image-Tag
-  `ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.43.1`), Port 8096, Daten in Volumes,
+  `ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.44.0`), Port 8096, Daten in Volumes,
   Medien read-only von SMB/NFS. Seit dem Tag `v1.0.0` veröffentlicht die CI das Image selbst; für
   einen Stand zwischen zwei Releases wird es weiterhin lokal gebaut (Befehl unten).
   `deploy/.env` enthält TMDB- und YouTube-Schlüssel (nie committen, nie anzeigen).
@@ -106,7 +106,7 @@ geprüft (Entscheid vom 21. Oktober).
 - **Image nach jedem Merge neu bauen** (aus sauberem Worktree, nie aus dem Arbeitsbaum):
 
 ```bash
-cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile --build-arg VERSION=\$(git describe --tags --match 'v[0-9]*' --always) -t ghcr.io/slouchcat/slouchcat:1.43.1 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
+cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile --build-arg VERSION=\$(git describe --tags --match 'v[0-9]*' --always) -t ghcr.io/slouchcat/slouchcat:1.44.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.
@@ -134,7 +134,7 @@ cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tm
   Fix-Zweig. Der Tag selbst:
 
 ```bash
-git tag -a v1.43.1 -F /pfad/zu/release-notes-1.43.1.txt <merge-commit> && git push origin v1.43.1
+git tag -a v1.44.0 -F /pfad/zu/release-notes-1.44.0.txt <merge-commit> && git push origin v1.44.0
 ```
 - **Server-Release bleibt «latest»:** Update-Prüfung und Updater lesen `releases/latest`. Die Releases der
   Apps (`app-v…`, `tv-v…`) werden nie «latest». Wird das «latest»-Release des Servers gelöscht oder zur

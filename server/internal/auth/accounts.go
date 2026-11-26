@@ -18,16 +18,34 @@ import (
 // administration views read system-wide and without a profile check. For an administrator this
 // answers model.ErrAdminLimitsFixed; an unknown id is model.ErrNotFound.
 func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.AccountAccessUpdate) error {
-	acc, err := s.read.GetAccount(ctx, id)
+	// The account is read inside the write transaction, so the check of the request right below and
+	// the write see the same rating (ADR 0045: the guards of migration 00086 would abort otherwise).
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.write.WithTx(tx)
+	acc, err := q.GetAccount(ctx, id)
 	if err != nil {
 		return notFoundOr(err, "get account")
 	}
+	now := s.now().UnixMilli()
 	if acc.Role == model.RoleAdmin {
 		// An administrator has no access limits; only the request right (block «Wünsche»).
 		if in.MaxRating != nil || in.AllLibraries != nil || in.LibraryIDs != nil || in.Limits != nil || in.CanRequest == nil {
 			return model.ErrAdminLimitsFixed
 		}
-		return s.setAccountCanRequest(ctx, acc, *in.CanRequest)
+		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*in.CanRequest), Now: now, ID: acc.ID}); err != nil {
+			return fmt.Errorf("set request right: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit: %w", err)
+		}
+		if boolInt(*in.CanRequest) != acc.CanRequest {
+			s.rightChanged(ctx, acc.ID)
+		}
+		return nil
 	}
 	var verr *model.ValidationError
 	maxRating, all := acc.MaxRating, acc.AllLibraries
@@ -66,17 +84,20 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 	if all == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
 	}
+	// The request right follows the rating (question 36, ADR 0045): a rating that crosses 18 sets it
+	// (the trigger of migration 00086), and a canRequest sent with it is the form's old value; an
+	// account with an age limit never gets it.
+	canRequest := in.CanRequest
+	crossed := (acc.MaxRating >= model.MaxRatingAge) != (maxRating >= model.MaxRatingAge)
+	if crossed {
+		canRequest = nil
+	} else if canRequest != nil && *canRequest && maxRating < model.MaxRatingAge && !hasField(verr, "maxRating") {
+		verr = verr.Add("canRequest", model.WishReasonAgeRestricted)
+	}
 	if verr != nil {
 		return verr
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := s.write.WithTx(tx)
-	now := s.now().UnixMilli()
 	if err := q.UpdateAccountLimits(ctx, appq.UpdateAccountLimitsParams{
 		ID: acc.ID, MaxRating: maxRating, AllLibraries: all, MaxBitrateKbps: bitrate, MaxHeight: height, MaxStreams: streams, Now: now,
 	}); err != nil {
@@ -95,26 +116,20 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 			return fmt.Errorf("insert account library: %w", err)
 		}
 	}
-	if in.CanRequest != nil {
-		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*in.CanRequest), Now: now, ID: acc.ID}); err != nil {
+	after := acc.CanRequest
+	switch {
+	case crossed:
+		after = boolInt(maxRating >= model.MaxRatingAge)
+	case canRequest != nil:
+		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*canRequest), Now: now, ID: acc.ID}); err != nil {
 			return fmt.Errorf("set request right: %w", err)
 		}
+		after = boolInt(*canRequest)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
-	if in.CanRequest != nil && boolInt(*in.CanRequest) != acc.CanRequest {
-		s.rightChanged(ctx, acc.ID)
-	}
-	return nil
-}
-
-// setAccountCanRequest writes the request right of an account alone (administrators).
-func (s *Service) setAccountCanRequest(ctx context.Context, acc appq.Account, on bool) error {
-	if _, err := s.write.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(on), Now: s.now().UnixMilli(), ID: acc.ID}); err != nil {
-		return fmt.Errorf("set request right: %w", err)
-	}
-	if boolInt(on) != acc.CanRequest {
+	if after != acc.CanRequest {
 		s.rightChanged(ctx, acc.ID)
 	}
 	return nil

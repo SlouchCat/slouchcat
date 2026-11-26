@@ -155,6 +155,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 ### F-5 Wunschrecht je Konto und je Profil
 
 - **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Wunschrecht je Konto (Administrator, Deckel) und je Profil (Hauptprofil); ab Werk Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus.
+- **Abgelöst am 26. November 2026 (Frage 36, ADR 0045):** Die Schalter bleiben, aber ab Werk dürfen alle Konten und Profile ohne Altersgrenze anfordern, die mit Altersgrenze nicht; das Recht folgt der Altersgrenze, und «Neue Konten dürfen anfordern» steht ab Werk auf an.
 - **Worum:** Wer darf überhaupt Titel anfordern, und wer stellt das ein?
 - **Möglichkeiten:** (a) Schalter je Konto (Administrator) als Deckel und je Profil (Hauptprofil); (b) nur je Konto;
   (c) feste Regel wie in Frage 10 vorgeschlagen («Profile des Hauptkontos ab FSK 12, Gäste nicht»).
@@ -167,6 +168,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 ### F-6 Kinderprofile und Freigabe
 
 - **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Kinderprofile mit Recht dürfen anfordern; die Freigabe entscheidet Seerr am Benutzer des Kontos.
+- **Eingeschränkt am 26. November 2026 (Frage 36, ADR 0045):** Ein Profil mit Altersgrenze hat kein Wunschrecht mehr; das gilt nur noch für Profile ohne Altersgrenze.
 - **Worum:** Dürfen Kinderprofile anfordern, und wer gibt frei?
 - **Möglichkeiten:** (a) mit Recht ja, die Freigabe entscheidet Seerr über die Auto-Freigabe des zugeordneten
   Benutzers; (b) Kinder nie; (c) eine eigene Freigabe in Slouchcat («Kind fragt Eltern»).

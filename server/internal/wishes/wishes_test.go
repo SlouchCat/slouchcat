@@ -342,6 +342,18 @@ func TestRightsOfProfiles(t *testing.T) {
 	if _, err := f.svc.ForProfile(f.ctx, 2, 1); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("a profile of another account: %v", err)
 	}
+	// An age limit names its own reason (question 36, ADR 0045): on the account before the cap, on
+	// the profile before the profile's switch.
+	f.exec(`UPDATE accounts SET max_rating = 16 WHERE id = 3`)
+	if r, _ := f.svc.ForProfile(f.ctx, 3, 4); r.CanRequest || r.Reason != model.WishReasonAgeRestricted {
+		t.Errorf("account at 16: %+v", r)
+	}
+	f.exec(`UPDATE profiles SET max_rating = 12 WHERE id = 2`)
+	if r, _ := f.svc.ForProfile(f.ctx, 1, 2); r.CanRequest || r.Reason != model.WishReasonAgeRestricted {
+		t.Errorf("profile at 12: %+v", r)
+	}
+	f.exec(`UPDATE accounts SET max_rating = 18 WHERE id = 3`)
+	f.exec(`UPDATE profiles SET max_rating = 18 WHERE id = 2`)
 	// The shared user (F-4, N-101): only films for this user; shows follow the rights in Seerr.
 	if err := f.svc.MarkShared(f.ctx, 5); err != nil {
 		t.Fatal(err)

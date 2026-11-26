@@ -1,5 +1,61 @@
 # Aktueller Stand
 
+## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, Zweig `claude/wunschrecht-standard`)
+
+Frage 36 im Entscheidungsprotokoll, ADR 0045 «Das Wunschrecht folgt der Altersgrenze», Vertrag 1.44.0,
+Migration 00086. Löst F-5 von Konzept 25 ab (bisher starteten nur das Eigentümer-Konto und die
+Hauptprofile mit dem Recht). Betrifft Server, Web-App und Handy-App.
+
+- **Marcos Entscheid (26. November 2026):** «Mach doch als Standard, dass alle dürfen nur die mit einer
+  Altersbeschränkung nicht.» Auf Rückfrage: gilt für Profile und Konten, der Bestand wird nachgezogen,
+  das Recht folgt der Freigabe. Als altersbeschränkt gilt jede Stufe unter 18 («Unter 18 passt so»).
+- **Die Regel:** Neue Profile, neue Konten und neue Einladungen haben das Recht, wenn sie keine
+  Altersgrenze haben; «Neue Konten dürfen anfordern» steht ab Werk auf an. Bekommt ein Profil oder Konto
+  eine Altersgrenze, geht das Recht von selbst weg; fällt sie weg, kommt es zurück. Mit Altersgrenze
+  lässt sich «Darf Titel anfordern» nicht einschalten. Ohne Altersgrenze wirkt der Schalter wie bisher in
+  beide Richtungen. Der Deckel «Recht des Kontos und Recht des Profils» und der Seerr-Benutzer bleiben.
+- **Server:** Der gespeicherte Schalter bleibt die Wahrheit; Trigger in der Datenbank halten ihn zur
+  Freigabe passend. Zwei Trigger setzen `can_request`, wenn `max_rating` die 18 kreuzt; sechs weisen
+  `can_request = 1` mit `max_rating < 18` ab (Konten, Profile, Einladungen, je Anlegen und Ändern). Die
+  Migration schaltet das Recht einmal für alle ohne Altersgrenze ein und für alle mit Altersgrenze aus.
+  Neuer Grund `age_restricted` in `SessionInfo.wishes.reason`; `POST /api/v1/wishes` antwortet damit 403,
+  ein Speichern mit `canRequest: true` unter 18 antwortet 422 (Feld `canRequest`, Code
+  `age_restricted`). Kreuzt dieselbe Anfrage die 18, gewinnt die Freigabe; ein mitgeschicktes
+  `canRequest` wird dann nicht beachtet.
+- **Web-App:** Im Profilformular, im Zugriff eines Kontos und bei Einladungen steht der Schalter bei
+  einer Altersgrenze aus und gesperrt, mit dem Grund daneben; neue Profile ohne Altersgrenze starten mit
+  dem Recht. Sieben neue Texte in `de`, `en`, `de-DE`; die 20 anderen Sprachen fallen dafür auf Englisch
+  zurück und tragen bei den Hilfetexten zum Recht noch den alten Stand.
+- **Handy-App 1.0.4** (`versionCode` 5): legt neue Profile mit dem Recht an, sperrt den Schalter bei
+  einer Altersgrenze und nennt den Grund. 1.0.3 legt neue Profile weiter ohne Recht an und zeigt für
+  `age_restricted` eine allgemeine Meldung; der Server entscheidet in beiden Fällen (Regel 12). Die
+  TV-App 1.0.1 zeigt für `age_restricted` den allgemeinen Grund; sie bekommt keine neue Ausgabe.
+- **Folgen für den Bestand, bewusst so:** Wer unter F-5 das Recht von Hand ausgeschaltet bekam und keine
+  Altersgrenze hat, bekommt es mit der Migration einmal zurück. Wer eine Altersgrenze und von Hand das
+  Recht hatte, verliert es. Profile mit Altersgrenze sehen «Entdecken» nicht mehr und in der Suche keine
+  fehlenden Titel. Erwachsene Gäste ohne eigenen Seerr-Benutzer senden weiter über den Sammelbenutzer.
+  Fällt die Altersgrenze eines Kontos weg, bekommt das Konto das Recht zurück, nicht seine Profile.
+- **Hingenommen (ADR 0045):** Ein Wunsch in der Warteschlange, dessen Profil das Recht über die Freigabe
+  verliert, scheitert mit `seerr_user_gone`. Ein eigener Grund bräuchte den Neuaufbau der Tabelle
+  `wishes` (CHECK aus Migration 00069).
+- **Tests:** neu `TestMigration00086RequestRightFollowsRating`, `TestContractRequestRightFollowsRating`,
+  `TestDiscoverAgeLimitHasNoPages`, ein e2e-Fall «a profile with an age limit has no right to request and
+  none can be given (ADR 0045)»; angepasst die Tests des alten Ausgangsstands (`TestCanRequest`,
+  Migration 00067, eingefrorener Stand der Wünsche, `admin/seerr`, `wishes`, Vertragstest der Wünsche,
+  e2e `admin-accounts`, `wishes`, `wishes-discover`), dazu die Tests der Handy-App.
+- **Review:** Code-Review ohne Blocker, zwei mittlere und fünf kleine Punkte eingearbeitet
+  (`UpdateAccountAccess` liest das Konto in der Schreibtransaktion; der eingefrorene Stand läuft wieder
+  durch alle Migrationen).
+- **Geprüft (`task ci` in Teilen nacheinander, gedrosselt, auf `358dcea9`):** `ci:server`, `ci:relay`,
+  `ci:android`, `ci:web`, `ci:storybook` (567 bestanden) und `build` grün. `ci:e2e:parallel`: 793 von 805
+  bestanden. Vier Fehler waren die Wünsche-Tests des alten Ausgangsstands (angepasst, danach in Chromium
+  und Firefox grün). Acht Fehler in `admin-library-folders.spec.ts` und `tracks.spec.ts` kamen von der
+  Last der Maschine; einzeln wiederholt in beiden Browsern grün. Nach dem Merge von `main` gezielt:
+  Store-Tests der Migrationen und eingefrorenen Stände, `scripts/testgroups.sh --check`, die vier Teile
+  von `task check:fast`, `task build`. Die ganze e2e-Suite lief danach nicht noch einmal; das prüft die
+  CI des Pull Requests.
+- **Offen:** Die 20 anderen Sprachen übersetzen. CT 190 hebt Marco selbst auf 1.44.0.
+
 ## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, PR #231)
 
 Betrifft nur die CI und Testhelfer; Server, Web-App und Apps sind unverändert. Auftrag von Marco: die

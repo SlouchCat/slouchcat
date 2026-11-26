@@ -983,6 +983,7 @@
       "password_too_short": "At least 10 characters.",
       "password_mismatch": "The passwords do not match.",
       "above_account_limit": "Higher than this account's ceiling.",
+      "age_restricted": "With an age limit there is no right to request titles.",
       "unknown_library": "This library does not exist.",
       "too_many_profiles": "An account can have at most 10 profiles.",
       "already_exists": "This e-mail address is already taken.",
@@ -5219,7 +5220,8 @@
           "detail": "Valid until / accepted",
           "actions": "Actions"
         },
-        "seerrHint": "On accepting, Slouchcat opens the account in Seerr too: same e-mail, same password."
+        "seerrHint": "On accepting, Slouchcat opens the account in Seerr too: same e-mail, same password.",
+        "canRequestRestricted": "An invitation with an age limit gives no right to request titles."
       },
       "discard": "Discard",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Wishes of {{email}}",
         "canRequest": "May request titles",
         "canRequestHelp": "The cap for all profiles. Which profiles request is chosen by the account's primary profile.",
+        "canRequestRestricted": "Accounts with an age limit cannot request titles. Without an age limit the right comes back.",
+        "canRequestReturns": "Without an age limit the account may request again. The right can be switched off after saving.",
         "notSetUp": "–",
         "state": {
           "allowed": "Allowed",
@@ -6503,7 +6507,7 @@
           "deny": "Do not allow"
         },
         "newAccountsCanRequest": "New accounts may request",
-        "newAccountsCanRequestHelp": "Default of the switch in the dialog “Invite account”. Does not change existing accounts.",
+        "newAccountsCanRequestHelp": "Default of the switch in the dialog “Invite account”, on by default. An invitation with an age limit never gives the right. Does not change existing accounts.",
         "allowWithdraw": "Allow withdrawing",
         "allowWithdrawHelp": "While a wish is not approved. Button “Withdraw” under “My wishes”.",
         "pinExternalHideTitle": "External messages of PIN profiles without the title",
@@ -6534,7 +6538,7 @@
         "toUsers": "To the Seerr users",
         "links": "Links",
         "who": "Who may request",
-        "whoHelp": "Who may request is set per account under Accounts; per profile the primary profile decides.",
+        "whoHelp": "By default every account and profile without an age limit may request, those with one may not. You can exclude an account under Accounts; per profile the primary profile decides.",
         "connection": "Connection to Seerr",
         "connectionHelp": "Address, key, test and log.",
         "users": "Seerr users",
@@ -7024,7 +7028,9 @@
         "wishes": "Wishes",
         "canRequest": "May request titles",
         "canRequestHelp": "The profile may request missing titles through Seerr.",
-        "canRequestCapped": "This account may not request titles. An administrator sets the right under Accounts."
+        "canRequestCapped": "This account may not request titles. An administrator sets the right under Accounts.",
+        "canRequestRestricted": "Profiles with an age limit cannot request titles. Without an age limit the right comes back.",
+        "canRequestReturns": "Without an age limit the profile may request again. The right can be switched off after saving."
       },
       "report": {
         "show": "Show watch time",
@@ -7999,6 +8005,7 @@
       "disabled": "Wishes are switched off.",
       "account_not_allowed": "This account may not request titles.",
       "profile_not_allowed": "This profile may not request titles. The main profile can allow it under “Profiles”.",
+      "age_restricted": "Profiles with an age limit cannot request titles.",
       "no_mapping": "No Seerr user is linked to this account yet. The administrator sets it up.",
       "seerr_user_gone": "The linked Seerr user no longer exists. The administrator fixes this.",
       "movies_not_allowed": "Films cannot be requested at the moment.",

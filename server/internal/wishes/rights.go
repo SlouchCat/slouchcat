@@ -14,7 +14,8 @@ import (
 // Rights is the request right of a profile (concept 25, users and profiles 6.1 and 9): «Wünsche
 // aktiv» and Seerr in use, the switch of the account (the cap) and of the profile, and a Seerr
 // user to send as: the user of the account, else the shared user when «Konten ohne
-// Seerr-Benutzer» says so (F-4, N-101). The server decides; the client only shows the answer
+// Seerr-Benutzer» says so (F-4, N-101). The database keeps both switches off below 18 (question
+// 36, ADR 0045); the ratings only name that reason. The server decides; the client only shows the answer
 // (rule 12). Temporary reasons (Seerr unreachable, key refused, another instance waiting) keep the
 // right: the wish waits in the outbox.
 type Rights struct{ s *Service }
@@ -63,8 +64,12 @@ func (r *Rights) resolve(ctx context.Context, accountID, profileID int64) (model
 	switch {
 	case !ws.Enabled || !cfg.Configured() || !cfg.Enabled:
 		return deny(model.WishReasonDisabled)
+	case row.AccountCanRequest != 1 && row.AccountMaxRating < model.MaxRatingAge:
+		return deny(model.WishReasonAgeRestricted)
 	case row.AccountCanRequest != 1:
 		return deny(model.WishReasonAccountNotAllowed)
+	case row.ProfileCanRequest != 1 && row.ProfileMaxRating < model.MaxRatingAge:
+		return deny(model.WishReasonAgeRestricted)
 	case row.ProfileCanRequest != 1:
 		return deny(model.WishReasonProfileNotAllowed)
 	}

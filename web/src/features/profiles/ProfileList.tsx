@@ -22,12 +22,9 @@ import { ProfileForm } from './ProfileForm';
 import { manageProfilesQuery } from './queries';
 import { WatchReport } from './WatchReport';
 import styles from './ProfileList.module.css';
-import { ratingLabel } from '../shared/choices';
+import { NO_AGE_LIMIT, ratingLabel } from '../shared/choices';
 
 type Editing = Profile | 'new' | null;
-
-/** The highest rating: a profile below it has an age limit. */
-const NO_AGE_LIMIT = 18;
 
 interface Confirmation {
   title: string;

@@ -155,7 +155,7 @@ class ProfileSettingsScreenTest {
     private val requestSwitch get() = compose.onNode(hasText(s(R.string.profiles_settings_form_canRequest)) and isToggleable())
 
     private fun request() {
-        show(state(ProfileEditor(id = 2, name = "Lea", rating = 16, canRequest = true)).copy(requestShown = true))
+        show(state(ProfileEditor(id = 2, name = "Lea", rating = 18, storedRating = 18, canRequest = true)).copy(requestShown = true))
         compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_wishes)) and isHeading())).assertIsDisplayed()
         // The help is part of the switch's node.
         compose.reveal(compose.onNode(hasText(s(R.string.profiles_settings_form_canRequestHelp)) and isToggleable())).assertIsDisplayed()
@@ -187,6 +187,23 @@ class ProfileSettingsScreenTest {
 
     @Test @Config(qualifiers = TABLET)
     fun requestRefusedByTheServerTablet() = requestCapped(state(ProfileEditor(id = 2, name = "Lea", canRequest = true, requestRefused = true)).copy(requestShown = true))
+
+    /** ADR 0045: an age limit locks the switch off, lifting one shows the right coming back, both with the reason in the node. */
+    private fun requestByRating(rating: Int, stored: Int, reason: Int, on: Boolean) {
+        show(state(ProfileEditor(id = 2, name = "Lea", rating = rating, storedRating = stored, canRequest = false)).copy(requestShown = true))
+        compose.reveal(compose.onNode(hasText(s(reason)) and isToggleable())).assertIsDisplayed()
+        assertTrue(compose.onAllNodes(hasText(s(R.string.profiles_settings_form_canRequestHelp))).fetchSemanticsNodes().isEmpty())
+        val switch = compose.reveal(requestSwitch).assertIsNotEnabled()
+        if (on) switch.assertIsOn() else switch.assertIsOff()
+        switch.performClick()
+        assertTrue(events.isEmpty())
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun requestLockedByAnAgeLimitPhone() = requestByRating(12, 12, R.string.profiles_settings_form_canRequestRestricted, on = false)
+
+    @Test @Config(qualifiers = TABLET)
+    fun requestComingBackTablet() = requestByRating(18, 12, R.string.profiles_settings_form_canRequestReturns, on = true)
 
     private fun requestHidden() {
         show(state(ProfileEditor(id = 2, name = "Lea", canRequest = true)))

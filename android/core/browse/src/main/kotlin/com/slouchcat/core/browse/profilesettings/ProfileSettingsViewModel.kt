@@ -65,6 +65,8 @@ data class ProfileEditor(
     val name: String = "",
     val accent: Accent = Accent.EMBER,
     val rating: Int = 18,
+    /** The rating as stored when the sheet opened; `null` for a new profile. */
+    val storedRating: Int? = null,
     val language: Language = Language.DE,
     val allLibraries: Boolean = true,
     val libraryIds: Set<Long> = emptySet(),
@@ -95,6 +97,12 @@ data class ProfileEditor(
     val error: String? = null,
 ) {
     val isNew: Boolean get() = id == null
+
+    /** The chosen rating is an age limit: no request right (ADR 0045). */
+    val restricted: Boolean get() = rating < ProfileSettingsUiState.NO_AGE_LIMIT
+
+    /** The chosen rating crosses 18 from the stored one: saving sets the right from the rating. */
+    val crossing: Boolean get() = storedRating != null && (storedRating < ProfileSettingsUiState.NO_AGE_LIMIT) != restricted
 
     /** Whether the PIN counts as there after saving. */
     fun pinOn(kind: PinKind = PinKind.Pin): Boolean = when (val change = if (kind == PinKind.Pin) pin else offlinePin) {
@@ -133,6 +141,26 @@ data class ProfileSettingsUiState(
         get() = !requestCapped && editor?.requestRefused != true
 
     /**
+     * The right follows the rating (ADR 0045), a mirror as for the cap: with an age limit the switch
+     * is off and locked; a rating that crosses 18 sets the right on saving, so the switch shows the
+     * outcome locked and saving leaves `canRequest` out instead of sending an old value.
+     */
+    val requestLocked: Boolean
+        get() = !requestAllowed || editor?.restricted == true || editor?.crossing == true
+
+    /** Whether the switch shows the right on. */
+    val requestOn: Boolean
+        get() = editor?.let { requestAllowed && !it.restricted && (it.crossing || it.canRequest) } ?: false
+
+    val requestHint: RequestHint
+        get() = when {
+            !requestAllowed -> RequestHint.Capped
+            editor?.restricted == true -> RequestHint.Restricted
+            editor?.crossing == true -> RequestHint.Returns
+            else -> RequestHint.Help
+        }
+
+    /**
      * E-9, F-19 (web `advisePin`): the account has a profile with an age limit and its primary
      * profile has no PIN. A recommendation, no requirement.
      */
@@ -152,6 +180,21 @@ data class ProfileSettingsUiState(
         /** The steps without a rating system (an older server), as in the web app. */
         val FALLBACK_AGES = listOf(0, 6, 12, 16, 18)
     }
+}
+
+/** What the sheet says under «Darf Titel anfordern». */
+enum class RequestHint {
+    /** The switch is free. */
+    Help,
+
+    /** The account has no right, or the server refused it. */
+    Capped,
+
+    /** The chosen rating is an age limit (ADR 0045). */
+    Restricted,
+
+    /** The rating lifts an age limit: the right comes back on saving. */
+    Returns,
 }
 
 /** What the page tells once (a toast). */
@@ -275,6 +318,7 @@ class ProfileSettingsViewModel(
                     name = profile.name,
                     accent = profile.accent ?: Accent.EMBER,
                     rating = profile.maxRating,
+                    storedRating = profile.maxRating,
                     language = profile.language,
                     allLibraries = profile.allLibraries,
                     libraryIds = profile.libraryIds.toSet(),
@@ -302,7 +346,8 @@ class ProfileSettingsViewModel(
         val accent = ACCENTS.firstOrNull { a -> list.none { (it.accent ?: Accent.EMBER) == a } } ?: ACCENTS.first()
         val ceiling = _state.value.ratings.filter { it.enabled }.maxOfOrNull { it.age } ?: ProfileSettingsUiState.NO_AGE_LIMIT
         val language = list.firstOrNull { it.isPrimary }?.language ?: Language.DE
-        _state.update { it.copy(editor = ProfileEditor(accent = accent, rating = ceiling, language = language)) }
+        // Without an age limit a new profile starts with the right, as the server gives it (ADR 0045).
+        _state.update { it.copy(editor = ProfileEditor(accent = accent, rating = ceiling, language = language, canRequest = true)) }
     }
 
     fun onDismiss() = _state.update { if (it.editor?.busy == true) it else it.copy(editor = null) }
@@ -325,7 +370,7 @@ class ProfileSettingsViewModel(
 
     fun onWatchLimit(text: String) = edit { it.copy(watchLimit = text.filter(Char::isDigit).take(4), watchLimitInvalid = false) }
 
-    fun onCanRequest(on: Boolean) = edit { if (_state.value.requestAllowed) it.copy(canRequest = on) else it }
+    fun onCanRequest(on: Boolean) = edit { if (!_state.value.requestLocked) it.copy(canRequest = on) else it }
 
     fun onPinForm(kind: PinKind?) {
         if (kind == PinKind.Offline && !offlinePin) return
@@ -403,8 +448,9 @@ class ProfileSettingsViewModel(
         viewModelScope.launch {
             val limits = now.limits.copy(watchLimitMinutes = minutes)
             val libraries = if (now.allLibraries) emptySet() else now.libraryIds
-            // Only while the switch is shown and can be set (web `ProfileForm`); otherwise the right stays as it is.
-            val canRequest = now.canRequest.takeIf { _state.value.requestShown && _state.value.requestAllowed }
+            // Only while the switch is shown and can be set (web `ProfileForm`); otherwise the right stays as it is,
+            // or the rating sets it (ADR 0045).
+            val canRequest = now.canRequest.takeIf { _state.value.requestShown && !_state.value.requestLocked }
             val saved = if (now.id == null) {
                 repository.create(
                     server,

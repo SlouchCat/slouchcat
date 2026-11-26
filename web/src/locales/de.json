@@ -983,6 +983,7 @@
       "password_too_short": "Mindestens 10 Zeichen.",
       "password_mismatch": "Die Passwörter stimmen nicht überein.",
       "above_account_limit": "Höher als die Obergrenze dieses Kontos.",
+      "age_restricted": "Mit Altersgrenze gibt es kein Recht, Titel anzufordern.",
       "unknown_library": "Diese Bibliothek gibt es nicht.",
       "too_many_profiles": "Mehr als 10 Profile pro Konto sind nicht möglich.",
       "already_exists": "Diese E-Mail-Adresse ist schon vergeben.",
@@ -5219,7 +5220,8 @@
           "detail": "Gültig bis / angenommen",
           "actions": "Aktionen"
         },
-        "seerrHint": "Beim Annehmen eröffnet Slouchcat das Konto auch in Seerr: gleiche E-Mail, gleiches Passwort."
+        "seerrHint": "Beim Annehmen eröffnet Slouchcat das Konto auch in Seerr: gleiche E-Mail, gleiches Passwort.",
+        "canRequestRestricted": "Eine Einladung mit Altersgrenze gibt kein Recht, Titel anzufordern."
       },
       "discard": "Verwerfen",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Wünsche von {{email}}",
         "canRequest": "Darf Titel anfordern",
         "canRequestHelp": "Gilt als Grenze für alle Profile. Welche Profile anfordern, wählt das Hauptprofil des Kontos.",
+        "canRequestRestricted": "Konten mit Altersgrenze dürfen keine Titel anfordern. Ohne Altersgrenze kommt das Recht zurück.",
+        "canRequestReturns": "Ohne Altersgrenze darf das Konto wieder anfordern. Ausschalten lässt sich das Recht nach dem Speichern.",
         "notSetUp": "–",
         "state": {
           "allowed": "Erlaubt",
@@ -6503,7 +6507,7 @@
           "deny": "Nicht erlauben"
         },
         "newAccountsCanRequest": "Neue Konten dürfen anfordern",
-        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog «Konto einladen». Ändert bestehende Konten nicht.",
+        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog «Konto einladen», ab Werk an. Eine Einladung mit Altersgrenze gibt das Recht nie. Ändert bestehende Konten nicht.",
         "allowWithdraw": "Zurückziehen erlauben",
         "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf «Zurückziehen» unter «Meine Wünsche».",
         "pinExternalHideTitle": "Externe Nachrichten bei PIN-Profilen ohne Titel",
@@ -6534,7 +6538,7 @@
         "toUsers": "Zu den Seerr-Benutzern",
         "links": "Verweise",
         "who": "Wer anfordern darf",
-        "whoHelp": "Wer anfordern darf, stellst du je Konto unter Konten ein; je Profil entscheidet das Hauptprofil.",
+        "whoHelp": "Ab Werk dürfen alle Konten und Profile ohne Altersgrenze anfordern, die mit Altersgrenze nicht. Ausnehmen kannst du ein Konto unter Konten; je Profil entscheidet das Hauptprofil.",
         "connection": "Verbindung zu Seerr",
         "connectionHelp": "Adresse, Schlüssel, Test und Protokoll.",
         "users": "Seerr-Benutzer",
@@ -7024,7 +7028,9 @@
         "wishes": "Wünsche",
         "canRequest": "Darf Titel anfordern",
         "canRequestHelp": "Das Profil darf fehlende Titel über Seerr anfordern.",
-        "canRequestCapped": "Dieses Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten."
+        "canRequestCapped": "Dieses Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten.",
+        "canRequestRestricted": "Profile mit Altersgrenze dürfen keine Titel anfordern. Ohne Altersgrenze kommt das Recht zurück.",
+        "canRequestReturns": "Ohne Altersgrenze darf das Profil wieder anfordern. Ausschalten lässt sich das Recht nach dem Speichern."
       },
       "report": {
         "show": "Schauzeit anzeigen",
@@ -7999,6 +8005,7 @@
       "disabled": "Wünsche sind ausgeschaltet.",
       "account_not_allowed": "Dieses Konto darf keine Titel anfordern.",
       "profile_not_allowed": "Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter «Profile» erlauben.",
+      "age_restricted": "Profile mit Altersgrenze dürfen keine Titel anfordern.",
       "no_mapping": "Mit diesem Konto ist noch kein Seerr-Benutzer verknüpft. Das richtet der Administrator ein.",
       "seerr_user_gone": "Den verknüpften Seerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.",
       "movies_not_allowed": "Filme können zurzeit nicht angefordert werden.",

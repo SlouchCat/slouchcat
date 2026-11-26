@@ -54,6 +54,7 @@ import com.slouchcat.core.browse.profilesettings.PinKind
 import com.slouchcat.core.browse.profilesettings.ProfileEditor
 import com.slouchcat.core.browse.profilesettings.ProfileSettingsUiState
 import com.slouchcat.core.browse.profilesettings.ProfileSettingsViewModel
+import com.slouchcat.core.browse.profilesettings.RequestHint
 import com.slouchcat.core.design.Avatar
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.Note
@@ -353,10 +354,17 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
                     // The help or the reason in the switch's own node: TalkBack reads why it is locked.
                     SwitchRow(
                         stringResource(R.string.profiles_settings_form_canRequest),
-                        checked = state.requestAllowed && editor.canRequest,
+                        checked = state.requestOn,
                         onCheckedChange = events::onCanRequest,
-                        subtitle = stringResource(if (state.requestAllowed) R.string.profiles_settings_form_canRequestHelp else R.string.profiles_settings_form_canRequestCapped),
-                        enabled = state.requestAllowed,
+                        subtitle = stringResource(
+                            when (state.requestHint) {
+                                RequestHint.Help -> R.string.profiles_settings_form_canRequestHelp
+                                RequestHint.Capped -> R.string.profiles_settings_form_canRequestCapped
+                                RequestHint.Restricted -> R.string.profiles_settings_form_canRequestRestricted
+                                RequestHint.Returns -> R.string.profiles_settings_form_canRequestReturns
+                            },
+                        ),
+                        enabled = !state.requestLocked,
                     )
                 }
             }

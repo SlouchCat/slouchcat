@@ -15,6 +15,7 @@ import {
   setSeerrRequest,
   type WishesSetup,
 } from './wishes';
+import { createProfile, loginOwner } from './accounts';
 import { useFreshProfile } from './playback';
 
 // Concept 25 stage 2, 5.3 (M-08): «Meine Wünsche» and the side navigation's entry «Wünsche» by
@@ -40,17 +41,16 @@ test('the page by keyboard: the entry with its count, rows, history, withdraw as
   let setup: WishesSetup | undefined;
   try {
     setup = await openWishes(owner, { limit: 5 });
-    // A profile of its own that may request: no other spec's wishes in its list. It has an age
-    // step of its own (16) as well: the server keeps the lists of «Entdecken» for an hour per
-    // language and age step (N-54), with Seerr's state of each title. This test opens «Entdecken»
-    // while «Glasvogel» is requested; at the owner's step (18) that row would tell every later
-    // test on the same server «Bereits angefordert» (wishes-discover.spec.ts expects the plus).
-    const profile = await useFreshProfile(page, owner, 'E2E Meine Wünsche');
-    const allowed = await owner.patch(`/api/v1/profiles/${profile.id}`, {
-      headers: CSRF,
-      data: { canRequest: true, maxRating: 16 },
-    });
-    expect(allowed.status(), await allowed.text()).toBe(200);
+    // A profile of its own: no other spec's wishes in its list. Without an age limit (step 18)
+    // it may request from the start (ADR 0045); a profile with a limit never could. The server
+    // keeps the lists of «Entdecken» for an hour per language and age step (N-54), with Seerr's
+    // state of each title, and this profile shares step 18 with the owner. This test opens
+    // «Entdecken» while «Glasvogel» is requested; a list fetched then would tell every later test
+    // on the same server «Bereits angefordert» (wishes-discover.spec.ts expects the plus). So the
+    // overview is read once before the first wish, and the hour keeps that clean state.
+    await useFreshProfile(page, owner, 'E2E Meine Wünsche');
+    const warmed = await page.request.get('/api/v1/wishes/discover');
+    expect(warmed.status(), await warmed.text()).toBe(200);
     await wish(page.request, 9001);
     await wish(page.request, 9002);
     // Seerr declines the second; the sync brings the state over.
@@ -152,13 +152,52 @@ test('a profile without the request right and without wishes has no entry; its p
   let setup: WishesSetup | undefined;
   try {
     setup = await openWishes(owner);
-    // A profile of its own: the other test's closed wishes stay with the main profile.
-    await useFreshProfile(page, owner, 'E2E Wünsche');
+    // A profile of its own: the other test's closed wishes stay with the main profile. A new
+    // profile without an age limit may request (ADR 0045), so the right is turned off by hand.
+    const profile = await useFreshProfile(page, owner, 'E2E Wünsche');
+    const off = await owner.patch(`/api/v1/profiles/${profile.id}`, {
+      headers: CSRF,
+      data: { canRequest: false },
+    });
+    expect(off.status(), await off.text()).toBe(200);
     await page.goto('/wishes');
     await expect(page.getByText('Noch keine Wünsche.')).toBeVisible();
-    // A new profile may not request until the main profile allows it (F-9): no entry.
     await expect(nav(page).getByRole('link', { name: 'Gesehen', exact: true })).toBeVisible();
     await expect(nav(page).getByRole('link', { name: /^Wünsche/ })).toHaveCount(0);
+  } finally {
+    await closeWishes(owner, setup);
+  }
+});
+
+test('a profile with an age limit has no right to request and none can be given (ADR 0045)', async ({
+  page,
+  owner,
+}) => {
+  let setup: WishesSetup | undefined;
+  try {
+    setup = await openWishes(owner);
+    const child = await createProfile(owner, { name: 'E2E Wünsche 12', maxRating: 12 });
+    await loginOwner(page.request);
+    const selected = await page.request.post(`/api/v1/auth/profiles/${child.id}/select`, {
+      headers: CSRF,
+    });
+    expect(selected.status(), await selected.text()).toBe(200);
+    await page.goto('/');
+    await expect(nav(page).getByRole('link', { name: 'Gesehen', exact: true })).toBeVisible();
+    await expect(nav(page).getByRole('link', { name: /^Wünsche/ })).toHaveCount(0);
+    // The server refuses the switch for the limit and a wish alike.
+    const on = await owner.patch(`/api/v1/profiles/${child.id}`, {
+      headers: CSRF,
+      data: { canRequest: true },
+    });
+    expect(on.status()).toBe(422);
+    expect(await on.text()).toContain('age_restricted');
+    const wished = await page.request.post('/api/v1/wishes', {
+      headers: CSRF,
+      data: { media: 'movie', tmdbId: 9003, source: 'detail' },
+    });
+    expect(wished.status()).toBe(403);
+    expect(await wished.text()).toContain('age_restricted');
   } finally {
     await closeWishes(owner, setup);
   }

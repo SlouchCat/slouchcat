@@ -48,7 +48,7 @@ func invitationState(inv appq.Invitation, now time.Time) string {
 
 // CreateInvitation creates a one-time invitation link for a guest account with the given limits
 // and returns it with the plain token (the only time it is available). Errors: *ValidationError
-// (maxRating, note, libraryIds unknown_library).
+// (maxRating, note, libraryIds unknown_library, canRequest age_restricted).
 func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, req model.InvitationRequest) (model.Invitation, error) {
 	rs, err := s.RatingSystem(ctx)
 	if err != nil {
@@ -73,13 +73,21 @@ func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, r
 	if verr != nil {
 		return model.Invitation{}, verr
 	}
-	canRequest := false
+	// «Neue Konten dürfen anfordern», on by default, and only without an age limit (question 36,
+	// ADR 0045); a right sent for an invitation with an age limit is refused.
+	canRequest := true
 	if req.CanRequest != nil {
 		canRequest = *req.CanRequest
 	} else if v, err := s.read.GetSetting(ctx, settingNewAccountsCanRequest); err == nil {
-		canRequest = v == "1" // «Neue Konten dürfen anfordern», off by default (concept 25, F-5)
+		canRequest = v != "0"
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return model.Invitation{}, fmt.Errorf("read %s: %w", settingNewAccountsCanRequest, err)
+	}
+	if req.MaxRating < model.MaxRatingAge {
+		if req.CanRequest != nil && *req.CanRequest {
+			return model.Invitation{}, (&model.ValidationError{}).Add("canRequest", model.WishReasonAgeRestricted)
+		}
+		canRequest = false
 	}
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {

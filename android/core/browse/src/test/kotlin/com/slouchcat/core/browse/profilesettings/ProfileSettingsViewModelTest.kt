@@ -58,8 +58,15 @@ class ProfileSettingsViewModelTest {
     private fun wishes(reason: WishRights.Reason? = null) =
         WishRights(enabled = true, canRequest = reason == null, movies = true, shows = true, reason = reason)
 
-    /** The primary profile may request, the child may not; the wishes are on. */
-    private fun requesting() = FakeProfileSettings(profile(1, "Primary", primary = true, canRequest = true), profile(2, "Child", rating = 12, canRequest = false)).apply { wishes = wishes() }
+    /**
+     * The primary profile may request, the second profile (no age limit) not yet, the child (12) never
+     * (ADR 0045); the wishes are on.
+     */
+    private fun requesting() = FakeProfileSettings(
+        profile(1, "Primary", primary = true, canRequest = true),
+        profile(2, "Second", canRequest = false),
+        profile(3, "Child", rating = 12, canRequest = false),
+    ).apply { wishes = wishes() }
 
     private fun ProfileSettingsViewModel.list() = (state.value.profiles as Loadable.Ready).value
 
@@ -383,21 +390,71 @@ class ProfileSettingsViewModelTest {
     }
 
     @Test
-    fun aNewProfileStartsWithoutTheRightAndCreateSendsIt() = runTest(dispatcher) {
+    fun aNewProfileStartsWithTheRightAndCreateSendsIt() = runTest(dispatcher) {
         val repository = requesting()
         val vm = model(repository, requestRight = true)
+        // Without an age limit a new profile starts with the right (ADR 0045; F-5 started it without).
         vm.onAdd()
-        assertFalse(vm.editor().canRequest)
+        assertTrue(vm.editor().canRequest)
+        assertTrue(vm.state.value.requestOn)
         vm.onName("Guest")
         vm.onSave()
         settle()
-        assertEquals(false, repository.created.single().canRequest)
+        assertEquals(true, repository.created.single().canRequest)
+        vm.onAdd()
+        vm.onName("Adult")
+        vm.onCanRequest(false)
+        vm.onSave()
+        settle()
+        assertEquals(false, repository.created.last().canRequest)
+    }
+
+    @Test
+    fun anAgeLimitLocksTheSwitchOffAndLeavesTheFieldOut() = runTest(dispatcher) {
+        val repository = requesting()
+        val vm = model(repository, requestRight = true)
         vm.onAdd()
         vm.onName("Teen")
+        vm.onRating(12)
+        assertTrue(vm.state.value.requestLocked)
+        assertFalse(vm.state.value.requestOn)
+        assertEquals(RequestHint.Restricted, vm.state.value.requestHint)
         vm.onCanRequest(true)
         vm.onSave()
         settle()
-        assertEquals(true, repository.created.last().canRequest)
+        // The server takes the right from the rating.
+        assertNull(repository.created.single().canRequest)
+        // Lowering a profile with the right below 18: off on saving, no old «on» sent.
+        vm.onEdit(vm.list()[0])
+        vm.onRating(16)
+        assertFalse(vm.state.value.requestOn)
+        vm.onSave()
+        settle()
+        assertEquals(16, repository.updated.single().second.maxRating)
+        assertNull(repository.updated.single().second.canRequest)
+    }
+
+    @Test
+    fun liftingAnAgeLimitShowsTheRightComingBack() = runTest(dispatcher) {
+        val repository = requesting()
+        val vm = model(repository, requestRight = true)
+        vm.onEdit(vm.list()[2])
+        assertEquals(RequestHint.Restricted, vm.state.value.requestHint)
+        assertFalse(vm.state.value.requestOn)
+        vm.onRating(18)
+        assertTrue(vm.state.value.requestOn)
+        assertTrue(vm.state.value.requestLocked)
+        assertEquals(RequestHint.Returns, vm.state.value.requestHint)
+        vm.onCanRequest(false)
+        assertTrue(vm.state.value.requestOn)
+        vm.onSave()
+        settle()
+        assertEquals(18, repository.updated.single().second.maxRating)
+        assertNull(repository.updated.single().second.canRequest)
+        // Back on one side of 18 the switch is free with the profile's own value.
+        vm.onEdit(vm.list()[1])
+        assertFalse(vm.state.value.requestLocked)
+        assertEquals(RequestHint.Help, vm.state.value.requestHint)
     }
 
     @Test

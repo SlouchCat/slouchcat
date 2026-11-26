@@ -181,7 +181,7 @@ func TestSeerrWishSettings(t *testing.T) {
 	}
 	if ws != DefaultWishSettings || ws.Enabled || ws.Unmapped != model.WishesUnmappedFallback ||
 		ws.DefaultLimit != (model.WishLimits{Movie: model.WishLimit{Limit: 10, Days: 7}, TV: model.WishLimit{Limit: 5, Days: 7}}) ||
-		!ws.ProvisionAccounts || !ws.SyncPassword || ws.NewAccountsCanRequest {
+		!ws.ProvisionAccounts || !ws.SyncPassword || !ws.NewAccountsCanRequest { // on since question 36 (ADR 0045)
 		t.Errorf("defaults = %+v", ws)
 	}
 	for name, upd := range map[string]model.WishSettingsUpdate{

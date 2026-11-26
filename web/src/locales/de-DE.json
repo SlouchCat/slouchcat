@@ -693,7 +693,7 @@
           "join": "Mitwünschen: Ein zweites Profil hängt sich an den offenen Wunsch („Benachrichtige mich“) und wird ebenfalls benachrichtigt. Seerr bekommt keine zweite Anfrage.",
           "status": "Nur Zustand zeigen: Ein zweites Profil sieht „Bereits angefordert“, kann sich aber nicht dazuschalten und wird nicht benachrichtigt."
         },
-        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog „Konto einladen“. Ändert bestehende Konten nicht.",
+        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog „Konto einladen“, ab Werk an. Eine Einladung mit Altersgrenze gibt das Recht nie. Ändert bestehende Konten nicht.",
         "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf „Zurückziehen“ unter „Meine Wünsche“.",
         "perAccountHelp": "Unter „Konten“ lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
         "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die „Lokale Anmeldung“. Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.",

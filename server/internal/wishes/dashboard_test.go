@@ -49,7 +49,7 @@ func TestInvitationLimitAndDashboard(t *testing.T) {
 	now := time.Now()
 	f.rebuild(WithClock(func() time.Time { return now }))
 	a := auth.New(f.db, f.log).WithAccountCreated(f.svc.AccountCreated).WithPasswordSeen(f.svc.PasswordSeen)
-	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 12, AllLibraries: true, CanRequest: new(true),
+	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 18, AllLibraries: true, CanRequest: new(true),
 		WishLimit: &model.InvitationWishLimit{Mode: model.WishLimitCustom, Movie: &model.WishLimit{Limit: 3, Days: 14}, TV: &model.WishLimit{Limit: 1, Days: 7}}})
 	if err != nil {
 		t.Fatal(err)

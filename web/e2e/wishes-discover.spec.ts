@@ -32,7 +32,7 @@ const ROWS = [
   'Demnächst als Serie',
 ];
 
-/** Lets the profile request (F-9: a new profile may not until the main profile allows it). */
+/** Turns the request right of the profile on or off by hand (without an age limit it starts on, ADR 0045). */
 async function allowRequests(owner: APIRequestContext, profileId: number, canRequest: boolean) {
   const response = await owner.patch(`/api/v1/profiles/${profileId}`, {
     headers: CSRF,
@@ -210,7 +210,6 @@ test('without the right: with wishes the entry leads to «Meine Wünsche» and �
   try {
     setup = await openWishes(owner);
     const profile = await useFreshProfile(page, owner, 'E2E Entdecken Recht');
-    await allowRequests(owner, profile.id, true);
     const made = await page.request.post('/api/v1/wishes', {
       headers: CSRF,
       data: { media: 'movie', tmdbId: 9003, source: 'detail' },
@@ -238,7 +237,9 @@ test('without the right: with wishes the entry leads to «Meine Wünsche» and �
     const withdrawn = await page.request.delete(`/api/v1/wishes/${id}`, { headers: CSRF });
     expect(withdrawn.ok(), await withdrawn.text()).toBe(true);
 
-    await useFreshProfile(page, owner, 'E2E Entdecken ohne');
+    // A fresh profile has the right from the start (ADR 0045): it is turned off by hand here.
+    const without = await useFreshProfile(page, owner, 'E2E Entdecken ohne');
+    await allowRequests(owner, without.id, false);
     await page.goto('/discover');
     await expect(page.getByText('Seite nicht gefunden')).toBeVisible();
     await expect(nav(page).getByRole('link', { name: /^Wünsche/ })).toHaveCount(0);

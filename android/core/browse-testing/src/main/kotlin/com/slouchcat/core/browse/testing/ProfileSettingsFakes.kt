@@ -98,7 +98,8 @@ class FakeProfileSettings(
         created += request.copy(pin = request.pin?.let { "*".repeat(it.length) })
         val made = profile(
             nextId++, request.name, rating = request.maxRating ?: 18, hasPin = request.pin != null, accent = request.accent,
-            watchLimit = request.limits?.watchLimitMinutes, canRequest = request.canRequest ?: false,
+            // As the server (ADR 0045): without canRequest the rating decides.
+            watchLimit = request.limits?.watchLimitMinutes, canRequest = request.canRequest ?: ((request.maxRating ?: 18) >= 18),
         )
         profiles += made
         return ApiResult.Ok(made)
