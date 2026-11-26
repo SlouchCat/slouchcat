@@ -38,10 +38,10 @@ const CHANGED_EMAIL = 'e2e-owner-neu@slouchcat.test';
 const TAB_MAX = 80;
 
 /** A guest account from an invitation; the `owner` fixture removes it after the test. */
-async function inviteGuest(owner: APIRequestContext, anonymous: APIRequestContext) {
+async function inviteGuest(owner: APIRequestContext, anonymous: APIRequestContext, maxRating = 12) {
   const invitation = await createInvitation(owner, {
     note: 'Konten-E2E',
-    maxRating: 12,
+    maxRating,
     allLibraries: true,
     libraryIds: [],
   });
@@ -658,7 +658,8 @@ test('concept 25: request right and limit in «Zugriff», the invitation and the
   const before = await connectSeerr(owner);
   try {
     // The guest is opened in Seerr when it accepts (Neue Konten in Seerr eröffnen, ab Werk an).
-    await inviteGuest(owner, anonymous);
+    // Without an age limit: an account with one has no request right to switch (ADR 0045).
+    await inviteGuest(owner, anonymous, 18);
     await openAccounts(page);
     const row = accountRow(page, GUEST.email);
     await expect(row.getByText(/^(Erlaubt|Nicht erlaubt|Ohne Seerr-Benutzer)$/)).toBeVisible();

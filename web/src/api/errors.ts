@@ -138,6 +138,7 @@ const WISH_REASONS = [
   'disabled',
   'account_not_allowed',
   'profile_not_allowed',
+  'age_restricted',
   'no_mapping',
   'seerr_user_gone',
   'movies_not_allowed',
@@ -158,6 +159,8 @@ const fieldKeys = {
   too_long: 'errors.field.too_long',
   invalid_email: 'errors.field.invalid_email',
   above_account_limit: 'errors.field.above_account_limit',
+  // The request right of a profile, an account or an invitation with an age limit (ADR 0045).
+  age_restricted: 'errors.field.age_restricted',
   unknown_library: 'errors.field.unknown_library',
   too_many_profiles: 'errors.field.too_many_profiles',
   already_exists: 'errors.field.already_exists',

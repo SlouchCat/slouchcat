@@ -147,13 +147,75 @@ describe('profile settings page', () => {
     await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
     const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
-    // A further profile starts without the right.
-    expect(right).not.toBeChecked();
+    // Without an age limit a further profile starts with the right (ADR 0045); it can go.
+    expect(right).toBeChecked();
     await user.type(within(dialog).getByLabelText('Name'), 'Kind');
     await user.click(right);
+    expect(right).not.toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
-    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({ canRequest: true });
+    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+      canRequest: false,
+    });
+  });
+
+  it('locks «Darf Titel anfordern» off while the chosen rating is an age limit (ADR 0045)', async () => {
+    const wishes = { enabled: true, canRequest: true, movies: true, shows: true };
+    const { calls } = mockApi({
+      ...manage,
+      'GET /auth/session': () => json({ ...session, wishes }),
+      'POST /profiles': () => json({ ...profiles[1]!, id: 7, name: 'Kind' }, 201),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
+    await user.type(within(dialog).getByLabelText('Name'), 'Kind');
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 12' }));
+    expect(right).toBeDisabled();
+    expect(right).not.toBeChecked();
+    expect(
+      within(dialog).getByText(/Profile mit Altersgrenze dürfen keine Titel anfordern/),
+    ).toBeVisible();
+    // Back to 18: the switch is free again with the choice it had.
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 18' }));
+    expect(right).toBeEnabled();
+    expect(right).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 12' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    // The server sets the right from the rating: the form sends none.
+    expect(calls.find((call) => call.method === 'POST')?.body).not.toHaveProperty('canRequest');
+  });
+
+  it('shows the right coming back when an age limit is lifted, without sending the old value', async () => {
+    const wishes = { enabled: true, canRequest: true, movies: true, shows: true };
+    const { calls } = mockApi({
+      ...manage,
+      'GET /auth/session': () => json({ ...session, wishes }),
+      'PATCH /profiles/2': () => json({ ...profiles[1]!, maxRating: 18, canRequest: true }),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    const lena = await screen.findByRole('article', { name: 'Lena' });
+    await user.click(within(lena).getByRole('button', { name: 'Bearbeiten' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Profil bearbeiten' });
+    const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
+    // Lena has «FSK 12»: off and locked.
+    expect(right).toBeDisabled();
+    expect(right).not.toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 18' }));
+    expect(right).toBeChecked();
+    expect(right).toBeDisabled();
+    expect(
+      within(dialog).getByText(/Ohne Altersgrenze darf das Profil wieder anfordern/),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const body = calls.find((call) => call.method === 'PATCH')?.body;
+    expect(body).toMatchObject({ maxRating: 18 });
+    expect(body).not.toHaveProperty('canRequest');
   });
 
   it('locks «Darf Titel anfordern» with the reason when the account has no right', async () => {
@@ -202,7 +264,8 @@ describe('profile settings page', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
     const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
     await user.type(within(dialog).getByLabelText('Name'), 'Kind');
-    await user.click(right);
+    // The new profile starts with the right (ADR 0045), so the form sends it.
+    expect(right).toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
     await waitFor(() => expect(right).toBeDisabled());
     expect(right).not.toBeChecked();

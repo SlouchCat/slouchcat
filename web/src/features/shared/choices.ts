@@ -95,6 +95,12 @@ export const accentOptions = (t: TFunction) =>
   accentNames.map((name) => ({ value: name, label: t(`accent.${name}`) }));
 
 /**
+ * The highest rating: a profile, an account or an invitation below it has an age limit and no
+ * request right (ADR 0045).
+ */
+export const NO_AGE_LIMIT = 18;
+
+/**
  * Rating from a radio value: an age from 0 to 18 (the radio offers the steps and the current value,
  * see ratingOptions); anything else falls back to the lowest, the safest choice.
  */

@@ -9,7 +9,7 @@ import { useRatingSystem } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { Chip, Notice } from '@/ui';
+import { Chip, Notice, Text } from '@/ui';
 import {
   AriaButton,
   DataTable,
@@ -20,7 +20,7 @@ import {
   TextField,
   type DataColumn,
 } from '@/ui/aria';
-import { ratingLabel, ratingOf, ratingOptions } from '../../shared/choices';
+import { NO_AGE_LIMIT, ratingLabel, ratingOf, ratingOptions } from '../../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../../shared/LibraryChoice';
 import {
   describeLibraries,
@@ -122,7 +122,9 @@ function InvitationForm({
     seerr.data && seerr.data.state !== 'not_configured' ? wishSettings.data : undefined;
   const [canRequest, setCanRequest] = useState<boolean | undefined>(undefined);
   const [wishLimit, setWishLimit] = useState<WishLimitDraft | undefined>(undefined);
-  const requestRight = canRequest ?? wishes?.newAccountsCanRequest ?? false;
+  // An invitation with an age limit never gives the right (ADR 0045): off and locked, not sent.
+  const restricted = ratingOf(rating) < NO_AGE_LIMIT;
+  const requestRight = !restricted && (canRequest ?? wishes?.newAccountsCanRequest ?? false);
   const limit = wishLimit ?? (wishes && wishLimitDraftOf(undefined, wishes.defaultLimit));
 
   // The answer holds the one-time link: it must not stay in the mutation cache.
@@ -150,7 +152,10 @@ function InvitationForm({
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
       ...(wishes && limit
-        ? { canRequest: requestRight, wishLimit: wishLimitRequestOf(limit) }
+        ? {
+            ...(restricted ? {} : { canRequest: requestRight }),
+            wishLimit: wishLimitRequestOf(limit),
+          }
         : {}),
     });
   };
@@ -182,9 +187,19 @@ function InvitationForm({
         {wishes && limit && (
           <fieldset className={styles.fieldset}>
             <legend>{t('admin.accounts.wishes.title')}</legend>
-            <Switch name="canRequest" isSelected={requestRight} onChange={setCanRequest}>
+            <Switch
+              name="canRequest"
+              isSelected={requestRight}
+              isDisabled={restricted}
+              onChange={setCanRequest}
+            >
               {t('admin.accounts.wishes.canRequest')}
             </Switch>
+            {restricted && (
+              <Text tone="secondary" variant="caption">
+                {t('admin.accounts.invitations.canRequestRestricted')}
+              </Text>
+            )}
             <WishLimitFields
               value={limit}
               onChange={setWishLimit}

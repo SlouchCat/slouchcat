@@ -7,7 +7,7 @@ import { formErrors } from '@/api/errors';
 import { useRatingSystem } from '@/app/session';
 import { Notice, Text } from '@/ui';
 import { AriaButton, Form, RadioGroup, Switch } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../../shared/choices';
+import { NO_AGE_LIMIT, ratingOf, ratingOptions } from '../../shared/choices';
 import { LibraryChoice } from '../../shared/LibraryChoice';
 import { LimitFields, limitsOf, limitValues, type LimitValues } from '../../shared/LimitFields';
 import { libraryIdsOf, type LibraryOption } from '../../shared/useLibraryOptions';
@@ -133,6 +133,13 @@ export function AccessForm({
     : save.error
       ? formErrors(t, save.error)
       : null;
+  // The right follows the rating (ADR 0045), a mirror of the server's rule: with an age limit it is
+  // off and locked; a rating that crosses 18 sets it on saving, so the switch shows the outcome and
+  // the form leaves canRequest out instead of sending the draft's old value.
+  const restricted = ratingOf(value.rating) < NO_AGE_LIMIT;
+  const crossing = account.maxRating < NO_AGE_LIMIT !== restricted;
+  const requestLocked = restricted || crossing;
+  const requestShown = !restricted && (crossing || value.canRequest);
   const set = (patch: Partial<AccessDraft>) => {
     if (save.error) save.reset();
     onChange({ ...value, ...patch });
@@ -150,7 +157,9 @@ export function AccessForm({
         // W-8: bandwidth, quality and streams cap every profile of the account.
         limits: limitsOf(value.limits, false),
         // Only a change: an account the server names no right for keeps the one it has.
-        ...(value.canRequest !== stored.canRequest ? { canRequest: value.canRequest } : {}),
+        ...(!requestLocked && value.canRequest !== stored.canRequest
+          ? { canRequest: value.canRequest }
+          : {}),
       },
       sent: value,
     });
@@ -204,15 +213,22 @@ export function AccessForm({
             <SeerrUserLine account={account} />
             <Switch
               name="canRequest"
-              isSelected={value.canRequest}
+              isSelected={requestShown}
+              isDisabled={requestLocked}
               onChange={(canRequest) => set({ canRequest })}
             >
               {t('admin.accounts.wishes.canRequest')}
             </Switch>
             <Text tone="secondary" variant="caption">
-              {t('admin.accounts.wishes.canRequestHelp')}
+              {t(
+                restricted
+                  ? 'admin.accounts.wishes.canRequestRestricted'
+                  : crossing
+                    ? 'admin.accounts.wishes.canRequestReturns'
+                    : 'admin.accounts.wishes.canRequestHelp',
+              )}
             </Text>
-            {value.canRequest !== stored.canRequest && <RequestRightHint account={account} />}
+            {requestShown !== stored.canRequest && <RequestRightHint account={account} />}
             {value.wishLimit && account.wishLimit && (
               <WishLimitFields
                 value={value.wishLimit}

@@ -957,8 +957,10 @@ describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, ()
     defaultLimit: { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } },
   };
   const effective = { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } };
+  // A guest with the right has no age limit (ADR 0045).
   const wishGuest: AdminAccount = {
     ...guest,
+    maxRating: 18,
     canRequest: true,
     wishState: 'allowed',
     wishLimit: { mode: 'default', effective, seerrAdmin: false },
@@ -1058,6 +1060,38 @@ describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, ()
       movie: { limit: 3, days: 14 },
       tv: { limit: 5, days: 7 },
     });
+  });
+
+  it('locks the request right of an account with an age limit and shows it coming back (ADR 0045)', async () => {
+    const { calls } = mockApi(
+      wishRoutes({
+        'GET /admin/accounts': () =>
+          json([owner, { ...wishGuest, maxRating: 12, canRequest: false }]),
+        'PATCH /admin/accounts/7': () => new Response(null, { status: 204 }),
+      }),
+    );
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
+    const form = within(other).getByRole('region', { name: 'Zugriff von gast@example.test' });
+    const right = within(form).getByRole('switch', { name: 'Darf Titel anfordern' });
+    expect(right).toBeDisabled();
+    expect(right).not.toBeChecked();
+    expect(
+      within(form).getByText(/Konten mit Altersgrenze dürfen keine Titel anfordern/),
+    ).toBeVisible();
+    await user.click(within(form).getByRole('radio', { name: 'FSK 18' }));
+    expect(right).toBeChecked();
+    expect(right).toBeDisabled();
+    expect(
+      within(form).getByText(/Ohne Altersgrenze darf das Konto wieder anfordern/),
+    ).toBeVisible();
+    await user.click(within(form).getByRole('button', { name: 'Zugriff speichern' }));
+    expect(await screen.findByText('Zugriff von gast@example.test gespeichert.')).toBeVisible();
+    const body = calls.find((call) => call.method === 'PATCH')?.body;
+    expect(body).toMatchObject({ maxRating: 18 });
+    expect(body).not.toHaveProperty('canRequest');
   });
 
   it('a refused limit after a saved access names only the limit, at its field', async () => {
@@ -1160,6 +1194,35 @@ describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, ()
       canRequest: true,
       wishLimit: { mode: 'unlimited' },
     });
+  });
+
+  it('an invitation with an age limit gives no request right (ADR 0045)', async () => {
+    const { calls } = mockApi(
+      wishRoutes({
+        'POST /admin/invitations': () =>
+          json({ invitation: invitation(), url: '/invite/t', token: 't' }, 201),
+      }),
+    );
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    const invite = await screen.findByRole('button', { name: 'Konto einladen' });
+    await waitFor(() => expect(invite).toBeEnabled());
+    await user.click(invite);
+    const dialog = await screen.findByRole('dialog', { name: 'Konto einladen' });
+    const right = await within(dialog).findByRole('switch', { name: 'Darf Titel anfordern' });
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 12' }));
+    expect(right).toBeDisabled();
+    expect(right).not.toBeChecked();
+    expect(
+      within(dialog).getByText(
+        'Eine Einladung mit Altersgrenze gibt kein Recht, Titel anzufordern.',
+      ),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Einladung erstellen' }));
+    await within(dialog).findByLabelText('Einladungslink');
+    const body = calls.find((call) => call.method === 'POST')?.body;
+    expect(body).toMatchObject({ maxRating: 12, wishLimit: { mode: 'default' } });
+    expect(body).not.toHaveProperty('canRequest');
   });
 
   it('an invitation with a wrong own number stops at the field; a number the server refuses stands there', async () => {

@@ -11,7 +11,13 @@ import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { isAccentName, Notice, Text } from '@/ui';
 import { AccentPicker, AriaButton, Form, PinField, RadioGroup, Switch, TextField } from '@/ui/aria';
-import { accentOptions, languageOptions, ratingOf, ratingOptions } from '../shared/choices';
+import {
+  accentOptions,
+  languageOptions,
+  NO_AGE_LIMIT,
+  ratingOf,
+  ratingOptions,
+} from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
 import {
   isCapped,
@@ -84,11 +90,26 @@ export function ProfileForm({
   // account's right caps it (the server refuses a right above it, 422 account_not_allowed).
   const wishes = session.wishes;
   const showRequest = session.profile.isPrimary && wishes?.enabled === true;
-  const [canRequest, setCanRequest] = useState(profile?.canRequest ?? false);
+  // A new profile starts with the right as the server gives it: on without an age limit (ADR 0045).
+  const [canRequest, setCanRequest] = useState(profile?.canRequest ?? true);
   // The editor's own session may name a higher-ranked reason than the account's: the server's
   // refusal of the right (422 canRequest account_not_allowed) also locks the switch.
   const [accountRefused, setAccountRefused] = useState(false);
   const accountAllowed = wishes?.reason !== 'account_not_allowed' && !accountRefused;
+  // The right follows the rating (ADR 0045), a mirror of the server's rule as for the cap: with an
+  // age limit it is off and locked; a rating that crosses 18 sets it on saving, so the switch shows
+  // the outcome and the form leaves canRequest out instead of sending an old value.
+  const restricted = ratingOf(rating) < NO_AGE_LIMIT;
+  const crossing = profile !== undefined && profile.maxRating < NO_AGE_LIMIT !== restricted;
+  const requestLocked = !accountAllowed || restricted || crossing;
+  const requestShown = accountAllowed && !restricted && (crossing || canRequest);
+  const requestHint = !accountAllowed
+    ? 'profiles.settings.form.canRequestCapped'
+    : restricted
+      ? 'profiles.settings.form.canRequestRestricted'
+      : crossing
+        ? 'profiles.settings.form.canRequestReturns'
+        : 'profiles.settings.form.canRequestHelp';
   // The playback preferences as the profile holds them. A new profile leaves them to the server
   // until they are changed: it starts them from the language chosen above (F-12), so the fields
   // follow that language meanwhile.
@@ -152,7 +173,7 @@ export function ProfileForm({
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
       limits: limitsOf(limits),
       ...(prefs ?? {}),
-      ...(showRequest && accountAllowed ? { canRequest } : {}),
+      ...(showRequest && !requestLocked ? { canRequest } : {}),
       ...(!profile && pin ? { pin } : {}),
     });
   };
@@ -238,18 +259,14 @@ export function ProfileForm({
           <legend className={styles.legend}>{t('profiles.settings.form.wishes')}</legend>
           <Switch
             name="canRequest"
-            isSelected={accountAllowed && canRequest}
-            isDisabled={!accountAllowed}
+            isSelected={requestShown}
+            isDisabled={requestLocked}
             onChange={setCanRequest}
           >
             {t('profiles.settings.form.canRequest')}
           </Switch>
           <Text tone="secondary" variant="caption">
-            {t(
-              accountAllowed
-                ? 'profiles.settings.form.canRequestHelp'
-                : 'profiles.settings.form.canRequestCapped',
-            )}
+            {t(requestHint)}
           </Text>
         </fieldset>
       )}
