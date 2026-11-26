@@ -1,10 +1,11 @@
 # Aktueller Stand
 
-## Handy-App: Das Hauptprofil setzt das Wunschrecht eines Profils (26. November 2026, Zweig `claude/app-wunschrecht-profil`)
+## Handy-App: Das Hauptprofil setzt das Wunschrecht eines Profils (26. November 2026, PR #229)
 
-Betrifft nur die Handy-App (Blatt «Profil bearbeiten» und «Neues Profil»). Kein Wechsel am Server und am
-Vertrag: `canRequest` steht seit Vertrag 1.41.0 in `Profile`, `ProfileRequest` und `ProfileUpdate`, und
-`createProfile` und `updateProfile` sind für `app` freigegeben. Noch in keiner Ausgabe der App.
+PR #229, gemergt am 26. November 2026 (`816e2c01`). Betrifft nur die Handy-App (Blatt «Profil bearbeiten»
+und «Neues Profil»). Kein Wechsel am Server und am Vertrag: `canRequest` steht seit Vertrag 1.41.0 in
+`Profile`, `ProfileRequest` und `ProfileUpdate`, und `createProfile` und `updateProfile` sind für `app`
+freigegeben. Kommt mit der Ausgabe 1.0.3 der Handy-App; `app-v1.0.2` hat den Schalter nicht.
 
 - **Der Befund (Marco, am Handy):** Mit den Profilen «Katrin» und «Marco» liess sich nichts wünschen, nur
   mit dem Hauptprofil. Auf CT 190 (Server 1.43.1, Datenbank nur gelesen) hatten beide Profile
@@ -515,6 +516,13 @@ Dateien von 1.0.1 enthalten sie nicht. Die TV-App bleibt bei 1.0.1. Seit `tv-v1.
 den gemeinsamen Modulen nichts geändert: Unter `android/` sind es seit `app-v1.0.1` nur die zwei Dateien der
 Korrektur und die Versionsdatei, alle in `android/app-mobile`. Wie bisher unsignierte Dateien an einem
 GitHub-Release, das nicht «latest» wird, keine Store-Ausgabe.
+
+**Ausgabe 1.0.3 der Handy-App (26. November 2026):** `app-v1.0.3` (`versionCode` 4) nimmt den Schalter
+«Darf Titel anfordern» im Blatt «Profil bearbeiten» auf (PR #229). Die Dateien von 1.0.2 enthalten ihn
+nicht. Die TV-App bleibt bei 1.0.1. Anders als bei 1.0.2 hat sich ein gemeinsames Modul geändert
+(`android/core/browse`, `ProfileSettingsViewModel`): Die TV-App zeigt und schickt das Wunschrecht weiter
+nicht; mit ihrer nächsten Ausgabe liest auch sie eine gescheiterte Sitzungsabfrage beim stillen Nachladen
+neu. Wie bisher unsignierte Dateien an einem GitHub-Release, das nicht «latest» wird, keine Store-Ausgabe.
 
 ### Eigene Entscheide des Baus
 
