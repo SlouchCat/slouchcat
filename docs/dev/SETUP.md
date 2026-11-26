@@ -251,6 +251,14 @@ CI prüft weiterhin alles.
   prüft gezielt nach, wo er eine Lücke sieht.
 - Nach drei erfolglosen Korrekturversuchen an derselben roten Prüfung wird angehalten und gemeldet.
   Übersprungene Tests, mehr Wiederholungen oder gelockerte Grenzen machen eine Prüfung nicht grün.
+- Ein roter CI-Job lässt sich lokal einzeln nachstellen, mit demselben Aufruf wie im Job:
+  `task server:test GROUP=<Gruppe>` (Gruppen in `server/testgroups.txt`; `internal/store` ist seit
+  26. November 2026 nach Testnamen auf die Gruppen `2`, `2b` und `2c` verteilt), `task
+  ci:android:debug` (Lint, Tests, Debug-Builds) und `task ci:android:release` (R8-Builds). `task ci`
+  führt weiterhin alles aus; ADR 0013, Nachtrag vom 26. November 2026.
+- Ein Paket, das allein länger als ein Job dauert, wird in `server/testgroups.txt` nach Testnamen
+  geteilt, nicht übersprungen: eine Zeile je Teil mit Muster, eine Zeile ohne Muster für den Rest.
+  `task server:lint` zählt die Teile gegen die Tests des Pakets.
 
 ### Plätze für schwere Läufe
 

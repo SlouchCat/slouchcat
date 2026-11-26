@@ -1,5 +1,33 @@
 # Aktueller Stand
 
+## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, Zweig `claude/intelligent-tu-a7d091`)
+
+Betrifft nur die CI und Testhelfer; Server, Web-App und Apps sind unverändert. Auftrag von Marco: die
+zwei längsten Jobs kürzen, ohne dass eine Prüfung wegfällt. Entscheide: ADR 0013, Nachtrag vom
+26. November 2026; Messwerte: `docs/perf/ci.md`, Abschnitt 8.
+
+- **`internal/store`, Engpass belegt:** Laut Mutex-Profil entfallen 99 % der Wartezeit auf eine
+  einzige Sperre in `modernc.org/libc` (`allocatorMu`, über die jede SQLite-Verbindung ihren Speicher
+  holt). Ein Prozess nutzt darum höchstens rund 2,7 Kerne. Das Paket läuft jetzt in drei Gruppen
+  (`2`, `2b`, `2c`), jede als eigener Prozess auf eigenem Runner. `server/testgroups.txt` kann dafür ein
+  Paket nach Testnamen teilen; `scripts/testgroups.sh --check` zählt die Teile gegen die Tests des
+  Pakets (68 + 7 + 64 = 139).
+- **Lokal zusätzlich:** Der Testhelfer `replay` machte beim Einspielen der eingefrorenen Stände vier
+  fsync je Zeile. Mit `synchronous(OFF)` auf der Wegwerf-Datei laufen 10 Migrationstests in 43 s statt
+  260 s. Auf dem Runner bringt das nichts Messbares.
+- **Android:** Der Gradle-Build-Cache wurde seit dem 23. November nie erneuert. Er hat jetzt einen
+  eigenen Cache, den jeder Lauf auf `main` speichert, und der Job läuft auf `main` auch nach einem
+  schon geprüften Merge. Der Job ist in zwei Hälften geteilt: Lint, Tests und Debug-Builds; Release-
+  Builds mit R8. `ciCheck` besteht genau aus beiden Hälften.
+- **Gemessen auf dem Runner (Wegwerf-Läufe 45791696144 und 45798911327):** `store` vorher 995 bis
+  1520 s, eine Hälfte 470 bis 585 s; Android nach einer Änderung an `core:api` 571 s statt 957 s
+  (frischer Cache) bzw. 1033 s (alter Cache), ohne Android-Änderung 135 s.
+- **Offen, Frage an Marco im PR:** Race-Instrumentierung in `modernc.org/...` abschalten wäre 3,9-mal
+  schneller, ist aber eine Lockerung und darum nicht gebaut.
+- **Wirkung erst nach dem Merge voll:** Den Android-Build-Cache speichert nur `main`. Der erste
+  PR-Lauf nach dem Merge hat ihn noch nicht; die Zahlen mit frischem Cache stammen aus den
+  Wegwerf-Läufen.
+
 ## Handy-App: Das Hauptprofil setzt das Wunschrecht eines Profils (26. November 2026, PR #229)
 
 PR #229, gemergt am 26. November 2026 (`816e2c01`). Betrifft nur die Handy-App (Blatt «Profil bearbeiten»
