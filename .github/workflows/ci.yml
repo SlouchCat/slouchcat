@@ -271,11 +271,18 @@ jobs:
   # texts from the locales, tokens through Node) and the JVM tests with Robolectric (the TV's D-pad
   # tests included); `task ci:android` is the same locally. JDK 21 is the runner's own
   # (JAVA_HOME_21_X64), the SDK the runner's with the packages the build needs added; no third-party
-  # action. The debug APKs of both apps stay with the run. The TV's emulator flow runs only locally
+  # action. The APKs of both apps stay with the run. The TV's emulator flow runs only locally
   # (task android:e2e:tv; docs/perf/K27-android-ci.md).
+  #
+  # Two jobs side by side since 26 November 2026: after a change to core:api the whole took 16 min
+  # with a current build cache, and the release builds with R8 alone 5.5 of them (measurement run
+  # 45791696144, docs/perf/ci.md). "debug" runs ciCheckDebug and ciTest, "release" ciCheckRelease;
+  # ciCheck is exactly these two halves (android/build.gradle.kts), so the two jobs together run
+  # what `task ci:android` runs. Each half has a build cache of its own: they compile different
+  # variants.
   # ---------------------------------------------------------------------------------------------
   android:
-    name: android (builds, lint, generators, tests)
+    name: android (${{ matrix.name }})
     needs: changes
     # On main also when a pull-request run already checked the content: this job saves the Gradle
     # build cache there, and the next pull requests start from it (step "Save the Gradle build
@@ -283,6 +290,13 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true' && (needs.changes.outputs.tested != 'true' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      # Each half reports its own result.
+      fail-fast: false
+      matrix:
+        include:
+          - { part: debug, name: 'lint, tests, debug builds, generators' }
+          - { part: release, name: 'release builds, R8' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -327,7 +341,7 @@ jobs:
       # saving cache"): the build cache inside it stayed that of its first run while the sources
       # moved on. Three days and 13 merges into the apps later, 579 of 814 tasks of ciCheck ran
       # again (run 45714878704); with a build cache of the same sources a second build took 8 s
-      # instead of 6 min (docs/perf/ci.md). This cache holds the build cache alone, about 300 MB,
+      # instead of 6 min (docs/perf/ci.md). This cache holds the build cache of one half alone,
       # and is saved by every run on main under the run id; restore-keys hand the newest one to the
       # next run, as with the -race build cache of the server tests. It is restored over the old
       # build cache of the step above, so a run before main's first save keeps what it had.
@@ -344,10 +358,10 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.gradle/caches/build-cache-1
-          key: gradle-build-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: gradle-build-${{ runner.os }}-
+          key: gradle-build-${{ runner.os }}-${{ matrix.part }}-${{ github.run_id }}
+          restore-keys: gradle-build-${{ runner.os }}-${{ matrix.part }}-
 
-      - run: task ci:android
+      - run: task ci:android:${{ matrix.part }}
 
       # Only main saves, as with the -race build cache: a pull request reads main's caches, but one
       # it saved would be readable by that branch alone and would crowd main's caches out of the
@@ -357,12 +371,13 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.gradle/caches/build-cache-1
-          key: gradle-build-${{ runner.os }}-${{ github.run_id }}
+          key: gradle-build-${{ runner.os }}-${{ matrix.part }}-${{ github.run_id }}
 
-      - name: Keep the debug APKs
+      # android-debug-apks and android-release-apks.
+      - name: Keep the APKs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-debug-apks
+          name: android-${{ matrix.part }}-apks
           path: |
             android/app-mobile/build/outputs/apk/**/*.apk
             android/app-tv/build/outputs/apk/**/*.apk
@@ -372,7 +387,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-reports
+          name: android-${{ matrix.part }}-reports
           path: |
             android/**/build/reports/
             android/**/build/test-results/
