@@ -283,3 +283,77 @@ Statusfilter ab und prüft `status` und `conclusion` des Laufs selbst; die Prüf
 Jobs bleibt. Geprüft mit dem geänderten Skript an echten Commits auf `main`: Merge #178 jetzt
 übernommen (vorher nicht), #173 und #176 übernommen, #177 (Doku, Jobs übersprungen) voll, ein
 Commit ohne zwei Eltern voll, ein roter PR-Lauf wird nicht gewählt.
+
+## Nachtrag vom 26. November 2026: `store` in drei Gruppen, Android in zwei Jobs mit eigenem Build-Cache
+
+**Anlass:** Marco fragte am 26. November 2026, ob sich die zwei längsten Jobs beschleunigen lassen.
+In den zehn grünen PR-Läufen vom 23. bis 26. November brauchte `server tests (2)` 1168 bis 1520 s,
+`android (builds, lint, generators, tests)` 806 bis 1398 s; das Gate war nach 1313 bis 1596 s
+fertig, der nächste Job (die e2e-Shards) nach 12 bis 13 Minuten. Vorgabe: keine Prüfung fällt weg
+oder wird gelockert. Messwerte und Belege: `docs/perf/ci.md`, Abschnitt 8.
+
+### `internal/store`: der Engpass ist eine Sperre je Prozess
+
+- **Belegt mit Profilen:** Das Mutex-Profil schreibt 99 % der Wartezeit einer einzigen Sperre zu,
+  `allocatorMu` in `modernc.org/libc` (`Xmalloc`, `Xfree`, `Xrealloc`). Alle SQLite-Verbindungen
+  eines Prozesses holen ihren Speicher über diese Sperre. Unter `-race` dauert jeder Aufruf länger,
+  also hält jeder Test die Sperre länger. Das Paket nutzte deshalb 2,7 von 24 Kernen, und
+  parallel brauchte es doppelt so viel CPU-Zeit wie nacheinander (Drehen an der Sperre).
+- **Ein zweiter, lokaler Engpass:** Der Testhelfer `replay` spielt die eingefrorenen Stände
+  zeilenweise ein, im Rollback-Journal mit vier fsync je Zeile; ein Test machte 6539 fsync. Lokal
+  warteten die parallelen Tests aufeinander im Journal des Dateisystems. Behoben mit
+  `synchronous(OFF)` für die Wegwerf-Datei (auch in `internal/radio` und `internal/library`). Auf
+  dem Runner bringt das allein nichts Messbares: Dort entscheidet die Sperre.
+- **Entscheid:** Ein Paket kann in `server/testgroups.txt` nach Testnamen geteilt werden. Jede
+  Zeile des Pakets bis auf eine trägt ein Muster über die Namen seiner Tests auf oberster Ebene;
+  eine Zeile mit Muster läuft mit `-run=<Muster>` und überspringt, was die Zeilen darüber schon
+  nehmen; die Zeile ohne Muster überspringt alle Muster (`-skip`). So landet jeder Test in genau
+  einer Gruppe, auch ein neuer, nach demselben Prinzip wie die Gruppe `rest` für Pakete.
+  `scripts/testgroups.sh --check` (Teil von `server:lint`) listet die Tests des Pakets, zählt jede
+  Gruppe und schlägt fehl, wenn eine Gruppe keinen Test nimmt, die Summe nicht stimmt, eine Gruppe
+  neben dem geteilten Paket noch etwas anderes hält oder ein Muster `/` enthält.
+- `internal/store` läuft in drei Gruppen: `2` die Migrationstests (68), `2b` die Migration aller
+  eingefrorenen Stände und die Wiederherstellung (7), `2c` der Rest (64). Lokal unter `-race` je
+  rund 360 s, zusammen 139 von 139 Tests.
+- **Verworfen:** (a) Mehr Kerne für ein Paket: Die Sperre gilt je Prozess, mehr Kerne drehen nur
+  mehr. (b) Mehrere `go test`-Prozesse in einem Job: Die Runner haben vier Kerne, und eigene Jobs
+  kosten keine Wartezeit (22 Jobs starteten in einem Lauf innerhalb von 3 s). (c) Die
+  Race-Instrumentierung in `modernc.org/...` abschalten (`-gcflags=modernc.org/...=-race=false`): Das
+  macht dieselben Tests 3,9-mal schneller, ist aber eine Lockerung. Marcos Entscheid vom
+  26. November 2026: so lassen. Das Gate wartet ohnehin auf den längsten e2e-Shard; schnellere
+  `store`-Jobs sparten nur Runner-Minuten.
+
+### Android: der Build-Cache wurde nie erneuert
+
+- **Belegt:** Der Gradle-Cache hat einen Schlüssel nur aus den Build-Dateien. Sein Hauptschlüssel
+  traf bei jedem Lauf, also speicherte er nie neu, und der Build-Cache darin blieb der vom
+  23. November. Lokal ein Doppellauf mit leerem Build-Cache und `clean` dazwischen: 6 min 3 s, dann
+  8 s. Die Aufgaben lassen sich also zwischenspeichern; es fehlte nur ein aktueller Cache.
+- **Entscheid:** Der Build-Cache (`~/.gradle/caches/build-cache-1`) bekommt einen Cache für sich:
+  Schlüssel mit `run_id`, `restore-keys` als Präfix, gespeichert nur auf `main`, gelesen überall,
+  wie der `-race`-Cache der Go-Tests. Er wird über den alten Build-Cache des Abhängigkeits-Caches
+  gelegt; ein Lauf vor dem ersten Speichern auf `main` behält also, was er hatte. Der Wochenlauf
+  beginnt leer, damit Einträge alter Quellen nicht immer mitreisen.
+- **Der Job `android` läuft auf `main` auch dann, wenn ein PR-Lauf den Inhalt schon geprüft hat**
+  (Ausnahme zum Nachtrag vom 15. November): Sonst bliebe der Cache hinter den Quellen zurück, denn
+  fast jeder Merge übernimmt das Ergebnis seines PR-Laufs. Ein `main`-Lauf nach einem Merge dauert
+  dadurch so lange wie die Android-Jobs, nicht mehr eine Minute. Niemand wartet auf ihn.
+- **Zwei Jobs statt einem:** Nach einer Änderung an `core:api` brauchte der Job auch mit aktuellem
+  Cache 16 Minuten, davon die drei R8-Release-Builds allein 5,5. Der Job ist jetzt eine Matrix mit
+  zwei Hälften: `debug` (`ciCheckDebug` und `ciTest`: Lint, Tests, Debug-Builds, Generatoren) und
+  `release` (`ciCheckRelease`: die R8-Builds). `ciCheck` hängt genau an diesen zwei Hälften und an
+  nichts sonst (`android/build.gradle.kts`); die beiden Jobs zusammen führen also aus, was
+  `task ci:android` ausführt. Lokal heissen die Hälften `task ci:android:debug` und
+  `task ci:android:release`. Jede Hälfte hat einen eigenen Build-Cache.
+- **Verworfen:** (a) Drei Teile (Lint, Builds, Tests): Der längste Teil wäre derselbe, und es wäre
+  ein Job mehr. (b) Vier Gradle-Worker statt drei: 889 statt 957 s, zu wenig für den Speicher, den
+  es auf dem Runner kostet. (c) Den Build-Cache auch aus PR-Läufen speichern: Einen solchen Cache
+  liest nur der eigene Zweig, und er verdrängt die Caches von `main` aus den 10 GB.
+
+### Was gleich bleibt
+
+Kein Test und keine Prüfung fällt weg: `internal/store` hat vor und nach der Teilung 139 Tests
+auf oberster Ebene, und alle laufen in genau einer Gruppe (`--check` zählt es bei jedem
+`server:lint`). `ciCheck` und `ciTest` hängen an denselben 21 und 13 Aufgaben wie vorher; `ciTest` ist unverändert (lokal 1857 JVM-Testfälle, keiner übersprungen). `-race`
+bleibt in jeder Gruppe, `checkptr` bleibt wie am 4. November entschieden. Das Gate verlangt
+weiter jeden Job; ein Matrix-Job ist nur grün, wenn jede seiner Hälften grün ist.

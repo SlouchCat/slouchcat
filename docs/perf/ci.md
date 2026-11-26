@@ -235,3 +235,98 @@ Umbau am 25. Oktober 2026 sah das so aus: ein Shard-Lauf fiel mit 68 von 70 Test
 `start-server.mjs` einer anderen Sitzung noch auf 8097 lauschte; derselbe Shard auf
 `SLOUCHCAT_E2E_PORT=8197` war sofort wieder grün. Wer parallel prüfen will, setzt die Variable, und
 zwar mit mindestens zehn Schritten Abstand, weil die Mock-Ports von ihr abgezählt werden.
+
+## 8. Nachtrag vom 26. November 2026: `server tests (2)` und `android`
+
+Auftrag von Marco: die zwei längsten Jobs kürzen, ohne dass eine Prüfung wegfällt. ADR 0013,
+Nachtrag vom 26. November 2026, hält die Entscheide fest; hier stehen die Messungen. Lokal heisst
+wie oben der Entwicklungsrechner, gemessen im Käfig (`taskset`, Speicherdeckel); «Runner» heisst
+`ubuntu-24.04` mit vier Kernen.
+
+### Ausgangslage
+
+Zehn grüne PR-Läufe vom 23. bis 26. November 2026 (45216383177 bis 45779414360):
+
+| Job | kürzester | längster |
+|---|---|---|
+| `server tests (2)` (`internal/store`) | 1168 s | 1520 s |
+| `android (builds, lint, generators, tests)` | 806 s | 1398 s |
+| e2e, längster Shard | 719 s | 816 s |
+| `server tests (1)` | 499 s | 612 s |
+| Gate fertig nach | 1313 s | 1596 s |
+
+### `internal/store`
+
+| Messung | Ergebnis |
+|---|---|
+| CPU-Profil, 10 Migrationstests | 46 % in der Race-Laufzeit (`__tsan_read`, `racecall`), der Rest in SQLite |
+| Mutex-Profil | 99 % der Wartezeit auf `allocatorMu` in `modernc.org/libc` (`Xmalloc` 55 %, `Xfree` 41 %) |
+| `strace -c`, ein Migrationstest | 6539 `fsync`, 1636 `unlink` von `slouchcat.db-journal`: der Helfer `replay` schreibt jede Zeile des Dumps als eigene Transaktion |
+| 10 Tests, `-parallel 1`, vor / nach `synchronous(OFF)` im Replay | 260 s / 43 s (26 % / 104 % eines Kerns) |
+| alle 139 Tests einzeln je Prozess, nacheinander summiert | 1460 s Wand, 1357 s CPU |
+| ganzes Paket in einem Prozess, 24 Kerne | 1007 s Wand, 2635 s CPU (268 %) |
+| ganzes Paket in einem Prozess, 4 Kerne | 960 s |
+| `modernc.org/...` ohne Race-Instrumentierung, 10 Tests | 11 s statt 43 s (nicht gebaut, Frage an Marco) |
+
+Daraus: Ein Prozess nutzt nie mehr als rund 2,7 Kerne, weil jede SQLite-Verbindung ihren
+Speicher über dieselbe Sperre holt, und mehr Kerne kosten nur CPU-Zeit für das Warten an ihr. Der
+fsync-Fix hilft lokal, auf dem Runner nicht messbar.
+
+Runner, Messlauf 45791696144 (Testschritt, ohne Einrichtung):
+
+| Variante | Sekunden |
+|---|---|
+| vorher, ganzes Paket (zweimal) | 995, 1289 |
+| fsync-Fix, ganzes Paket | 1263 |
+| fsync-Fix, zwei Hälften | 470 und 568 (Migrationen, Wiederherstellung), 585 (Rest) |
+
+Gewählt sind drei Gruppen (`2`, `2b`, `2c`; 68, 7 und 64 Tests), lokal unter `-race` mit
+`task server:test GROUP=…` 364, 352 und 368 s, zusammen 139 Tests, keiner doppelt.
+
+### `android`
+
+Lokal, leerer Build-Cache, `clean` dazwischen: `ciCheck ciTest` 6 min 3 s (709 Aufgaben
+ausgeführt), dann 8 s (449 aus dem Cache; die 415 ausgeführten sind Kopier- und Metadaten-Aufgaben).
+Der Build-Cache dafür ist 269 MB gross, auf dem Runner 450 bis 660 MB. Die Aufgaben lassen sich
+zwischenspeichern; der Cache der CI war nur drei Tage alt.
+
+Runner, Messlauf 45791696144: zuerst der Job wie heute (alter Cache), dann mit dessen frischem
+Build-Cache nach einer kleinen Änderung (eine neue Funktion in `app-mobile` bzw. eine neue
+öffentliche Funktion in `core:api`, von der jedes Modul abhängt). Job-Dauer:
+
+| Variante | Job |
+|---|---|
+| wie heute (alter Cache) | 1033 s |
+| frischer Cache, keine Android-Änderung | 141 s |
+| frischer Cache, Änderung in `app-mobile` | 668 s |
+| frischer Cache, Änderung in `core:api` | 957 s (mit vier Workern 889 s) |
+| dito, nur Lint / nur Builds / nur Tests | 364 / 712 / 397 s (in den Builds 327 s R8) |
+
+Messlauf 45798911327, die zwei Hälften so, wie `ci.yml` sie jetzt hat (Job-Dauer `debug` /
+`release`):
+
+| Variante | `debug` | `release` | länger |
+|---|---|---|---|
+| alter Cache (der erste Lauf nach dem Merge) | 625 s | 487 s | 625 s |
+| frischer Cache, keine Android-Änderung | 135 s | 113 s | 135 s |
+| frischer Cache, Änderung in `app-mobile` | 407 s | 374 s | 407 s |
+| frischer Cache, Änderung in `core:api` | 571 s | 485 s | 571 s |
+
+### Warteschlange
+
+Mehr Jobs kosten keine Wartezeit: In Lauf 45779414360 starteten 22 Jobs innerhalb von 3 s nach
+ihrer Erzeugung.
+
+### Pull Request #231
+
+Lauf 45808439520, grün, noch mit dem alten Android-Build-Cache (nur `main` speichert ihn):
+
+| Job | Dauer |
+|---|---|
+| `server tests (2)` / `(2b)` / `(2c)` | 576 / 487 / 569 s (Testschritt 524 / 397 / 476 s) |
+| `android (lint, tests, debug builds, generators)` / `(release builds, R8)` | 647 / 587 s |
+| `server tests (1)` | 555 s |
+| längster e2e-Shard | 778 s |
+| Gate fertig nach | **885 s** (vorher 1313 bis 1596 s) |
+
+Der längste Job ist damit wieder ein e2e-Shard.
