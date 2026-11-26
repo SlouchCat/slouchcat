@@ -35,8 +35,9 @@ Altersgrenze.
    `max_rating` die Grenze 18 überschreitet: `accounts_request_follows_rating` und
    `profiles_request_follows_rating` (`AFTER UPDATE OF max_rating`, nur wenn alt und neu auf
    verschiedenen Seiten von 18 liegen). Unter 18 wird der Schalter aus, auf 18 wird er an.
-   Drei Wächter (`BEFORE INSERT` und `BEFORE UPDATE OF can_request` auf `accounts`, `profiles` und
-   `invitations`) brechen jede Zeile mit `can_request = 1` und `max_rating < 18` ab. So kann kein
+   Wächter (je ein `BEFORE INSERT` und ein `BEFORE UPDATE OF can_request` auf `accounts`, `profiles`
+   und `invitations`, Meldung `age_restricted`) brechen jede Zeile mit `can_request = 1` und
+   `max_rating < 18` ab. So kann kein
    Schreibweg die Regel vergessen, auch kein künftiger.
 
    **Warum nicht ableiten (Variante a)?** Das wirksame Recht wird an mindestens acht Stellen
@@ -98,8 +99,10 @@ Altersgrenze.
 ## Ältere Clients
 
 - **Web-App:** reist mit dem Server; sie zeigt den Schalter gesperrt und mit Grund, solange die
-  gewählte Stufe eine Altersgrenze ist, und schickt `canRequest` nicht mit, wenn die Stufe im
-  Formular die Grenze überschreitet (Punkt 4).
+  gewählte Stufe eine Altersgrenze ist, gesperrt und an mit dem Hinweis «kommt zurück», solange die
+  Stufe eine Grenze aufhebt, und schickt `canRequest` in beiden Fällen nicht mit (Punkt 4). Ein
+  neues Profil beginnt mit «an». Ebenso «Zugriff» eines Kontos und «Konto einladen».
+- **Nächste Handy-App:** dasselbe im Blatt «Profil bearbeiten» (`ProfileSettingsViewModel`).
 - **Handy-App 1.0.3:** Sie kennt `age_restricted` nicht; der erzeugte Client liest den Wert als
   unbekannt, der Schalter bleibt frei, und der Grund auf den Titeln ist der allgemeine Text. Ein
   neues Profil legt sie mit «aus» an, weil ihr Schalter dort aus beginnt (ein ausdrückliches
@@ -125,4 +128,12 @@ Altersgrenze.
 - Die Altersgrenze eines Profils ist jetzt auch die Grenze des Wunschrechts; F-6 («Kinderprofile
   mit Recht dürfen anfordern») gilt nur noch für Profile ohne Altersgrenze.
 - Tests, die die alten Vorgaben (F-5) prüften, sind auf die neue Regel umgestellt.
+- Die Entdecken-Seiten und das Anfordern verlangen das Recht; ein Profil unter 18 hat sie darum
+  nicht mehr, und die Altersstufen unter 18 im Zwischenspeicher von Entdecken (`max_age`) kommen
+  im Betrieb nicht mehr vor. Die Prüfungen nach Alter bleiben als zweite Linie im Server. Damit
+  sie getestet bleiben, entfernen die Vertragstests der Wünsche (`keepRightsBelow18`) und die
+  Entdecken-Tests in `internal/wishes` die Trigger aus ihrer Testdatenbank und geben Profilen
+  unter 18 das Recht wie vor 00086; die neue Regel prüfen eigene Tests
+  (`TestContractRequestRightFollowsRating`, `TestMigration00086RequestRightFollowsRating`,
+  `TestCanRequest`).
 - Neue Texte: der Grund `age_restricted` (Titel, Fehler, Formulare) in `de`, `de-DE` und `en`.
