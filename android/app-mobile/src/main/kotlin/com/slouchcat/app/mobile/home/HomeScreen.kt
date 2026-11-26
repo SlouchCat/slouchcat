@@ -386,6 +386,11 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     val wide = isWideLayout()
     val pager = rememberPagerState(initialPage = section.start) { section.items.size }
     val scope = rememberCoroutineScope()
+    // A change cut short because the stage left the screen in the middle of it is kept as it stood,
+    // between two titles: back on the screen, the stage rests on the nearer one.
+    LaunchedEffect(pager) {
+        if (!pager.isScrollInProgress && pager.currentPageOffsetFraction != 0f) pager.scrollToPage(pager.currentPage)
+    }
     // The stage holds still while a screen reader explores, while it has the focus and while a finger
     // rests on it (WCAG 2.2.2, code review m-5 of part a); after each change of title the time starts again.
     val exploring = touchExploration()
@@ -394,10 +399,16 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     var focused by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     if (rotate && section.items.size > 1 && !exploring && !focused && !pressed) {
-        LaunchedEffect(pager, section.intervalSeconds, pager.currentPage) {
+        // Keyed on the settled page: `currentPage` already turns halfway through a change, which
+        // started this effect again, cancelled the change and left half of each picture.
+        LaunchedEffect(pager, section.intervalSeconds, pager.settledPage) {
             delay(section.intervalSeconds * 1_000L)
-            // The number of titles now, not of the first drawing (code review L-6 of part a).
-            if (!pager.isScrollInProgress && pager.pageCount > 0) pager.animateScrollToPage((pager.currentPage + 1) % pager.pageCount)
+            // The number of titles now, not of the first drawing (code review L-6 of part a). The
+            // change runs in `scope`: a hold that begins during it must not stop it halfway either.
+            if (!pager.isScrollInProgress && pager.pageCount > 0) {
+                val next = (pager.currentPage + 1) % pager.pageCount
+                scope.launch { pager.animateScrollToPage(next) }
+            }
         }
     }
     val region = stringResource(R.string.home_rows_spotlight)

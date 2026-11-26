@@ -1,5 +1,41 @@
 # Aktueller Stand
 
+## Korrektur: Die Bühne der Handy-App bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen (25. November 2026, Zweig `claude/android-spotlight-wechsel`)
+
+Betrifft nur die Handy-App (Startseite, Reihe «Spotlight»). Noch in keiner Ausgabe: `app-v1.0.1` hat den
+Fehler.
+
+- **Der Befund (Marco, am Handy):** Nach dem Wechsel, den die Bühne von selbst macht, standen zwei halbe
+  Bilder nebeneinander statt eines ganzen.
+- **Die Ursache:** Der Zeitgeber des Wechsels hing an `pager.currentPage`. Dieser Wert springt schon in der
+  Mitte der Bewegung auf die nächste Seite. Das startete den Zeitgeber neu und brach die Bewegung ab, die er
+  selbst angestossen hatte. Der bisherige Test `theStageMovesOnByItself` blieb grün: Er prüft nur, ob der
+  neue Titel ganz im Bild steht, nicht ob die Bühne auf ihm ruht.
+- **Die Korrektur (`HomeScreen.kt`, `Spotlight`):** Der Zeitgeber hängt an `pager.settledPage`; der Wert
+  ändert erst, wenn die Bewegung steht (in Foundation 1.13.0 nachgesehen). Die Bewegung läuft im Scope der
+  Bühne, wie beim Tippen auf die Punkte: Ein Halt, der während des Wechsels beginnt (Screenreader, Fokus),
+  bricht sie nicht mehr ab.
+- **Ein zweiter Weg zum selben Bild (Befund des Reviews, belegt):** Verlässt die Bühne mitten im Wechsel den
+  Bildschirm (die Startseite wird weggeschoben), endet die Bewegung dort, und die Liste merkt sich den Stand.
+  Zurück im Bild stand die Bühne wieder zwischen zwei Titeln, gemessen bei Seite 1 mit Versatz −0,45. Jetzt
+  stellt sie sich beim Zurückkommen auf den näheren Titel.
+- **Tests:** `StageRotationTest` hat drei neue Fälle: `aChangeEndsOnTheNextTitle`,
+  `aHoldDuringAChangeLetsItEnd` (mit dem Screenreader als Halt) und `aChangeCutShortComesBackOnOneTitle`.
+  Jeder war ohne seine Korrektur rot; mit beiden sind die 19 Fälle von `com.slouchcat.app.mobile.home.*`
+  grün.
+- **Review:** Code-Review ohne Blocker. Nicht geändert, weil schon vorher so und nicht Teil des Befunds:
+  Läuft das Intervall ab, während die Bühne ohne Finger bewegt wird (Mausrad, Schalterzugriff), fällt der
+  Wechsel aus; endet die Bewegung auf demselben Titel, steht die Bühne bis zur nächsten Berührung.
+- **Geprüft:** `task check:fast` grün. `task ci` in sieben Teilen auf `ce2ac658` grün (52 Minuten).
+- **GitHub-CI, erster Lauf (45714878704) rot, nicht an dieser Korrektur:** nur `e2e (shard 3)`, dort
+  `e2e/hdr.spec.ts` in Firefox mit 5040 und 5036 ms statt unter 5000 ms. Der Test misst den Start der
+  Web-Wiedergabe mit Tonemapping in Software; die Runner haben keine GPU. Derselbe Test war schon am
+  3. und am 11. November so rot.
+- **Marcos Entscheid dazu (26. November 2026, im selben Pull Request):** Ohne GPU gilt im Test 5500 ms statt
+  5000 ms. Mit GPU bleibt es bei 5000 ms (W-3). Eintrag im Entscheidungsprotokoll. Die höchste bisher
+  notierte Messung auf einem Runner war 5321 ms; der Abstand zur neuen Grenze ist also klein.
+- **Nicht geprüft:** auf einem echten Gerät. Die TV-App ist nicht geändert; ihre Bühne nutzt keinen Pager.
+
 ## Netzwechsel unterwegs: lesende Anfragen fragen einmal neu (24. November 2026, PR #223)
 
 PR #223, gemergt am 24. November 2026 (`71d3fbab`), nach PR #224. Betrifft beide Apps. Kein Release nötig:
