@@ -1,9 +1,9 @@
 # Aktueller Stand
 
-## Korrektur: Die Bühne der Handy-App bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen (25. November 2026, Zweig `claude/android-spotlight-wechsel`)
+## Korrektur: Die Bühne der Handy-App bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen (25. November 2026, PR #227)
 
-Betrifft nur die Handy-App (Startseite, Reihe «Spotlight»). Noch in keiner Ausgabe: `app-v1.0.1` hat den
-Fehler.
+PR #227, gemergt am 26. November 2026 (`d9279517`). Betrifft nur die Handy-App (Startseite, Reihe
+«Spotlight»). Kommt mit der Ausgabe 1.0.2 der Handy-App; `app-v1.0.1` hat den Fehler.
 
 - **Der Befund (Marco, am Handy):** Nach dem Wechsel, den die Bühne von selbst macht, standen zwei halbe
   Bilder nebeneinander statt eines ganzen.
@@ -477,6 +477,13 @@ einem Netzwechsel (PR #219 bis #223), die Anmeldung an der Push-Weiterleitung ab
 das zentrierte Zeichen in Starter-Symbol und TV-Banner. Die Dateien von 1.0.0 enthalten diese Korrekturen
 nicht. Wie 1.0.0 sind es unsignierte Dateien an GitHub-Releases, die nicht «latest» werden, keine
 Store-Ausgaben.
+
+**Ausgabe 1.0.2 der Handy-App (26. November 2026):** `app-v1.0.2` (`versionCode` 3) nimmt die Korrektur der
+Bühne auf der Startseite auf (PR #227): Sie bleibt beim Wechsel nicht mehr zwischen zwei Titeln stehen. Die
+Dateien von 1.0.1 enthalten sie nicht. Die TV-App bleibt bei 1.0.1. Seit `tv-v1.0.1` hat sich an ihr und an
+den gemeinsamen Modulen nichts geändert: Unter `android/` sind es seit `app-v1.0.1` nur die zwei Dateien der
+Korrektur und die Versionsdatei, alle in `android/app-mobile`. Wie bisher unsignierte Dateien an einem
+GitHub-Release, das nicht «latest» wird, keine Store-Ausgabe.
 
 ### Eigene Entscheide des Baus
 
