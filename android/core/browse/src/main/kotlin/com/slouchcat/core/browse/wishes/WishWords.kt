@@ -63,6 +63,7 @@ fun reasonRes(reason: WishRequestReason?): Int = when (reason) {
     WishRequestReason.DISABLED -> R.string.wishes_reason_disabled
     WishRequestReason.ACCOUNT_NOT_ALLOWED -> R.string.wishes_reason_account_not_allowed
     WishRequestReason.PROFILE_NOT_ALLOWED -> R.string.wishes_reason_profile_not_allowed
+    WishRequestReason.AGE_RESTRICTED -> R.string.wishes_reason_age_restricted
     WishRequestReason.NO_MAPPING -> R.string.wishes_reason_no_mapping
     WishRequestReason.SEERR_USER_GONE -> R.string.wishes_reason_seerr_user_gone
     WishRequestReason.MOVIES_NOT_ALLOWED -> R.string.wishes_reason_movies_not_allowed
