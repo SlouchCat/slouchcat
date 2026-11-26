@@ -25,8 +25,9 @@ zwei längsten Jobs kürzen, ohne dass eine Prüfung wegfällt. Entscheide: ADR 
 - **PR #231, Lauf 45808439520 grün:** Gate nach 885 s statt 1313 bis 1596 s. `server tests (2)`,
   `(2b)`, `(2c)` 576, 487, 569 s; Android (noch alter Cache) 647 und 587 s; längster Job ein
   e2e-Shard (778 s).
-- **Offen, Frage an Marco im PR:** Race-Instrumentierung in `modernc.org/...` abschalten wäre 3,9-mal
-  schneller, ist aber eine Lockerung und darum nicht gebaut.
+- **Entschieden (Marco, 26. November 2026): Race-Prüfung bleibt auch in `modernc.org/...`.** Sie
+  abzuschalten wäre 3,9-mal schneller, spart dem Gate aber nichts: Es wartet auf den längsten
+  e2e-Shard.
 - **Wirkung erst nach dem Merge voll:** Den Android-Build-Cache speichert nur `main`. Der erste
   PR-Lauf nach dem Merge hat ihn noch nicht; die Zahlen mit frischem Cache stammen aus den
   Wegwerf-Läufen.

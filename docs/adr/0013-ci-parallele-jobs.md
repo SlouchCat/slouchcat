@@ -319,8 +319,9 @@ oder wird gelockert. Messwerte und Belege: `docs/perf/ci.md`, Abschnitt 8.
   mehr. (b) Mehrere `go test`-Prozesse in einem Job: Die Runner haben vier Kerne, und eigene Jobs
   kosten keine Wartezeit (22 Jobs starteten in einem Lauf innerhalb von 3 s). (c) Die
   Race-Instrumentierung in `modernc.org/...` abschalten (`-gcflags=modernc.org/...=-race=false`): Das
-  macht dieselben Tests 3,9-mal schneller, ist aber eine Lockerung. Es ist Marcos Entscheid und
-  steht als Frage im Pull Request.
+  macht dieselben Tests 3,9-mal schneller, ist aber eine Lockerung. Marcos Entscheid vom
+  26. November 2026: so lassen. Das Gate wartet ohnehin auf den längsten e2e-Shard; schnellere
+  `store`-Jobs sparten nur Runner-Minuten.
 
 ### Android: der Build-Cache wurde nie erneuert
 
