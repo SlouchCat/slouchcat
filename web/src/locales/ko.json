@@ -950,6 +950,7 @@
       "password_too_short": "10자 이상이어야 해요.",
       "password_mismatch": "비밀번호가 일치하지 않아요.",
       "above_account_limit": "이 계정의 상한보다 높아요.",
+      "age_restricted": "연령 제한이 있으면 작품을 신청할 권한이 없어요.",
       "unknown_library": "존재하지 않는 라이브러리예요.",
       "too_many_profiles": "계정당 프로필은 최대 10개까지 만들 수 있어요.",
       "already_exists": "이미 사용 중인 이메일 주소예요.",
@@ -5023,7 +5024,8 @@
           "detail": "유효 기간 / 수락",
           "actions": "작업"
         },
-        "seerrHint": "초대를 수락하면 Slouchcat이 Seerr에도 같은 이메일과 비밀번호로 계정을 만들어요."
+        "seerrHint": "초대를 수락하면 Slouchcat이 Seerr에도 같은 이메일과 비밀번호로 계정을 만들어요.",
+        "canRequestRestricted": "연령 제한이 있는 초대는 작품 신청 권한을 주지 않아요."
       },
       "discard": "취소",
       "status": {
@@ -5053,6 +5055,8 @@
         "of": "{{email}}의 신청",
         "canRequest": "작품 신청 허용",
         "canRequestHelp": "모든 프로필에 대한 상한이에요. 어떤 프로필이 신청할 수 있는지는 계정의 기본 프로필이 정해요.",
+        "canRequestRestricted": "연령 제한이 있는 계정은 작품을 신청할 수 없어요. 연령 제한이 없어지면 권한이 돌아와요.",
+        "canRequestReturns": "연령 제한이 없으면 계정이 다시 신청할 수 있어요. 권한은 저장한 뒤에 끌 수 있어요.",
         "notSetUp": "–",
         "state": {
           "allowed": "허용",
@@ -6262,7 +6266,7 @@
           "deny": "허용 안 함"
         },
         "newAccountsCanRequest": "새 계정 신청 허용",
-        "newAccountsCanRequestHelp": "“계정 초대” 대화 상자에 있는 스위치의 기본값이에요. 기존 계정은 바뀌지 않아요.",
+        "newAccountsCanRequestHelp": "“계정 초대” 대화 상자에 있는 스위치의 기본값이에요. 처음에는 켜져 있어요. 연령 제한이 있는 초대는 권한을 주지 않아요. 기존 계정은 바뀌지 않아요.",
         "allowWithdraw": "철회 허용",
         "allowWithdrawHelp": "신청이 승인되기 전까지예요. “내 신청”의 “철회” 버튼이에요.",
         "pinExternalHideTitle": "PIN 프로필의 외부 메시지에 제목 숨기기",
@@ -6293,7 +6297,7 @@
         "toUsers": "Seerr 사용자로 이동",
         "links": "바로 가기",
         "who": "신청할 수 있는 사람",
-        "whoHelp": "신청 권한은 계정에서 계정별로 설정하고, 프로필별 권한은 기본 프로필이 정해요.",
+        "whoHelp": "기본적으로 연령 제한이 없는 모든 계정과 프로필이 신청할 수 있고, 연령 제한이 있으면 신청할 수 없어요. 계정은 계정에서 제외할 수 있고, 프로필별 권한은 기본 프로필이 정해요.",
         "connection": "Seerr 접속",
         "connectionHelp": "주소, 키, 테스트, 로그.",
         "users": "Seerr 사용자",
@@ -6772,7 +6776,9 @@
         "wishes": "신청",
         "canRequest": "작품 신청 허용",
         "canRequestHelp": "이 프로필은 Seerr를 통해 없는 작품을 신청할 수 있어요.",
-        "canRequestCapped": "이 계정은 작품을 신청할 수 없어요. 신청 권한은 관리자가 계정에서 설정해요."
+        "canRequestCapped": "이 계정은 작품을 신청할 수 없어요. 신청 권한은 관리자가 계정에서 설정해요.",
+        "canRequestRestricted": "연령 제한이 있는 프로필은 작품을 신청할 수 없어요. 연령 제한이 없어지면 권한이 돌아와요.",
+        "canRequestReturns": "연령 제한이 없으면 프로필이 다시 신청할 수 있어요. 권한은 저장한 뒤에 끌 수 있어요."
       },
       "report": {
         "show": "시청 시간 보기",
@@ -7714,6 +7720,7 @@
       "disabled": "신청 기능이 꺼져 있어요.",
       "account_not_allowed": "이 계정은 작품을 신청할 수 없어요.",
       "profile_not_allowed": "이 프로필은 작품을 신청할 수 없어요. 기본 프로필이 “프로필”에서 허용할 수 있어요.",
+      "age_restricted": "연령 제한이 있는 프로필은 작품을 신청할 수 없어요.",
       "no_mapping": "이 계정에 아직 연결된 Seerr 사용자가 없어요. 관리자가 설정해요.",
       "seerr_user_gone": "연결된 Seerr 사용자가 더 이상 없어요. 관리자가 해결해요.",
       "movies_not_allowed": "지금은 영화를 신청할 수 없어요.",

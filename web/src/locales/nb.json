@@ -983,6 +983,7 @@
       "password_too_short": "Minst 10 tegn.",
       "password_mismatch": "Passordene stemmer ikke overens.",
       "above_account_limit": "Høyere enn taket for denne kontoen.",
+      "age_restricted": "Med aldersgrense finnes det ingen tillatelse til å be om titler.",
       "unknown_library": "Dette biblioteket finnes ikke.",
       "too_many_profiles": "En konto kan ha høyst 10 profiler.",
       "already_exists": "Denne e-postadressen er allerede i bruk.",
@@ -5219,7 +5220,8 @@
           "detail": "Gyldig til / godtatt",
           "actions": "Handlinger"
         },
-        "seerrHint": "Når invitasjonen aksepteres, oppretter Slouchcat kontoen også i Seerr: samme e-postadresse, samme passord."
+        "seerrHint": "Når invitasjonen aksepteres, oppretter Slouchcat kontoen også i Seerr: samme e-postadresse, samme passord.",
+        "canRequestRestricted": "En invitasjon med aldersgrense gir ingen tillatelse til å be om titler."
       },
       "discard": "Forkast",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Ønsker fra {{email}}",
         "canRequest": "Kan be om titler",
         "canRequestHelp": "Gjelder som ramme for alle profiler. Hvilke profiler som kan be om titler, velger hovedprofilen til kontoen.",
+        "canRequestRestricted": "Kontoer med aldersgrense kan ikke be om titler. Uten aldersgrense kommer tillatelsen tilbake.",
+        "canRequestReturns": "Uten aldersgrense kan kontoen be om titler igjen. Tillatelsen kan slås av etter lagring.",
         "notSetUp": "–",
         "state": {
           "allowed": "Tillatt",
@@ -6503,7 +6507,7 @@
           "deny": "Ikke tillat"
         },
         "newAccountsCanRequest": "Nye kontoer kan be om titler",
-        "newAccountsCanRequestHelp": "Forhåndsvalget til bryteren i dialogen «Inviter en konto». Endrer ikke eksisterende kontoer.",
+        "newAccountsCanRequestHelp": "Forhåndsvalget til bryteren i dialogen «Inviter en konto», slått på fra start. En invitasjon med aldersgrense gir aldri tillatelsen. Endrer ikke eksisterende kontoer.",
         "allowWithdraw": "Tillat å trekke tilbake",
         "allowWithdrawHelp": "Så lenge et ønske ikke er godkjent. Knappen «Trekk tilbake» under «Mine ønsker».",
         "pinExternalHideTitle": "Eksterne meldinger for PIN-profiler uten tittel",
@@ -6534,7 +6538,7 @@
         "toUsers": "Til Seerr-brukerne",
         "links": "Lenker",
         "who": "Hvem som kan be om titler",
-        "whoHelp": "Hvem som kan be om titler, stiller du inn per konto under Kontoer; per profil avgjør hovedprofilen.",
+        "whoHelp": "Som standard kan alle kontoer og profiler uten aldersgrense be om titler, de med aldersgrense kan ikke. Du kan unnta en konto under Kontoer; per profil avgjør hovedprofilen.",
         "connection": "Tilkobling til Seerr",
         "connectionHelp": "Adresse, nøkkel, test og logg.",
         "users": "Seerr-brukere",
@@ -7024,7 +7028,9 @@
         "wishes": "Ønsker",
         "canRequest": "Kan be om titler",
         "canRequestHelp": "Profilen kan be om manglende titler via Seerr.",
-        "canRequestCapped": "Denne kontoen kan ikke be om titler. Tillatelsen settes av en administrator under Kontoer."
+        "canRequestCapped": "Denne kontoen kan ikke be om titler. Tillatelsen settes av en administrator under Kontoer.",
+        "canRequestRestricted": "Profiler med aldersgrense kan ikke be om titler. Uten aldersgrense kommer tillatelsen tilbake.",
+        "canRequestReturns": "Uten aldersgrense kan profilen be om titler igjen. Tillatelsen kan slås av etter lagring."
       },
       "report": {
         "show": "Vis seertid",
@@ -7999,6 +8005,7 @@
       "disabled": "Ønsker er slått av.",
       "account_not_allowed": "Denne kontoen kan ikke be om titler.",
       "profile_not_allowed": "Denne profilen kan ikke be om titler. Hovedprofilen kan tillate det under «Profiler».",
+      "age_restricted": "Profiler med aldersgrense kan ikke be om titler.",
       "no_mapping": "Det er ennå ikke koblet noen Seerr-bruker til denne kontoen. Det setter administratoren opp.",
       "seerr_user_gone": "Den koblede Seerr-brukeren finnes ikke lenger. Det ordner administratoren.",
       "movies_not_allowed": "Det kan for øyeblikket ikke bes om filmer.",

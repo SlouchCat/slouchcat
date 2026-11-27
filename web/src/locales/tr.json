@@ -983,6 +983,7 @@
       "password_too_short": "En az 10 karakter.",
       "password_mismatch": "Şifreler eşleşmiyor.",
       "above_account_limit": "Bu hesabın üst sınırından yüksek.",
+      "age_restricted": "Yaş sınırı varken içerik isteme yetkisi yoktur.",
       "unknown_library": "Böyle bir kitaplık yok.",
       "too_many_profiles": "Bir hesapta en fazla 10 profil olabilir.",
       "already_exists": "Bu e-posta adresi zaten kullanılıyor.",
@@ -5219,7 +5220,8 @@
           "detail": "Geçerlilik / kabul",
           "actions": "Eylemler"
         },
-        "seerrHint": "Davet kabul edildiğinde Slouchcat hesabı Seerr’de de oluşturur: aynı e-posta, aynı şifre."
+        "seerrHint": "Davet kabul edildiğinde Slouchcat hesabı Seerr’de de oluşturur: aynı e-posta, aynı şifre.",
+        "canRequestRestricted": "Yaş sınırı olan bir davet içerik isteme yetkisi vermez."
       },
       "discard": "Vazgeç",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "{{email}} hesabının istekleri",
         "canRequest": "İçerik isteyebilir",
         "canRequestHelp": "Tüm profiller için üst sınırdır. Hangi profillerin istekte bulunacağını hesabın ana profili seçer.",
+        "canRequestRestricted": "Yaş sınırı olan hesaplar içerik isteyemez. Yaş sınırı kalkınca yetki geri gelir.",
+        "canRequestReturns": "Yaş sınırı olmadan hesap yeniden içerik isteyebilir. Yetki, kaydettikten sonra kapatılabilir.",
         "notSetUp": "–",
         "state": {
           "allowed": "İzinli",
@@ -6503,7 +6507,7 @@
           "deny": "İzin verme"
         },
         "newAccountsCanRequest": "Yeni hesaplar istekte bulunabilir",
-        "newAccountsCanRequestHelp": "“Hesap davet et” penceresindeki anahtarın varsayılanı. Mevcut hesapları değiştirmez.",
+        "newAccountsCanRequestHelp": "“Hesap davet et” penceresindeki anahtarın varsayılanı; başlangıçta açıktır. Yaş sınırı olan bir davet yetkiyi hiçbir zaman vermez. Mevcut hesapları değiştirmez.",
         "allowWithdraw": "Geri çekmeye izin ver",
         "allowWithdrawHelp": "İstek onaylanmadığı sürece. “İsteklerim” altındaki “Geri çek” düğmesi.",
         "pinExternalHideTitle": "PIN’li profillerde dış mesajlarda içerik adı yok",
@@ -6534,7 +6538,7 @@
         "toUsers": "Seerr kullanıcılarına git",
         "links": "Kısayollar",
         "who": "Kimler istekte bulunabilir",
-        "whoHelp": "Kimlerin istekte bulunabileceğini Hesaplar altında hesap başına ayarlarsınız; profil başına ana profil karar verir.",
+        "whoHelp": "Varsayılan olarak yaş sınırı olmayan tüm hesaplar ve profiller içerik isteyebilir, yaş sınırı olanlar isteyemez. Bir hesabı Hesaplar altında hariç tutabilirsiniz; profil başına ana profil karar verir.",
         "connection": "Seerr bağlantısı",
         "connectionHelp": "Adres, anahtar, test ve kayıt.",
         "users": "Seerr kullanıcıları",
@@ -7024,7 +7028,9 @@
         "wishes": "İstekler",
         "canRequest": "İçerik isteyebilir",
         "canRequestHelp": "Profil, kitaplıkta olmayan içerikleri Seerr üzerinden isteyebilir.",
-        "canRequestCapped": "Bu hesap içerik isteyemez. Yetkiyi bir yönetici Hesaplar bölümünden verir."
+        "canRequestCapped": "Bu hesap içerik isteyemez. Yetkiyi bir yönetici Hesaplar bölümünden verir.",
+        "canRequestRestricted": "Yaş sınırı olan profiller içerik isteyemez. Yaş sınırı kalkınca yetki geri gelir.",
+        "canRequestReturns": "Yaş sınırı olmadan profil yeniden içerik isteyebilir. Yetki, kaydettikten sonra kapatılabilir."
       },
       "report": {
         "show": "İzleme süresini göster",
@@ -7999,6 +8005,7 @@
       "disabled": "İstekler kapalı.",
       "account_not_allowed": "Bu hesap içerik isteyemez.",
       "profile_not_allowed": "Bu profil içerik isteyemez. Ana profil bunu “Profiller” altında etkinleştirebilir.",
+      "age_restricted": "Yaş sınırı olan profiller içerik isteyemez.",
       "no_mapping": "Bu hesapla henüz bir Seerr kullanıcısı ilişkilendirilmedi. Bunu yönetici ayarlar.",
       "seerr_user_gone": "İlişkilendirilen Seerr kullanıcısı artık yok. Bunu yönetici giderir.",
       "movies_not_allowed": "Şu anda film istenemiyor.",

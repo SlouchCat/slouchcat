@@ -983,6 +983,7 @@
       "password_too_short": "Mindst 10 tegn.",
       "password_mismatch": "Adgangskoderne stemmer ikke overens.",
       "above_account_limit": "Højere end kontoens maksimum.",
+      "age_restricted": "Med en aldersgrænse er der ingen tilladelse til at anmode om titler.",
       "unknown_library": "Dette bibliotek findes ikke.",
       "too_many_profiles": "En konto kan have højst 10 profiler.",
       "already_exists": "Denne e-mailadresse er allerede i brug.",
@@ -5219,7 +5220,8 @@
           "detail": "Gyldig til / accepteret",
           "actions": "Handlinger"
         },
-        "seerrHint": "Ved accept opretter Slouchcat også kontoen i Seerr: samme e-mailadresse, samme adgangskode."
+        "seerrHint": "Ved accept opretter Slouchcat også kontoen i Seerr: samme e-mailadresse, samme adgangskode.",
+        "canRequestRestricted": "En invitation med aldersgrænse giver ingen tilladelse til at anmode om titler."
       },
       "discard": "Kassér",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Ønsker fra {{email}}",
         "canRequest": "Må anmode om titler",
         "canRequestHelp": "Gælder som loft for alle profiler. Hvilke profiler der anmoder, vælges af kontoens hovedprofil.",
+        "canRequestRestricted": "Konti med aldersgrænse må ikke anmode om titler. Uden aldersgrænse kommer tilladelsen tilbage.",
+        "canRequestReturns": "Uden aldersgrænse må kontoen anmode igen. Tilladelsen kan slås fra, når du har gemt.",
         "notSetUp": "–",
         "state": {
           "allowed": "Tilladt",
@@ -6503,7 +6507,7 @@
           "deny": "Tillad ikke"
         },
         "newAccountsCanRequest": "Nye konti må anmode",
-        "newAccountsCanRequestHelp": "Standardværdi for kontakten i dialogen »Inviter en konto«. Ændrer ikke eksisterende konti.",
+        "newAccountsCanRequestHelp": "Standardværdi for kontakten i dialogen »Inviter en konto«, slået til fra start. En invitation med aldersgrænse giver aldrig tilladelsen. Ændrer ikke eksisterende konti.",
         "allowWithdraw": "Tillad tilbagetrækning",
         "allowWithdrawHelp": "Så længe et ønske ikke er godkendt. Knappen »Træk tilbage« under »Mine ønsker«.",
         "pinExternalHideTitle": "Eksterne beskeder til profiler med pinkode uden titel",
@@ -6534,7 +6538,7 @@
         "toUsers": "Til Seerr-brugerne",
         "links": "Genveje",
         "who": "Hvem der må anmode",
-        "whoHelp": "Hvem der må anmode, indstiller du pr. konto under Konti. Pr. profil afgør hovedprofilen.",
+        "whoHelp": "Som standard må alle konti og profiler uden aldersgrænse anmode, dem med aldersgrænse må ikke. Du kan undtage en konto under Konti. Pr. profil afgør hovedprofilen.",
         "connection": "Forbindelse til Seerr",
         "connectionHelp": "Adresse, nøgle, test og log.",
         "users": "Seerr-brugere",
@@ -7024,7 +7028,9 @@
         "wishes": "Ønsker",
         "canRequest": "Må anmode om titler",
         "canRequestHelp": "Profilen må anmode om manglende titler via Seerr.",
-        "canRequestCapped": "Denne konto må ikke anmode om titler. En administrator giver tilladelsen under Konti."
+        "canRequestCapped": "Denne konto må ikke anmode om titler. En administrator giver tilladelsen under Konti.",
+        "canRequestRestricted": "Profiler med aldersgrænse må ikke anmode om titler. Uden aldersgrænse kommer tilladelsen tilbage.",
+        "canRequestReturns": "Uden aldersgrænse må profilen anmode igen. Tilladelsen kan slås fra, når du har gemt."
       },
       "report": {
         "show": "Vis visningstid",
@@ -7999,6 +8005,7 @@
       "disabled": "Ønsker er slået fra.",
       "account_not_allowed": "Denne konto må ikke anmode om titler.",
       "profile_not_allowed": "Denne profil må ikke anmode om titler. Hovedprofilen kan tillade det under »Profiler«.",
+      "age_restricted": "Profiler med aldersgrænse må ikke anmode om titler.",
       "no_mapping": "Der er endnu ikke tilknyttet nogen Seerr-bruger til denne konto. Det sætter administratoren op.",
       "seerr_user_gone": "Den tilknyttede Seerr-bruger findes ikke længere. Det retter administratoren.",
       "movies_not_allowed": "Der kan i øjeblikket ikke anmodes om film.",

@@ -983,6 +983,7 @@
       "password_too_short": "Minst 10 tecken.",
       "password_mismatch": "Lösenorden stämmer inte överens.",
       "above_account_limit": "Högre än kontots tak.",
+      "age_restricted": "Med åldersgräns finns ingen behörighet att begära titlar.",
       "unknown_library": "Det här biblioteket finns inte.",
       "too_many_profiles": "Ett konto kan ha högst 10 profiler.",
       "already_exists": "Den här e-postadressen används redan.",
@@ -5219,7 +5220,8 @@
           "detail": "Giltig till / godkänd",
           "actions": "Åtgärder"
         },
-        "seerrHint": "När inbjudan godkänns skapar Slouchcat kontot även i Seerr: samma e-postadress, samma lösenord."
+        "seerrHint": "När inbjudan godkänns skapar Slouchcat kontot även i Seerr: samma e-postadress, samma lösenord.",
+        "canRequestRestricted": "En inbjudan med åldersgräns ger ingen behörighet att begära titlar."
       },
       "discard": "Kasta",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Önskemål från {{email}}",
         "canRequest": "Får begära titlar",
         "canRequestHelp": "Gäller som tak för alla profiler. Vilka profiler som får begära väljs av kontots huvudprofil.",
+        "canRequestRestricted": "Konton med åldersgräns får inte begära titlar. Utan åldersgräns kommer behörigheten tillbaka.",
+        "canRequestReturns": "Utan åldersgräns får kontot begära igen. Behörigheten kan stängas av efter att du har sparat.",
         "notSetUp": "–",
         "state": {
           "allowed": "Tillåtet",
@@ -6503,7 +6507,7 @@
           "deny": "Tillåt inte"
         },
         "newAccountsCanRequest": "Nya konton får begära",
-        "newAccountsCanRequestHelp": "Förval för reglaget i dialogrutan ”Bjud in ett konto”. Ändrar inte befintliga konton.",
+        "newAccountsCanRequestHelp": "Förval för reglaget i dialogrutan ”Bjud in ett konto”, påslaget från början. En inbjudan med åldersgräns ger aldrig behörigheten. Ändrar inte befintliga konton.",
         "allowWithdraw": "Tillåt att dra tillbaka",
         "allowWithdrawHelp": "Så länge ett önskemål inte är godkänt. Knappen ”Dra tillbaka” under ”Mina önskemål”.",
         "pinExternalHideTitle": "Externa meddelanden för profiler med pinkod utan titel",
@@ -6534,7 +6538,7 @@
         "toUsers": "Till Seerr-användarna",
         "links": "Genvägar",
         "who": "Vem som får begära",
-        "whoHelp": "Vem som får begära ställer du in per konto under Konton; per profil avgör huvudprofilen.",
+        "whoHelp": "Som standard får alla konton och profiler utan åldersgräns begära, de med åldersgräns får inte. Du kan undanta ett konto under Konton; per profil avgör huvudprofilen.",
         "connection": "Anslutning till Seerr",
         "connectionHelp": "Adress, nyckel, test och logg.",
         "users": "Seerr-användare",
@@ -7024,7 +7028,9 @@
         "wishes": "Önskemål",
         "canRequest": "Får begära titlar",
         "canRequestHelp": "Profilen får begära saknade titlar via Seerr.",
-        "canRequestCapped": "Det här kontot får inte begära titlar. Behörigheten ställs in av en administratör under Konton."
+        "canRequestCapped": "Det här kontot får inte begära titlar. Behörigheten ställs in av en administratör under Konton.",
+        "canRequestRestricted": "Profiler med åldersgräns får inte begära titlar. Utan åldersgräns kommer behörigheten tillbaka.",
+        "canRequestReturns": "Utan åldersgräns får profilen begära igen. Behörigheten kan stängas av efter att du har sparat."
       },
       "report": {
         "show": "Visa tittartid",
@@ -7999,6 +8005,7 @@
       "disabled": "Önskemål är avstängda.",
       "account_not_allowed": "Det här kontot får inte begära titlar.",
       "profile_not_allowed": "Den här profilen får inte begära titlar. Huvudprofilen kan tillåta det under ”Profiler”.",
+      "age_restricted": "Profiler med åldersgräns får inte begära titlar.",
       "no_mapping": "Ingen Seerr-användare är kopplad till det här kontot än. Det ordnar administratören.",
       "seerr_user_gone": "Den kopplade Seerr-användaren finns inte längre. Det rättar administratören till.",
       "movies_not_allowed": "Filmer kan inte begäras just nu.",

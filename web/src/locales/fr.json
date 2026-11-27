@@ -1016,6 +1016,7 @@
       "password_too_short": "10 caractères minimum.",
       "password_mismatch": "Les mots de passe ne correspondent pas.",
       "above_account_limit": "Supérieur au plafond de ce compte.",
+      "age_restricted": "Avec une limite d’âge, il n’y a pas de droit de demander des titres.",
       "unknown_library": "Cette bibliothèque n’existe pas.",
       "too_many_profiles": "Un compte peut avoir 10 profils au maximum.",
       "already_exists": "Cette adresse e-mail est déjà utilisée.",
@@ -5415,7 +5416,8 @@
           "detail": "Valable jusqu’au / acceptée",
           "actions": "Actions"
         },
-        "seerrHint": "À l’acceptation, Slouchcat crée aussi le compte dans Seerr : même adresse e-mail, même mot de passe."
+        "seerrHint": "À l’acceptation, Slouchcat crée aussi le compte dans Seerr : même adresse e-mail, même mot de passe.",
+        "canRequestRestricted": "Une invitation avec limite d’âge ne donne pas le droit de demander des titres."
       },
       "discard": "Abandonner",
       "status": {
@@ -5451,6 +5453,8 @@
         "of": "Souhaits de {{email}}",
         "canRequest": "Peut demander des titres",
         "canRequestHelp": "Valable comme plafond pour tous les profils. Le profil principal du compte choisit quels profils peuvent demander.",
+        "canRequestRestricted": "Les comptes avec limite d’âge ne peuvent pas demander de titres. Sans limite d’âge, le droit revient.",
+        "canRequestReturns": "Sans limite d’âge, le compte peut de nouveau demander. Le droit peut être désactivé après l’enregistrement.",
         "notSetUp": "–",
         "state": {
           "allowed": "Autorisé",
@@ -6744,7 +6748,7 @@
           "deny": "Ne pas autoriser"
         },
         "newAccountsCanRequest": "Les nouveaux comptes peuvent demander",
-        "newAccountsCanRequestHelp": "Valeur par défaut de l’interrupteur dans la boîte de dialogue « Inviter un compte ». Ne modifie pas les comptes existants.",
+        "newAccountsCanRequestHelp": "Valeur par défaut de l’interrupteur dans la boîte de dialogue « Inviter un compte », activé par défaut. Une invitation avec limite d’âge ne donne jamais ce droit. Ne modifie pas les comptes existants.",
         "allowWithdraw": "Autoriser le retrait",
         "allowWithdrawHelp": "Tant qu’un souhait n’est pas approuvé. Bouton « Retirer » sous « Mes souhaits ».",
         "pinExternalHideTitle": "Messages externes des profils à code PIN sans le titre",
@@ -6775,7 +6779,7 @@
         "toUsers": "Aller aux utilisateurs Seerr",
         "links": "Raccourcis",
         "who": "Qui peut demander",
-        "whoHelp": "Qui peut demander se règle compte par compte sous Comptes ; pour chaque profil, c’est le profil principal qui décide.",
+        "whoHelp": "Par défaut, tous les comptes et profils sans limite d’âge peuvent demander, ceux qui en ont une ne le peuvent pas. Un compte peut être exclu sous Comptes ; pour chaque profil, c’est le profil principal qui décide.",
         "connection": "Connexion à Seerr",
         "connectionHelp": "Adresse, clé, test et journal.",
         "users": "Utilisateurs Seerr",
@@ -7276,7 +7280,9 @@
         "wishes": "Souhaits",
         "canRequest": "Peut demander des titres",
         "canRequestHelp": "Ce profil peut demander les titres manquants via Seerr.",
-        "canRequestCapped": "Ce compte n’a pas le droit de demander des titres. Un administrateur définit ce droit sous Comptes."
+        "canRequestCapped": "Ce compte n’a pas le droit de demander des titres. Un administrateur définit ce droit sous Comptes.",
+        "canRequestRestricted": "Les profils avec limite d’âge ne peuvent pas demander de titres. Sans limite d’âge, le droit revient.",
+        "canRequestReturns": "Sans limite d’âge, le profil peut de nouveau demander. Le droit peut être désactivé après l’enregistrement."
       },
       "report": {
         "show": "Afficher le temps de visionnage",
@@ -8284,6 +8290,7 @@
       "disabled": "Les souhaits sont désactivés.",
       "account_not_allowed": "Ce compte n’a pas le droit de demander des titres.",
       "profile_not_allowed": "Ce profil n’a pas le droit de demander des titres. Le profil principal peut l’autoriser sous « Profils ».",
+      "age_restricted": "Les profils avec limite d’âge ne peuvent pas demander de titres.",
       "no_mapping": "Aucun utilisateur Seerr n’est encore associé à ce compte. L’administrateur s’en charge.",
       "seerr_user_gone": "L’utilisateur Seerr associé n’existe plus. L’administrateur peut y remédier.",
       "movies_not_allowed": "Les films ne peuvent pas être demandés pour le moment.",

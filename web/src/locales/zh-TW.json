@@ -950,6 +950,7 @@
       "password_too_short": "至少 10 個字元。",
       "password_mismatch": "密碼不一致。",
       "above_account_limit": "高於這個帳戶的上限。",
+      "age_restricted": "有年齡限制時，沒有請求作品的權限。",
       "unknown_library": "這個媒體庫不存在。",
       "too_many_profiles": "每個帳戶最多只能有 10 個個人資料。",
       "already_exists": "這個電子郵件地址已被使用。",
@@ -5023,7 +5024,8 @@
           "detail": "有效期限 / 已接受",
           "actions": "動作"
         },
-        "seerrHint": "接受邀請時，Slouchcat 也會在 Seerr 中建立帳戶：電子郵件地址和密碼相同。"
+        "seerrHint": "接受邀請時，Slouchcat 也會在 Seerr 中建立帳戶：電子郵件地址和密碼相同。",
+        "canRequestRestricted": "設有年齡限制的邀請不會授予請求作品的權限。"
       },
       "discard": "捨棄",
       "status": {
@@ -5053,6 +5055,8 @@
         "of": "{{email}} 的心願",
         "canRequest": "可請求作品",
         "canRequestHelp": "適用於所有個人資料的上限。哪些個人資料可以請求，由帳戶的主個人資料選擇。",
+        "canRequestRestricted": "有年齡限制的帳戶無法請求作品。取消年齡限制後，權限會恢復。",
+        "canRequestReturns": "取消年齡限制後，這個帳戶可以再次請求。儲存後可以關閉此權限。",
         "notSetUp": "–",
         "state": {
           "allowed": "允許",
@@ -6262,7 +6266,7 @@
           "deny": "不允許"
         },
         "newAccountsCanRequest": "新帳戶可以請求",
-        "newAccountsCanRequestHelp": "「邀請帳戶」對話方塊中開關的預設值。不會變更現有帳戶。",
+        "newAccountsCanRequestHelp": "「邀請帳戶」對話方塊中開關的預設值，預設為開啟。設有年齡限制的邀請一律不會授予此權限。不會變更現有帳戶。",
         "allowWithdraw": "允許撤回",
         "allowWithdrawHelp": "在心願核准之前。「我的心願」中的「撤回」按鈕。",
         "pinExternalHideTitle": "PIN 碼個人資料的外部訊息不顯示作品",
@@ -6293,7 +6297,7 @@
         "toUsers": "前往 Seerr 使用者",
         "links": "連結",
         "who": "誰可以請求",
-        "whoHelp": "可在「帳戶」中依帳戶設定誰可以請求；各個人資料則由主個人資料決定。",
+        "whoHelp": "預設情況下，所有沒有年齡限制的帳戶和個人資料都可以請求，有年齡限制的則不行。可在「帳戶」中排除某個帳戶；各個人資料則由主個人資料決定。",
         "connection": "Seerr 連線",
         "connectionHelp": "位址、金鑰、測試和記錄。",
         "users": "Seerr 使用者",
@@ -6772,7 +6776,9 @@
         "wishes": "心願",
         "canRequest": "可請求作品",
         "canRequestHelp": "這個個人資料可以透過 Seerr 請求缺少的作品。",
-        "canRequestCapped": "此帳戶無權請求作品。管理員可在「帳戶」中設定此權限。"
+        "canRequestCapped": "此帳戶無權請求作品。管理員可在「帳戶」中設定此權限。",
+        "canRequestRestricted": "有年齡限制的個人資料無法請求作品。取消年齡限制後，權限會恢復。",
+        "canRequestReturns": "取消年齡限制後，這個個人資料可以再次請求。儲存後可以關閉此權限。"
       },
       "report": {
         "show": "顯示觀看時長",
@@ -7714,6 +7720,7 @@
       "disabled": "心願功能已關閉。",
       "account_not_allowed": "此帳戶無權請求作品。",
       "profile_not_allowed": "這個個人資料無權請求作品。主個人資料可在「個人資料」中允許。",
+      "age_restricted": "有年齡限制的個人資料無法請求作品。",
       "no_mapping": "此帳戶尚未關聯 Seerr 使用者。這需要由管理員設定。",
       "seerr_user_gone": "所關聯的 Seerr 使用者已不存在。這需要由管理員處理。",
       "movies_not_allowed": "目前無法請求電影。",

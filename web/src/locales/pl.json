@@ -1049,6 +1049,7 @@
       "password_too_short": "Minimum 10 znaków.",
       "password_mismatch": "Hasła nie są takie same.",
       "above_account_limit": "Powyżej limitu tego konta.",
+      "age_restricted": "Przy ograniczeniu wiekowym nie ma uprawnienia do proszenia o tytuły.",
       "unknown_library": "Taka biblioteka nie istnieje.",
       "too_many_profiles": "Jedno konto może mieć najwyżej 10 profili.",
       "already_exists": "Ten adres e-mail jest już zajęty.",
@@ -5611,7 +5612,8 @@
           "detail": "Ważne do / przyjęte",
           "actions": "Działania"
         },
-        "seerrHint": "Przy przyjęciu zaproszenia Slouchcat tworzy konto także w Seerr: ten sam adres e-mail, to samo hasło."
+        "seerrHint": "Przy przyjęciu zaproszenia Slouchcat tworzy konto także w Seerr: ten sam adres e-mail, to samo hasło.",
+        "canRequestRestricted": "Zaproszenie z ograniczeniem wiekowym nie daje uprawnienia do proszenia o tytuły."
       },
       "discard": "Odrzuć",
       "status": {
@@ -5650,6 +5652,8 @@
         "of": "Prośby użytkownika {{email}}",
         "canRequest": "Może prosić o tytuły",
         "canRequestHelp": "Obowiązuje jako granica dla wszystkich profili. To, które profile mogą prosić o tytuły, wybiera profil główny konta.",
+        "canRequestRestricted": "Konta z ograniczeniem wiekowym nie mogą prosić o tytuły. Bez ograniczenia wiekowego uprawnienie wraca.",
+        "canRequestReturns": "Bez ograniczenia wiekowego konto może znów prosić o tytuły. Uprawnienie można wyłączyć po zapisaniu.",
         "notSetUp": "–",
         "state": {
           "allowed": "Dozwolone",
@@ -6985,7 +6989,7 @@
           "deny": "Nie zezwalaj"
         },
         "newAccountsCanRequest": "Nowe konta mogą prosić o tytuły",
-        "newAccountsCanRequestHelp": "Domyślne ustawienie przełącznika w oknie „Zaproś konto”. Nie zmienia istniejących kont.",
+        "newAccountsCanRequestHelp": "Domyślne ustawienie przełącznika w oknie „Zaproś konto”, domyślnie włączone. Zaproszenie z ograniczeniem wiekowym nigdy nie daje uprawnienia. Nie zmienia istniejących kont.",
         "allowWithdraw": "Zezwalaj na wycofywanie",
         "allowWithdrawHelp": "Dopóki prośba nie jest zatwierdzona. Przycisk „Wycofaj” w „Moje prośby”.",
         "pinExternalHideTitle": "Wiadomości zewnętrzne profili z PIN bez tytułu",
@@ -7016,7 +7020,7 @@
         "toUsers": "Do użytkowników Seerr",
         "links": "Odnośniki",
         "who": "Kto może prosić o tytuły",
-        "whoHelp": "To, kto może prosić o tytuły, ustawiasz dla każdego konta w sekcji Konta; dla profili decyduje profil główny.",
+        "whoHelp": "Domyślnie o tytuły mogą prosić wszystkie konta i profile bez ograniczenia wiekowego, a te z ograniczeniem nie. Konto możesz wykluczyć w sekcji Konta; dla profili decyduje profil główny.",
         "connection": "Połączenie z Seerr",
         "connectionHelp": "Adres, klucz, test i dziennik.",
         "users": "Użytkownicy Seerr",
@@ -7528,7 +7532,9 @@
         "wishes": "Prośby",
         "canRequest": "Może prosić o tytuły",
         "canRequestHelp": "Profil może prosić o brakujące tytuły przez Seerr.",
-        "canRequestCapped": "To konto nie może prosić o tytuły. Uprawnienie nadaje administrator w sekcji Konta."
+        "canRequestCapped": "To konto nie może prosić o tytuły. Uprawnienie nadaje administrator w sekcji Konta.",
+        "canRequestRestricted": "Profile z ograniczeniem wiekowym nie mogą prosić o tytuły. Bez ograniczenia wiekowego uprawnienie wraca.",
+        "canRequestReturns": "Bez ograniczenia wiekowego profil może znów prosić o tytuły. Uprawnienie można wyłączyć po zapisaniu."
       },
       "report": {
         "show": "Pokaż czas oglądania",
@@ -8569,6 +8575,7 @@
       "disabled": "Prośby są wyłączone.",
       "account_not_allowed": "To konto nie może prosić o tytuły.",
       "profile_not_allowed": "Ten profil nie może prosić o tytuły. Profil główny może na to zezwolić w sekcji „Profile”.",
+      "age_restricted": "Profile z ograniczeniem wiekowym nie mogą prosić o tytuły.",
       "no_mapping": "Z tym kontem nie powiązano jeszcze użytkownika Seerr. Skonfiguruje to administrator.",
       "seerr_user_gone": "Powiązany użytkownik Seerr już nie istnieje. Naprawi to administrator.",
       "movies_not_allowed": "Obecnie nie można prosić o filmy.",
