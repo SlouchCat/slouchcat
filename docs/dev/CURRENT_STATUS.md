@@ -1,6 +1,11 @@
 # Aktueller Stand
 
-## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, Zweig `claude/wunschrecht-standard`)
+## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, PR #232)
+
+PR #232, gemergt am 26. November 2026 (`a2162e73`). Veröffentlicht am selben Tag: Server **1.44.0** (Tag
+`v1.44.0`, Release-Lauf 45877564452 grün, steht als «latest») und Handy-App **1.0.4** (Tag `app-v1.0.4`,
+Lauf 45877564727 grün). Die App ist seit dem 27. November 2026 signiert auf Marcos Pixel 10a
+(`versionCode` 5).
 
 Frage 36 im Entscheidungsprotokoll, ADR 0045 «Das Wunschrecht folgt der Altersgrenze», Vertrag 1.44.0,
 Migration 00086. Löst F-5 von Konzept 25 ab (bisher starteten nur das Eigentümer-Konto und die
@@ -52,8 +57,14 @@ Hauptprofile mit dem Recht). Betrifft Server, Web-App und Handy-App.
   und Firefox grün). Acht Fehler in `admin-library-folders.spec.ts` und `tracks.spec.ts` kamen von der
   Last der Maschine; einzeln wiederholt in beiden Browsern grün. Nach dem Merge von `main` gezielt:
   Store-Tests der Migrationen und eingefrorenen Stände, `scripts/testgroups.sh --check`, die vier Teile
-  von `task check:fast`, `task build`. Die ganze e2e-Suite lief danach nicht noch einmal; das prüft die
+  von `task check:fast`, `task build`. Die ganze e2e-Suite lief danach nicht noch einmal; das prüfte die
   CI des Pull Requests.
+- **GitHub-CI (PR #232, Lauf 45874489510):** Gate `ci` grün, alle Pflichtjobs grün. Rot war nur
+  `android-emulator (flow, informational)`: `OfflineFlowTest.downloadPlayOfflineSyncAndRevoke` lief auf
+  der Seite «Downloads» in einen Timeout von 20 s. Der PR berührt keine Datei der Downloads; die
+  Wiederholung des Jobs war grün. Der Lauf auf `main` (45877547755) scheiterte zuerst in
+  `server tests (5)` an der Paketinstallation (`packages.microsoft.com`, 403), bevor ein Test lief; die
+  Wiederholung war grün.
 - **Offen:** Die 20 anderen Sprachen übersetzen. CT 190 hebt Marco selbst auf 1.44.0.
 
 ## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, PR #231)
