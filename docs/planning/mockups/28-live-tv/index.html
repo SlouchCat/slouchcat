@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slouchcat · Live-TV · Mockups (Konzept 28)</title>
+<style>
+  :root { color-scheme: dark; --bg: #0b0c10; --elev: #171a22; --s1: #1b1e27; --s2: #20242f; --s3: #2b3040; --tx: #f3f3f5; --tx2: #d9dce4; --tx3: #bcc1cd; --line: rgba(255, 255, 255, 0.22); --frame: rgba(255, 255, 255, 0.36); --accent: #e8794a; --ok: #5fcf8f; --mk: #f0c63d; --on-mk: #1d1700; --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font); }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 16px 80px; display: flex; flex-direction: column; gap: 32px; }
+  .mk { display: inline-block; background: var(--mk); color: var(--on-mk); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+  h1 { font-size: 40px; line-height: 1.1; margin: 12px 0 8px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  p { margin: 0; color: var(--tx2); max-width: 760px; }
+  a { color: inherit; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+  .tile { display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: 20px; background: var(--elev); border: 1px solid var(--frame); text-decoration: none; min-height: 168px; }
+  .tile:hover, .tile:focus-visible { border-color: var(--tx); outline: none; }
+  .tile:focus-visible { box-shadow: 0 0 0 3px var(--tx); }
+  .tile svg { color: var(--accent); }
+  .tile b { font-size: 20px; }
+  .tile span { color: var(--tx3); font-size: 14px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .tools button { height: 34px; padding: 0 14px; border-radius: 9999px; border: 1px solid var(--frame); background: var(--s1); color: var(--tx2); font: inherit; font-size: 14px; cursor: pointer; }
+  .tools button[aria-pressed='true'] { background: var(--tx); color: var(--bg); font-weight: 600; }
+  .tools button:focus-visible { outline: 3px solid var(--tx); outline-offset: 2px; }
+  .tblw { overflow-x: auto; border: 1px solid var(--frame); border-radius: 12px; background: var(--elev); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; color: var(--tx2); background: var(--s2); padding: 8px 12px; white-space: nowrap; }
+  td { padding: 8px 12px; border-top: 1px solid var(--line); color: var(--tx2); vertical-align: top; }
+  td:first-child { font-weight: 700; color: var(--tx); white-space: nowrap; }
+  td a { color: var(--tx); font-weight: 600; text-underline-offset: 3px; }
+  code { font-size: 12.5px; color: var(--tx3); }
+  .st { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 12px; font-weight: 700; border: 1px solid var(--frame); white-space: nowrap; }
+  .st.gebaut { color: var(--ok); border-color: var(--ok); }
+  .foot { font-size: 13px; color: var(--tx3); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="mk">Konzept 28 · klickbare Mockups</span>
+    <h1>Live-TV in Slouchcat</h1>
+    <p>Beispieldaten, simulierte Wiedergabe: kein Server, kein Stream, keine Zugangsdaten. Uhr des Mockups: Samstag, 28. November 2026, ab 20:41. In jedem Mockup oben in der Leiste: «Zustände» (Profil, Rechte, leer, lädt, Fehler, ohne EPG, Sender gestört, Uhr) und das Sprungmenü mit allen Seiten.</p>
+  </header>
+  <section aria-labelledby="h-in">
+    <h2 id="h-in">Einstiege</h2>
+    <div class="tiles">
+      <a class="tile" href="web/index.html#/live/channels"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/></svg><b>Web-App</b><span>Zuschauer: Computer, Tablet und Handy über den Breitenumschalter</span></a>
+      <a class="tile" href="web/index.html#/admin/live/sources"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3.5 5 6v6c0 4.2 3 7.2 7 8.5 4-1.3 7-4.3 7-8.5V6z"/></svg><b>Verwaltung</b><span>Neuer Bereich «Live-TV» in der Seitenleiste der Verwaltung (Web-App)</span></a>
+      <a class="tile" href="tv/index.html#/live/channels"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg><b>Fernseher</b><span>Android TV im gezeichneten Fernseher, Fernbedienung mit Kanal +/−, Guide und Ziffern</span></a>
+      <a class="tile" href="handy/index.html#/live/channels"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg><b>Handy und Tablet</b><span>Handy-App im Geräterahmen, hoch und quer, Menü zum Hereinwischen</span></a>
+    </div>
+  </section>
+  <section aria-labelledby="h-reg">
+    <h2 id="h-reg">Alle Seiten und Dialoge</h2>
+    <div class="tools" role="group" aria-label="Filter"><button type="button" data-c="" aria-pressed="true">Alle</button><button type="button" data-c="web" aria-pressed="false">Web-App</button><button type="button" data-c="admin" aria-pressed="false">Verwaltung</button><button type="button" data-c="tv" aria-pressed="false">Fernseher</button><button type="button" data-c="handy" aria-pressed="false">Handy</button><button type="button" data-s="offen" aria-pressed="false">nur offene</button></div>
+    <div class="tblw"><table><thead><tr><th>Kennung</th><th>Seite</th><th>Client</th><th>Stand</th><th>Datei</th><th>zuständig</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="foot" id="sum"></p>
+  </section>
+  <p class="foot">Bilder: Senderlogos und Sendungsbilder liegen nur lokal in <code>shared/img/</code> (nicht im Repo). Ohne sie zeigt das Mockup Initialen und ruhige Flächen. Bauvorlage: <code>docs/planning/28-live-tv/14-oberflaeche.md</code> und <code>15-administration.md</code>; Vertrag für Seitenbauer: <code>BAUKASTEN.md</code>.</p>
+</main>
+<script src="shared/live-register.js"></script>
+<script src="web/js/reg-kern.js"></script>
+<script src="web/js/reg-viewer-a.js"></script>
+<script src="web/js/reg-viewer-b.js"></script>
+<script src="web/js/reg-admin-a.js"></script>
+<script src="web/js/reg-admin-b.js"></script>
+<script src="tv/js/reg-kern.js"></script>
+<script src="tv/js/reg-tv.js"></script>
+<script src="handy/js/reg-kern.js"></script>
+<script src="handy/js/reg-handy.js"></script>
+<script>
+  'use strict';
+  (function () {
+    const R = window.LIVE_REG; const base = { web: 'web/index.html', admin: 'web/index.html', tv: 'tv/index.html', handy: 'handy/index.html' };
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const st = { c: '', s: '' };
+    function draw() {
+      const order = ['web', 'admin', 'tv', 'handy'];
+      const list = R.list.filter((e) => (!st.c || e.client === st.c) && (!st.s || e.stand === st.s)).sort((a, b) => order.indexOf(a.client) - order.indexOf(b.client) || R.order(a, b));
+      document.getElementById('rows').innerHTML = list.map((e) => `<tr><td>${esc(e.id)}</td><td>${e.href ? `<a href="${base[e.client]}${esc(e.href)}">${esc(e.title)}</a>` : esc(e.title)}${e.note ? `<br><code>${esc(e.note)}</code>` : ''}</td><td>${esc(R.CLIENTS[e.client])}</td><td><span class="st ${esc(e.stand)}">${esc(e.stand)}</span></td><td><code>${esc(e.file)}</code></td><td>${esc(R.AGENTS[e.agent].name)}</td></tr>`).join('');
+      const all = R.list.length; const built = R.list.filter((e) => e.stand === 'gebaut').length;
+      document.getElementById('sum').textContent = `${list.length} von ${all} Einträgen angezeigt · gebaut ${built}, offen ${all - built}.`;
+    }
+    document.querySelector('.tools').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.s != null) { st.s = st.s ? '' : 'offen'; b.setAttribute('aria-pressed', String(!!st.s)); }
+      else { st.c = b.dataset.c; document.querySelectorAll('.tools [data-c]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); }
+      draw();
+    });
+    draw();
+  })();
+</script>
+</body>
+</html>

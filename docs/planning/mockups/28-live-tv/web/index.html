@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slouchcat · Live-TV (Mockup) · Web-App</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/viewer.css">
+<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="../shared/live-ui.css">
+<link rel="stylesheet" href="../shared/live-mock.css">
+<link rel="stylesheet" href="css/core.css">
+<link rel="stylesheet" href="css/viewer-a.css">
+<link rel="stylesheet" href="css/viewer-b.css">
+<link rel="stylesheet" href="css/admin-a.css">
+<link rel="stylesheet" href="css/admin-b.css">
+</head>
+<body>
+<header id="tools" aria-label="Mockup-Leiste">
+  <span class="mk">Mockup</span>
+  <strong>Slouchcat · Web-App</strong>
+  <div class="seg" role="group" aria-label="Breite">
+    <button type="button" data-view="desktop">Desktop</button>
+    <button type="button" data-view="tablet">Tablet</button>
+    <button type="button" data-view="phone">Handy</button>
+  </div>
+  <a class="tbtn" data-side="viewer" href="#/live">Zuschauer</a>
+  <a class="tbtn" data-side="admin" href="#/admin/live">Verwaltung</a>
+  <span id="lvm"></span>
+  <label class="jump">Seite <select id="jump" aria-label="Zu einer Seite springen"></select></label>
+  <a class="tbtn" href="../index.html">Alle Einstiege</a>
+</header>
+<div id="stage" data-view="desktop"><div id="device"><div id="scroll" tabindex="-1"></div><div id="overlays"></div></div></div>
+<script src="../shared/live-data.js"></script>
+<script src="../shared/live-sim.js"></script>
+<script src="../shared/live-ui.js"></script>
+<script src="../shared/live-register.js"></script>
+<script src="../shared/live-mock.js"></script>
+<script src="js/reg-kern.js"></script>
+<script src="js/reg-viewer-a.js"></script>
+<script src="js/reg-viewer-b.js"></script>
+<script src="js/reg-admin-a.js"></script>
+<script src="js/reg-admin-b.js"></script>
+<script src="js/core.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/page-ls02.js"></script>
+<script src="js/page-la02.js"></script>
+<script src="js/viewer-a.js"></script>
+<script src="js/viewer-a-2.js"></script>
+<script src="js/viewer-b.js"></script>
+<script src="js/viewer-b-2.js"></script>
+<script src="js/admin-a.js"></script>
+<script src="js/admin-a-2.js"></script>
+<script src="js/admin-b.js"></script>
+<script src="js/admin-b-2.js"></script>
+<script src="js/mock.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

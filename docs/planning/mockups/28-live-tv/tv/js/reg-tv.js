@@ -1,0 +1,33 @@
+/* TV.
+   Register entries of this agent (see shared/live-register.js). Keep «stand» up to date: 'offen' or 'gebaut'. */
+'use strict';
+LIVE_REG.add('tv', 'tv/js/pages.js', [
+  ["LS-01", "Live-TV-Start", "tv", "/live", null, "offen", ""],
+  ["LS-03", "Meine Sender", "tv", "/live/channels/favorites", null, "offen", ""],
+  ["LS-04", "Programmzeitschrift", "tv", "/live/guide", null, "offen", ""],
+  ["LS-05", "Programmsuche", "tv", "/live/guide/search", "#/live/guide/search?q=tatort", "offen", ""],
+  ["LS-06", "Sendungsdetails", "tv", "/live/programs/:id", "#/live/programs/p-zdf-1215", "offen", ""],
+  ["LS-07", "Live-Player", "tv", "/live/watch/:id", "#/live/watch/srfzwei", "offen", ""],
+  ["LS-08", "Meine Aufnahmen", "tv", "/live/recordings", null, "offen", ""],
+  ["LS-09", "Aufnahme-Detail", "tv", "/live/recordings/:id", "#/live/recordings/rec-terra", "offen", ""],
+  ["LS-10", "Aufnahme-Player", "tv", "/live/recordings/:id/play", "#/live/recordings/rec-arena/play", "offen", ""],
+  ["LS-11", "Geplante Aufnahmen", "tv", "/live/scheduled", null, "offen", ""],
+  ["LS-12", "Konflikte und Warnungen", "tv", "/live/scheduled/warnings", null, "offen", ""],
+  ["LS-13", "Erinnerungen", "tv", "/live/reminders", null, "offen", ""],
+  ["LS-14", "Aufnahmen meiner Profile", "tv", "/live/recordings/profiles", null, "offen", ""],
+  ["LS-15", "Senderprogramm", "tv", "/live/guide/channel/:id", "#/live/guide/channel/srf1", "offen", ""],
+  ["LS-21", "Profilformular: Block «Live-TV»", "tv", "/settings/profiles", null, "offen", ""],
+  ["LS-23", "Benachrichtigungen (Glocke)", "tv", "/notifications", null, "offen", ""],
+  ["LS-24", "Suche: Verweis ins TV-Programm", "tv", "/search", "#/search?q=tatort", "offen", ""],
+  ["LS-26", "Startseite (unverändert)", "tv", "/", null, "offen", ""],
+  ["LD-01", "Aufnahme planen", "tv", "/live/dialog/LD-01", null, "offen", ""],
+  ["LD-02", "Serienaufnahme", "tv", "/live/dialog/LD-02", null, "offen", ""],
+  ["LD-03", "Manuelle oder wiederkehrende Aufnahme", "tv", "/live/dialog/LD-03", null, "offen", ""],
+  ["LD-04", "Sofortaufnahme", "tv", "/live/dialog/LD-04", null, "offen", ""],
+  ["LD-05", "Erinnerung", "tv", "/live/dialog/LD-05", null, "offen", ""],
+  ["LD-06", "Löschen und Abbrechen", "tv", "/live/dialog/LD-06", null, "offen", ""],
+  ["LD-07", "Konflikt oder Warnung", "tv", "/live/dialog/LD-07", null, "offen", ""],
+  ["LD-08", "Tag und Uhrzeit wählen", "tv", "/live/dialog/LD-08", null, "offen", ""],
+  ["LD-10", "Senderwechsel bei Zeitversatz", "tv", "/live/dialog/LD-10", null, "offen", ""],
+  ["LD-11", "Aufbewahrung ändern", "tv", "/live/dialog/LD-11", null, "offen", ""],
+]);

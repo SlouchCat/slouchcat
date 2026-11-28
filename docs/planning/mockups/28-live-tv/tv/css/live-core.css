@@ -1,0 +1,84 @@
+/* Konzept 28 «Live-TV», TV mockup: additions of the core (remote keys, Live-TV frame and tabs, LS-02 rows,
+   preview, channel number entry, logo sizes). Ten-foot sizes on the 1920 × 1080 canvas; colours only from
+   variables (css/app.css, ../shared/live-ui.css). */
+
+/* ---------- remote: new keys ---------- */
+#remote { gap: 18px; }
+.rc-live { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.rc-ch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc-fn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc-live button, .rc-num button { height: 34px; border-radius: 17px; background: var(--remote-key); color: var(--remote-tx); font-size: 12px; font-weight: 700; box-shadow: inset 0 2px 0 var(--remote-key-hi), 0 3px 8px var(--shadow); }
+.rc-live .rc-rec { color: var(--live-rec); font-size: 16px; }
+.rc-num { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+.rc-num button { height: 30px; font-size: 14px; }
+#stage.stack .rc-live, #stage.stack .rc-num { width: 180px; }
+#remote .rc-live button.down, #remote .rc-num button.down { background: var(--tx); color: var(--bg); }
+
+/* ---------- Live-TV frame ---------- */
+.ltv-page { display: flex; flex-direction: column; gap: 30px; padding-top: calc(var(--safe-y) - 6px); }
+.ltv-head { display: flex; align-items: center; gap: 40px; }
+.ltv-eye { display: inline-flex; align-items: center; gap: 12px; font-size: var(--fs-s); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.ltv-tabs { display: flex; gap: 12px; }
+.ltv-tab { display: inline-flex; align-items: center; height: 64px; padding: 0 30px; border-radius: 32px; font-size: var(--fs); font-weight: 600; color: var(--tx2); border: 3px solid transparent; transition: background var(--t), color var(--t), transform var(--t); }
+.ltv-tab[aria-current='page'] { border-color: var(--frame); color: var(--tx); }
+.ltv-tab.is-f { background: var(--tx); color: var(--bg); transform: scale(var(--focus-scale)); }
+.ltv-h { display: flex; align-items: baseline; gap: 24px; }
+.ltv-h h1 { font-size: var(--fs-h1); font-weight: 700; line-height: 1.05; }
+.ltv-count { font-size: var(--fs-l); color: var(--tx3); }
+.ltv-sample { font-size: 22px; color: var(--tx3); margin-top: 10px; }
+.ltv-lead { color: var(--tx2); }
+.ltv-acts { display: flex; gap: 24px; }
+.page.soon h1 { font-size: var(--fs-h1); }
+
+/* logo sizes on TV */
+.lv-logo { width: 112px; height: 68px; border-radius: 12px; font-size: 24px; }
+.lv-logo.big { width: 176px; height: 108px; border-radius: 16px; font-size: 34px; }
+
+/* ---------- LS-02 ---------- */
+.ltv-tools { display: flex; align-items: center; gap: 24px; }
+.ltv-search { width: 620px; height: 80px; border-radius: 40px; font-size: var(--fs); }
+.ltv-split { display: flex; gap: 48px; align-items: flex-start; }
+.ltv-list { flex: 0 0 1000px; display: flex; flex-direction: column; gap: 10px; }
+.ltv-skel { height: 100px; border-radius: 20px; }
+.ltv-row { display: flex; align-items: center; gap: 14px; }
+.ltv-ch { flex: 1; min-width: 0; display: grid; grid-template-columns: 70px 112px 230px 1fr; align-items: center; gap: 22px; height: 104px; padding: 0 26px; border-radius: 22px; background: var(--s1); border: 3px solid transparent; transition: transform var(--t), background var(--t); }
+.ltv-ch.is-f { background: var(--tx); color: var(--bg); transform: scale(1.02); box-shadow: 0 16px 40px var(--shadow); }
+.ltv-no { font-size: var(--fs-l); font-weight: 700; color: var(--tx3); text-align: right; font-variant-numeric: tabular-nums; }
+.ltv-ch.is-f .ltv-no { color: var(--bg); }
+.ltv-name { font-size: var(--fs-l); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; flex-direction: column; }
+.ltv-rec { font-size: 22px; }
+.ltv-ch.is-f .lv-badge { color: var(--bg); }
+.ltv-now { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: var(--fs-s); }
+.ltv-now b { font-size: var(--fs); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltv-now small { font-size: 24px; color: var(--tx3); }
+.ltv-ch.is-f .ltv-now small, .ltv-ch.is-f .ltv-now.none { color: var(--bg); }
+.ltv-now .lv-prog { height: 6px; }
+.ltv-ch.is-f .lv-prog { background: var(--glass2); } .ltv-ch.is-f .lv-prog > i { background: var(--bg); }
+.ltv-now.none { color: var(--tx2); }
+.ltv-now.warn { flex-direction: row; align-items: center; gap: 10px; color: var(--warn); font-weight: 600; }
+.ltv-ch.is-f .ltv-now.warn { color: var(--bg); }
+.ltv-row.bad .ltv-ch:not(.is-f) .lv-logo { opacity: 0.7; }
+.ltv-heart { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: var(--tx2); border: 3px solid var(--frame); flex: none; transition: transform var(--t); }
+.ltv-heart.on { color: var(--live-rec); }
+.ltv-heart.is-f { background: var(--tx); color: var(--bg); border-color: var(--tx); transform: scale(1.1); }
+.ltv-heart.on.is-f { color: var(--live-rec); }
+.ltv-prev { position: sticky; top: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 30px 34px; border-radius: 28px; background: var(--elev); border: 2px solid var(--line); }
+.ltv-pv-top { display: flex; align-items: center; gap: 26px; }
+.ltv-pv-top b { display: block; font-size: var(--fs-h2); }
+.ltv-pv-top small { display: block; font-size: var(--fs-s); color: var(--tx3); }
+.ltv-pv-lbl { font-size: 22px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx3) !important; margin-top: 8px; }
+.ltv-pv-t { font-size: var(--fs-h2); font-weight: 700; line-height: 1.15; margin: 0; }
+.ltv-pv-t span { font-weight: 500; color: var(--tx2); }
+.ltv-pv-t.none { font-size: var(--fs-l); color: var(--tx2); }
+.ltv-pv-m { font-size: var(--fs); }
+.ltv-pv-d { font-size: var(--fs-s); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.ltv-pv-n { font-size: var(--fs); }
+.ltv-pv-b { font-size: 24px; display: flex; gap: 20px; }
+.ltv-pv-keys { margin-top: 12px; font-size: 22px; color: var(--tx3) !important; }
+.ltv-prev .tnote { margin-top: 0; }
+
+/* ---------- channel number entry ---------- */
+#ltv-num { position: absolute; z-index: 70; top: var(--safe-y); right: var(--safe-x); display: none; align-items: center; gap: 24px; padding: 20px 32px; border-radius: 24px; background: var(--elev); border: 3px solid var(--tx); box-shadow: 0 20px 60px var(--shadow); font-size: var(--fs-l); }
+#ltv-num.on { display: flex; }
+#ltv-num b { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 120px; text-align: right; }
+#ltv-num.err { border-color: var(--danger); }
