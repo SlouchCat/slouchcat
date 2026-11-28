@@ -1,6 +1,6 @@
 # Konzept 28 · Grundsatzentscheide
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 > **Kurz gesagt.** Marcos Auftrag vom 28. November 2026 legt 21 Grundsatzentscheide fest (LTV-001 bis LTV-021).
 > Diese Datei fasst sie in je einem Satz zusammen, zeigt, wo der Auftrag von diesem Repo abweicht (er wurde für
@@ -24,7 +24,9 @@ Wortlaut des Auftrags: `anhang/auftrag-2026-11-28.md` (Zeilenangaben «Z.» bezi
    der Auftrag Marco zur Entscheidung vorlegen liess (LTV-015, Z. 971).
 3. **Abschnitt 5 des Auftrags** (Technik des alten Repos) gilt nur in seinem Sinn, nicht wörtlich (Abschnitt 2).
 4. **Die Marken [MVP], [1.1], [1.x], [Later]** gibt es in diesem Repo nicht. Umfang wird Stufen zugeordnet
-   (Stufe 0, 1, 2 …; jede Stufe ein Release). Die Zuordnung ist ein Vorschlag an Marco.
+   (V, 0, 1a, 1b, 2, 3, H, 4, 5, 6, L, W, E, Apps; jede Stufe ein Release), nach `18-umsetzungsplan.md`. Die
+   Zuordnung ist ein Vorschlag an Marco.
+5. **Zahlen** (Fristen, Grenzen, Vorgaben) gelten so, wie `04-architektur.md` Abschnitt 14 sie nennt.
 
 ---
 
@@ -72,7 +74,7 @@ letzte ADR 0045, letzte Frage 36.
 | AB-2 | Native Linux-Installation als `.deb` (Z. 306, 1501) | Nicht-Ziel: «Kein natives Paket» (`docs/spec/01-anforderungen-v1.md:41`, `:86`); nur Docker (`deploy/Dockerfile`) | bleibt Nicht-Ziel; als «nicht dabei» geführt (`03-fachkonzept.md` Abschnitt 7). Der hiesige «Installer» sind Compose-Dateien und Overrides. |
 | AB-3 | Fire TV als zu berücksichtigender Client (Z. 944) | Nicht-Ziel: «TV-Apps (Apple TV, webOS, Tizen, Fire TV)» (`docs/spec/01-anforderungen-v1.md:58-60`, `CLAUDE.md` Regel 11); Konzept 26 E-1 «Fire TV nicht» (`docs/planning/04-entscheidungen.md:139`) | bleibt Nicht-Ziel; Clients sind Web-App (Desktop, Smartphone, Tablet), Android-Handy-App und Android-TV-App (deckt Google TV ab). |
 | AB-4 | DEC-001 schliesst Live-TV, IPTV, EPG und DVR aus und wird geändert (Z. 273–275); `docs/spec/00_Glossar_und_Entscheidungen.md` (Z. 236) | Eine DEC-Nummerierung und diese Datei gibt es nicht. Das Nicht-Ziel steht in `CLAUDE.md` Regel 11 («Live-TV», `CLAUDE.md:75`), in der Spec «Non-Goals» (`docs/spec/01-anforderungen-v1.md:56-57`, auch `:29`, `:44`), im Plan (`docs/planning/03-plan-v1.md:30`) und in Frage 23 («Musikbibliothek, Fotos, Live-TV und DVR bleiben Nicht-Ziele», `docs/planning/04-entscheidungen.md:90`) | Die Aufhebung geschieht wie bei Webradio und den Android-Apps: Frage 37 im Entscheidungsprotokoll bei der Freigabe (Entwurf Abschnitt 5), benannte Ausnahme in Regel 11 und Nachtrag in der Spec erst mit Stufe 0 des Baus (Abschnitt 4). Die Liste aller Stellen steht in `21-aenderungen-an-dokumenten.md`. |
-| AB-5 | Marken [MVP], [1.1], [1.x], [Later] (Z. 1881–1886) | gibt es nicht; Umfang je Konzept in Stufen, jede Stufe ein Release oder von Marco gebündelt (`docs/planning/16-webradio.md:680`, `docs/planning/26-android-tv.md:764`) | Jede Anforderung trägt eine Stufe (Vorschlag); die Reihenfolge legt `18-umsetzungsplan.md` fest. Die bisherige Entwicklungspriorität ändert das nicht. |
+| AB-5 | Marken [MVP], [1.1], [1.x], [Later] (Z. 1881–1886) | gibt es nicht; Umfang je Konzept in Stufen, jede Stufe ein Release oder von Marco gebündelt (`docs/planning/16-webradio.md:680`, `docs/planning/26-android-tv.md:764`) | Jede Anforderung trägt eine Stufe (Vorschlag) nach dem Schnitt von `18-umsetzungsplan.md`: V, 0, 1a, 1b, 2, 3, H (Heimnetz, UDP, RTP, Multicast), 4, 5, 6, L (RTSP, RTMP), W (DASH, HLS mit fMP4), E (Ergänzungen nach Messung), Apps. Die bisherige Entwicklungspriorität ändert das nicht. |
 | AB-6 | «Bestehende gleichzeitige Streamlimits» (Z. 808) | gebaut je Konto und je Profil (`server/migrations/00063_minimum_age_accounts.sql:41`, `server/migrations/00061_profiles_open_language.sql:49`, Durchsetzung `server/internal/playback/limits.go:159-197`); gezählt werden nur Wiedergabesitzungen von Titeln (`playback_sessions.item_id NOT NULL`, `server/migrations/00032_playback_prefs.sql:58-63`); Webradio zählt bewusst nicht (K16 F-19) | Live-TV zählt zu den bestehenden Stream-, Bandbreiten- und Auflösungsgrenzen und zur Schauzeit (festgelegte Auslegung). Wie gezählt wird, ist neu (`04-architektur.md`). |
 | AB-7 | «Bestehende Bandbreitenbeschränkungen» (Z. 811) | gebaut (`00063…:39` `max_bitrate_kbps`, `server/internal/playback/decide.go:392`) | übernommen |
 | AB-8 | «Bestehende Auflösungsbeschränkungen» (Z. 812) | gebaut (`00063…:40` `max_height`, `decide.go:391`); eine Grenze unter der Quellauflösung erzwingt heute eine Umwandlung (`decide.go:391-426`) | übernommen; bei Live-TV ist das je Zuschauer ein eigener Umwandlungsprozess (LTV-004, siehe `13-ressourcen-und-performance.md`) |
@@ -84,7 +86,7 @@ letzte ADR 0045, letzte Frage 36.
 | AB-14 | «Bestehende Suche» (Z. 1491) | gebaut nur für Titel, Personen, Sammlungen (`api/openapi.yaml:5951`, `server/migrations/00015_discover.sql:142`) | Programmsuche ist neu; ob sie auch in der allgemeinen Suche erscheint, ist F-5 (`03-fachkonzept.md`). |
 | AB-15 | «Bestehendes Benachrichtigungssystem» (Z. 794) | gebaut, Kanäle E-Mail, Web-Push, Telegram, Push an die Handy-App über den Weiterleitungsdienst; Einstellungen **je Konto**, nicht je Profil (`server/migrations/00016_admin.sql:27-35`); Push immer mit normaler Dringlichkeit (`server/internal/notify/push/push.go:174`) | wird genutzt; neue Ereignisarten sind nötig. Erinnerungen je Profil über Kanäle je Konto: F-3. |
 | AB-16 | «Bestehende Hintergrundjobs» (Z. 1493) | gebaut, aber ein Zeitplan je Jobart, Takt 60 s, Lease 5 min; ungeeignet für sekundengenaue und stundenlange Aufnahmen (Rohbericht A3 Abschnitt 4) | Import, Abgleich, Prüfung, Aufräumen laufen im bestehenden Jobsystem; Aufnahme und Dauerempfang brauchen einen eigenen Dienst im selben Prozess (wie das Radio-Relay), kein zweites Jobsystem (`04-architektur.md`). |
-| AB-17 | «Explizite Freigaben lokaler Quellen gemäss bestehender Sicherheitspolitik» (Z. 1332) | Eine solche Freigabe gibt es nicht. Der Netzwächter sperrt Heimnetz, Loopback, Link-local und Multicast (`server/internal/netguard/netguard.go:48-50`); Webradio F-15 «keine Sender im lokalen Netz» (ADR 0025) | neue, eng gefasste Ausnahme nur für Live-TV (Abschnitt 4, A-3) |
+| AB-17 | «Explizite Freigaben lokaler Quellen gemäss bestehender Sicherheitspolitik» (Z. 1332) | Eine solche Freigabe gibt es nicht. Der Netzwächter sperrt Heimnetz, Loopback, Link-local und Multicast (`server/internal/netguard/netguard.go:48-50`); Webradio F-15 «keine Sender im lokalen Netz» (ADR 0025) | neue, eng gefasste Ausnahme nur für Live-TV mit festen Zielen je Quelle (Abschnitt 4, A-3); dazu A-9 für den Netzmodus |
 | AB-18 | «Kinderprofil-Einstellungen» als bestehende Seite (Z. 1578) | keine eigene Seite; Altersgrenze, PIN, Grenzen stehen in der Profilverwaltung des Hauptprofils | Die Live-TV-Schalter erscheinen in der bestehenden Profilverwaltung (`14-oberflaeche.md`). |
 | AB-19 | Mockups mit «echten Senderlogos» (Z. 1601) | öffentliches Repo; keine Senderlogos, Sendungsbilder, echten Senderlisten ins Repo (Leitplanken; Vorbild Konzept 25: Bilder nur lokal) | Im Repo nur neutrale, selbst erzeugte Platzhalter; echte Logos höchstens lokal und ausserhalb von git (`19-mockups.md`). |
 | AB-20 | Commits, Push und Aktualisierung von `CURRENT_STATUS.md` in der Konzeptphase (Z. 2021–2025) | In Konzeptphasen bleibt `docs/dev/CURRENT_STATUS.md` unverändert (Rohbericht A1 7.4; PR #63, #97, #159, #174, #180); er wird mit dem Bau nachgeführt | Der Koordinator committet; `CURRENT_STATUS.md` erst mit dem Bau. |
@@ -113,19 +115,26 @@ Altersgrenze. Für alle anderen Profile bleibt Z. 684 wörtlich.
 
 ## 4. Benannte Ausnahmen von bestehenden Regeln
 
-Jede Ausnahme gilt nur für Live-TV und nur so weit, wie die Spalte «Grenze» sagt. Sie wird erst mit Stufe 0 des
+Jede Ausnahme gilt nur für Live-TV und nur so weit, wie die Spalte «Grenze» sagt. A-9 ist mit Fassung 2 dazugekommen. Sie wird erst mit Stufe 0 des
 Baus in Regeln und Spec eingetragen, nicht mit diesem Papier.
 
 | Nr. | Bestehende Regel | Ausnahme für Live-TV | Grenze der Ausnahme | Beleg im Auftrag |
 |---|---|---|---|---|
 | A-1 | **Nicht-Ziel Live-TV und DVR** (`CLAUDE.md` Regel 11; Spec «Non-Goals» `docs/spec/01-anforderungen-v1.md:56-57`; Frage 23) | Live-TV mit Programmzeitschrift, persönlichem Timeshift und Aufnahmen (DVR) von **Fernsehsendern** ist erlaubt. | Webradio bleibt unverändert und ohne Aufnahmen (K16 F-1). Keine Plattform-Streams (YouTube, Twitch), kein DRM und keine Umgehung. Keine weiteren TV-Apps (Fire TV, Apple TV, webOS, Tizen bleiben Nicht-Ziele). Kein eigener Dienst von Slouchcat im Internet für Live-TV. Alles aus der Ausschlussliste (Abschnitt 16) bleibt verboten. | Z. 273–281, LTV-001 |
 | A-2 | **Altersmodell**: ein Profil sieht Inhalte über seiner Altersstufe nirgends (Spec K-3 `:97`), unbekannte Freigabe gilt unter 18 als gesperrt (AN-1, Frage 6), Kinderprofil-Vertragstest (Plan 10.2, `docs/planning/03-plan-v1.md:671-683`) | Live-TV kennt keine Altersregel. Ein Profil mit Altersgrenze sieht Live-TV, wenn das Hauptprofil es freigibt, dann alle Sender des Kontos ohne Prüfung von Sender, Sendung oder Programmdaten. Das gilt auch für die eigenen Aufnahmen dieses Profils. | Gilt **nicht** für Filme, Serien, Hörbücher, Podcasts und andere bisher altersgefilterte Bibliotheken; deren Jugendschutz bleibt unverändert. Live-TV-Sender, -Sendungen und -Aufnahmen erscheinen nie auf der Startseite, in Top Picks, in Sammlungen oder in Downloads der Bibliothek. Der Administrator-Deckel je Konto bleibt verbindlich. | LTV-015, Z. 951–967 |
-| A-3 | **«Nichts im lokalen Netz»** für fremd bestimmte Adressen (ADR 0025 F-15; Netzwächter sperrt privat, Loopback, Link-local, Multicast, `server/internal/netguard/netguard.go:48-50`) | Quellen im Heimnetz sowie UDP, RTP und Multicast sind für Live-TV erlaubt. | Nur Quellen, die **der Administrator** in der Verwaltung einträgt; jede Quelle mit lokalem Ziel braucht eine **ausdrückliche Freigabe je Quelle**. Konten und Profile tragen keine Quellen ein. Die Freigabe gilt nur für die eingetragene Quelle, nicht für Adressen, auf die sie weiterleitet oder verweist (Playlist-, Segment-, Schlüssel-, Logo-, EPG-Bild-URLs); diese prüft der Netzwächter weiter (`12-sicherheit.md`). Radio, Podcasts und Bilder bleiben unverändert. | LTV-003 Z. 439–441; Z. 1331–1333 |
+| A-3 | **«Nichts im lokalen Netz»** für fremd bestimmte Adressen (ADR 0025 F-15; Netzwächter sperrt privat, Loopback, Link-local, Multicast, `server/internal/netguard/netguard.go:48-50`) | Quellen im Heimnetz sowie UDP, RTP und Multicast sind für Live-TV erlaubt, aber nur an **festen Zielen je Quelle**: einer Liste aus Adresse oder kleinem Netz (höchstens /24 bei IPv4, /64 bei IPv6) und Port oder kleinem Portbereich (höchstens 64 Ports), die der Administrator beim Freigeben sieht und bestätigt. Ein Hostname wird beim Freigeben aufgelöst; die Adressen werden angezeigt und gespeichert, eine geänderte Auflösung ist eine neue Freigabe. | Nur Quellen, die **der Administrator** einträgt; Konten und Profile tragen keine Quellen ein. Die Prüfung gilt für **jede** Verbindung der Quelle (Liste, Sender, Weiterleitung, Unterliste, Segment, Schlüssel): öffentlich geht, lokal nur innerhalb der festen Ziele dieser Quelle; ein Verweis ausserhalb ist gesperrt. **Nie freigebbar:** Loopback, unspezifizierte Adressen, Link-Local samt Metadaten-Adressen, die eigenen Adressen des Containers und, im Netzmodus «host», des Hosts. Sender einer Liste mit lokalem Ziel ausserhalb der festen Ziele werden importiert, aber als «Ziel im Heimnetz nicht freigegeben» nie verbunden. Logos und EPG-Bilder nie über eine Freigabe, immer nur öffentlich. Radio, Podcasts und Bilder bleiben unverändert. Ein ungeprüfter Client wird für Live-TV nie verwendet (`04` T-5, 10.9). | LTV-003 Z. 439–441; Z. 1331–1333 |
 | A-4 | **ADR 0032 «Dateien löschen nur auf Befehl des Administrators, nichts löscht automatisch»** (auch Spec B-1 Nachtrag `:105`) | Slouchcat löscht Aufnahmen automatisch, wenn das **Profil selbst** eine Aufbewahrungsfrist oder «behalte die letzten N Folgen» einer Serienaufnahme gewählt hat. Timeshift- und Startpuffer-Dateien sind flüchtig und werden beim Senderwechsel, beim Beenden und nach Abstürzen bereinigt. | Keine andere automatische Löschung von Aufnahmen: nicht bei vollem Kontingent (E-4), nicht durch eine Vorgabe des Administrators, die das Profil nicht übernommen hat (F-10 in `03-fachkonzept.md`), nie eine laufende Aufnahme. Bibliotheksdateien bleiben unter ADR 0032. | LTV-008 Z. 643, LTV-019 Z. 1061–1062, E-4 |
 | A-5 | **ADR 0045 «Ein Recht folgt der Altersgrenze»** (Trigger setzen das Wunschrecht unter 18 aus und weisen das Einschalten ab, `server/migrations/00086_wishes_rights_follow_rating.sql:86-120`) | Die drei Live-TV-Rechte sind **nicht** an die Altersgrenze gekoppelt. Das Hauptprofil kann sie für ein Profil mit Altersgrenze einschalten; eine neue oder geänderte Altersgrenze schaltet sie nicht von selbst um. | Gilt nur für «Live-TV», «Aufnahmen», «Timeshift». Das Wunschrecht bleibt unter ADR 0045. Welche Werte ein neues Profil mit Altersgrenze ab Werk hat, regelt `03-fachkonzept.md` (DR-01, F-1). | LTV-015 Z. 953–955, Z. 963 |
-| A-6 | **Privatsphäre des Profilmodells** (Aufnahmen privat je Profil, Z. 684–690) | Das Hauptprofil darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und abspielen. | Nur das Hauptprofil desselben Kontos, nur Profile mit Altersgrenze. Profile ohne Altersgrenze bleiben ganz privat. Andere Konten und der Administrator sehen keine Titel fremder Aufnahmen, nur Belegung je Konto und technische Zustände. | E-3; LTV-015 Z. 969–971 |
+| A-6 | **Privatsphäre des Profilmodells** (Aufnahmen privat je Profil, Z. 684–690) | Das Hauptprofil darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und abspielen. | Nur das Hauptprofil desselben Kontos, nur Profile mit Altersgrenze (eine Definition: `03` DR-25; ob die Grenze des Kontos mitzählt, ist `07` F-1). Ob Aufnahmen aus der Zeit vor einer nachträglich gesetzten Altersgrenze dazugehören, ist `04` F-10; bis zur Antwort nur Aufnahmen, die mit Altersgrenze angelegt wurden (Empfehlung b). Profile ohne Altersgrenze bleiben ganz privat. Andere Konten und der Administrator sehen keine Titel fremder Aufnahmen, nur Belegung je Konto und technische Zustände. | E-3; LTV-015 Z. 969–971 |
 | A-7 | **Medien nur lesend** (Spec B-1, Medien `:ro` eingebunden, `deploy/compose.yaml:36`; Ausnahme bisher nur ADR 0029 für Podcasts) *(von der Redaktion erkannt)* | Slouchcat schreibt Aufnahmen, Timeshift- und Startpuffer-Dateien in eigene, schreibbare Speicherorte. | Nur in ausdrücklich eingerichtete Live-TV-Speicherorte, nur über `paths` (Regel 4), nie in Bibliotheksordner. | LTV-019 Z. 1040–1044 |
 | A-8 | **Kinderprofil-Vertragstest** (Plan 10.2: keine Kennung ohne Freigabe in `scoped`-Antworten) *(von der Redaktion erkannt)* | Sender, Sendungen und Aufnahmen sind keine Titel mit Altersfreigabe; der Test zählt sie nicht als Verstoss. | Der Test bleibt für alle Titel unverändert; Live-TV-Antworten tragen keine `ItemRef` (`08-api.md`). | LTV-015 Z. 965 |
+| A-9 | **Standard-Netz des Containers** (Bridge-Netz, nur Port 8096 veröffentlicht, `deploy/compose.yaml:29-40`) *(aus `04` 10.6 und review-1-sicherheit)* | Für Multicast darf der Container im Netzmodus «host» laufen (Zusatzdatei, Arbeitsname `compose.live-hostnet.yaml`); für UDP- oder RTP-Unicast an den Server dürfen UDP-Ports veröffentlicht werden (`compose.live-udp.yaml`). Ob statt «host» ein eigenes Netz des Containers (`macvlan`, `ipvlan`) gewählt wird, ist `04` F-11. | Nur als freiwillige Zusatzdatei, nie in der Standard-Compose-Datei; nur für Stufe H. Benannte Folgen im Wortlaut: (1) `127.0.0.1` ist dann das Loopback des Docker-Hosts; alles, was dort lauscht, liegt hinter jeder Lücke der Abwehr. (2) Der Server bekommt die IPv6-Adressen des Hosts; die bekannte Lücke «weltweite IPv6-Adresse im Heimnetz ist nicht erkennbar» (`netguard.go:44-47`) wird wirksam. (3) Die Annahmen über vertrauenswürdige Proxys und die HTTPS-Variante ändern sich (`compose.yaml:3-7`). (4) Ein lauschender UDP-Socket ist für jedes Gerät im Netz erreichbar. Die Verwaltung und die Installationsanleitung nennen diese Folgen. | LTV-003 Z. 439–441; Z. 1333 |
+
+### 4.1 Festlegung der Architektur, die Grundsätze berührt
+
+| Nr. | Festlegung | Berührt | Wirkung |
+|---|---|---|---|
+| T-29 (`04`) | **Das Deaktivieren oder Verschwinden eines Senders beendet nichts Laufendes von selbst.** Für alles Neue ist der Sender sofort unsichtbar (404). Laufende Wiedergaben laufen, bis der Zuschauer geht, laufende Aufnahmen bis zu ihrem Ende. Nur der ausdrückliche Befehl «sofort beenden» des Administrators, mit Zahl der Betroffenen und Bestätigung, beendet beides; eine so beendete Aufnahme heisst «unvollständig, Sender deaktiviert». | LTV-002.10, LTV-002.11 (Schutz laufender Wiedergaben und Aufnahmen), LTV-006.05 | Kein Widerspruch zu einem Grundsatz; er schützt sie. Bewusste Abweichung vom Webradio, das beim Ausblenden laufende Hörer beendet. Fachregel: `03` DR-16. |
 
 ---
 
@@ -148,10 +157,31 @@ ergänzt; Platzhalter in spitzen Klammern füllt erst die Freigabe.
 > Aufnahmen (gegen die Empfehlung, die das Abspielen nicht vorsah). **E-4** bei vollem Kontingent wird die neue
 > Aufnahme abgelehnt und gemeldet; automatisch gelöscht wird nur nach der Aufbewahrungsfrist und «behalte N» des
 > Profils. **Benannte Ausnahmen** (Konzept 28, `02-grundsatzentscheide.md` Abschnitt 4): Altersmodell (LTV-015,
-> nicht für Filme, Serien und andere Bibliotheken), Quellen im Heimnetz und Multicast nur vom Administrator mit
-> Freigabe je Quelle, automatisches Löschen nur nach Wahl des Profils (ADR 0032), keine Kopplung an die
-> Altersgrenze (ADR 0045). **Antworten auf F-1 bis F-<n>:** <je eine Zeile, wörtlich>. **Bauauftrag:** <Datum,
+> nicht für Filme, Serien und andere Bibliotheken), Quellen im Heimnetz, UDP, RTP und Multicast nur vom Administrator an
+> festen Zielen je Quelle (Adresse oder kleines Netz und Port; Loopback und Link-Local nie), Netzmodus «host» und
+> veröffentlichte UDP-Ports nur als freiwillige Zusatzdatei mit vier benannten Folgen (A-9), automatisches Löschen nur nach Wahl des Profils (ADR 0032), keine Kopplung an die
+> Altersgrenze (ADR 0045), Einsicht des Hauptprofils nur in Aufnahmen von Profilen mit Altersgrenze. **Festlegung der Architektur:**
+> Deaktivieren eines Senders beendet nichts Laufendes (T-29). **Antworten auf die offenen Fragen** (Sammelliste
+> `20-offene-entscheidungen.md`, je «<Datei> F-n»): <je eine Zeile, wörtlich>. **Bauauftrag:** <Datum,
 > Umfang>; für jede noch offene Frage gilt die Empfehlung des Papiers. | Live-TV und DVR waren Nicht-Ziele; die
-> Ausnahmen und Regeländerungen kommen mit Stufe 0 des Baus. Gebaut wird in Stufen nach
-> `18-umsetzungsplan.md`. | Spec Non-Goals, Plan, `CLAUDE.md` Regel 11, ADR 0025, ADR 0032, ADR 0045,
+> Ausnahmen und Regeländerungen kommen mit Stufe 0 des Baus. Gebaut wird in den Stufen V, 0, 1a, 1b, 2, 3, H, 4, 5, 6, L, W, E
+> und den App-Ausgaben nach `18-umsetzungsplan.md`. | Spec Non-Goals, Plan, `CLAUDE.md` Regel 11, ADR 0025, ADR 0032, ADR 0045,
 > `api/openapi.yaml`
+
+---
+
+## Änderungen gegenüber der vorigen Fassung
+
+Fassung 2 (Konsolidierung 1, 28. November 2026). Marcos Antworten E-1 bis E-4 sind unverändert.
+
+- **A-3 präzisiert:** feste Ziele je Quelle (Adresse oder kleines Netz und Port, bestätigt), Prüfung für jede
+  Verbindung, Verweise innerhalb der Ziele erlaubt, Loopback, Link-Local und eigene Adressen nie. Fassung 1 hätte
+  mit «nicht für Verweise» jede lokale HLS-Quelle gebrochen. Quelle: `04` T-5, 10.9, 15.1; review-1-sicherheit.
+- **A-9 neu:** Netzmodus «host» und veröffentlichte UDP-Ports als benannte Ausnahme mit vier Folgen im Wortlaut.
+  Quelle: `04` 10.6; review-1-sicherheit (Pflicht vor Stufe 3, jetzt Stufe H).
+- **A-6:** Verweis auf die eine Definition «Profil mit Altersgrenze» (`03` DR-25, `07` F-1) und auf `04` F-10
+  (Aufnahmen vor einer nachträglichen Altersgrenze). Quelle: review-2 RD-05, review-1-sicherheit RS-09.
+- **Abschnitt 4.1 neu:** T-29 (Deaktivieren beendet nichts Laufendes). Quelle: `04` Fassung 3.
+- **Lesart und AB-5:** Stufenschnitt aus `18-umsetzungsplan.md`; Zahlen nach `04` Abschnitt 14.
+- **Entwurf Frage 37** nachgeführt: feste Ziele, A-9, T-29, Stufen, Verweis auf die Sammelliste der Fragen.
+
