@@ -1,6 +1,6 @@
 # Konzept 28 · Ressourcen und Performance
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 > **Kurz gesagt.** Dieses Dokument rechnet aus, was Live-TV an Netz, Rechenzeit, Grafikeinheit,
 > Arbeitsspeicher, Plattenplatz, Dateien, Prozessen und Datenbank kostet. **Nichts ist gemessen.** Gemessen
@@ -11,15 +11,19 @@ Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, 
 > für den Browser**, nicht der Empfang. Der schlanke Bau von hls.js spielt nur H.264 mit AAC oder MP3-Ton
 > direkt; HEVC, Zeilensprung und MPEG-2 brauchen eine Bild-Umwandlung, AC-3, E-AC-3 und LATM eine
 > Ton-Umwandlung. Auf der Testinstanz CT 190 reicht das halbe Budget nach dieser Rechnung für zwei
-> gleichzeitige Bild-Umwandlungen. (2) **Dauerempfang kostet vor allem Internet-Bandbreite und Verbindungen
-> zum Anbieter** (ein HD-Sender rund um die Uhr sind 86 GB am Tag); im voreingestellten Byte-Budget haben
-> höchstens 24 HD-Ringe Platz. (3) **Viele gleichzeitige Aufnahmen starten alle**, weil nur die Ringe
-> reserviert werden; bei zehn HD-Aufnahmen sinkt aber die Toleranz gegen einen stockenden Datenträger von
-> 60 auf rund 36 Sekunden.
+> gleichzeitige Bild-Umwandlungen; ohne wirksame Sperre für FFmpeg gibt es gar keine Live-Umwandlung, nur den
+> Direktweg. (2) **Dauerempfang kostet vor allem Internet-Bandbreite und Verbindungen zum Anbieter** (ein
+> HD-Sender rund um die Uhr sind 86 GB am Tag); im voreingestellten Byte-Budget haben höchstens 24 HD-Ringe
+> Platz, bei Sendern mit langen Segmenten nur 12. Ein laufender Dauersender weicht niemandem (Vorgabe);
+> reicht der Platz nicht, wird die **neue** Anfrage abgelehnt. (3) **Viele gleichzeitige Aufnahmen starten
+> alle**, weil für Aufnahmen nur die Ringe reserviert werden; bei zehn HD-Aufnahmen sinkt aber die Toleranz
+> gegen einen stockenden Datenträger von 60 auf rund 36 Sekunden, mit laufenden Umwandlungen daneben weiter.
 
 Dieses Dokument ändert keinen Code. Es setzt die verbindlichen Entscheide T-1 bis T-29 aus
-`04-architektur.md` (Fassung 3) und die Umschalt-Kette aus `05-streaming-und-fast-zapping.md` (Fassung 3)
+`04-architektur.md` (Fassung 4) und die Umschalt-Kette aus `05-streaming-und-fast-zapping.md` (Fassung 4)
 voraus und entscheidet nichts neu. Wo es Vorrang oder Grenzen berührt, verweist es auf die offenen Fragen.
+**Solange Marco eine Frage nicht beantwortet hat, rechnet dieses Dokument mit der wortlauttreuen Vorgabe;**
+Varianten sind ausdrücklich als solche gerechnet.
 
 ## Lesart
 
@@ -38,7 +42,9 @@ voraus und entscheidet nichts neu. Wo es Vorrang oder Grenzen berührt, verweist
   «13 M-7» sind die Last- und Langzeitmessungen dieses Dokuments; V-1 bis V-12 die Messversuche aus `18`
   Abschnitt 2.2. Offene Punkte dieses Dokuments heissen «13 O-n», Vorrangkonflikte «13 P-n». F-n ohne Zusatz
   sind die Fragen aus `04` Abschnitt 12.3; aus anderen Dateien mit Dateinummer («`03` F-4»).
-  `20-offene-entscheidungen.md` vergibt die Gesamtnummern.
+  `20-offene-entscheidungen.md` vergibt die Gesamtnummern (E-28-nn); M-26 ist neu aus `05` Fassung 4.
+- **Kapazitäts- und Zielwertaussagen** sind durchgehend Rechnungen aus Annahmen («nach dieser Rechnung»), nie
+  Zusagen; wo ein Wert gemessen ist, steht [G].
 - **Stufen** nach `18`: V (Messversuche), 0, 1 (1a, 1b), 2, 3, H (Heimnetz, UDP, RTP, Multicast), 4
   (Timeshift), 5 (Aufnahmen), 6 (Serien), L (RTSP, RTMP), W (DASH, HLS-fMP4), E (Ergänzungen), Apps.
 - **Keine Kapazitätszusage.** Die Szenarien sind Analysen (Auftrag 11.1), keine zugesicherten Grössen. Die
@@ -52,7 +58,7 @@ Der Auftrag verlangt, vier Dinge sauber zu trennen (Auftrag 11.2). Sie kosten Ve
 |---|---|---|---|
 | **Empfangene Sender** | E | Eingangsströme, die gerade laufen, aus jedem Grund: Zuschauer, Aufnahme, dauerhaft, Zeitplan, automatisch, Vorladen, Prüfung, Karenz (`04` Abschnitt 5.2). Jeder Sender höchstens einmal (T-2). | Internet-Bandbreite, je eine Verbindung zum Anbieter, ein Ring im Arbeitsspeicher, etwas Rechenzeit in Go |
 | **Zuschauer** | Z | Live-Sitzungen (T-9). Mehrere Zuschauer desselben Senders brauchen **einen** Eingangsstrom. | Ausgangsbandbreite, Verbindungen zum Client; mit Recht «Timeshift» zusätzlich je ein Sitzungspuffer auf Platte |
-| **Umwandlungen** | U (U_T Ton, U_B Bild) | FFmpeg-Prozesse je Sitzung, nur wenn das Gerät den Strom nicht direkt abspielt (T-13, T-14). Nie geteilt, nie vorsorglich. Ein Lauf dauert höchstens 24 Stunden (`04` 14.7). | Umwandlungseinheiten des bestehenden Budgets, CPU oder GPU, Arbeitsspeicher des Prozesses |
+| **Umwandlungen** | U (U_T Ton, U_B Bild) | FFmpeg-Prozesse je Sitzung, nur wenn das Gerät den Strom nicht direkt abspielt (T-13, T-14). Nie geteilt, nie vorsorglich. Ein Lauf dauert höchstens 24 Stunden (`04` 14.7). **Nur mit wirksamer Sperre** des Prozesses (T-27, Vorgabe nach `12` F-1); ohne Sperre ist U = 0. | Umwandlungseinheiten des bestehenden Budgets, CPU oder GPU, Arbeitsspeicher des Prozesses |
 | **Aufnahmen** | A | Laufende Aufnahmen (T-16). Zwei Profile, die dieselbe Sendung aufnehmen, sind zwei Aufnahmen auf einem Eingangsstrom. | Platz und Schreiblast auf dem Speicherort «Aufnahmen»; ein Rückstau im Arbeitsspeicher, der nur bei Gebrauch zählt; **keine** Einheiten, **kein** FFmpeg |
 
 Dazu kommt **I**, die Zahl **importierter** Sender. Sie wirkt nur auf Datenbank, Programmdaten und
@@ -81,7 +87,8 @@ Umwandlungen. Zwanzig Sender im Dauerempfang kosten zwanzig Empfänge, aber kein
 | Ausgabe einer Ton-Umwandlung | wie die Quelle | – | [R]: das Bild wird kopiert, nur der Ton ändert sich |
 | Bildgruppe (GOP) Rundfunk MPEG-2 | 0,5 s | 0,5 bis 1 | [A] |
 | Bildgruppe Rundfunk H.264 | 1 s | 0,5 bis 2 | [A] |
-| Bildgruppe IPTV- und Internet-Quellen | 2 s | 1 bis 10 | [A]; «Long-GOP 2–4 s» als Sekundärquelle [B] (R1 3.1) |
+| Bildgruppe IPTV- und Internet-Quellen | 2 s | 1 bis 10 | [A]; «Long-GOP 2–4 s» als Sekundärquelle [B] (R1 3.1); die Verteilung bei deinen Quellen misst M-2 |
+| Folge der Bildgruppe für den Ring (T-7, `05` 3.6) | Segmente bis 3,75 s: Ring 15 s; darüber das Vierfache der Segmentdauer, höchstens 30 s. Über 7,5 s nur zwei sichere Segmente; über 10 s kein Direktweg ohne Sitzungspuffer (dann Bild-Umwandlung) | – | [S] |
 
 **Rechenweg «Bitrate zu Menge»:** Menge je Stunde = Bitrate ÷ 8 × 3600 s.
 Einsetzen für 8 Mbit/s: 8 ÷ 8 × 3600 = 3600 MB = **3,6 GB je Stunde**, 86,4 GB je Tag. Für 4 Mbit/s 1,8 GB/h,
@@ -99,8 +106,13 @@ volle Bau ist nicht Teil der Vorgabe (`04` O-22).
 | H.264 ohne Zeilensprung, AC-3, E-AC-3 oder AAC-LATM | **Ton-Umwandlung** (schlanker Bau liest AC-3 in TS nicht, E-AC-3 und LATM kein Bau, belegt) | Original mit passendem Decoder oder Tonanlage |
 | H.264 mit Zeilensprung, MPEG-2 | **Bild-Umwandlung** (T-15; MPEG-2 liest kein Browser-Player, belegt) | Original, wenn das Gerät es meldet (M-6, M-7) |
 | HEVC | **Bild-Umwandlung** (schlanker Bau liest HEVC in TS nicht, belegt) | Original bei Hardware-Decoder |
+| Segmente über 10 s (sehr lange Bildgruppen), Sitzung ohne Sitzungspuffer | **Bild-Umwandlung** (Raster 2 s) | **Bild-Umwandlung**; mit Sitzungspuffer (Stufe 4) Original |
 
-Safari, iPhone und iPad sind ungeprüft und nicht zugesagt, weil kein Gerät vorhanden ist (`04` 12.1, `05` 4.3).
+Jede Zeile mit Umwandlung setzt die wirksame Sperre voraus (T-27). Fehlt sie auf dem Host, sind diese
+Sender im jeweiligen Client «auf diesem Server nicht abspielbar», und es bleibt nur der Direktweg.
+
+Safari, iPhone und iPad sind vorgesehen wie die übrigen Browser, aber ungeprüft, solange kein Gerät da ist
+(`04` 12.1, `05` 4.3).
 HEVC in TS ist dort nach Apples Vorgaben nicht erlaubt (Nachprüfung Nr. 8 [B]); er wird umgewandelt (O-3).
 
 ### 1.3 Arbeitsspeicher
@@ -110,14 +122,17 @@ HEVC in TS ist dort nach Apples Vorgaben nicht erlaubt (Nachprüfung Nr. 8 [B]);
 | Server im Leerlauf (Prozess) | 83 MB, mit 50'570 Titeln | [G] `docs/perf/M10.md:47` |
 | Container im Leerlauf | 115,5 MiB | [G] `docs/perf/M10.md:48` |
 | Container mit sieben Radio-Relays | 218 MiB | [G] `docs/perf/radio.md:128` |
-| Ring je Sender | Bitrate × 15 s × 1,03 ÷ 8, beim Start reserviert | [S] `04` 14.3 |
-| … bei 4 / 8 / 20 Mbit/s | 7,7 / **15,45** / 38,6 MB | [R] |
+| Ringlänge | 15 s; bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 s; keine Einstellung | [S] `04` 14.3, T-7 |
+| Ring je Sender | gespeicherte Bitrate × Ringlänge × 1,03 ÷ 8, beim Start reserviert, höchstens 96 MiB; die gespeicherte Bitrate ist der höchste gleitende Mittelwert über eine Ringlänge | [S] `04` 14.3 |
+| … bei 4 / 8 / 20 Mbit/s und 15 s | 7,7 / **15,45** / 38,6 MB | [R] |
+| … bei 8 / 20 Mbit/s und 30 s | **30,9** / 77,3 MB | [R] |
 | Byte-Budget ab Werk | ein Achtel des Arbeitsspeichers, höchstens 512 MB (einstellbar 64 bis 8192 MB) | [S] `04` 14.3 |
-| … davon höchstens für Ringe | drei Viertel: bei 512 MB also **384 MB**, rund **24 HD-Ringe** (384 ÷ 15,45) | [S] `04` 14.3; [R] |
-| … der Rest (mindestens ein Viertel) | für Rückstau der Schreiber, Zuführer und Ausgabestücke; **bei Gebrauch gezählt**, nicht reserviert; im Normalbetrieb leer | [S] `04` 8.1 |
-| Rückstau je Aufnahme | bis 64 MiB oder 60 s bei der Bitrate, das Kleinere: bei 4 / 8 / 20 Mbit/s 30 / **60** / 67,1 MB | [S] `04` 14.3; [R] |
-| Rückstau je Sitzungspuffer (Timeshift) | bis 16 MiB = 16,8 MB | [S] `04` 14.3 |
-| Zuführer und Ausgabestücke einer Umwandlung ohne Zeitversatz | je bis 8 MiB = 8,4 MB, bei Gebrauch | [S] `04` 14.3 |
+| … davon höchstens für Ringe | drei Viertel: bei 512 MB also **384 MB**, rund **24 HD-Ringe** zu 15 s (384 ÷ 15,45) oder **12** zu 30 s (384 ÷ 30,9) | [S] `04` 14.3; [R]; `05` 3.6 |
+| Puffer einer Umwandlung ohne Zeitversatz (Zuführer und Ausgabestücke, je bis 8 MiB) | **16,8 MB je Umwandlung, bei deren Zulassung reserviert**; passt es nicht, wird die Umwandlung abgelehnt, nie eine Aufnahme | [S] `04` 8.1, 14.3 |
+| Rückstau je Aufnahme | bis 64 MiB oder 60 s bei der Bitrate, das Kleinere: bei 4 / 8 / 20 Mbit/s 30 / **60** / 67,1 MB; **bei Gebrauch** gezählt; **Mindestteil 16 MiB = 16,8 MB je laufender Aufnahme** | [S] `04` 8.1, 14.3; [R] |
+| Rückstau je Sitzungspuffer (Timeshift) | bis 16 MiB = 16,8 MB, bei Gebrauch | [S] `04` 14.3 |
+| … der Rest des Budgets | für den Rückstau; zuerst die Mindestteile der Aufnahmen, dann zu gleichen Teilen unter den gerade stockenden Schreibern | [S] `04` 8.1 |
+| Speichergrenze der Go-Laufzeit (`GOMEMLIMIT`) | beim Start gesetzt aus Grundlast plus dem Teil des Byte-Budgets neben den Ringen, wenn der Betreiber keine setzt; ob es auf 4 GB neben dem Radio trägt, misst M-13 | [S] `04` 8.1, O-31 |
 | Kopie beim Segmentabruf aus dem Ring | in Blöcken von 256 KiB, höchstens 2 Abrufe je Sitzung: rund 0,5 MB je Sitzung, rund 10 MB bei 20 Sitzungen; ausserhalb des Budgets | [S] `04` 8.1, 14.3 |
 | CT 190 (4 GB): Byte-Budget / Ringe | 512 MB / 384 MB | [R] |
 | FFmpeg reiner Ton (Radio: AAC kopiert oder MP3 nach AAC) | 16 bis 18 MB je Prozess | [G] `docs/perf/radio.md:125-126` |
@@ -156,6 +171,9 @@ HEVC in TS ist dort nach Apples Vorgaben nicht erlaubt (Nachprüfung Nr. 8 [B]);
 | Kosten FFmpeg-Empfänger (Weg W) | 0,5, **innerhalb** des Anteils für Live; höchstens 2 (0 bis 8) | [S] `04` 8.1, 14.7 |
 | Anteil für Live-Umwandlungen | die Hälfte des Budgets (einstellbar 0 bis 100 %); kein Borgen ungenutzter Einheiten der Filme | [S] `04` 7.6, 14.7 |
 | Kleines Budget (Software, 2 Kerne) | genau **eine** Bild-Umwandlung zur selben Zeit, für Live oder Film, wenn sonst nichts Einheiten hält; daneben höchstens zwei Ton-Umwandlungen im Live-Anteil | [S] `04` 7.6 |
+| Anteil für Live ist eine Obergrenze, kein Mindestanteil | Filme dürfen das ganze Budget belegen: zwei Filmumwandlungen auf CT 190 lassen Live 4 Einheiten, vier lassen 0 | [S] `04` 7.6; [R] |
+| Sperre des Prozesses (Landlock hart, Filter für Systemaufrufe) | **Pflicht für jeden Live-FFmpeg** (Umwandlung, Probe, Rückfall fMP4, Weg W). Fehlt sie, gibt es für Live-TV nur den Direktweg; die Verwaltung zeigt «Eindämmung nicht verfügbar» | [S] T-27, `04` 10.8; `12` F-1 (Vorgabe) |
+| Einbrennen von Untertiteln | nur als Variante von `04` F-15: 2 Einheiten je Zuschauer mit Untertiteln | [S] `04` 7.4 |
 | Wartezeit auf Budget | bis 10 s, dann «ausgelastet» | gebaut `manager.go:27-28`; [S] `04` 14.7 |
 | Höchste Laufzeit eines FFmpeg an einem Strom | 24 h, nie über einen Überlauf der Quellzeit; danach neue Ausgabe-Generation | [S] `04` 7.5, 14.7 |
 
@@ -202,18 +220,18 @@ Jede Formel trennt die vier Zähler. Ein Beispiel rechnet sie mit HD-Sendern zu 
 |---|---|---|
 | **Eingangsbandbreite** | B_ein = Σ über alle empfangenen Sender R_s | 3 Sender zu 8 Mbit/s, darunter einer nur vorgeladen: 3 × 8 = **24 Mbit/s** |
 | **Ausgangsbandbreite** | B_aus = Σ über alle Zuschauer R_aus, mit R_aus = R_s (Original und Ton-Umwandlung) oder R_ziel (Bild-Umwandlung) | 3 Zuschauer Original, 2 mit Bild-Umwandlung auf 6 Mbit/s: 3 × 8 + 2 × 6 = **36 Mbit/s** |
-| **Byte-Budget, reserviert** | M_res = Σ_E Ring(R_s) ≤ ¾ × Budget | 4 Sender: 4 × 15,45 = **62 MB** von 384 MB |
-| **Byte-Budget, Rückstau bei Gebrauch** | M_rück = Σ der gerade stockenden Schreiber ≤ Budget − M_res; reicht es nicht, teilen sie den Rest zu gleichen Teilen | 2 Aufnahmen stocken zugleich: je bis 60 MB, zusammen 120 MB von 450 MB Rest |
-| **Arbeitsspeicher gesamt** | M = Grundlast + M_res + M_rück + Σ_U RSS_FFmpeg + Z × 0,5 MB (Segmentkopien) + Goroutinen | 83 + 62 + 0 + 1 × 200 (Bild) + 5 × 0,5 + 1 ≈ **349 MB** im Normalbetrieb |
+| **Byte-Budget, reserviert** | M_res = Σ_E Ring(R_s) (≤ ¾ × Budget) + 16,8 MB × U_ohne Zeitversatz | 4 Sender, 1 Umwandlung: 4 × 15,45 + 16,8 = **79 MB** |
+| **Byte-Budget, Rückstau bei Gebrauch** | M_rück = Σ der gerade stockenden Schreiber ≤ Budget − M_res; zuerst je Aufnahme der Mindestteil von 16,8 MB, den Rest zu gleichen Teilen | 2 Aufnahmen stocken zugleich: je bis 60 MB, zusammen 120 MB von 433 MB Rest |
+| **Arbeitsspeicher gesamt** | M = Grundlast + M_res + M_rück + Σ_U RSS_FFmpeg + Z × 0,5 MB (Segmentkopien) + Goroutinen | 83 + 79 + 0 + 1 × 200 (Bild) + 5 × 0,5 + 1 ≈ **366 MB** im Normalbetrieb |
 | **Temporärer Speicher** | T = Σ_{U mit Zeitversatz} 300 s × R_aus ÷ 8 (+ Σ_E Ring, wenn F-2 a mit Ordner) | 2 Umwandlungen mit Zeitversatz zu 6 Mbit/s: 2 × 300 × 6 ÷ 8 = **450 MB** |
 | **Timeshift-Platz** | S_TS = Σ_{Z mit Recht} min(T_max, t_z) × R_s ÷ 8, gedeckelt durch den Deckel | 3 Zuschauer, je seit über 60 min, T_max 60 min: 3 × 3,6 GB = **10,8 GB** |
 | **Timeshift-Schreiblast** | W_TS = Σ_{Z mit Recht} R_s ÷ 8 | 3 × 1 MB/s = **3 MB/s** = 10,8 GB/h |
 | **Aufnahme-Platz** | S_A = Σ_A (Dauer + Vorlauf + Nachlauf) × R_s ÷ 8 | 60-min-Sendung, Vorlauf 2 und Nachlauf 10 min (`15` 3.14 [S]): 72 min × 1 MB/s = **4,32 GB** |
 | **Aufnahme-Schreiblast** | W_A = Σ_A R_s ÷ 8 | 5 Aufnahmen: **5 MB/s** |
-| **Toleranz einer Aufnahme gegen Stockung** | t_tol = min(60 MB, (Budget − M_res) ÷ A_stockend) ÷ (R_s ÷ 8) | 10 HD-Aufnahmen, alle stockend: (512 − 155) ÷ 10 = 35,7 MB, ÷ 1 MB/s = **36 s** |
+| **Toleranz einer Aufnahme gegen Stockung** | t_tol = max(16,8 MB, min(60 MB, (Budget − M_res) ÷ A_stockend)) ÷ (R_s ÷ 8) | 10 HD-Aufnahmen, alle stockend, keine Umwandlung: (512 − 155) ÷ 10 = 35,7 MB, ÷ 1 MB/s = **36 s** |
 | **Deskriptoren** | D = 100 + 2·E + 2·Z + 2·Z_TS + 3·U + 2·A | E = 4, Z = 5, Z_TS = 3, U = 2, A = 2: 100 + 8 + 10 + 6 + 6 + 4 = **134** |
 | **Externe Prozesse** | P = U + W + Probe (≤ 1) + Stichprobe (≤ 1) + bestehende (Dateiwiedergabe, Downloads, Trickplay) | 2 Live-Umwandlungen, 1 Film: **3** FFmpeg (+ kurz eine Probe) |
-| **Umwandlungseinheiten Live** | K = Σ_{U_B} Kosten_Bild + Σ_{U_T} 0,25 + W × 0,5 ≤ Anteil × Budget | 2 × 2 + 2 × 0,25 = **4,5** > 4 auf CT 190: die zweite Bild-Umwandlung wartet oder wird abgelehnt |
+| **Umwandlungseinheiten Live** | K = Σ_{U_B} Kosten_Bild + Σ_{U_T} 0,25 + W × 0,5 ≤ min(Anteil × Budget, Budget − Einheiten der Filme); 0, wenn die Sperre fehlt | 2 × 2 + 2 × 0,25 = **4,5** > 4 auf CT 190: die zweite Bild-Umwandlung wartet oder wird abgelehnt |
 | **Download beim Anbieter** | Monatsmenge = Σ_E R_s ÷ 8 × Laufzeit | ein Sender dauerhaft: 8 ÷ 8 × 86'400 s × 30 = **2,59 TB je Monat** |
 
 W = Zahl der FFmpeg-Empfänger der späten Stufe W.
@@ -232,15 +250,21 @@ Eingangsströme und 20 Live-Sitzungen (`04` 14.1, 14.4).
 Nur der Ring läuft (dauerhaft heisst nicht aufzeichnen, LTV-013). Keine Umwandlung. Dauerempfang gehört zu
 Stufe 3 (`18` 4.5).
 
-| Sender | Eingang | Ringe (15 s) | passt in die Ringe des Budgets 512 MB (384 MB)? | Download je Tag / je Monat | Go-Rechenzeit [A] | Deskriptoren | Goroutinen |
-|---|---|---|---|---|---|---|---|
-| 5 | 40 Mbit/s | 5 × 15,45 = 77 MB | ja (20 %) | 432 GB / 13 TB | 2,5 bis 10 % eines Kerns | 105 bis 110 | 60 bis 165 |
-| 20 | 160 Mbit/s | 20 × 15,45 = 309 MB | ja (80 %); danach haben nur noch 4 HD-Ringe Platz für Zuschauer und Aufnahmen anderer Sender | 1,73 TB / 52 TB | 10 bis 40 % | 120 bis 140 | 90 bis 210 |
-| 50 | 400 Mbit/s | 50 × 15,45 = 773 MB | **nein**; braucht ein Budget von mindestens 773 ÷ 0,75 = 1031 MB oder einen Ring von 7 s (360 MB) | 4,32 TB / 130 TB | 25 bis 100 % | 150 bis 200 | 150 bis 300 |
-| 100 | 800 Mbit/s | 100 × 15,45 = 1545 MB | **nein**; braucht mindestens 2060 MB; auch mit dem kürzesten Ring von 4 s (412 MB) nicht im Budget ab Werk, sondern erst ab 549 MB | 8,64 TB / 259 TB | 50 bis 200 % | 200 bis 300 | 250 bis 450 |
+Die Ringlänge ist keine Einstellung mehr (T-7): Sie hängt an der Segmentdauer des Senders. Darum zwei Spalten,
+einmal für Sender mit kurzen Bildgruppen (Segmente bis 3,75 s, Ring 15 s), einmal für den ungünstigsten Fall,
+dass alle Sender lange Bildgruppen haben (Ring 30 s). Die wirkliche Mischung zeigt M-2.
 
-Rechenweg Ring bei 7 s: 50 × 8 × 7 × 1,03 ÷ 8 = 360,5 MB. Bei 4 s (kleinster Wert, `04` 14.3): 100 × 8 × 4 ×
-1,03 ÷ 8 = 412 MB; 412 ÷ 0,75 = 549 MB Budget.
+| Sender | Eingang | Ringe 15 s | Ringe 30 s | Budget nötig (Ringe ≤ ¾) bei 15 s / 30 s | passt ab Werk (512 MB)? | Download je Tag / je Monat | Go-Rechenzeit [A] | Deskriptoren | Goroutinen |
+|---|---|---|---|---|---|---|---|---|---|
+| 5 | 40 Mbit/s | 77 MB | 155 MB | 103 / 206 MB | ja | 432 GB / 13 TB | 2,5 bis 10 % eines Kerns | 105 bis 110 | 60 bis 165 |
+| 20 | 160 Mbit/s | 309 MB | 618 MB | 412 / 824 MB | bei 15 s ja (80 % der Ringe; danach noch 4 HD-Ringe frei), bei 30 s **nein** | 1,73 TB / 52 TB | 10 bis 40 % | 120 bis 140 | 90 bis 210 |
+| 50 | 400 Mbit/s | 773 MB | 1545 MB | 1031 / 2060 MB | **nein** | 4,32 TB / 130 TB | 25 bis 100 % | 150 bis 200 | 150 bis 300 |
+| 100 | 800 Mbit/s | 1545 MB | 3090 MB | 2060 / 4120 MB | **nein** | 8,64 TB / 259 TB | 50 bis 200 % | 200 bis 300 | 250 bis 450 |
+
+Rechenweg Ring bei 30 s: 20 × 8 × 30 × 1,03 ÷ 8 = 618 MB; 618 ÷ 0,75 = 824 MB Budget. Den Ring zu kürzen,
+um Speicher zu sparen, ist kein Mittel mehr (`05` 3.6); Fassung 2 rechnete noch mit 4- und 7-s-Ringen. Bei
+100 Sendern mit langen Segmenten (rund 3,1 GB Ringe) ist die Grösse «gross» mit 32 GB die kleinste, die das
+nach dieser Rechnung trägt.
 
 Mit Sendermischung (70 % HD 8, 20 % SD 4, 10 % UHD 20 Mbit/s; [A]) liegt das Mittel bei 0,7 × 8 + 0,2 × 4 +
 0,1 × 20 = 8,4 Mbit/s, also fast gleich.
@@ -255,14 +279,25 @@ Was die Tabelle nicht zeigt, aber zuerst knapp wird:
 4. **Datenvolumen.** 52 TB im Monat für 20 Sender ist bei vielen Anschlüssen und Anbietern ausserhalb des
    Üblichen ([A]).
 
-Weicht ein Dauersender bei Mangel einem Zuschauer (Vorgabe F-4 (a)), wird er **zurückgestellt** und startet
-nach 60 Sekunden freiem Platz oder sobald ein Abnehmer kommt von selbst wieder (`04` 5.3, 14.1).
+**Ein laufender Dauersender weicht niemandem** (Vorgabe nach LTV-002, `04` 8.2; Frage `04` F-4 → `20`
+E-28-30): Belegen Dauersender die Obergrenze, bekommt ein neuer Zuschauer «Der Server ist ausgelastet», und
+eine Aufnahme auf einem anderen Sender scheitert (F-5). Auf «klein» mit der Obergrenze 8 heisst das: 5
+Dauersender lassen 3 Eingangsströme für alles andere, 8 Dauersender keinen. Die Verwaltung warnt, wenn
+Dauersender mehr als die Hälfte der Obergrenze belegen. **«Zurückgestellt»** wird ein Dauersender nur, wenn er
+**nicht starten kann** (etwa beim Hochfahren, wenn mehr Dauersender eingestellt sind, als Platz ist, oder weil
+die Quelle die Verbindung ablehnt); er startet wieder, wenn die Zulassung 60 Sekunden ununterbrochen gelänge,
+nach einem Fehlschlag nach 60 s, 5 min, dann alle 15 min (`04` 5.3, 14.1).
+
+*Variante `04` F-4 (a), nicht die Vorgabe:* Ein Dauersender ohne Abnehmer würde einem neuen Zuschauer weichen
+und zurückgestellt. Auf «klein» mit 8 Dauersendern könnten dann bis zu 8 Personen je einen anderen Sender
+schauen (jede verdrängt einen Dauersender); der Dauerempfang dieser Sender fiele so lange aus.
 
 Platte: nichts, solange der Ring im Arbeitsspeicher liegt. Liegt er nach F-2 (a) auf einer SSD, schreiben
 20 Sender 1,73 TB am Tag ohne Nutzen (Abschnitt 5.4).
 
 **Was heisst das für dich:** Ein paar Dauersender sind billig. Viele Dauersender kosten vor allem
-Internetvolumen und Verbindungen beim Anbieter; ab etwa 20 HD-Sendern musst du das Byte-Budget anheben.
+Internetvolumen und Verbindungen beim Anbieter; ab etwa 20 HD-Sendern (bei langen Bildgruppen schon ab 12)
+musst du das Byte-Budget anheben. Und: Was dauerhaft läuft, gibt seinen Platz nicht her.
 
 ### 3.2 Importierte Sender: 500, 5'000, 10'000
 
@@ -304,36 +339,38 @@ Umwandlung häufig.
   0,1 × 0,25 = 0,025 Einheiten.
 
 Spalten: E empfangene Sender, Ein/Aus in Mbit/s, U Umwandlungen (T Ton, B Bild), K Einheiten, RAM = reservierte
-Ringe plus FFmpeg (ohne Grundlast 83 MB, ohne Rückstau, der nur bei Gebrauch zählt), D Deskriptoren.
-Rechenweg RAM: E × 15,45 MB + U_B × 200 MB + U_T × 40 MB. Die Segmentkopien (0,5 MB je Sitzung) sind darin
-vernachlässigt.
+Ringe und Umwandlungspuffer plus FFmpeg (ohne Grundlast 83 MB, ohne Rückstau, der nur bei Gebrauch zählt),
+D Deskriptoren. Rechenweg RAM: E × 15,45 MB + U × 16,8 MB + U_B × 200 MB + U_T × 40 MB. Ringe von 15 s
+(kurze Bildgruppen); Segmentkopien (0,5 MB je Sitzung) vernachlässigt. **Ohne wirksame Sperre** fallen alle
+Zeilen mit U > 0 weg: Wer eine Umwandlung bräuchte, bekommt «auf diesem Server nicht abspielbar»; in der
+Mischung M wären das 65 % der Browser-Zuschauer und 10 % der App-Zuschauer.
 
 **1 Zuschauer**
 
 | Fall | E | Ein | Aus | U | K | RAM | D | CT 190 nach dieser Rechnung |
 |---|---|---|---|---|---|---|---|---|
 | Original | 1 | 8 | 8 | 0 | 0 | 15 MB | 104 | ja |
-| Bild-Umwandlung | 1 | 8 | 6 | 1 B | 2 | 15 + 200 = 215 MB | 107 | ja (2 von 4) |
+| Bild-Umwandlung | 1 | 8 | 6 | 1 B | 2 | 15 + 17 + 200 = 232 MB | 107 | ja (2 von 4) |
 
 **5 Zuschauer**
 
 | Fall | E | Ein | Aus | U | K | RAM | D | CT 190 nach dieser Rechnung |
 |---|---|---|---|---|---|---|---|---|
 | derselbe Sender, Original | 1 | 8 | 40 | 0 | 0 | 15 MB | 112 | ja |
-| derselbe Sender, Bild | 1 | 8 | 30 | 5 B | 10 | 15 + 1000 = 1015 MB | 127 | **nein:** 2 mit halbem Budget, 4 mit ganzem; die übrigen «ausgelastet» |
+| derselbe Sender, Bild | 1 | 8 | 30 | 5 B | 10 | 15 + 84 + 1000 = 1099 MB | 127 | **nein:** 2 mit halbem Budget, 4 mit ganzem; die übrigen «ausgelastet» |
 | verschiedene, Original | 5 | 40 | 40 | 0 | 0 | 77 MB | 120 | ja |
-| verschiedene, Bild | 5 | 40 | 30 | 5 B | 10 | 77 + 1000 = 1077 MB | 135 | **nein**, wie oben |
-| Mischung M (3 Browser: 1 Original, 1 Ton, 1 Bild; 2 Media3 Original; 4 Sender) | 4 | 32 | 38 | 1 T, 1 B | 2,25 | 62 + 200 + 40 = 302 MB | 124 | ja |
+| verschiedene, Bild | 5 | 40 | 30 | 5 B | 10 | 77 + 84 + 1000 = 1161 MB | 135 | **nein**, wie oben |
+| Mischung M (3 Browser: 1 Original, 1 Ton, 1 Bild; 2 Media3 Original; 4 Sender) | 4 | 32 | 38 | 1 T, 1 B | 2,25 | 62 + 34 + 200 + 40 = 336 MB | 124 | ja |
 
 **20 Zuschauer**
 
 | Fall | E | Ein | Aus | U | K | RAM | D | CT 190 nach dieser Rechnung |
 |---|---|---|---|---|---|---|---|---|
 | derselbe Sender, Original | 1 | 8 | 160 | 0 | 0 | 15 MB (+ rund 10 MB Segmentkopien) | 142 | nach Budget ja; genau an der Obergrenze von 20 Live-Sitzungen; 160 Mbit/s brauchen Kabel oder gutes WLAN; 13 M-3 |
-| derselbe Sender, Bild | 1 | 8 | 120 | 20 B | 40 | 15 + 4000 = 4,0 GB | 202 | **nein**, auf keiner Homelab-Grösse dieses Dokuments |
+| derselbe Sender, Bild | 1 | 8 | 120 | 20 B | 40 | 15 + 336 + 4000 = 4,35 GB | 202 | **nein**, auf keiner Homelab-Grösse dieses Dokuments |
 | verschiedene, Original | 20 | 160 | 160 | 0 | 0 | 309 MB (passt in 384 MB) | 180 | **nein ab Werk** (Obergrenze 8 Eingangsströme); nach Anheben nach Budget ja, Eingang 160 Mbit/s |
-| verschiedene, Bild | 20 | 160 | 120 | 20 B | 40 | 309 + 4000 = 4,3 GB | 240 | **nein** |
-| Mischung M (10 Browser: 3 Original, 3 Ton, 4 Bild; 10 Media3: 9 Original, 1 Ton; 12 Sender) | 12 | 96 | 16 × 8 + 4 × 6 = 152 | 4 T, 4 B | 1 + 8 = 9 | 185 + 800 + 160 = 1145 MB | 188 | **teilweise:** mit halbem Budget (4) passen die 4 Ton-Umwandlungen (1) und **eine** Bild-Umwandlung (2); drei Browser-Zuschauer bekommen «ausgelastet». Mit ganzem Budget (8) passen 4 Ton und 3 Bild; einer bleibt draussen, und für Filme bleibt nichts. Eingang über der Vorgabe 8. |
+| verschiedene, Bild | 20 | 160 | 120 | 20 B | 40 | 309 + 336 + 4000 = 4,65 GB | 240 | **nein** |
+| Mischung M (10 Browser: 3 Original, 3 Ton, 4 Bild; 10 Media3: 9 Original, 1 Ton; 12 Sender) | 12 | 96 | 16 × 8 + 4 × 6 = 152 | 4 T, 4 B | 1 + 8 = 9 | 185 + 134 + 800 + 160 = 1279 MB | 188 | **teilweise:** mit halbem Budget (4) passen die 4 Ton-Umwandlungen (1) und **eine** Bild-Umwandlung (2); drei Browser-Zuschauer bekommen «ausgelastet». Mit ganzem Budget (8) passen 4 Ton und 3 Bild; einer bleibt draussen, und für Filme bleibt nichts. Eingang über der Vorgabe 8. |
 
 **50 Zuschauer**
 
@@ -343,7 +380,7 @@ vernachlässigt.
 | derselbe Sender, Bild | 1 | 8 | 300 | 50 B | 100 | über 10 GB | 352 | **nein**, auf keiner Homelab-Grösse |
 | verschiedene, Original | 50 | 400 | 400 | 0 | 0 | 773 MB, **über den 384 MB für Ringe** | 300 | **nein** |
 | verschiedene, Bild | 50 | 400 | 300 | 50 B | 100 | über 10 GB | 450 | **nein** |
-| Mischung M (25 Browser: 9 Original, 7 Ton, 9 Bild; 25 Media3: 22 Original, 3 Ton; 30 Sender) | 30 | 240 | 41 × 8 + 9 × 6 = 382 | 10 T, 9 B | 2,5 + 18 = 20,5 | 464 + 1800 + 400 = 2,66 GB | 317 | **nein**; auch die Grösse «gross» (Abschnitt 4) trägt nach Budget mit ganzem Budget nur 4 der 9 Bild-Umwandlungen |
+| Mischung M (25 Browser: 9 Original, 7 Ton, 9 Bild; 25 Media3: 22 Original, 3 Ton; 30 Sender) | 30 | 240 | 41 × 8 + 9 × 6 = 382 | 10 T, 9 B | 2,5 + 18 = 20,5 | 464 + 319 + 1800 + 400 = 2,98 GB | 317 | **nein**; auch die Grösse «gross» (Abschnitt 4) trägt nach Budget mit ganzem Budget nur 4 der 9 Bild-Umwandlungen |
 
 **Zusatz bei Recht «Timeshift» für alle Zuschauer** (Stufe 4, Vorgabe F-8 (a), Höchstdauer 60 Minuten,
 Deckel der kleinere Wert aus 20 % des freien Platzes und 50 GB, `04` 14.6):
@@ -366,27 +403,36 @@ wie ein Film, der umgewandelt wird. Wie viele deiner Sender das betrifft, weisst
 ### 3.4 Gleichzeitige Aufnahmen: 1, 5, 10
 
 Aufnahmen kopieren nur (T-16): kein FFmpeg, keine Einheiten. Aufnahmen kommen mit Stufe 5 (`18` 4.8).
-**Reserviert werden nur die Ringe;** der Rückstau zählt bei Gebrauch (`04` 8.1). Keine Aufnahme wird wegen des
-Rückstaus abgelehnt. Die Tabelle zeigt, wie viel Toleranz jede Aufnahme behält, wenn **alle zugleich** stocken
-(Formel «Toleranz» in Abschnitt 2, Budget 512 MB).
+**Für Aufnahmen reserviert werden nur die Ringe;** ihr Rückstau zählt bei Gebrauch, und jede laufende
+Aufnahme hat einen **Mindestteil von 16,8 MB**, den ihr keine Umwandlung und kein Sitzungspuffer nehmen kann.
+Die Puffer laufender Umwandlungen (16,8 MB je Umwandlung) sind dagegen reserviert (`04` 8.1). Keine Aufnahme
+wird wegen des Rückstaus abgelehnt. Die Tabelle zeigt, wie viel Toleranz jede Aufnahme behält, wenn **alle
+zugleich** stocken (Formel «Toleranz» in Abschnitt 2, Budget 512 MB), einmal ohne und einmal mit acht
+Ton-Umwandlungen daneben (8 × 16,8 = 134 MB reserviert).
 
-| Aufnahmen | Sender | Eingang | Schreiblast | Platz je Stunde (mit Vor- und Nachlauf × 1,2) | reserviert (Ringe) | Rückstau je Aufnahme, wenn alle stocken | Toleranz | DB-Schreiben (Stand alle 10 s) | D |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | 1 | 8 Mbit/s | 1 MB/s | 3,6 GB (4,3 GB) | 15 MB | 60 MB (voll) | 60 s | 0,1 je s | 104 |
-| 5, derselbe Sender (fünf Profile) | 1 | 8 Mbit/s | 5 MB/s | 18 GB (21,6 GB) | 15 MB | min(60, 497 ÷ 5 = 99) = 60 MB | 60 s | 0,5 je s | 112 |
-| 5, verschiedene Sender | 5 | 40 Mbit/s | 5 MB/s | 18 GB (21,6 GB) | 77 MB | min(60, 435 ÷ 5 = 87) = 60 MB | 60 s | 0,5 je s | 120 |
-| 10, derselbe Sender | 1 | 8 Mbit/s | 10 MB/s | 36 GB (43 GB) | 15 MB | 497 ÷ 10 = 49,7 MB | **50 s** | 1 je s | 122 |
-| 10, verschiedene Sender | 10 | 80 Mbit/s | 10 MB/s | 36 GB (43 GB) | 155 MB | 357 ÷ 10 = 35,7 MB | **36 s** | 1 je s | 140 |
-| 5 UHD, verschiedene Sender (20 Mbit/s) | 5 | 100 Mbit/s | 12,5 MB/s | 45 GB (54 GB) | 193 MB | 319 ÷ 5 = 63,8 MB (Grenze 67,1 MB) | **25 s** | 0,5 je s | 120 |
+| Aufnahmen | Sender | Eingang | Schreiblast | Platz je Stunde (mit Vor- und Nachlauf × 1,2) | reserviert (Ringe) | Rückstau je Aufnahme, wenn alle stocken | Toleranz | mit 8 Umwandlungen daneben | DB-Schreiben (Stand alle 10 s) | D |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | 8 Mbit/s | 1 MB/s | 3,6 GB (4,3 GB) | 15 MB | 60 MB (voll) | 60 s | 60 s | 0,1 je s | 104 |
+| 5, derselbe Sender (fünf Profile) | 1 | 8 Mbit/s | 5 MB/s | 18 GB (21,6 GB) | 15 MB | min(60, 497 ÷ 5 = 99) = 60 MB | 60 s | 60 s (363 ÷ 5 = 73) | 0,5 je s | 112 |
+| 5, verschiedene Sender | 5 | 40 Mbit/s | 5 MB/s | 18 GB (21,6 GB) | 77 MB | min(60, 435 ÷ 5 = 87) = 60 MB | 60 s | 60 s (301 ÷ 5 = 60) | 0,5 je s | 120 |
+| 10, derselbe Sender | 1 | 8 Mbit/s | 10 MB/s | 36 GB (43 GB) | 15 MB | 497 ÷ 10 = 49,7 MB | **50 s** | **36 s** (363 ÷ 10) | 1 je s | 122 |
+| 10, verschiedene Sender | 10 | 80 Mbit/s | 10 MB/s | 36 GB (43 GB) | 155 MB | 357 ÷ 10 = 35,7 MB | **36 s** | **22 s** (223 ÷ 10, wie `04` 8.1) | 1 je s | 140 |
+| 10, verschiedene Sender mit langen Bildgruppen (Ring 30 s) | 10 | 80 Mbit/s | 10 MB/s | 36 GB (43 GB) | 309 MB | 203 ÷ 10 = 20,3 MB | **20 s** | nach dieser Rechnung passen daneben nur **2** Umwandlungen (512 − 309 − 10 × 16,8 = 35 MB, also 2 × 16,8); Toleranz dann (203 − 34) ÷ 10 = 17 s | 1 je s | 140 |
+| 5 UHD, verschiedene Sender (20 Mbit/s) | 5 | 100 Mbit/s | 12,5 MB/s | 45 GB (54 GB) | 193 MB | 319 ÷ 5 = 63,8 MB (Grenze 67,1 MB) | **25 s** | **15 s** (185 ÷ 5 = 37 MB bei 2,5 MB/s) | 0,5 je s | 120 |
 
-Die Werte für zehn HD- und fünf UHD-Aufnahmen stimmen mit `04` 8.1 überein. Folgen nach dieser Rechnung:
+Die Werte für zehn HD- und fünf UHD-Aufnahmen stimmen mit `04` 8.1 überein. Die Zeile mit langen
+Bildgruppen setzt meine Lesart von `04` 8.1 voraus, dass eine Umwandlung nur zugelassen wird, wenn die
+Mindestteile der laufenden Aufnahmen frei bleiben ([A], 13 O-8). Folgen nach dieser Rechnung:
 
-- **Alle Aufnahmen starten.** Bis zu sechs gleichzeitigen HD-Aufnahmen auf verschiedenen Sendern behalten
-  die volle Toleranz von 60 Sekunden (512 ≥ A × (15,45 + 60), also A ≤ 6,8). Wer bei zehn Aufnahmen die
-  volle Toleranz will, hebt das Budget auf 768 MB an (155 + 600 = 755 MB, `04` 8.1).
+- **Alle Aufnahmen starten.** Bis zu sechs gleichzeitige HD-Aufnahmen auf verschiedenen Sendern mit kurzen
+  Bildgruppen behalten die volle Toleranz von 60 Sekunden (512 ≥ A × (15,45 + 60), also A ≤ 6,8), mit Ringen
+  von 30 Sekunden fünf (512 ÷ 90,9 = 5,6). Wer bei zehn Aufnahmen die volle Toleranz will, hebt das Budget auf
+  768 MB an (155 + 600 = 755 MB, `04` 8.1), bei langen Bildgruppen auf rund 910 MB (309 + 600).
 - **Die Toleranz zählt nur, wenn alle zugleich stocken,** etwa bei einem NAS, das neu verbindet. Ein Neuaufbau
-  von SMB dauert nach Annahme 15 bis 60 Sekunden (RA-07); bei zehn Aufnahmen kann das eine Lücke geben. Zu
-  messen in V-7 und 13 M-4.
+  von SMB dauert nach Annahme 15 bis 60 Sekunden (RA-07); bei zehn Aufnahmen gibt das nach dieser Rechnung
+  Lücken, sobald die Störung länger als 22 bis 36 Sekunden dauert (`04` 8.1). Zu messen in V-7 und 13 M-4.
+- **Dauersender:** Ein laufender Dauersender weicht auch einer beginnenden Aufnahme nicht (Vorgabe `04` F-4;
+  F-5 → `20` E-28-40). Belegen Dauersender die Obergrenze, scheitert die Aufnahme mit «ausgelastet».
 - **Schreiblast:** 10 MB/s sind für eine SSD und eine einzelne Festplatte im Dauerbetrieb wenig ([A]); zehn
   verschränkte Schreiber auf einer Festplatte oder einem NAS sind zu messen (V-7).
 - **Rechenzeit:** zehn Leser und zehn Empfänger nach 1.4 [A]: 10 × (0,5 bis 2 %) + 10 × (0,2 bis 0,5 %) = 7 bis
@@ -401,7 +447,10 @@ mitwächst.
 
 Wie viele Umwandlungen das Budget nach Kosten zulässt (Anteil Live = Hälfte, `04` 14.7). Die Zahlen sind
 **Budgetgrenzen**, keine gemessenen Kapazitäten für Live. Ein FFmpeg-Empfänger der Stufe W (0,5 Einheiten)
-zählt in diesem Anteil und senkt die Zahlen entsprechend.
+zählt in diesem Anteil und senkt die Zahlen entsprechend. Alle Zahlen gelten nur mit **wirksamer Sperre**
+(T-27); auf einem Host ohne Sperre ist die Zahl jeder Spalte **0**, und Live-TV läuft nur im Direktweg. Der
+Live-Anteil ist eine Obergrenze: Belegen Filme Einheiten, sinkt er entsprechend (vier Filmumwandlungen auf
+CT 190 lassen Live 0).
 
 | Backend, Gerät | Budget | Live-Anteil | Bild HD (2) halb / ganz | Bild kleiner (1,5) halb / ganz | Ton (0,25) halb / ganz | Grundlage der Messung |
 |---|---|---|---|---|---|---|
@@ -421,28 +470,59 @@ zu rund 4 ÷ 17 = 24 %. Die Grenze setzt also das Budget, nicht die Grafikeinhei
 Auf dem Software-Backend ist es umgekehrt: Dort reicht schon ein 1080i-Strom mit Zeilensprung-Entfernung
 womöglich nicht für Echtzeit auf 2 Kernen ([A], M-8).
 
+**Drei Fälle, die zusätzlich Umwandlungen verlangen** (`04` 7.4, 7.6):
+
+1. **Sender mit Segmenten über 10 Sekunden** (sehr lange Bildgruppen): Jede Sitzung ohne Sitzungspuffer
+   braucht eine Bild-Umwandlung, auch auf Media3. Auf CT 190 heisst das: höchstens zwei Zuschauer
+   gleichzeitig auf solchen Sendern (halbes Budget), gleich auf welchem Gerät. Mit Recht «Timeshift» (Stufe 4)
+   laufen sie im Original.
+2. **Einbrennen von Untertiteln** gibt es nur als Variante von `04` F-15 (→ `20`): Dann kostet jeder
+   Zuschauer mit Untertiteln im Browser eine Bild-Umwandlung (2 Einheiten), auf CT 190 also höchstens zwei.
+   In der Vorgabe gibt es im Browser bis Stufe E keine wählbaren Untertitel und keine solchen Kosten.
+3. **Rückfall «fMP4 je Sitzung»**, falls M-3 zeigt, dass hls.js TS-Segmente nicht zuverlässig spielt: Dann
+   braucht **jeder** Browser-Zuschauer einen FFmpeg, der nur umpackt, auch dort, wo heute der Direktweg gilt.
+
+Kosten des Rückfalls nach `04` 7.6 (alles [A]: 0,25 Einheiten, 40 MB plus 16,8 MB Puffer, 3 % eines Kerns je
+Prozess, 0,3 bis 0,6 s mehr beim Umschalten), für Browser-Zuschauer im Original:
+
+| Grösse | Browser-Zuschauer im Original nach Budget (halb) | Arbeitsspeicher bei 10 / 20 solchen Zuschauern | Rechenzeit bei 16 Prozessen | was zuerst knapp wird |
+|---|---|---|---|---|
+| Klein, QSV (Live-Anteil 4) | 16, abzüglich der Ton- und Bild-Umwandlungen (je 0,25 bzw. 2) | 0,57 / 1,13 GB | 0,5 Kerne von 2 | Rechenzeit und Arbeitsspeicher, vor dem Budget |
+| Klein, Software 2 Kerne (Live-Anteil 0,5) | **2** | 0,11 GB für 2 | – | das Budget: ein dritter Browser-Zuschauer bekommt «ausgelastet» |
+| Mittel, QSV oder VAAPI (Live-Anteil 4) | 16 | 0,57 / 1,13 GB | 0,5 von 6 bis 8 Kernen | das Budget |
+| Gross, NVENC (Live-Anteil 6) | 24 | 0,57 / 1,13 GB | 0,5 von 12+ Kernen | das Budget (Umpacken braucht keine NVENC-Sitzung) |
+
+Rechenweg Arbeitsspeicher: 20 × (40 + 16,8) MB = 1136 MB. Ohne wirksame Sperre gäbe es mit diesem Rückfall im
+Browser **gar kein** Live-TV, auch nicht im Original. Die Umschaltzeit der Fälle 1 und 2 läge im Browser auch im
+günstigen Fall knapp an der Sekunde (Abschnitt 9).
+
 **Was heisst das für dich:** Auf deiner Testinstanz können nach dieser Rechnung zwei Personen gleichzeitig im
 Browser einen Sender schauen, der umgewandelt werden muss, solange Live-TV nur die Hälfte des Budgets nehmen
-darf. Ohne Grafikeinheit ist es genau eine, und nur, wenn gerade kein Film umgewandelt wird.
+darf und keine Filme umgewandelt werden. Ohne Grafikeinheit ist es genau eine, und nur, wenn gerade kein Film
+umgewandelt wird. Ohne Sperre ist es keine.
 
 ### 3.6 Zusammengesetztes Beispiel: ein Familienabend auf CT 190
 
 Annahmen [A]: zwei Fernseher (Media3) im Original auf zwei Sendern; ein Browser auf einem 1080i-Sender (Bild);
-ein Film im Browser mit Umwandlung (Kosten 2); zwei Aufnahmen auf zwei anderen Sendern; Vorladen 1 davor und
-1 danach und «automatisch» N = 3 (F-9 (b)), Quelle erlaubt weitere Verbindungen.
+ein Film im Browser mit Umwandlung (Kosten 2); zwei Aufnahmen auf zwei anderen Sendern; Vorladen global an
+(Werkszustand nach der Vorgabe zu F-9: 1 davor und 1 danach, insgesamt höchstens 4) und «automatisch» N = 3;
+die Quelle lehnt keine weitere Verbindung ab; Sperre wirksam.
 
 | Grösse | Rechnung | Ergebnis |
 |---|---|---|
 | Gewünschte Eingangsströme | 3 (Zuschauer) + 2 (Aufnahmen) + bis 4 (Vorladen) + 3 (automatisch) | 12, gedeckelt auf **8**: Vorladen und «automatisch» weichen zuerst (`04` 8.2) |
 | Eingang | 8 × 8 Mbit/s | **64 Mbit/s**; auf einem 50-Mbit/s-Anschluss zu viel, dort besser ohne Vorladen |
 | Einheiten | Live 2 (Bild) + Film 2 | 4 von 8; Live-Anteil 2 von 4 |
-| Byte-Budget reserviert | 8 × 15,45 | 124 MB von 384 MB für Ringe |
-| Arbeitsspeicher | 83 + 124 + 200 (Live-FFmpeg) + 200 (Film-FFmpeg, [A]) + bis 564 (Radio-tmpfs, wenn genutzt) | 0,6 bis 1,2 GB von 4 GB |
+| Byte-Budget reserviert | 8 × 15,45 (Ringe) + 16,8 (Live-Umwandlung) | 141 MB von 512 MB (Ringe 124 von 384 MB) |
+| Arbeitsspeicher | 83 + 141 + 200 (Live-FFmpeg) + 200 (Film-FFmpeg, [A]) + bis 564 (Radio-tmpfs, wenn genutzt) | 0,6 bis 1,2 GB von 4 GB |
 | Rechenzeit | 8 Empfänger × 1 % + 3 Leser × 0,3 % + 2 QSV × 5,8 % | rund 0,2 Kerne von 2 |
 | Platte | 2 Aufnahmen | 2 MB/s, 7,2 GB je Stunde |
 
 Geht nach dem Film ein Zuschauer, läuft sein Sender 30 Sekunden in Karenz weiter; endet eine Aufnahme, ruht
-ihr Sender sofort (`04` 14.1: Karenz nur, wenn der Zuschauer selbst geht).
+ihr Sender sofort (`04` 14.1: Karenz nur, wenn der Zuschauer selbst geht). Lehnt die Quelle eine weitere
+Verbindung ab (Muster A) oder trennt sie die ältere (Muster B), ruht der vorsorgliche Empfang dieser Quelle von
+selbst für 30 Minuten (bei Wiederholung 6, dann 24 Stunden); der Abend läuft dann mit 5 statt 8 Eingangsströmen
+weiter (`04` 5.3, 14.1).
 
 **Was heisst das für dich:** Ein normaler Abend mit wenigen Personen passt nach dieser Rechnung gut auf die
 Testinstanz. Knapp wird es, sobald eine weitere Person im Browser einen Sender mit Zeilensprung oder HEVC
@@ -458,18 +538,19 @@ Vorgaben je Backend; eine stärkere Grafikeinheit bekommt ohne eigene Kalibrieru
 |---|---|---|---|
 | Beispiel | Testinstanz CT 190 (2 vCPU, 4 GB, UHD 630 mit QSV); ein Mini-PC der N100-Klasse (4 Kerne, 8 bis 16 GB, QSV) liegt dazwischen | 6 bis 8 Kerne, 16 GB, integrierte Grafik (QSV oder VAAPI) | 12 und mehr Kerne, 32 GB, eigene Grafikkarte mit NVENC |
 | Umwandlungsbudget / davon Live | 8 / 4 (ohne Grafik: 1, Ausnahme bei Übergrösse) | 8 / 4 (ohne Kalibrierung) | 12 / 6 |
-| Byte-Budget ab Werk / davon Ringe | 512 MB / 384 MB (24 HD-Ringe) | 512 MB / 384 MB (Deckel) | 512 MB / 384 MB (Deckel) |
-| Byte-Budget empfohlen | 512 MB lassen | 1 GB (768 MB für 49 HD-Ringe) | 2 bis 4 GB |
-| Sinnvolle Dauersender | 0 bis 5 | 10 bis 20 | 20 bis 50 (ab 50 Budget ≥ 1,1 GB); 100 nur mit Anschluss ≥ 1 Gbit/s und Budget ≥ 2,1 GB |
+| Sperre des Prozesses | zu messen (V-4, M-25); ohne Sperre nur Direktweg | wie klein | wie klein |
+| Byte-Budget ab Werk / davon Ringe | 512 MB / 384 MB (24 HD-Ringe zu 15 s, 12 zu 30 s) | 512 MB / 384 MB (Deckel) | 512 MB / 384 MB (Deckel) |
+| Byte-Budget empfohlen | 512 MB lassen | 1 GB (768 MB für 49 HD-Ringe zu 15 s oder 24 zu 30 s) | 2 bis 4 GB |
+| Sinnvolle Dauersender | 0 bis 5; bei 8 ab Werk möglichen Eingangsströmen lässt jeder Dauersender einen weniger für Zuschauer und Aufnahmen | 10 bis 20 (bei langen Bildgruppen Budget ≥ 824 MB für 20) | 20 bis 50 (ab 50 Budget ≥ 1,1 GB, bei langen Bildgruppen ≥ 2,1 GB); 100 nur mit Anschluss ≥ 1 Gbit/s und Budget ≥ 2,1 bis 4,1 GB |
 | Zuschauer im Original | bis 5 ohne Bedenken, bis 20 (Obergrenze) zu messen | bis 20 | 20 bis 50 (Obergrenze der Live-Sitzungen anheben) |
 | Bild-Umwandlungen HD gleichzeitig (halb / ganz) | **2** / 4; ohne Grafik **1**, wenn kein Film umgewandelt wird | **2** / 4 | 3 / 6 (Treiber: 8 Sitzungen) |
 | Ton-Umwandlungen | bis 8 (Rechenzeit); ohne Grafik 2 | bis 16 | bis 24 |
-| Aufnahmen gleichzeitig | bis 6 mit voller Toleranz von 60 s; mehr starten, mit kleinerer Toleranz | bis 10 mit voller Toleranz (Budget 1 GB) | 10 und mehr (Grenze ist der Datenträger) |
+| Aufnahmen gleichzeitig | bis 6 mit voller Toleranz von 60 s (bei langen Bildgruppen 5); mehr starten, mit kleinerer Toleranz | bis 10 mit voller Toleranz (Budget 1 GB) | 10 und mehr (Grenze ist der Datenträger) |
 | Timeshift-Speicher | SSD des Caches, Deckel 10 bis 20 GB; keine RAM-Disk | SSD, Deckel 50 GB (Vorgabe) | SSD oder NVMe, Deckel 100 bis 200 GB |
 | Höchstdauer Timeshift | 30 oder 60 min | 60 min (Vorgabe) | 60 oder 120 min |
-| Vorladen | ja, klein: 1 davor, 1 danach, insgesamt 2; «automatisch» N = 0 bis 2; nur bei Anschluss ≥ 50 Mbit/s | ja: 1 und 1, insgesamt 4 (Vorgabe); N = 3 | ja: bis 2 und 2, insgesamt 8 bis 16; N bis 10 |
+| Vorladen (nur global und je Sender über die Strategie; keine Einstellung je Quelle) | an (Werkszustand nach der Vorgabe zu F-9), Obergrenze klein halten: insgesamt 2; «automatisch» N = 0 bis 2; bei Anschluss unter 50 Mbit/s oder einem Zugang mit nur einer Verbindung global aus | an: 1 und 1, insgesamt 4 (Werkszustand); N = 3 | an: bis 2 und 2, insgesamt 8 bis 16; N bis 10 |
 | Obergrenze Eingangsströme | 8 (Vorgabe) | 12 bis 20 | 20 bis 60 |
-| **Was zuerst knapp wird** | (1) Umwandlungseinheiten für **jeden** Browser-Zuschauer auf einem Sender mit HEVC, Zeilensprung oder MPEG-2; (2) Arbeitsspeicher: 4 GB tragen Server, Radio-tmpfs, Ringe und zwei bis vier FFmpeg-Prozesse; (3) Rechenzeit auf 2 vCPU bei vielen Ton-Umwandlungen (AC-3, E-AC-3, LATM im Browser); (4) Ringe im Byte-Budget ab rund 20 empfangenen Sendern | (1) Umwandlungseinheiten für den Browser, solange das Budget nicht nach Messung angehoben ist; (2) Internetanschluss und Verbindungen zum Anbieter bei Dauerempfang; (3) Ringe im Byte-Budget ab Werk | (1) Internetanschluss und Verbindungen zum Anbieter; (2) Sitzungsgrenze des NVENC-Treibers und Budget für Browser-Zuschauer; (3) Upload für Zuschauer von unterwegs |
+| **Was zuerst knapp wird** | (0) ohne wirksame Sperre: jede Umwandlung, also alle Browser-Zuschauer ausser auf H.264 mit AAC; (1) Umwandlungseinheiten für **jeden** Browser-Zuschauer auf einem Sender mit HEVC, Zeilensprung, MPEG-2 oder Segmenten über 10 s; (2) Eingangsströme, wenn Dauersender sie belegen (sie weichen nicht); (3) Arbeitsspeicher: 4 GB tragen Server, Radio-tmpfs, Ringe und zwei bis vier FFmpeg-Prozesse; (4) Rechenzeit auf 2 vCPU bei vielen Ton-Umwandlungen (AC-3, E-AC-3, LATM im Browser); (5) Ringe im Byte-Budget ab rund 20 empfangenen Sendern, bei langen Bildgruppen ab 12 | (1) Umwandlungseinheiten für den Browser, solange das Budget nicht nach Messung angehoben ist; (2) Internetanschluss und Verbindungen zum Anbieter bei Dauerempfang; (3) Ringe im Byte-Budget ab Werk | (1) Internetanschluss und Verbindungen zum Anbieter; (2) Sitzungsgrenze des NVENC-Treibers und Budget für Browser-Zuschauer; (3) Upload für Zuschauer von unterwegs |
 
 Ausserhalb jeder Grösse gilt: **Zuschauer von unterwegs** hängen am Upload des Heimanschlusses. Bei 40 Mbit/s
 Upload sind das nach dieser Rechnung höchstens fünf HD-Ströme im Original; Profile mit Bitratengrenze lösen
@@ -613,11 +694,11 @@ Programmdaten; deshalb ist die eigene, nicht gesicherte Datei aus `09` F-1 wicht
 
 | Bereich | Was geteilt wird | Was geschützt ist und wodurch | Was nicht geschützt ist |
 |---|---|---|---|
-| **Umwandlungsbudget** | dasselbe Budget je Backend (T-13) | Live-Umwandlungen und FFmpeg-Empfänger der Stufe W belegen zusammen höchstens den Anteil (ab Werk die Hälfte, `04` 8.1); eine Live-Reservierung wartet, statt laufende Filmumwandlungen zu verdrängen; verdrängt werden nur Offline-Downloads (gebaut) | die Hälfte für Live ist für Filme gesperrt, wenn Live sie belegt; umgekehrt borgt Live keine freien Einheiten der Filme (`04` 7.6, 13 P-7). Auf dem Software-Backend mit 2 Kernen gibt es nur eine Bild-Umwandlung: Live **oder** Film |
+| **Umwandlungsbudget** | dasselbe Budget je Backend (T-13) | Live-Umwandlungen und FFmpeg-Empfänger der Stufe W belegen zusammen höchstens den Anteil (ab Werk die Hälfte, `04` 8.1); eine Live-Reservierung wartet, statt laufende Filmumwandlungen zu verdrängen; verdrängt werden nur Offline-Downloads (gebaut) | Der Live-Anteil ist eine Obergrenze, kein Mindestanteil: Filme dürfen das ganze Budget belegen, dann wartet eine neue Live-Umwandlung 10 s und meldet «ausgelastet» (der Direktweg läuft weiter); umgekehrt borgt Live keine freien Einheiten der Filme (`04` 7.6, 13 P-7). Auf dem Software-Backend mit 2 Kernen gibt es nur eine Bild-Umwandlung: Live **oder** Film |
 | **Platte** | Timeshift liegt ab Werk auf dem Cache-Volume der Filme | Deckel über alle Sitzungspuffer (kleinerer Wert aus 20 % und 50 GB), Mindestreserve (`04` 14.6) | der Umwandlungs-Cache der Filme selbst ist nicht begrenzt (A2 2.5); ein voller Cache beendet eine Filmsitzung mit Fehler (A2 7.2) |
 | **Netz** | Ausgang im Heimnetz und Upload nach aussen | – | Slouchcat priorisiert nicht; viele Live-Zuschauer und ein Film von unterwegs teilen sich den Upload |
 | **Rechenzeit** | dieselben Kerne | Empfang und Aufnahme laufen ohne Zurückstufung (T-20), Umwandlungen für Zuschauer mit `nice 10` (gebaut) | auf dem Software-Backend gewinnt ein Live-Empfang gegen eine Filmumwandlung (Empfang 0, Umwandlungen `nice 10`); bei vielen Dauersendern kann das eine Filmumwandlung unter Echtzeit drücken ([A], 13 M-6, 13 P-8) |
-| **Arbeitsspeicher** | derselbe Container | Ringe sind reserviert und wachsen nicht über das Byte-Budget; der Rückstau bleibt im Rest des Budgets (T-19, `04` 8.1); Segmentkopien sind klein (256-KiB-Blöcke) | FFmpeg-Prozesse liegen ausserhalb des Budgets; bei Not beendet der Kernel zuerst FFmpeg (`oom_score_adj 500`, gebaut), also auch Filmumwandlungen |
+| **Arbeitsspeicher** | derselbe Container | Ringe und Puffer der Umwandlungen sind reserviert und wachsen nicht über das Byte-Budget; der Rückstau bleibt im Rest des Budgets (T-19, `04` 8.1); Segmentkopien sind klein (256-KiB-Blöcke); die Go-Laufzeit hat eine Speichergrenze (`04` 8.1, M-13) | FFmpeg-Prozesse liegen ausserhalb des Budgets; bei Not beendet der Kernel zuerst FFmpeg (`oom_score_adj 500`, gebaut), also auch Filmumwandlungen |
 | **Datenbank** | eine Schreibverbindung | Programmdaten in eigener Datei (`09` F-1 (a)); Stapel zu 500 | – |
 
 Was nach der Spezifikation **garantiert** bleibt (T-19 und `04` 8.2; gebaut ist nichts davon): Eine laufende
@@ -625,8 +706,9 @@ Filmumwandlung wird von Live-TV nie beendet, und Live-TV kann nie mehr als seine
 Mehr verspricht das Konzept nicht. Wie stark Live-Last den Start eines Films verzögert, misst 13 M-6 gegen den
 gemessenen Wert von rund 0,87 s bis zum ersten Segment [G] `docs/perf/wiedergabestart.md`.
 
-**Was heisst das für dich:** Ein Film bekommt immer mindestens die Hälfte der Umwandlungskraft. Platte und
-Netz teilen sich Filme und Live-TV ohne Vorrang; dafür sorgen nur Deckel und Reserve.
+**Was heisst das für dich:** Ein Film bekommt immer mindestens die Hälfte der Umwandlungskraft, und mehr,
+wenn er sie braucht; Live-TV bekommt höchstens die Hälfte, und nur, was die Filme freilassen. Platte und Netz
+teilen sich Filme und Live-TV ohne Vorrang; dafür sorgen nur Deckel und Reserve.
 
 ## 8. Überlastverhalten (Auftrag 11.3)
 
@@ -642,15 +724,25 @@ flowchart TB
   S1 --> S2["2 · Automatisch gehaltene Sender, hinterster zuerst"]
   S2 --> S3["3 · Prüfungen ruhender Sender, Stichprobe"]
   S3 --> S4["4 · Offline-Downloads, zurückstellbare Hintergrundjobs"]
-  S4 --> S5["5 · Dauerhaft und zeitgesteuert ohne Abnehmer: zurückgestellt (F-4)"]
-  S5 --> S6["6 · Neue Anforderung ablehnen (Zuschauer; Aufnahme: F-5)"]
-  S6 -.-> NIE["Nie: Ströme mit Zuschauer oder laufender Aufnahme, Umwandlungen aktiver Sitzungen, laufende Aufnahmen"]
+  S4 --> S5["5 · Neue Anforderung ablehnen: Zuschauer «ausgelastet»; Aufnahme nach F-5; startender Dauersender zurückgestellt"]
+  S5 -.-> NIE["Nie: Ströme mit Zuschauer oder laufender Aufnahme, Umwandlungen aktiver Sitzungen, laufende Aufnahmen, laufende Dauersender"]
 ```
 
-Zwei Regeln aus `04` 5.3 und 14.1 gehören dazu: **Karenz** gibt es nur, wenn ein Zuschauer selbst geht
-(30 Sekunden, einstellbar 15 bis 300); nach dem Ende einer Aufnahme, eines Zeitfensters, nach Umschalten oder
-Rechteentzug ruht der Strom sofort. Ein **zurückgestellter** Sender startet von selbst wieder, sobald 60
-Sekunden lang Platz frei ist oder ein Abnehmer kommt.
+Regeln aus `04` 5.3, 8.2 und 14.1, die dazugehören:
+
+- **Laufende Dauersender und Zeitplan-Sender in ihrem Fenster weichen nicht** (Vorgabe nach LTV-002; Frage
+  `04` F-4 → `20` E-28-30). *Variante F-4 (a):* zwischen 4 und 5 stünde «Dauersender ohne Abnehmer
+  zurückstellen»; gerechnet in 3.1.
+- **Zurückgestellt** wird ein Dauersender nur, wenn er nicht starten kann (Mangel oder Ablehnung durch die
+  Quelle). Wiederanlauf: Ursache Mangel, wenn die Zulassung 60 s ununterbrochen gelänge; Ursache Quelle, wenn
+  60 s keine andere Verbindung zur Quelle bestand; nach einem Fehlschlag nach 60 s, 5 min, dann alle 15 min; der
+  am längsten Zurückgestellte zuerst. Die Verwaltung meldet es.
+- **Karenz** gibt es nur, wenn ein Zuschauer selbst geht (30 Sekunden, einstellbar 15 bis 300); nach dem Ende
+  einer Aufnahme, eines Zeitfensters, nach Umschalten oder Rechteentzug ruht der Strom sofort.
+- **Vorsorglicher Empfang ruht von selbst**, wenn eine Quelle eine weitere Verbindung ablehnt (Muster A) oder
+  die ältere trennt (Muster B; dann zusätzlich Ein-Strom-Betrieb): 30 Minuten, bei Wiederholung 6 Stunden, dann
+  24 Stunden. Es gibt dafür **keine Einstellung je Quelle** (Vorgabe nach LTV-017; Frage `04` F-3 → `20`
+  E-28-02/E-28-29); wer einen Zugang mit nur einer Verbindung hat, schaltet das Vorladen global aus.
 
 ### 8.2 Je Engpass
 
@@ -662,41 +754,47 @@ Sekunden lang Platz frei ist oder ein Abnehmer kommt.
 | **Datenträger stockt oder fehlt** | Rückstau füllt sich; Marker fehlt; anderer Dateisystemtyp (`04` 9) | 1. Rückstau fängt auf (Aufnahme bis 60 s, Timeshift bis 16 MiB); stocken mehrere zugleich, teilen sie den Rest des Byte-Budgets zu gleichen Teilen (`04` 8.1); 2. danach Lücke; 3. kein Ausweichen auf einen anderen Ordner (T-25); Timeshift: Puffer enden, Wiedergabe springt an die Live-Kante, neuer Puffer 60 s nach Rückkehr des Orts (`04` 9, 14.6) | kurzer Sprung; bei Timeshift Rückfall auf live | «Speicher fehlt», Zähler der Lücken |
 | **CPU-Überlast** | **keine direkte Messung im Server** (`15` F-22); indirekt: Umwandlung langsamer als Echtzeit, Rückstand eines Zuführers wächst; bestehende Rücksicht auf rechenintensive Umwandlungen bei Trickplay (`manager.go:371-410`, gebaut) | 1. bis 4. der Rangfolge; 5. neue Umwandlungen warten bis 10 s, dann Ablehnung; 6. laufende zu langsame Umwandlung meldet nach 30 s Rückstand «zu langsam» und schlägt eine tiefere Qualität vor (`04` 8.3, 14.7) | ohne Zeitversatz: Sprünge; mit Zeitversatz: fällt hinter live zurück; Vorschlag tiefere Qualität | Zähler «zu langsam» je Sitzung |
 | **GPU-Überlast** | keine direkte Messung; nur über das Budget (Einheiten) und «langsamer als Echtzeit» | wie CPU; das Budget verhindert Überbuchung nach Kosten | «Der Server ist ausgelastet» bei neuer Umwandlung | belegte Einheiten, Warteschlange |
-| **Byte-Budget: Ringe** | Reservierung eines neuen Rings passt nicht in drei Viertel des Budgets (T-19) | Rangfolge 0 bis 5, dann neue Anforderung ablehnen; bei einem neuen Zeitabschnitt eines gehaltenen Stroms bleibt der bisherige Ring, nie endet deswegen ein gehaltener Strom (`04` 5.3) | «Der Server ist ausgelastet» | Belegung des Byte-Budgets |
-| **Byte-Budget: Rückstau** | Rest des Budgets ausgeschöpft | keine Ablehnung; die stockenden Schreiber teilen den Rest, wer seinen Teil ausschöpft, bekommt eine Lücke (`04` 8.1) | Lücke in Aufnahme oder Zeitversatz | Zähler der Lücken je Ursache |
+| **Byte-Budget: Ringe** | Reservierung eines neuen Rings passt nicht in drei Viertel des Budgets (T-19) | Rangfolge 0 bis 4, dann neue Anforderung ablehnen; laufende Dauersender weichen nicht; bei einem neuen Zeitabschnitt eines gehaltenen Stroms bleibt der bisherige Ring, nie endet deswegen ein gehaltener Strom (`04` 5.3) | «Der Server ist ausgelastet» | Belegung des Byte-Budgets |
+| **Byte-Budget: Puffer einer Umwandlung** | Reservierung von 16,8 MB passt nicht neben Ringen und Mindestteilen der Aufnahmen | die **Umwandlung** wird abgelehnt, nie eine Aufnahme (`04` 8.1) | «Der Server ist ausgelastet» | Belegung des Byte-Budgets |
+| **Byte-Budget: Rückstau** | Rest des Budgets ausgeschöpft | keine Ablehnung; zuerst bekommen die Aufnahmen ihren Mindestteil von 16 MiB, dann teilen die stockenden Schreiber den Rest; wer seinen Teil ausschöpft, bekommt eine Lücke; reicht es nicht einmal für die Mindestteile: Hinweis «Byte-Budget knapp: Aufnahmen ohne Reserve» (`04` 8.1) | Lücke in Aufnahme oder Zeitversatz | Zähler der Lücken je Ursache; Hinweis |
+| **Dauersender kann nicht starten** | Zulassung scheitert beim Start (Hochfahren, mehr Dauersender als Platz) oder die Quelle lehnt ab | Zustand «zurückgestellt»; Wiederanlauf nach 60 s ununterbrochen möglicher Zulassung, nach Fehlschlag 60 s, 5 min, dann alle 15 min; der am längsten Zurückgestellte zuerst (`04` 5.3, 14.1) | nichts (kein Zuschauer) | «zurückgestellt» mit Ursache und Zahl der Versuche; Warnung, wenn Dauersender mehr als die Hälfte der Eingangsströme belegen |
+| **Eindämmung nicht verfügbar** (Sperre lässt sich auf dem Host nicht hart setzen) | Prüfung der Hülle beim Start und je Prozess (T-27) | kein Live-FFmpeg; Direktweg bleibt (Vorgabe nach `12` F-1) | Sender, die eine Umwandlung bräuchten: «auf diesem Server nicht abspielbar» | «Eindämmung nicht verfügbar» mit der Folge «Live-TV nur im Original» |
 | **Arbeitsspeicher des Systems** | Kernel (OOM) | beendet zuerst FFmpeg (`oom_score_adj 500`, gebaut); Empfang und Aufnahme im Serverprozess bleiben (T-20) | Umwandlung bricht ab, Sitzung meldet Fehler | Fehler der Umwandlung im Protokoll |
 | **Bandbreite Eingang** | Slouchcat kennt den Anschluss nicht; sichtbar nur indirekt: Bitrate eines Stroms bricht ein, Stillstand (`05` 9.2) | Schutz nur über die Obergrenze der Eingangsströme; Rangfolge 1 bis 2 greift nicht von selbst, weil kein Mangel erkannt wird (13 O-4) | Stocken, Wiederverbinden | Summe der gemessenen Bitraten (`04` 8.3) |
 | **Bandbreite Ausgang** | keine Erkennung im Server; der Client holt Segmente zu spät | betrifft nur diesen Client: alte Segmente 404, Player springt nach vorn (T-8, `05` 3.5); Profilgrenzen für Bitrate wirken über Umwandlung (T-26) (13 O-5) | Stocken, Sprung an die Live-Kante | nichts Eigenes |
 | **Zu viele Verbindungen, Deskriptoren** | Obergrenze Live-Sitzungen (20), Eingangsströme (8), höchstens 2 Segmentabrufe je Sitzung, Fehler beim Öffnen | neue Sitzung oder neuer Strom abgelehnt; ein dritter Segmentabruf wartet; Compose hebt die Grenze offener Dateien an (`04` 10.6, `18` Schritt 0.6) | «Der Server ist ausgelastet» | Zähler der Sitzungen und Ströme |
 | **Zu viele FFmpeg-Prozesse** | Einheiten; Neustarts je Sitzung (2 in 10 s); FFmpeg-Empfänger der Stufe W höchstens 2; Prozessgrenze des Containers nach F-12 | weitere Anfragen warten; Neustarts gedrosselt (`04` 8.5); ein FFmpeg endet 60 s nach der letzten Segmentanfrage und spätestens nach 24 h (neue Ausgabe-Generation, `04` 7.5); verwaiste Prozesse werden beendet (`04` 9) | kurze Wartezeit beim Spulen; nach 24 h ein kurzer Sprung | Zahl der Prozesse, verwaiste Prozesse |
-| **Fehlerhafte oder unerreichbare Quelle** | Stillstand 10 s, Uhr steht, Liste rückt nicht vor, ungültige Daten (`05` 9.2) | Wiederverbindung nach Leiter (1, 2, 5, 10, 20 s), Ersatzquelle, Quarantäne (30 s, 5 min, 30 min) (`04` 14.1); bricht die Quelle in der Karenz ab, endet der Strom sofort; kein Einfluss auf andere Sender | «Verbindung wird wiederhergestellt», «Ersatzquelle», «Sender nicht verfügbar» | Zustand je Quelle; Meldung nach 10 min bei dauerhaftem Haltegrund |
-| **Anbieter lehnt weitere Verbindung ab** | 401, 403, 429 neben einer offenen oder vor höchstens 10 s geschlossenen Verbindung derselben Quelle (`04` 5.3) | vorsorgliche Ströme dieser Quelle beenden, einmal neu versuchen; vorsorglicher Empfang ruht 30 min | «Quelle lehnt weitere Verbindung ab» | Hinweis «vermutlich Verbindungslimit des Anbieters» |
+| **Fehlerhafte oder unerreichbare Quelle** | Startfristen (bis erstes Byte 15 s; bis «läuft» Bildgruppe + 5 s, 15 bis 45 s; bis erstes Segment der Sitzung; Gesamtfrist 90 s); Stillstand 10 s (bei HLS mindestens das Anderthalbfache der Zieldauer), Uhr steht, Liste rückt nicht vor, ungültige Daten (`04` 5.3, 14.1; `05` 9.2) | Wiederverbindung nach Leiter (1, 2, 5, 10, 20 s), Ersatzquelle, Quarantäne (30 s, 5 min, 30 min); «Zugang prüfen» als Quarantäne mit Wiederversuch nach 5 min, 30 min, dann stündlich; ein neuer Abnehmer auf gestörtem Strom: ein Versuch sofort, höchstens einer je Minute; bricht die Quelle in der Karenz ab, endet der Strom sofort; kein Einfluss auf andere Sender | «startet» mit Grund; nach Ablauf einer Frist ein Fehlercode; «Verbindung wird wiederhergestellt» nur für eine laufende Wiedergabe | Zustand je Quelle; Meldung nach 10 min bei dauerhaftem Haltegrund |
+| **Quelle entfernt oder geändert**, Ziel oder Ursprung entzogen | Änderung in der Verwaltung | Empfänger der Quelle enden innert 5 s, auch mit Zuschauer oder Aufnahme; nur «Sender deaktivieren» lässt Laufendes weiterlaufen, höchstens 12 h, ohne neue Zuschauer (T-29, `04` 14.1) | Wiedergabe endet; Aufnahme: Lücke, Ersatzquelle, sonst unvollständig | Bestätigung mit der Zahl der Betroffenen (`15`) |
+| **Anbieter lehnt weitere Verbindung ab** (Muster A) oder **trennt die ältere** (Muster B) | Ablehnung (401, 403, 429 oder Abbruch vor dem ersten Byte) neben einer offenen oder vor höchstens 10 s geschlossenen Verbindung derselben Quelle; oder Abbruch eines gehaltenen Stroms innert 10 s nach einer anderen Verbindung zur Quelle (`04` 5.3) | was im Rang darunter steht, endet bei dieser Quelle (Karenz, Vorgeladenes, Prüfungen, «automatisch»); neue Versuche nach 1 und 2 s, höchstens 3 in 5 s; nie endet dafür ein Strom mit Zuschauer, Aufnahme oder ein laufender Dauersender; vorsorglicher Empfang der Quelle ruht 30 min, dann 6 h, dann 24 h; bei Muster B zusätzlich Ein-Strom-Betrieb («wer einen Auftrag erfüllt und die Verbindung hat, behält sie», höchstens ein Wechsel) | «Quelle lehnt eine weitere Verbindung ab» | Diagnose je Quelle: Muster, seit, bis; Hinweis «Zugang mit nur einer Verbindung: Vorladen global ausschalten» |
 
 ### 8.3 Offene Prioritätskonflikte
 
 Diese Konflikte entscheidet dieses Dokument **nicht**. Es nennt sie mit der Stelle, an der die Frage steht.
 Wann die Antwort vorliegen muss, steht in `18` 2.1.
 
-| Nr. | Konflikt | Wo gefragt | Was die Rechnung hier beiträgt | Antwort vor (`18` 2.1) |
-|---|---|---|---|---|
-| P-1 | Neuer Zuschauer gegen dauerhaft oder zeitgesteuert empfangene Sender ohne Abnehmer | `04` F-4 | Auf «klein» belegen 5 Dauersender 5 von 8 Eingangsströmen; ohne (a) bleiben für Zuschauer und Aufnahmen drei. | Stufe 3 |
-| P-2 | Beginnende Aufnahme gegen laufende Wiedergaben bei voller Obergrenze | `04` F-5, `03` F-4 | Die Ringe im Byte-Budget können vor der Obergrenze der Ströme voll sein (3.1); dann greift dieselbe Frage. | Stufe 5 |
-| P-3 | Wissen um das Verbindungslimit des Anbieters | `04` F-3 (LTV-017) | Dauerempfang und Vorladen sind nach 3.1 und 3.6 die grössten Verbraucher von Verbindungen. | Stufe 0 (`04` F-3), Stufe 3 (P-3) |
-| P-4 | Timeshift für alle gegen Platte (Kopie je Sitzung) | `04` F-8 | 20 Zuschauer desselben Senders: 72 GB/h geschrieben; Variante (c) wäre die Bremse. | Stufe 4 |
-| P-5 | Was ab Werk vorsorglich empfangen wird | `04` F-9 | Vorladen und «automatisch» kosten auf «klein» bis 7 Eingangsströme und 56 Mbit/s. | Stufe 3 |
-| P-6 | Höchstzahl gleichzeitiger Aufnahmen auf dem Server | `15` F-21 | 3.4: Ohne Grenze starten alle; die Toleranz gegen Stockungen sinkt. | Stufe 5 |
-| P-7 | Darf Live ungenutzte Einheiten der Filme borgen? | Vorgabe in `04` 7.6: kein Borgen; als Vorrangfrage für `20` geführt (`04` 15.2) | 3.3: Im Fall «20 Zuschauer, Mischung» fehlen auf CT 190 genau die Einheiten, die für Filme frei stünden. | Stufe 1 |
-| P-8 | Live-Empfang ohne Zurückstufung gegen Filmumwandlung auf dem Software-Backend | Vorgabe T-20; als Vorrangfrage für `20` geführt (`04` 15.2) | Abschnitt 7, Zeile «Rechenzeit»; 13 M-6. | Stufe 1 |
-| P-9 | Rückstau der Aufnahmen gegen Ringe der Zuschauer im selben Byte-Budget | **erledigt durch `04` 8.1** (nur Ringe reserviert, Rückstau bei Gebrauch) | – | – |
+Bis zu deiner Antwort gilt bei jeder Zeile die wortlauttreue Vorgabe (Spalte «Vorgabe bis zur Antwort»).
+
+| Nr. | Konflikt | Wo gefragt | Vorgabe bis zur Antwort | Was die Rechnung hier beiträgt | Antwort vor (`18` 2.1) |
+|---|---|---|---|---|---|
+| P-1 | Neuer Zuschauer gegen dauerhaft oder zeitgesteuert empfangene Sender ohne Abnehmer | `04` F-4 → `20` E-28-30 | **Ein laufender Dauersender weicht nicht;** die neue Anfrage wird abgelehnt (LTV-002) | Auf «klein» belegen 5 Dauersender 5 von 8 Eingangsströmen; für Zuschauer und Aufnahmen bleiben drei. Mit der Variante (a) könnten bis zu 5 weitere Personen schauen, und so viele Dauersender fielen aus (3.1). | Stufe 3 |
+| P-2 | Beginnende Aufnahme gegen laufende Wiedergaben und laufende Dauersender bei voller Obergrenze | `04` F-5, `03` F-4 → `20` E-28-40 | Die Aufnahme verdrängt nichts; sie scheitert mit Grund und Meldung | Die Ringe im Byte-Budget können vor der Obergrenze der Ströme voll sein (3.1), bei langen Bildgruppen schon ab 12 Sendern; dann greift dieselbe Frage. | Stufe 5 |
+| P-3 | Wissen um Verbindungen des Anbieters | `04` F-3 → `20` E-28-02 (zusammengeführt mit E-28-29) | **Keine Einstellung und keine Zahl je Quelle** (LTV-017); Laufzeitregel Muster A und B mit Ruhen des vorsorglichen Empfangs; Varianten: Schalter je Quelle, Verbindungszahl je Quelle | Dauerempfang und Vorladen sind nach 3.1 und 3.6 die grössten Verbraucher von Verbindungen; ohne Einstellung merkt der Server ein Limit erst am ersten Vorfall (M-26). | Stufe 0 |
+| P-4 | Timeshift für alle gegen Platte (Kopie je Sitzung) | `04` F-8 → `20` E-28-36 | eigene Kopie je Sitzung | 20 Zuschauer desselben Senders: 72 GB/h geschrieben; Variante (c) wäre die Bremse. | Stufe 4 |
+| P-5 | Was ab Werk vorsorglich empfangen wird | `04` F-9 → `20` E-28-29 | Vorladen global **an**, mit vorsichtigen Obergrenzen (LTV-010) | Vorladen und «automatisch» kosten auf «klein» bis 7 Eingangsströme und 56 Mbit/s. | Stufe 3 |
+| P-6 | Höchstzahl gleichzeitiger Aufnahmen auf dem Server | `15` F-21 → `20` E-28-49 | keine Grenze | 3.4: Ohne Grenze starten alle; die Toleranz gegen Stockungen sinkt. | Stufe 5 |
+| P-7 | Darf Live ungenutzte Einheiten der Filme borgen? | `04` 7.6, 15.2 → `20` E-28-14 | kein Borgen; Live-Anteil ist Obergrenze | 3.3: Im Fall «20 Zuschauer, Mischung» fehlen auf CT 190 genau die Einheiten, die für Filme frei stünden. | Stufe 1a |
+| P-8 | Live-Empfang ohne Zurückstufung gegen Filmumwandlung auf dem Software-Backend | T-20, `04` 15.2 → `20` E-28-14 | Empfang ohne Zurückstufung | Abschnitt 7, Zeile «Rechenzeit»; 13 M-6. | Stufe 1a |
+| P-9 | Rückstau der Aufnahmen gegen Ringe der Zuschauer im selben Byte-Budget | **erledigt durch `04` 8.1** (Ringe und Umwandlungspuffer reserviert, Rückstau bei Gebrauch, Mindestteil je Aufnahme) | – | – | – |
 
 **Was heisst das für dich:** Wenn etwas knapp wird, gibt Slouchcat zuerst das Vorsorgliche auf und lehnt
-dann Neues ab. Es beendet nie, was jemand gerade schaut oder aufnimmt. Wer im Zweifel Vorrang hat, entscheidest
+dann Neues ab. Es beendet nie, was jemand gerade schaut oder aufnimmt, und keinen laufenden Dauersender. Wer im Zweifel Vorrang hat, entscheidest
 du in den Fragen P-1 bis P-8.
 
 ## 9. Zielwerte Fast Zapping (LTV-010)
 
 Die vier Zielwerte sind zu prüfende Grössen (LTV-010.32). Die Zerlegung folgt `05` 5.1 (Abschnitte 1 bis 10)
-und 5.2 (Fassung 3); die Bereiche dort sind Annahmen. Hier steht, **welcher Teil wem gehört** und unter welchen
+und 5.2 (Fassung 4); die Bereiche dort sind Annahmen. Hier steht, **welcher Teil wem gehört** und unter welchen
 Bedingungen ein Zielwert nach der Rechnung erreichbar **scheint** oder sicher nicht.
 
 **Player-Werte** (`04` 14.10): hls.js beginnt nach dem ersten Segment (Abschnitt 9 kostet 0). Media3 1.11.1 hat
@@ -705,15 +803,24 @@ in Sendezeit: Liegt ein erstes Segment mit mindestens 1 Sekunde Bild ganz vor, k
 kostet bis zu 1 Sekunde nur, wenn das erste Segment kürzer ist oder die Daten nur in Echtzeit eintreffen (etwa
 nach dem Anlauf einer Umwandlung). Vorgabe: kein eigener Ladepuffer. **Apple-Geräte:** Listen unter sechs
 Segmenten und kurze Segmente sind eine **bewusste Abweichung** von Apples Vorgaben (Nachprüfung Nr. 7 [B]);
-Safari, iPhone und iPad sind ungeprüft, weil kein Gerät vorhanden ist, und für sie gilt kein Zielwert als
-zugesagt (`05` 4.3, M-5).
+Safari, iPhone und iPad sind vorgesehen, aber ungeprüft, solange kein Gerät da ist; für sie ist kein Zielwert
+nachgerechnet (`05` 4.3, M-5).
+
+**Drei Startfristen** (`04` 5.3, 14.1) sind **Abbruchgrenzen, keine Zielwerte:** (1) bis zum ersten Byte 15 s
+je Versuch; (2) vom ersten Byte bis «läuft» die gespeicherte Bildgruppe plus 5 s, mindestens 15, höchstens
+45 s (ohne gespeicherte Bildgruppe 30 s); (3) von «läuft» bis zum ersten Segment der Sitzung im Direktweg die
+Segmentdauer plus 5 s, mindestens 10 s, mit Umwandlung bis 10 s Warten auf Einheiten plus 5 plus 5 s; dazu
+eine Gesamtfrist von 90 s. Läuft eine ab, bekommt die Sitzung einen Fehlercode und bleibt bestehen. Die
+Antwort auf «einstellen» wartet bis 3 s auf das erste Segment, sonst meldet sie «startet». Ein Zielwert kann
+also verfehlt werden, ohne dass eine Frist abläuft: Bei einer Bildgruppe von 8 s dauert der kalte Start nach
+`04` 5.3 bis 16,6 s und bleibt innerhalb der Fristen.
 
 | Fall, Ziel | Abschnitte (`05` 5.1) | Server | Quelle (Bildgruppe) | Client und Netz | scheint erreichbar, wenn (Annahme) | sicher nicht, wenn | Ressourcen-Vorbedingung | Messung |
 |---|---|---|---|---|---|---|---|---|
-| **1 · bereits empfangen, kompatibel**, unter 1 s | 1, 2, 6, 8, 9, 10 | 2 und 6: 2 bis 15 ms | keine: Anlauf aus dem Ring | 1: 5 bis 150 ms; 8: Segment laden (2 MB bei 100 Mbit/s 0,16 s); 9: hls.js 0, Media3 0 bis 1,0 s; 10: 0,05 bis 0,3 s | Kabel oder WLAN ≥ 30 Mbit/s; hls.js oder Media3 mit Wiederverwendung der Instanz; **für Media3 ein erstes Segment mit mindestens 1 s Bild** (O-19). Summe günstig 0,2 s; ungünstig ohne Wartezeit des Startpuffers 0,9 s (`05` 5.2) | Media3 mit zu kurzem erstem Segment oder Daten in Echtzeit: Summe ungünstig 1,9 s; Client unter etwa 16 Mbit/s (ein 2-MB-Segment allein dauert 1 s); auf Apple-Geräten nicht zugesagt | Sender liegt im Ring: Eingangsstrom läuft, Obergrenze nicht erreicht | M-1, M-3, M-4 |
-| **2 · vorgeladen**, unter 1 s | wie Fall 1 | wie Fall 1 | keine | wie Fall 1 | wie Fall 1, dazu Vorladen eingeschaltet und für die Quelle erlaubt (F-9), Nachbar 2 s vorher stabil (`04` 14.2) | wie Fall 1; Vorladen wurde bei Mangel abgebaut (Rangfolge 1); Zugang erlaubt nur eine Verbindung | Eingangsströme und Ringe frei für den Nachbarn: je Sitzung 2 × 15,45 MB, 2 × 8 Mbit/s | M-1, M-17 |
+| **1 · bereits empfangen, kompatibel**, unter 1 s | 1, 2, 6, 8, 9, 10 | 2 und 6: 2 bis 15 ms | keine: Anlauf aus dem Ring | 1: 5 bis 150 ms; 8: Segment laden (2 MB bei 100 Mbit/s 0,16 s); 9: hls.js 0, Media3 0 bis 1,0 s; 10: 0,05 bis 0,3 s | Kabel oder WLAN ≥ 30 Mbit/s; hls.js oder Media3 mit Wiederverwendung der Instanz; **für Media3 ein erstes Segment mit mindestens 1 s Bild** (O-19). Summe günstig 0,2 s; ungünstig ohne Wartezeit des Startpuffers 0,9 s (`05` 5.2) | Media3 mit zu kurzem erstem Segment oder Daten in Echtzeit: Summe ungünstig 1,9 s; Client unter etwa 16 Mbit/s (ein 2-MB-Segment allein dauert 1 s); **lange Bildgruppen:** bei 10 s ist das erste Segment 10 MB, 2,7 s bei 30 Mbit/s (`05` 5.2), über 10 s gilt Fall 4; Rückfall «fMP4 je Sitzung» im Browser (+0,3 bis 0,6 s, 3.5); auf Apple-Geräten nicht nachgerechnet | Sender liegt im Ring: Eingangsstrom läuft, Obergrenze nicht erreicht | M-1, M-3, M-4 |
+| **2 · vorgeladen**, unter 1 s | wie Fall 1 | wie Fall 1 | keine | wie Fall 1 | wie Fall 1, dazu Vorladen global an (Werkszustand nach F-9) und für die Quelle nicht gerade ruhend (Muster A oder B, `04` 5.3), Nachbar 2 s vorher stabil (`04` 14.2) | wie Fall 1; Vorladen wurde bei Mangel abgebaut (Rangfolge 1); vorsorglicher Empfang der Quelle ruht oder Ein-Strom-Betrieb (Zugang mit nur einer Verbindung) | Eingangsströme und Ringe frei für den Nachbarn: je Sitzung 2 × 15,45 MB, 2 × 8 Mbit/s | M-1, M-17 |
 | **3 · noch nicht empfangen**, unter 3 s | zusätzlich 3, 4, 5 | 3: Verbindung 0,1 bis 0,6 s, vorher Schliessen der alten bis 0,1 s; 4: 0 s mit gespeicherten Parametern | **5: Warten auf den Keyframe (0 bis 1 Bildgruppe) und bis die Bildgruppe vollständig ist (1 Bildgruppe)**; bei HLS-Quellen das neueste Quellsegment | wie Fall 1 | Bildgruppe ≤ 1 s, oder die Quelle liefert beim Verbinden einen Schub ab Keyframe, oder HLS-Quelle mit kurzen Segmenten; gespeicherte Parameter; Summe 0,3 bis 1,8 s (`05` 5.2) | **Bildgruppe ≥ 4 s ohne Schub** (`05` 7: ohne Vorladen nicht erreichbar); HTTP-TS mit Bildgruppe 2 s ohne Schub: 2,3 bis 4,8 s; HLS-Quelle mit 6-s-Segmenten über einen Anschluss von 10 Mbit/s: das Quellsegment (6 MB) allein dauert 4,8 s; Internetanschluss durch Dauerempfang ausgelastet | freier Platz unter der Obergrenze der Eingangsströme und für einen Ring, sonst zuerst Freigabe nach Rangfolge | M-1, M-2 (V-1), M-21 |
-| **4 · neue Umwandlung nötig**, unter 5 s | Fall 1 oder 3, zusätzlich 7 | **7: Prozessstart und erstes Segment 0,6 bis 1,8 s**; Vergleich gemessen für Dateien: 0,87 s (QSV 1080p) [G] `docs/perf/wiedergabestart.md`; 4 gleichzeitig startende QSV-Ströme ≤ 1,0 s [G] `M1b.md` | bei nicht empfangenem Sender wie Fall 3 | wie Fall 1; auf Media3 kostet der Startpuffer hier eher seine 1000 ms, weil nach dem Anlauf in Echtzeit kodiert wird | Grafikeinheit (QSV, NVENC), freie Einheiten, Sender empfangen: rund 0,8 bis 1,8 s; nicht empfangen und Bildgruppe ≤ 2 s: unter 5 s nach `05` 5.2 | **Budget voll:** Wartezeit bis 10 s, dann «ausgelastet», also kein langsamer Start, sondern keiner; Software-Backend auf 2 Kernen: schon für Dateien 1,5 s allein [G] `M1b.md` 3b, mit Zeilensprung und Fall 3 über 5 s; auf diesem Backend auch, wenn gerade ein Film umgewandelt wird (eine Bild-Umwandlung insgesamt); Fall 3 mit langer Bildgruppe | freie Einheiten im Live-Anteil (3.5) | M-1, M-8 |
+| **4 · neue Umwandlung nötig**, unter 5 s | Fall 1 oder 3, zusätzlich 7 | **7: Prozessstart und erstes Segment 0,6 bis 1,8 s**; Vergleich gemessen für Dateien: 0,87 s (QSV 1080p) [G] `docs/perf/wiedergabestart.md`; 4 gleichzeitig startende QSV-Ströme ≤ 1,0 s [G] `M1b.md` | bei nicht empfangenem Sender wie Fall 3 | wie Fall 1; auf Media3 kostet der Startpuffer hier eher seine 1000 ms, weil nach dem Anlauf in Echtzeit kodiert wird | Grafikeinheit (QSV, NVENC), freie Einheiten, Sender empfangen: rund 0,8 bis 1,8 s; nicht empfangen und Bildgruppe ≤ 2 s: unter 5 s nach `05` 5.2 | **Sperre fehlt:** keine Live-Umwandlung, Fall 4 gibt es nicht; **Budget voll** (auch durch Filme): Wartezeit bis 10 s, dann «ausgelastet», also kein langsamer Start, sondern keiner; Software-Backend auf 2 Kernen: schon für Dateien 1,5 s allein [G] `M1b.md` 3b, mit Zeilensprung und Fall 3 über 5 s; auf diesem Backend auch, wenn gerade ein Film umgewandelt wird (eine Bild-Umwandlung insgesamt); Fall 3 mit langer Bildgruppe | wirksame Sperre; freie Einheiten im Live-Anteil (3.5) | M-1, M-8, M-25 |
 | **Ton-Umwandlung** (zusätzlicher Fall des Benchmarks; im Browser für AC-3, E-AC-3, LATM und meist MP2 der Normalfall) | Fall 1 plus 7 (nur Ton) | 7: 0,2 bis 0,6 s [A] | wie Fall 1 oder 3 | wie Fall 1 | wie Fall 1 plus 0,2 bis 0,6 s; also unter 1 s nur im günstigen Fall | wie Fall 1 | 0,25 Einheiten | M-1, M-8 |
 
 Ohne Messung ist **kein** Zielwert belegt. Die Rechnung sagt nur: Die Fälle 1 und 2 hängen am Client und an
@@ -740,10 +847,10 @@ Die Abbruchkriterien sind **Vorschläge** dieses Dokuments; die verbindliche Fas
 
 | Versuch (`18` 2.2) | Messpunkte | Vor |
 |---|---|---|
-| V-1 | `05` M-2 | Baufreigabe Stufe 1 |
-| V-2 | `05` M-3 | Baufreigabe Stufe 1 |
-| V-3 | `05` M-5 | keine Baufreigabe; Zusage für Safari, iPhone, iPad (kein Gerät vorhanden) |
-| V-4 | `05` M-25 | Baufreigabe Stufe 1 (und Stufe 0 für die Härtung) |
+| V-1 | `05` M-2 (mit der Verteilung der Bildgruppen-Längen) | Baufreigabe Stufe 1a |
+| V-2 | `05` M-3 | Baufreigabe Stufe 1a |
+| V-3 | `05` M-5 | keine Baufreigabe; Prüfung von Safari, iPhone, iPad (vorgesehen, ungeprüft ohne Gerät) |
+| V-4 | `05` M-25 | **Baufreigabe der Stufen 0 und 1a** (ohne wirksame Sperre keine Live-Umwandlung) |
 | V-5 | `05` M-4 | Baufreigabe der Stufe, in der die Apps Live-TV bekommen (`18` 5) |
 | V-6 | `05` M-16 | Baufreigabe Stufe H |
 | V-7 | `05` M-14, `10` M-1, `11` M-1, M-2 | Baufreigabe Stufen 4 und 5 |
@@ -752,36 +859,38 @@ Die Abbruchkriterien sind **Vorschläge** dieses Dokuments; die verbindliche Fas
 | V-10 | `05` M-10, M-11, M-12 (FFmpeg-Empfänger 30 h) | Baufreigabe Stufe W |
 | V-11 | `05` M-23 | Baufreigabe Stufe L |
 | V-12 | `11` M-7 | Bau Stufe 6 |
+| neu (Nummer vergibt `18`) | `05` M-26 | Baufreigabe Stufe 1a (Regel für Zugänge mit einer Verbindung, T-17) |
 
 ### 10.2 Messpunkte aus `04` und `05`
 
 | Nr. | Was (Kurzform, Einzelheiten `05` 10.1) | Methode | Hardware | Abbruchkriterium (Vorschlag) | Wann (`18`) |
 |---|---|---|---|---|---|
-| M-1 | Umschaltzeit je Fall, Client, Netz | Benchmark `05` 8: 5 Aufwärm-, 50 gewertete Wechsel, Median, p90, p95, Fehlerquote | Referenz, klein, gross (`05` 8.1) | Median über Zielwert oder p95 über dem Doppelten oder Fehlerquote > 2 % in N-1/N-2: Zielwert nicht eingehalten | Abnahme Stufe 1 (Fälle 1, 3, 4 ohne Vorladen), Stufe 2 (mit Programm), Stufe 3 (Fall 2 und alle Quellarten) |
-| M-2 | Deine Quellen: Codecs, Zeilensprung, Bildgruppe, **Bitrate (Mittel und Spitze)**, Schub, zweite Verbindung | Messwerkzeug (V-1), je Sender 2 min | CT 190 | – (Inventar); ersetzt die Mischung M in 3.3 und die Bitraten in 1.1 | Baufreigabe Stufe 1 (V-1) |
-| M-3 | hls.js im schlanken Bau mit TS-Segmenten (H.264, AAC, HE-AAC, MP2 als MP3); HEVC und AC-3 nur im vollen Bau für O-22; E-AC-3, LATM, MPEG-2 nicht zu messen (belegt) | Testquellen `05` 8.2 | Chrome, Firefox | Abspielfehler einer Testquelle, die als «Original» gilt: T-11 nicht bestätigt | Baufreigabe Stufe 1 (V-2) |
+| M-1 | Umschaltzeit je Fall, Client, Netz | Benchmark `05` 8: 5 Aufwärm-, 50 gewertete Wechsel, Median, p90, p95, Fehlerquote | Referenz, klein, gross (`05` 8.1) | Median über Zielwert oder p95 über dem Doppelten oder Fehlerquote > 2 % in N-1/N-2: Zielwert nicht eingehalten | Abnahme Stufe 1a (Fälle 1, 3, 4 ohne Vorladen), Stufe 2 (mit Programm), Stufe 3 (Fall 2 und alle Quellarten) |
+| M-2 | Deine Quellen: Codecs, Zeilensprung, **Verteilung der Bildgruppen-Längen** (über 3,75, 7,5, 10 s) und Segmentdauern, **Bitrate (Mittel und Spitze)**, Art der Untertitel, Schub; die zweite Verbindung misst M-26 | Messwerkzeug (V-1), je Sender 2 min | CT 190 | – (Inventar); ersetzt die Mischung M in 3.3, die Bitraten in 1.1 und die Spalte «Ringe 30 s» in 3.1 | Baufreigabe Stufe 1a (V-1) |
+| M-3 | hls.js im schlanken Bau mit TS-Segmenten (H.264, AAC, HE-AAC, MP2 als MP3); HEVC und AC-3 nur im vollen Bau für O-22; E-AC-3, LATM, MPEG-2 nicht zu messen (belegt) | Testquellen `05` 8.2 | Chrome, Firefox | Abspielfehler einer Testquelle, die als «Original» gilt: T-11 nicht bestätigt | Baufreigabe Stufe 1a (V-2) |
 | M-4 | Media3 mit HLS-TS: Start mit 1000 und 500 ms, Stockungen, Decoder beim Umschalten | Testquellen | Pixel, Android-TV-Gerät | mehr als eine Stockung in den ersten 10 s mit dem Standard: eigener Ladepuffer nötig | Baufreigabe der App-Stufe (V-5) |
-| M-5 | Safari, iPhone, iPad: Zeit bis Bild bei 1, 3, 6 Segmenten; bewusste Abweichung von Apples Vorgaben | Testquellen; **kein Gerät vorhanden** | – | Zeit bis Bild bei 1 und 3 Segmenten ≥ bei 6: Ausweg aus `05` 4.3 wählen; mehr als 3 Segmente ohne Recht nur als Frage (`05` O-28) | keine Baufreigabe; nur Zusage dieser Clients (V-3) |
-| M-6 | Zeilensprung je Client | Q-E, Q-F | alle vorhandenen Clients | – (Bewertung); entscheidet O-23 | während des Baus Stufe 1 |
-| M-7 | Decoder je Gerät | Fähigkeitsabfrage, Testquellen | alle vorhandenen Clients | – | während des Baus Stufe 1 |
-| M-8 | Live-Umwandlung: Startzeit, Kosten je Backend, Zeilensprung, **Ton-Umwandlungen je Referenz** | FFmpeg an der Pipe, 1 bis n gleichzeitig, je 10 min | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | eine Umwandlung unter 1,0-facher Echtzeit innerhalb ihres Budgets: Kostensatz zu niedrig, anheben | während des Baus Stufe 1 |
+| M-5 | Safari, iPhone, iPad: Zeit bis Bild bei 1, 3, 6 Segmenten; bewusste Abweichung von Apples Vorgaben | Testquellen; **kein Gerät vorhanden** | – | Zeit bis Bild bei 1 und 3 Segmenten ≥ bei 6: Ausweg aus `05` 4.3 wählen; mehr als 3 Segmente ohne Recht nur als Frage (`05` O-28) | keine Baufreigabe; nur Prüfung dieser Clients (V-3) |
+| M-6 | Zeilensprung je Client | Q-E, Q-F | alle vorhandenen Clients | – (Bewertung); entscheidet O-23 | während des Baus Stufe 1a |
+| M-7 | Decoder je Gerät | Fähigkeitsabfrage, Testquellen | alle vorhandenen Clients | – | während des Baus Stufe 1a |
+| M-8 | Live-Umwandlung: Startzeit, Kosten je Backend, Zeilensprung, **Ton-Umwandlungen je Referenz** | FFmpeg an der Pipe, 1 bis n gleichzeitig, je 10 min | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | eine Umwandlung unter 1,0-facher Echtzeit innerhalb ihres Budgets: Kostensatz zu niedrig, anheben | während des Baus Stufe 1a |
 | M-9 | Nahtlose Segmente über FFmpeg-Läufe | Testquellen, drei Player | Referenz | sichtbarer Sprung oder Fehler: Rückfall `05` 4.5 | während des Baus Stufe 4 |
 | M-10 | Weg W dicht | feindliche Testmenge, Mitschrift der Verbindungen | Image, Testaufbau | eine Verbindung ausser zu `127.0.0.1` mit dem Port des Weiterleiters: Weg W nicht bauen | Baufreigabe Stufe W (V-10) |
 | M-11 | FFmpeg-Leser für DASH, HLS-fMP4 | Testquellen | Referenz | Abbruch oder Fehlauswahl der Darstellung | Baufreigabe Stufe W (V-10) |
 | M-12 | Langlauf: **72 h** Empfänger (= 13 M-1, V-8); **7 Tage** dauerhafter Empfang; FFmpeg-Empfänger 30 h | Verlauf von Arbeitsspeicher, Goroutinen, Deskriptoren, Lücken | CT 190 | Leck nach `17` 7 (siehe 13 M-1) | 72 h: Baufreigabe Stufe 3; 7 Tage: Abnahme Stufe 3; 30 h: Baufreigabe Stufe W |
-| M-13 | Ring: Arbeitsspeicher und **Rechenzeit je Sender** bei 8 und 20 Mbit/s; 5, 20, 50, 100 Sender | Testquelle, synthetisch vervielfacht | CT 190 | Go-Rechenzeit je Sender über 2 % eines Kerns oder Ring über der Rechnung (1,03-fach): Werte in 1.4 und `04` 14.3 neu setzen | während des Baus Stufe 3 |
+| M-13 | Ring: Arbeitsspeicher und **Rechenzeit je Sender** bei 8 und 20 Mbit/s; 5, 20, 50, 100 Sender; Ringe von 15 und 30 s; **Speichergrenze der Go-Laufzeit** neben dem Radio | Testquelle, synthetisch vervielfacht | CT 190 | Go-Rechenzeit je Sender über 2 % eines Kerns oder Ring über der Rechnung (1,03-fach): Werte in 1.4 und `04` 14.3 neu setzen | während des Baus Stufe 3 |
 | M-14 | Sitzungspuffer und Aufnahmen auf SSD, HDD, RAM-Disk, Netzspeicher; NAS 30 s getrennt, Platte schläft | Schreiblast, Lücken (V-7) | CT 190, NAS | eine Lücke in einer einzelnen Aufnahme bei Unterbruch ≤ 60 s: Rückstau zu klein; Schreiben ins leere Verzeichnis | Baufreigabe Stufen 4 und 5 (V-7) |
 | M-15 | Schwellen der Überwachung | Fehlerbilder `05` 8.2 | Referenz | Fehlalarm im 24-h-Lauf mit gesunder Quelle | während des Baus Stufe 3 |
 | M-16 | UDP und Multicast im Container | Bridge, Host-Netz, macvlan/ipvlan (V-6) | CT 190, Heimnetz | Multicast kommt in keiner Netzart an; Paketverlust über 0,1 % ohne Last | Baufreigabe Stufe H (V-6) |
-| M-17 | Vorladen: Gewinn gegen Verbindungen und Bandbreite | Benchmark mit und ohne | Referenz, Testserver «nur eine Verbindung» | kein Gewinn im Median: Vorgabe «aus» (F-9) | während des Baus Stufe 3 |
-| M-18 | Reverse-Proxy | Abruf der Segmente, Zwischenpufferung | dein Aufbau | Segment-Verzögerung > 200 ms gegen direkt | Abnahme Stufe 1 |
+| M-17 | Vorladen: Gewinn gegen Verbindungen und Bandbreite | Benchmark mit und ohne | Referenz, Testserver «nur eine Verbindung» | kein Gewinn im Median: Ergebnis an Marco zu F-9; ein Messergebnis ändert den Werkszustand nicht von selbst | während des Baus Stufe 3 |
+| M-18 | Reverse-Proxy | Abruf der Segmente, Zwischenpufferung | dein Aufbau | Segment-Verzögerung > 200 ms gegen direkt | Abnahme Stufe 1a |
 | M-19 | Lange Wiedergabelisten | 60 min und mehr | Android-TV-Gerät | Einlesen > 500 ms | während des Baus Stufe 4 |
 | M-20 | Stichprobe mit Dekodieren | Filter im Image, Kosten | Image, CT 190 | Kosten > 10 % eines Kerns je Stichprobe | Stufe E (bei `04` F-14 (b) Stufe 3; `18` D-5) |
 | M-21 | Teilstücke unter einer Bildgruppe | Q-C, Q-D | vorhandene Player | Abspielfehler | nur falls Fall 3 sonst verfehlt |
-| M-22 | Zeitüberlauf nach 26,5 h und 53 h | vorgestellter Zeitstempel | Referenz, Player | Abbruch oder Sprung > 1 s im Direktweg; FFmpeg darf keinen Überlauf erleben (Lauf ≤ 24 h) | während des Baus Stufe 1 |
+| M-22 | Zeitüberlauf nach 26,5 h und 53 h | vorgestellter Zeitstempel | Referenz, Player | Abbruch oder Sprung > 1 s im Direktweg; FFmpeg darf keinen Überlauf erleben (Lauf ≤ 24 h) | während des Baus Stufe 1a |
 | M-23 | RTSP und RTMP nur über Dialer | Dialer, der alles ablehnt | Testserver | eine Verbindung am Dialer vorbei | Baufreigabe Stufe L (V-11) |
 | M-24 | Untertitel DVB, Teletext | Testquelle | Media3 | – | Apps, Stufe E |
-| M-25 | Eindämmung (Landlock-Fassung, Filter für Systemaufrufe, Grenzen, Compose-Härtung) | Prüfreihe mit Einstellungen (V-4) | CT 190, Entwicklungsrechner | Sperre nicht hart setzbar oder Prüfreihe rot | Baufreigabe Stufe 1 und Stufe 0 (Härtung) (V-4); Baufreigabe Stufe W |
+| M-25 | Eindämmung (Landlock-Fassung, Filter für Systemaufrufe, Grenzen, Compose-Härtung) | Prüfreihe mit Einstellungen (V-4) | CT 190, Entwicklungsrechner | Sperre nicht hart setzbar oder Prüfreihe rot: auf diesem Host keine Live-Umwandlung (nur Direktweg) | Baufreigabe der Stufen 0 und 1a (V-4); Baufreigabe Stufe W |
+| M-26 | **Verhalten deiner Anbieter bei einer zweiten Verbindung:** Ablehnung (Code), Trennen der älteren, verzögerte Freigabe; am Testserver die drei Fälle gegen die Regeln aus `04` 5.3 (höchstens ein Wechsel, keine Schleife, keine Sperre) | deine Zugänge mit Einverständnis je Zugang; Testserver «nur eine Verbindung» | CT 190 | eine Schleife oder mehr als ein Wechsel am Testserver; eine Sperre ohne Ursache; an echten Zugängen nur Kennzahlen | Baufreigabe Stufe 1a (Stufe V) |
 
 ### 10.3 Messpunkte aus `09`
 
@@ -803,12 +912,12 @@ Die Abbruchkriterien sind **Vorschläge** dieses Dokuments; die verbindliche Fas
 | Nr. | Was | Methode | Hardware | Abbruchkriterium (Vorschlag) | Wann (`18`) |
 |---|---|---|---|---|---|
 | **13 M-1** (= V-8) | **72-h-Dauerempfang** | Empfänger aus Stufe 1, gehalten durch einen Haltegrund nur im Testbau, 20 Testsender des Simulators, keine Zuschauer; alle 60 s: Prozessspeicher, Belegung Byte-Budget, Deskriptoren, Goroutinen, CPU je Kern | CT 190 | Leck nach `17` 7: nach 1 h Einschwingen Prozessspeicher über 10 % höher, Goroutinen oder Deskriptoren mehr als 5 mehr; oder ein Strom bricht ohne Ursache der Quelle ab | **Baufreigabe Stufe 3**; der 7-Tage-Lauf (`05` M-12) ist Abnahme Stufe 3 |
-| **13 M-2** | **Zapping-Dauerlauf 1'000 Wechsel** | Skript über die API: je 1 s ein Wechsel durch 20 Sender, Mischung aus Original, Ton- und Bild-Umwandlung; vorher und 60 s nachher zählen: Goroutinen, Deskriptoren, FFmpeg-Prozesse, Eingangsströme, Prozessspeicher; dazu der Testserver «nur eine Verbindung» (`04` 8.5) | CT 190 | nach dem Lauf mehr FFmpeg-Prozesse oder Eingangsströme als vorher; Goroutinen oder Deskriptoren mehr als ± 5; Prozessspeicher über 10 % höher; eine gesperrte Quelle | Abnahme Stufe 1 (ohne Vorladen); Abnahme Stufe 3 (mit Vorladen) |
-| **13 M-3** | **20 Zuschauer, ein Sender** | 20 Clients (Headless-Browser und `hlsbench`-Muster), Q-B Original, 30 min; Ausgang, Rechenzeit, Prozessspeicher, p95 der Segmentantwort, Stockungen; Wiederholung mit Recht «Timeshift» (Schreiblast, Toleranz) | CT 190, Heimnetz Kabel | p95 Segmentantwort über 500 ms; mehr als eine Stockung je Client und 10 min; Prozessspeicher über Rechnung + 50 % | Abnahme Stufe 1 (ohne Timeshift); Abnahme Stufe 4 (mit Timeshift) |
-| **13 M-4** | **Aufnahme unter Last** | 5, dann 10 Aufnahmen auf verschiedenen Sendern, dazu 5 Zuschauer, ein EPG-Import und eine Filmumwandlung, 2 h; einmal mit NAS-Unterbruch von 30 s; Lücken, Byte-Budget, Schreiblast | CT 190 mit SSD und mit NAS | eine Lücke ohne Ursache der Quelle oder des Speicherorts; bei NAS-Unterbruch von 30 s eine Lücke bei bis zu 6 Aufnahmen (Toleranz nach 3.4) | Baufreigabe Stufe 5 (zusammen mit V-7) |
-| **13 M-5** | **Arbeitsspeicher je FFmpeg-Umwandlung** | Spitzen-RSS je Prozess für Ton, Bild HD, Bild mit Zeilensprung, je Backend, 10 min | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | Abweichung über 50 % von 1.3: Werte in Abschnitt 3 und 4 neu rechnen | während des Baus Stufe 1, zusammen mit M-8 |
-| **13 M-6** | **Wirkung auf die Dateiwiedergabe** | Filmstart (wie `docs/perf/wiedergabestart.md`) und Echtzeitfaktor einer Filmumwandlung, einmal ohne Live, einmal mit 10 Dauersendern, 2 Bild-Umwandlungen und 2 Aufnahmen; je Backend QSV und Software | CT 190 | Filmstart über das Doppelte von 0,87 s, oder Filmumwandlung unter 1,0-facher Echtzeit: P-7, P-8 entscheiden (`18` U-9) | Abnahme Stufe 1; erneut Abnahme Stufe 3 und Stufe 5 |
-| **13 M-7** | **Überlast-Übung** | jeden Engpass aus 8.2 einmal auslösen: Speicherort voll bis zur Reserve, Netzlaufwerk getrennt, Ringe des Byte-Budgets voll, Einheiten voll, Obergrenze der Ströme, dauerhafter Sender zurückgestellt und wieder angelaufen, Karenz nur nach Gehen des Zuschauers, Quelle weg, Ablehnung 403, CPU mit Fremdlast gesättigt; Prüfung der Rangfolge und der Meldungen | CT 190 | Abbruch des Servers, Beenden einer laufenden Wiedergabe oder Aufnahme, oder Reihenfolge anders als `04` 8.2 | Abnahme Stufe 3; Teile für Aufnahmen und Speicherorte zur Abnahme Stufe 5 |
+| **13 M-2** | **Zapping-Dauerlauf 1'000 Wechsel** | Skript über die API: je 1 s ein Wechsel durch 20 Sender, Mischung aus Original, Ton- und Bild-Umwandlung; vorher und 60 s nachher zählen: Goroutinen, Deskriptoren, FFmpeg-Prozesse, Eingangsströme, Prozessspeicher; dazu der Testserver «nur eine Verbindung» (`04` 8.5) | CT 190 | nach dem Lauf mehr FFmpeg-Prozesse oder Eingangsströme als vorher; Goroutinen oder Deskriptoren mehr als ± 5; Prozessspeicher über 10 % höher; eine gesperrte Quelle | Abnahme Stufe 1a (ohne Vorladen); Abnahme Stufe 3 (mit Vorladen) |
+| **13 M-3** | **20 Zuschauer, ein Sender** | 20 Clients (Headless-Browser und `hlsbench`-Muster), Q-B Original, 30 min; Ausgang, Rechenzeit, Prozessspeicher, p95 der Segmentantwort, Stockungen; Wiederholung mit Recht «Timeshift» (Schreiblast, Toleranz) | CT 190, Heimnetz Kabel | p95 Segmentantwort über 500 ms; mehr als eine Stockung je Client und 10 min; Prozessspeicher über Rechnung + 50 % | Abnahme Stufe 1a (ohne Timeshift); Abnahme Stufe 4 (mit Timeshift) |
+| **13 M-4** | **Aufnahme unter Last** | 5, dann 10 Aufnahmen auf verschiedenen Sendern, dazu 5 Zuschauer, ein EPG-Import und eine Filmumwandlung, 2 h; einmal mit NAS-Unterbruch von 30 s; Lücken, Byte-Budget, Schreiblast | CT 190 mit SSD und mit NAS | eine Lücke ohne Ursache der Quelle oder des Speicherorts; bei NAS-Unterbruch von 30 s eine Lücke bei bis zu 6 Aufnahmen ohne Umwandlung daneben (Toleranz nach 3.4); Ablehnung einer Aufnahme wegen des Rückstaus | Baufreigabe Stufe 5 (zusammen mit V-7) |
+| **13 M-5** | **Arbeitsspeicher je FFmpeg-Umwandlung** | Spitzen-RSS je Prozess für Ton, Bild HD, Bild mit Zeilensprung, je Backend, 10 min | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | Abweichung über 50 % von 1.3: Werte in Abschnitt 3 und 4 neu rechnen | während des Baus Stufe 1a, zusammen mit M-8 |
+| **13 M-6** | **Wirkung auf die Dateiwiedergabe** | Filmstart (wie `docs/perf/wiedergabestart.md`) und Echtzeitfaktor einer Filmumwandlung, einmal ohne Live, einmal mit 10 Dauersendern, 2 Bild-Umwandlungen und 2 Aufnahmen; je Backend QSV und Software | CT 190 | Filmstart über das Doppelte von 0,87 s, oder Filmumwandlung unter 1,0-facher Echtzeit: P-7, P-8 entscheiden (`18` U-9) | Abnahme Stufe 1a; erneut Abnahme Stufe 3 und Stufe 5 |
+| **13 M-7** | **Überlast-Übung** | jeden Engpass aus 8.2 einmal auslösen: Speicherort voll bis zur Reserve, Netzlaufwerk getrennt, Ringe des Byte-Budgets voll, Einheiten voll, Obergrenze der Ströme durch Dauersender belegt (neuer Zuschauer wird abgelehnt, kein Dauersender weicht), Dauersender, der beim Start keinen Platz hat (zurückgestellt und wieder angelaufen), Karenz nur nach Gehen des Zuschauers, Quelle weg und Startfristen, Quelle entfernt (Empfänger enden innert 5 s), Muster A und B am Testserver (Ruhen des vorsorglichen Empfangs, Ein-Strom-Betrieb), Sperre fehlt (nur Direktweg), CPU mit Fremdlast gesättigt; Prüfung der Rangfolge und der Meldungen | CT 190 | Abbruch des Servers, Beenden einer laufenden Wiedergabe, Aufnahme oder eines laufenden Dauersenders, oder Reihenfolge anders als `04` 8.2 | Abnahme Stufe 3; Teile für Aufnahmen und Speicherorte zur Abnahme Stufe 5 |
 
 **Was heisst das für dich:** Vor jeder Stufe steht, was gemessen sein muss. Die Lastmessungen 13 M-1 bis
 13 M-7 zeigen, ob die Rechnungen dieses Dokuments halten; erst danach gelten die Zahlen in Abschnitt 4 als
@@ -819,11 +928,12 @@ Empfehlung mit Beleg.
 | Nr. | Punkt | Stand |
 |---|---|---|
 | 13 O-1 | Kopien je Segmentabruf ausserhalb des Byte-Budgets | **erledigt durch `04` 8.1**: Blöcke zu 256 KiB, höchstens zwei Abrufe je Sitzung, rund 10 MB bei 20 Sitzungen |
-| 13 O-2 | Rückstau reserviert oder bei Gebrauch gezählt | **erledigt durch `04` 8.1**: nur Ringe reserviert (höchstens drei Viertel), Rückstau bei Gebrauch im Rest |
+| 13 O-2 | Rückstau reserviert oder bei Gebrauch gezählt | **erledigt durch `04` 8.1**: Ringe (höchstens drei Viertel) und Puffer der Umwandlungen reserviert, Rückstau bei Gebrauch mit Mindestteil je Aufnahme |
 | 13 O-3 | Software-Backend: Live-Anteil kleiner als eine Bild-Umwandlung | **erledigt durch `04` 7.6**: Ausnahme bei Übergrösse gilt auch für Live, eine Bild-Umwandlung zur selben Zeit |
-| 13 O-4 | Slouchcat kennt den Internetanschluss nicht. Eine Angabe des Administrators («Anschluss hat X Mbit/s») würde erlauben, Vorladen und «automatisch» vor der Sättigung abzubauen. Das wäre neu und gehört als Vorschlag in `15`. | offen (`15`, `20`) |
+| 13 O-4 | Slouchcat kennt den Internetanschluss nicht. Eine Angabe des Administrators («Anschluss hat X Mbit/s») würde erlauben, Vorladen und «automatisch» vor der Sättigung abzubauen. Das wäre neu und gehört als Vorschlag in `15`. | offen → `20` E-28-33 |
 | 13 O-5 | Für die Ausgangsbandbreite gibt es keine Erkennung im Server. Ob der Herzschlag des Clients Stockungen meldet und die Verwaltung sie zeigt, ist nicht spezifiziert. | offen (`08`, `15`) |
-| 13 O-6 | Wert der angehobenen Grenze offener Dateien in der Compose-Datei (`04` 10.6, `18` Schritt 0.6). Nach Rechenwert reichen für 50 Zuschauer und 50 Sender rund 500 Deskriptoren; ein Wert von 65'536 liesse grosse Reserve ([A]). | offen (Bau Stufe 0) |
+| 13 O-6 | Wert der angehobenen Grenze offener Dateien in der Compose-Datei (`04` 10.6, `18` Schritt 0.6). Nach Rechenwert reichen für 50 Zuschauer und 50 Sender rund 500 Deskriptoren; ein Wert von 65'536 liesse grosse Reserve ([A]). | offen (Bau Stufe 0; `20` OT-28-54) |
+| 13 O-8 | Lässt die Zulassung einer Umwandlung die Mindestteile der laufenden Aufnahmen frei (meine Lesart von `04` 8.1, Rechnung in 3.4, Zeile «lange Bildgruppen»)? `04` sagt, eine Umwandlung könne den Mindestteil nicht nehmen, nennt die Prüfung bei der Zulassung aber nicht ausdrücklich. | offen (`04` 8.1) |
 | 13 O-7 | Schreibt jedes Einstellen in SQLite? | **erledigt durch `07`**: `live_session_tunes` erst mit dem ersten ausgelieferten Segment; Rechnung in 6.1 |
 
 ## 12. Hinweise an andere Dokumente (nicht stillschweigend korrigiert)
@@ -836,12 +946,12 @@ Die Nummern aus Fassung 1 bleiben; Erledigtes steht mit Verweis.
 | H-2 | `04` 6.3 und 8.5 | Vorgaben schliessen grosse Szenarien ab Werk aus | **erledigt**: `04` 6.3 nennt sie Schutzwerte, keine Kapazitätsaussage |
 | H-3 | `05` 3.6 | Ringe ohne Faktor 1,03 | **erledigt** in `05` 3.6 (77, 309, 773, 1545 MB) |
 | H-4 | `05` M-12 | 72 h gegen 7 Tage | **erledigt**: 72 h Tor zur Baufreigabe Stufe 3 (V-8), 7 Tage Abnahme Stufe 3 |
-| H-5 | `04` 8.1 | Weg W ausserhalb des Live-Anteils | **erledigt**: innerhalb (`04` 8.1); `18` ist noch nicht nachgezogen (H-10) |
-| H-6 | `15` F-20 | «100 GB ≈ 17 h HD» falsch (27,8 h) | an `15` weitergegeben (`04` 15.1); offen, bis `15` nachgeführt ist |
-| H-7 | `15` 3.15 | Höchstdauer 2 h und 64 GB | massgeblich 60 min und der kleinere Wert aus 20 % und 50 GB (`04` 14.6); an `15` weitergegeben (`04` 15.1) |
+| H-5 | `04` 8.1 | Weg W ausserhalb des Live-Anteils | **erledigt**: innerhalb (`04` 8.1) |
+| H-6 | `15` F-20 | «100 GB ≈ 17 h HD» falsch (27,8 h) | **erledigt** (`04` 15.1, in `15` nachgeführt; Review 4 RG-18) |
+| H-7 | `15` 3.15 | Höchstdauer 2 h und 64 GB | **erledigt**: massgeblich 60 min und der kleinere Wert aus 20 % und 50 GB (`04` 14.6), in `15` nachgeführt (RG-18) |
 | H-8 | `04` 7.6 | Software-Backend fehlt in der Kapazitätstabelle | **erledigt**: «Kleines Budget» in `04` 7.6 |
-| H-9 | `04` 8.3, Zeile «Arbeitsspeicher knapp» | Dort steht weiter «Ringe und Rückstau sind reserviert». Das widerspricht `04` 8.1 und 14.3 (Rückstau bei Gebrauch). Dieses Dokument folgt 8.1. | **offen in `04`** |
-| H-10 | `18` | Stellen auf dem Stand vor `04` Fassung 3: Abschnitt 9 «FFmpeg-Empfänger des Wegs W ausserhalb des Live-Anteils» und 4.11 Risiko «nimmt Einheiten aus dem Teil der Filme (`13` H-5)»; 4.8 Risiko «Byte-Budget reicht nicht für zehn HD-Aufnahmen (`13` H-1)»; V-3 misst Listen mit 1, 2, 3 Segmenten, `05` M-5 verlangt 1, 3, 6; V-7 nennt `13` O-2 (erledigt); 2.1 «vor Stufe 5» nennt `13` P-9 (erledigt) | **offen in `18`** |
+| H-9 | `04` 8.3, Zeile «Arbeitsspeicher knapp» | «Ringe und Rückstau sind reserviert» widersprach `04` 8.1 | **erledigt** in `04` Fassung 4 |
+| H-10 | `18` | Stellen auf dem Stand vor `04` Fassung 3: Abschnitt 9 «FFmpeg-Empfänger des Wegs W ausserhalb des Live-Anteils» und 4.11 Risiko «nimmt Einheiten aus dem Teil der Filme (`13` H-5)»; 4.8 Risiko «Byte-Budget reicht nicht für zehn HD-Aufnahmen (`13` H-1)»; V-3 misst Listen mit 1, 2, 3 Segmenten, `05` M-5 verlangt 1, 3, 6; V-7 nennt `13` O-2 (erledigt); 2.1 «vor Stufe 5» nennt `13` P-9 (erledigt) | **erledigt** in `18` (Review 4 RG-18); offen bleibt nur, dass `18` 2.2 den neuen Messpunkt M-26 noch nicht als Versuch führt (Stand `18` Fassung 2) |
 
 ## 13. Abdeckung
 
@@ -927,3 +1037,34 @@ Die Nummern aus Fassung 1 bleiben; Erledigtes steht mit Verweis.
 - **Abschnitt 12:** H-1 bis H-5 und H-8 erledigt; H-6, H-7 an `15` weitergegeben; neu H-9 (`04` 8.3) und H-10
   (`18`).
 - Restebereinigung nach Konsolidierung 1: M-20 in Stufe E, bei `04` F-14 (b) in Stufe 3 (`18` D-5, `20` U-12).
+
+### Fassung 2 → 3 (Schlussbereinigung nach den Reviews 4, 5, 6)
+
+- **Dauerempfang (Review 4 RG-02):** Ein laufender Dauersender weicht niemandem (Vorgabe nach LTV-002);
+  «zurückgestellt» nur, wenn er nicht starten kann. Richtiggestellt in 3.1 (der Satz «Vorgabe F-4 (a)» war
+  falsch), 3.4, 8.1 (Rangfolge ohne Stufe «Dauersender weichen», Mermaid), 8.2 (neue Zeile «Dauersender kann
+  nicht starten»), 8.3 (P-1 mit Vorgabe), 13 M-7. Variante F-4 (a) getrennt gerechnet (3.1, 8.3).
+- **Kein Schalter je Quelle (RG-03):** Fall 2 in 9, Familienabend in 3.6, Vorladen in 4 (nur global und je
+  Sender); Muster A und B mit Ruhen des vorsorglichen Empfangs (30 min, 6 h, 24 h) und Ein-Strom-Betrieb in 8.1
+  und 8.2; P-3 und P-5 mit Vorgabe (keine Einstellung je Quelle; Vorladen global an).
+- **Ring 15 bis 30 s (T-7, RB-01):** 1.1, 1.3, 3.1 (Spalte «Ringe 30 s», Budgets 824 MB für 20 und 2060 MB
+  für 50 Sender bei langen Bildgruppen; die Wege «Ring auf 4 oder 7 s kürzen» gestrichen), 3.4 (Zeile lange
+  Bildgruppen), 4. Sender mit Segmenten über 10 s brauchen ohne Sitzungspuffer eine Bild-Umwandlung (1.2, 3.5).
+- **Byte-Budget (RB-08):** Puffer jeder Umwandlung bei Zulassung reserviert (16,8 MB), Mindestteil 16 MiB je
+  Aufnahme; 2, 3.3 (RAM-Zahlen), 3.4 (Spalte mit 8 Umwandlungen daneben: 10 HD-Aufnahmen 22 s, wie `04` 8.1),
+  3.6, 8.2; Speichergrenze der Go-Laufzeit (1.3, 7, M-13). Neu 13 O-8 zur Zulassung neben den Mindestteilen.
+- **Live-Anteil als Obergrenze** (Review 5 Abschnitt 7): 1.5, 2, 3.5, 7.
+- **Sperre (RT-01):** kein Live-FFmpeg ohne wirksame Sperre; Kapazität ohne Sperre nur Direktweg (0, 1.2,
+  1.5, 3.3, 3.5, 4, 8.2, 9); M-25 vor der Baufreigabe der Stufen 0 und 1a.
+- **Rückfall «fMP4 je Sitzung» (Review 5 Abschnitt 9, `04` 7.6):** Kostenrechnung je Installationsgrösse in
+  3.5. **Einbrennen von Untertiteln** nur als Variante von `04` F-15 (1.5, 3.5).
+- **Drei Startfristen (RB-02):** Abschnitt 9 (Abbruchgrenzen, keine Zielwerte), 8.2 Zeile «Quelle».
+- **Quelle entfernt oder geändert (RB-05, RT-06):** neue Zeile in 8.2 (Empfänger enden innert 5 s; nur
+  Deaktivieren lässt Laufendes bis 12 h weiterlaufen).
+- **Messplan:** neuer Messpunkt M-26 (10.1, 10.2); M-2 mit der Verteilung der Bildgruppen; M-13 mit Ring
+  30 s und Speichergrenze der Go-Laufzeit; Stufen nach `18` auf 1a gezogen; Abbruchkriterium von M-17 so
+  gefasst, dass ein Messergebnis keinen Werkszustand ändert (Review 4, Befund zu `17` AK-L-083).
+- **Grundregel (RG-01, RG-08):** Lesart und Kopf: bis zur Antwort gilt die wortlauttreue Vorgabe; Safari,
+  iPhone, iPad «vorgesehen, ungeprüft ohne Gerät»; jede Kapazitäts- und Zielwertaussage als Rechnung.
+- **Vorrangkonflikte** mit Verweis auf `20` (E-28-02, -14, -29, -30, -33, -36, -40, -49).
+- **Abschnitt 12 (RG-18):** H-6, H-7, H-9, H-10 erledigt; offen nur M-26 als Versuch in `18` 2.2.
