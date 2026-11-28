@@ -531,11 +531,27 @@ Web-Änderungen brauchen immer den e2e-Pfad.
   nimmt keinen übersprungenen Job als Beleg. `main` prüft den gemergten Inhalt also voll. Ein Bruch
   über eine Kante, die die Karte nicht kennt, zeigt sich dort, nicht vorher; es gibt keinen
   automatischen Revert.
-- **Die Karte gegen den Code:** `.github/scripts/affected-jobs.test.sh` hält die Karte in 28 Fällen
-  fest und gegen die 20 Lesezugriffe über Modulgrenzen, die eine Suche in den Go-Tests (`server/`,
-  `relay/`), den Gradle-Builds und den e2e-Helfern findet. Der Test läuft im Job `changes` selbst
-  (Bash und grep, rund eine Sekunde): Ein PR, der einen neuen Lesezugriff einführt, den die Karte
-  nicht abdeckt, macht das Gate rot, bevor er einen nötigen Job überspringt.
-- Restrisiko, benannt: Was die Suche nicht sieht (ein Pfad, der zur Laufzeit zusammengesetzt wird),
-  deckt nur der volle Lauf auf `main`. Wer einen neuen Lesezugriff über Modulgrenzen schreibt, trägt
-  ihn in `affected-jobs.sh` ein.
+- **Die Karte gegen den Code:** `.github/scripts/affected-jobs.test.sh` hält die Karte in 41 Fällen
+  fest und gegen alle 161 Lesezugriffe über Modulgrenzen, die eine Suche heute findet: relative Pfade
+  aus einem Modul hinaus in Go, Kotlin, Gradle, TypeScript, Shell und den Taskfiles,
+  `filepath.Join("..", …)`, die Muster `$(cd ../x && pwd)/datei` und `go -C ../server tool`,
+  Pfadtexte in Dateien, die die Wurzel des Repos berechnen (`logoMark.test.ts`,
+  `StringsGeneratorTest`), und die Quellen von `COPY` in den Dockerfiles. Je Fund ordnet der Test
+  der lesenden Datei ihre Jobgruppe zu; eine lesende Datei ohne bekannte Gruppe macht ihn rot. Er
+  läuft auf jedem PR im Job `changes` selbst (Bash und `git grep`, rund vier Sekunden): Ein PR, der
+  einen neuen Lesezugriff einführt, den die Karte nicht abdeckt, macht das Gate rot, bevor er einen
+  nötigen Job überspringt. Ein Mutationstest belegt es: Fehlt eine der Kanten (Launcher-Icons → web,
+  Mock-Server → android_server, App-Icon → android, LICENSE → relay, relay → android_server,
+  Store-Grafiken → web), meldet der Test sie.
+- **Gate und Bedingung passen zusammen:** `ciworkflows` (`task ci:workflows`) prüft, dass ein Job,
+  der nur für seine Gruppe läuft (`run_<gruppe>` in `if:`), im Gate genau dieselbe Gruppe nennt,
+  dass das Gate die Gruppe aus der Ausgabe von `changes` liest und dass ein Job ohne Gruppe kein
+  Flag trägt.
+- **Doku enger gefasst:** `docs-only.sh` zählt Markdown in `server/`, `relay/`, `android/`,
+  `testdata/`, `scripts/` und `api/` nicht mehr als Doku, ebenso `docs/store/grafiken/` (der
+  Logo-Test liest sie). Release-Notes gelten nur noch auf der obersten Ebene und unter `docs/` als
+  Doku.
+- Restrisiko, benannt: Die Suche sieht keinen Pfad, der aus Variablen in anderer Form zusammengesetzt
+  wird, und keinen, den ein Werkzeug aus seiner eigenen Konfiguration liest. Das deckt nur der volle
+  Lauf auf `main` auf. Wer einen solchen Lesezugriff über Modulgrenzen schreibt, trägt ihn in
+  `affected-jobs.sh` und in die Tabelle des Tests ein.

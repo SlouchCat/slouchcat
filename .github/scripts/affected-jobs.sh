@@ -50,11 +50,20 @@ while IFS= read -r path; do
     # ... and the relay services (android/Taskfile.yml, :relay:build).
     relay/*) add relay android_server ;;
     deploy/relay/*) add relay ;;
+    # The launcher icons are held to the logo by a web test as well (web/src/ui/logoMark.test.ts).
+    android/app-*/src/main/res/drawable/*) add android android_server web ;;
     android/* | scripts/android-*) add android android_server ;;
     # The Android strings are generated from the web locales (android/core/strings).
     web/src/locales/*) add web e2e image android android_server ;;
-    # Server tests read these two web files (internal/trackpick, internal/auth).
+    # The server's track choice reads the player's labels (internal/trackpick, languages_test.go).
+    # pin.ts derives the offline PIN's verifier the server checks (internal/auth, TestPBKDF2Vectors
+    # names it); no server test reads the file, the edge is kept as a precaution.
     web/src/features/player/labels.ts | web/src/features/offline/pin.ts) add web e2e image server ;;
+    # The mock servers of the e2e suite; the Android contract and emulator jobs start them too
+    # (scripts/android-helpers.sh: Seerr, TMDB, radio; the Seerr mock imports the Arr mock).
+    web/e2e/*-server.mjs) add web e2e image android_server ;;
+    # The app icon; the Android launcher test reads it (app-mobile, LauncherIconTest).
+    web/public/icon.svg) add web e2e image android ;;
     web/*) add web e2e image ;;
     # The tokens are generated into Kotlin as well (android/core/design).
     packages/design-tokens/*) add web e2e image android android_server ;;
@@ -62,7 +71,13 @@ while IFS= read -r path; do
     # Read by the server, relay and Android tests and by the e2e suite (media, feeds, radio).
     testdata/*) add server relay android android_server e2e ;;
     # The image, and the updater's handling of the deploy files.
-    deploy/* | LICENSE) add image server ;;
+    deploy/*) add image server ;;
+    # The images of the server and of the relay services copy it (deploy/Dockerfile,
+    # deploy/relay/*/Dockerfile).
+    LICENSE) add image server relay ;;
+    # The store graphics are held to the logo by a web test (web/src/ui/logoMark.test.ts);
+    # .github/scripts/docs-only.sh does not count them as documentation.
+    docs/store/grafiken/*) add web ;;
     scripts/i18n/*) add web ;;
     # Run by task ci:workflows in the job "server (generators, linters)".
     scripts/ci-failures*) add server ;;

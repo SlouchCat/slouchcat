@@ -133,11 +133,23 @@ tasks:
       - Taskfile.yml
       - scripts/ci-failures*.sh
       - server/tools/ciworkflows/**/*
-      # The map of affected jobs is checked against the files these read (affected-jobs.test.sh).
+      # The map of affected jobs is checked against the files these read (affected-jobs.test.sh:
+      # the readers of its search, and the paths whose change it decides).
       - server/**/*.go
       - relay/**/*.go
+      - android/**/*.kt
       - android/**/*.kts
+      - web/src/**/*
       - web/e2e/**/*
+      - web/public/**/*
+      - web/*.ts
+      - packages/*/src/**/*
+      - packages/*/test/**/*
+      - scripts/**/*
+      - "*/Taskfile.yml"
+      - deploy/**/*
+      - docs/store/grafiken/**/*
+      - LICENSE
       - server/go.mod
       - server/go.sum
     cmds:

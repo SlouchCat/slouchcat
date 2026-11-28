@@ -115,11 +115,22 @@ jobs:
       # checks the merged content in full.
       # The map holds against the code: a test or build that reads a file across a module
       # boundary the map does not cover makes this job red, and with it the gate, before a pull
-      # request can skip a job it needs. Bash and grep only, a second or two; here rather than in
-      # task ci:workflows alone, because that runs in a job the map may skip.
+      # request can skip a job it needs. Bash and git grep only, a few seconds; here rather than in
+      # task ci:workflows alone, because that runs in a job the map may skip. Only on a pull
+      # request: everything else runs every job anyway. What it prints names paths of the pull
+      # request's code, so workflow commands are off meanwhile.
       - name: The map of affected jobs holds against the code
-        run: .github/scripts/affected-jobs.test.sh
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          stop=$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')
+          echo "::stop-commands::$stop"
+          status=0
+          .github/scripts/affected-jobs.test.sh || status=$?
+          echo "::$stop::"
+          exit "$status"
 
+      # Everything but a pull request runs every group: affected-jobs.sh answers "all" to no input.
       - id: affected
         env:
           EVENT: ${{ github.event_name }}
@@ -128,7 +139,7 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             .github/scripts/affected-jobs.sh < changed.txt | tee -a "$GITHUB_OUTPUT"
           else
-            for g in server relay android android_server web e2e image; do echo "run_$g=true"; done | tee -a "$GITHUB_OUTPUT"
+            .github/scripts/affected-jobs.sh < /dev/null | tee -a "$GITHUB_OUTPUT"
           fi
 
       - id: tested
