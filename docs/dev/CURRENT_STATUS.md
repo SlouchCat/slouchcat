@@ -1,8 +1,8 @@
 # Aktueller Stand
 
-## CI-Optimierung M9: Pull Requests prüfen nur, was ihre Änderung erreichen kann (28. November 2026)
+## CI-Optimierung M9: Pull Requests prüfen nur, was ihre Änderung erreichen kann (28. November 2026, PR #245)
 
-Zweig `claude/ci-change-detection`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
+PR #245, Zweig `claude/ci-change-detection`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
 umzusetzen (`docs/perf/ci-optimierungsplan.md`, M9; ADR 0013, Nachtrag M9; Messung `docs/perf/ci.md`,
 Abschnitt 12).
 

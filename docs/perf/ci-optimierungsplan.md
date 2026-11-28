@@ -10,7 +10,7 @@ Rest selbständig umzusetzen): M6 Cache-Haushalt, H2 Release-Härtung und M8 (zw
 waren schon behoben; ADR 0013, Nachtrag Welle 3;
 `docs/perf/ci.md`, Abschnitt 11). Die Ursache der Verdrängung war anders als zuerst angenommen: nicht
 die Grösse der Caches allein, sondern die vielen neuen Einträge je Push auf main. **M9** (Change
-Detection je Jobgruppe) ist danach in einem eigenen PR umgesetzt (ADR 0013, Nachtrag M9; die Karte an
+Detection je Jobgruppe) ist danach in PR #245 umgesetzt (ADR 0013, Nachtrag M9; die Karte an
 30 echten PRs: `docs/perf/ci.md`, Abschnitt 12). **M10** bleibt zurückgestellt, weil server-test nicht
 der Pol ist (Abschnitt 12). **H1** sind Einstellungen und bleiben bei Marco: Das Ruleset für main
 steht, offen sind die Tag-Rulesets, die Umgebung `android-release` und Secret Scanning.
