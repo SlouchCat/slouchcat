@@ -11,6 +11,8 @@ const fmt = LU.fmt;
 function liveGate(path) {
   const r = SIM.rights();
   const nf = () => ({ nav: '', html: `<div class="page soon"><span class="soon-ic">${icon('alert', 88)}</span><h1>Nicht gefunden</h1><p>Diese Seite gibt es nicht.</p><button type="button" class="tb primary" data-act="go" data-to="#/" data-f="nf-home" data-default>${icon('home', 32)}<span>Zur Startseite</span></button></div>` });
+  /* right taken away while watching (mockup state «Recht entzogen …»): the player shows the message (14, 4.12) */
+  if (SIM.flags().revoked && path.startsWith('/live/watch/')) return null;
   if (path.startsWith('/live') && !r.liveTv) return nf();
   if (/^\/live\/(recordings|scheduled)/.test(path) && !r.recordings) return nf();
   if (path === '/live/recordings/profiles' && !SIM.profile().primary) return nf();
@@ -93,7 +95,7 @@ const LiveDlg = {
 };
 const DIALOG_DEMO = {
   'LD-01': () => LiveDlg.planRecording('p-zdf-1215'), 'LD-02': () => LiveDlg.seriesRecording('p-daserste-2655'), 'LD-03': () => LiveDlg.manualRecording({ ch: 'telezueri' }),
-  'LD-04': () => LiveDlg.instantRecording('srfzwei'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
+  'LD-04': () => LiveDlg.instantRecording('zdf'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
   'LD-07': () => LiveDlg.warning('w-quota'), 'LD-08': () => LiveDlg.pickTime({ day: 0, time: 1215 }), 'LD-10': () => LiveDlg.zapConfirm({ to: 'zdf' }), 'LD-11': () => LiveDlg.retention('rec-arena'),
 };
 ACT.demoDialog = (d) => DIALOG_DEMO[d.id] && DIALOG_DEMO[d.id]();

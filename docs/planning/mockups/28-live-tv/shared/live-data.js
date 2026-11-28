@@ -17,13 +17,14 @@
   /* ---------- account and profiles ---------- */
   const account = {
     id: 'acc-keller', name: 'Familie Keller', email: 'familie.keller@example.ch',
-    quotaGB: 200, usedGB: 142,
+    quotaGB: 200, usedGB: 142, // start value at 20:41; LIVE_SIM.usage() computes it from the recordings
     rights: { liveTv: true, recordings: true, timeshift: true }, // cap set by the server admin (LA-22)
   };
   const profiles = [
-    { id: 'anna', name: 'Anna', primary: true, age: null, accent: 'a1', rights: { liveTv: true, recordings: true, timeshift: true }, usedGB: 82 },
-    { id: 'luca', name: 'Luca', primary: false, age: 16, accent: 'a2', rights: { liveTv: true, recordings: true, timeshift: true }, usedGB: 6.1 },
-    { id: 'mia', name: 'Mia', primary: false, age: 6, accent: 'a3', rights: { liveTv: true, recordings: true, timeshift: false }, usedGB: 3.3 },
+    /* usage is not stored: LIVE_SIM.usage() adds up the recordings (Anna 82 GB, Luca 56.7 GB, Mia 3.3 GB at 20:41) */
+    { id: 'anna', name: 'Anna', primary: true, age: null, accent: 'a1', rights: { liveTv: true, recordings: true, timeshift: true } },
+    { id: 'luca', name: 'Luca', primary: false, age: 16, accent: 'a2', rights: { liveTv: true, recordings: true, timeshift: true } },
+    { id: 'mia', name: 'Mia', primary: false, age: 6, accent: 'a3', rights: { liveTv: true, recordings: true, timeshift: false } },
   ];
   const timeshiftMaxMin = 120;
 
@@ -46,13 +47,13 @@
   /* ---------- sources (administration) ---------- */
   const sources = [
     { id: 'src-kabel', name: 'Kabelanbieter Schweiz', kind: 'm3u-url', address: 'https://iptv.example.net/playlist.m3u8?token=••••', host: 'iptv.example.net',
-      active: 398, total: 412, groups: 14, gone: 1, interval: 24, last: at(0, '06:00'), lastOk: true, next: at(1, '06:00'), state: 'ok', localNet: false, offerNew: false },
+      active: 398, total: 412, groups: 14, gone: 1, interval: 24, moreConn: true, last: at(0, '06:00'), lastOk: true, next: at(1, '06:00'), state: 'ok', localNet: false, offerNew: false },
     { id: 'src-xtream', name: 'Xtream Beispielanbieter', kind: 'xtream', address: 'http://xtream.example.com:8080', host: 'xtream.example.com', user: 'demo',
-      active: 120, total: 9874, groups: 212, gone: 0, interval: 12, last: at(0, '05:00'), lastOk: false, lastError: 'Server antwortet 503', next: at(0, '17:00'), state: 'warn', localNet: false, offerNew: false },
-    { id: 'src-region', name: 'Senderliste Region', kind: 'm3u-file', file: 'senderliste-region.m3u', fileSize: '1,2 MB', uploaded: at(-8, '14:20'),
-      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false },
+      active: 120, total: 9874, groups: 212, gone: 0, interval: 12, last: at(0, '05:00'), lastOk: false, lastError: 'Server antwortet 503', next: at(0, '17:00'), state: 'warn', localNet: false, offerNew: false, moreConn: false },
+    { id: 'src-region', name: 'Senderliste Region', kind: 'm3u-file', file: 'senderliste-region.m3u', fileSize: '1.2 MB', uploaded: at(-8, '14:20'),
+      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false, moreConn: false },
     { id: 'src-mc', name: 'Heimnetz Multicast', kind: 'single', streams: ['udp://@239.10.0.1:5000', 'udp://@239.10.0.2:5000'],
-      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, offerNew: false },
+      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, offerNew: false, moreConn: false },
   ];
   /* import runs per source: [runId, at, result, new, changed, gone, note] */
   const importRuns = {
@@ -106,6 +107,19 @@
     ch('kika', 18, 'KiKA', 'DE', ['de'], ['de', 'kids'], 'Kinder', { epgNote: 'Sendeschluss 21:00', favCount: 2 }),
     ch('orf2', 30, 'ORF 2', 'AT', ['de'], ['at'], 'Vollprogramm', { sources: [XT('orf2')] }),
   ];
+  /* entries only the administration sees: three new channels of the last import (inactive until switched on)
+     and three duplicates of existing channels from other sources (inactive, `dupOf`). Viewer lists, the grid
+     and every viewer count skip them (LIVE_SIM.channels() takes only active channels without dupOf). */
+  const adm = (id, no, name, slug, src, o) => ch(id, no, name, 'CH', ['de'], [], 'Vollprogramm', Object.assign({ epg: 'none', epgKey: null, sources: [src], active: false, nameInSource: name }, o || {}));
+  const xsrc = (n, u) => ({ source: 'src-xtream', name: n, url: 'http://xtream.example.com:8080/live/••••/••••/' + u + '.ts', state: 'ok' });
+  channels.push(
+    adm('x-srf1hd', null, 'SRF1 HD CH (Xtream)', 'srf1', xsrc('SRF1 HD CH', 2201), { epgKey: 'SRF1.ch', dupOf: 'srf1' }),
+    adm('x-zdfhd', null, 'ZDF HD (Xtream)', 'zdf', xsrc('ZDF HD', 2202), { country: 'DE', groups: ['de'], dupOf: 'zdf' }),
+    adm('x-3sat', null, '3sat HD (Senderliste Region)', '3sat', { source: 'src-region', name: '3sat HD', url: 'https://region.example.net/3sat/••••.m3u8', state: 'ok' }, { country: 'DE', category: 'Kultur', dupOf: '3sat' }),
+    adm('bluezoom', 41, 'Blue Zoom', 'bluezoom', { source: 'src-kabel', name: 'Blue Zoom', url: 'https://iptv.example.net/live/••••/bluezoom.m3u8', state: 'ok' }, { isNew: true, groups: ['ch'], epgKey: 'BlueZoom.ch' }),
+    adm('kanal9', null, 'Kanal 9', 'kanal9', { source: 'src-kabel', name: 'Kanal 9', url: 'https://iptv.example.net/live/••••/kanal9.m3u8', state: 'ok' }, { isNew: true, groups: ['regional'], category: 'Regional' }),
+    adm('cnn', 120, 'CNN International', 'cnn', { source: 'src-kabel', name: 'CNN International', url: 'https://iptv.example.net/live/••••/cnn.m3u8', state: 'ok' }, { isNew: true, country: 'DE', groups: ['news'], category: 'Nachrichten', epgKey: 'CNNInt.us' }),
+  );
   /* channel that vanished from «Kabelanbieter Schweiz» this morning: not offered to viewers any more */
   const goneChannels = [ch('tv24', 24, 'TV24', 'CH', ['de'], ['ch'], 'Unterhaltung', { state: 'gone', since: at(0, '06:00'), active: false })];
 
@@ -168,6 +182,7 @@
   function build() {
     const out = [];
     for (const c of channels) {
+      if (!c.active) continue;
       let items = [];
       const tpl = day[c.id];
       for (let d = 0; d < DAYS; d++) {
@@ -230,6 +245,16 @@
     R({ id: 'rec-mia-maus-3', profile: 'mia', title: 'Die Sendung mit der Maus', sub: 'Wie kommt der Strom in die Steckdose?', ch: 'kika', start: at(-1, '20:28'), end: at(-1, '21:05'), sizeGB: 0.8, state: 'done', origin: 'series', rule: 'rule-mia-maus' }),
     R({ id: 'rec-mia-maus-2', profile: 'mia', title: 'Die Sendung mit der Maus', sub: 'Der Weg der Milch', ch: 'kika', start: at(-8, '20:28'), end: at(-8, '21:05'), sizeGB: 0.8, state: 'done', watched: true, watchedPct: 100, origin: 'series', rule: 'rule-mia-maus' }),
     R({ id: 'rec-mia-maus-1', profile: 'mia', title: 'Die Sendung mit der Maus', sub: 'Lachgeschichte: Der Elefant', ch: 'kika', start: at(-15, '20:28'), end: at(-15, '21:05'), sizeGB: 0.8, state: 'done', watched: true, watchedPct: 100, origin: 'series', rule: 'rule-mia-maus' }),
+    R({ id: 'rec-experiment', profile: 'anna', title: 'Das Experiment', ch: 'arte', start: at(-9, '20:13'), end: at(-9, '22:25'), sizeGB: 6.2, state: 'done', watched: true, watchedPct: 100, img: 'b-27.webp' }),
+    R({ id: 'rec-kommissar', profile: 'anna', title: 'Der Kommissar und das Meer', sub: 'Tod im Schären', ch: 'zdf', start: at(-7, '21:58'), end: at(-7, '23:40'), sizeGB: 5.8, state: 'done', watchedPct: 60, resumeAt: '58:40' }),
+    R({ id: 'rec-polizeiruf', profile: 'anna', title: 'Polizeiruf 110', sub: 'Blinder Fleck', ch: 'daserste', start: at(-12, '20:13'), end: at(-12, '21:55'), sizeGB: 5.6, state: 'done', watched: true, watchedPct: 100 }),
+    R({ id: 'rec-bergretter', profile: 'anna', title: 'Die Bergretter', sub: 'Lawinengefahr', ch: 'daserste', start: at(-5, '20:13'), end: at(-5, '21:55'), sizeGB: 6.1, state: 'done' }),
+    R({ id: 'rec-alpen', profile: 'anna', title: 'Die Alpen von oben', ch: 'arte', start: at(-14, '19:38'), end: at(-14, '21:25'), sizeGB: 5.4, state: 'done', watched: true, watchedPct: 100 }),
+    R({ id: 'rec-dok', profile: 'anna', title: 'DOK', sub: 'Leben am Gletscher', ch: 'srf1', start: at(-8, '20:03'), end: at(-8, '21:10'), sizeGB: 5.9, state: 'done', keep: { mode: 'days', days: 30, until: at(22, '00:00') } }),
+    R({ id: 'rec-totenfrau', profile: 'anna', title: 'Totenfrau', sub: 'Folge 4', ch: 'orf2', start: at(-10, '20:13'), end: at(-10, '21:55'), sizeGB: 5.4, state: 'done', watchedPct: 20, img: 'b-50.webp' }),
+    ...[['Eishockey: ZSC Lions – SC Bern', -6, 5.1], ['Eishockey: HC Davos – EV Zug', -9, 4.9], ['Fussball: FC Basel – YB', -11, 5.3], ['Eishockey: Lausanne HC – HC Lugano', -13, 4.8], ['Ski alpin: Abfahrt Lake Louise', -14, 5.2],
+      ['Eishockey: SC Bern – ZSC Lions', -16, 5.0], ['Fussball: FC Zürich – FC St. Gallen', -18, 4.7], ['Eishockey: EHC Biel – HC Davos', -20, 5.4], ['Biathlon: Sprint Östersund', -21, 5.1], ['Eishockey: EV Zug – Fribourg-Gottéron', -23, 5.1]]
+      .map(([t, d, gb], k) => R({ id: 'rec-luca-' + k, profile: 'luca', title: t, ch: 'srfzwei', start: at(d, '19:43'), end: at(d, '22:20'), sizeGB: gb, state: 'done', watched: k % 3 !== 0, watchedPct: k % 3 !== 0 ? 100 : 0 })),
     R({ id: 'rec-luca-scb', profile: 'luca', title: 'Eishockey: SCB – EV Zug', ch: 'srfzwei', start: at(-4, '19:43'), end: at(-4, '22:25'), sizeGB: 6.1, state: 'done', watchedPct: 80 }),
   ];
 
@@ -275,6 +300,7 @@
     ['arte', 'epg-xmltv', 'arte.de', 'unsure', 'Name ähnlich (92 %)'], ['zdfneo', 'epg-xmltv', 'ZDFneo.de', 'auto', 'gleiche Kennung (tvg-id)'], ['zdfinfo', 'epg-xmltv', 'ZDFinfo.de', 'auto', 'gleiche Kennung (tvg-id)'],
     ['tagesschau24', 'epg-xmltv', 'tagesschau24.de', 'auto', 'Name gleich'], ['phoenix', 'epg-xmltv', 'phoenix.de', 'auto', 'gleiche Kennung (tvg-id)'], ['kika', 'epg-xmltv', 'KiKA.de', 'auto', 'gleiche Kennung (tvg-id)'],
     ['orf2', 'epg-xtream', 'ORF2.at', 'manual', 'von Hand am 12.11.'],
+    ['bluezoom', 'epg-xmltv', 'BlueZoom.ch', 'auto', 'gleiche Kennung (tvg-id)'], ['cnn', 'epg-xmltv', 'CNNInt.us', 'unsure', 'Name ähnlich (84 %)'],
   ];
   const duplicates = [
     { id: 'dup-1', channels: ['srf1', 'x-srf1hd'], names: ['SRF 1', 'SRF1 HD CH (Xtream)'], reason: 'gleiche EPG-Kennung «SRF1.ch»', keep: 'srf1' },
@@ -284,9 +310,9 @@
   const totals = { imported: 10354, active: 584, available: 571, unavailable: 13, duplicates: 7 };
   /* active inputs right now (LA-12): reason viewer | recording | permanent | preload | schedule */
   const inputs = [
-    { ch: 'srf1', source: 'src-kabel', backup: 0, state: 'running', reasons: ['permanent', 'viewer'], since: at(0, '00:00') - 3 * DAY, viewers: 2, recordings: 0, bitrate: 8.1, transcode: '1 direkt · 1 umgewandelt (Hardware QSV)', buffer: '12 MB', timeshift: '2,4 GB (2 Puffer)', recGB: 0, errors: null },
-    { ch: 'srfzwei', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer', 'recording'], since: at(0, '19:00'), viewers: 1, recordings: 2, bitrate: 7.4, transcode: '1 direkt · 0 umgewandelt', buffer: '12 MB', timeshift: '3,1 GB (1 Puffer)', recGB: 2.9, errors: '2 Bildaussetzer in 10 Min.' },
-    { ch: 'zdf', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer'], since: at(0, '20:14'), viewers: 1, recordings: 0, bitrate: 8.3, transcode: '1 umgewandelt (Hardware QSV)', buffer: '11 MB', timeshift: '0,9 GB (1 Puffer)', recGB: 0, errors: null },
+    { ch: 'srf1', source: 'src-kabel', backup: 0, state: 'running', reasons: ['permanent', 'viewer'], since: at(0, '00:00') - 3 * DAY, viewers: 2, recordings: 0, bitrate: 8.1, transcode: '1 direkt · 1 umgewandelt (Hardware QSV)', buffer: '12 MB', timeshift: '2.4 GB (2 Puffer)', recGB: 0, errors: null },
+    { ch: 'srfzwei', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer', 'recording'], since: at(0, '19:00'), viewers: 1, recordings: 2, bitrate: 7.4, transcode: '1 direkt · 0 umgewandelt', buffer: '12 MB', timeshift: '3.1 GB (1 Puffer)', recGB: 2.9, errors: '2 Bildaussetzer in 10 Min.' },
+    { ch: 'zdf', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer'], since: at(0, '20:14'), viewers: 1, recordings: 0, bitrate: 8.3, transcode: '1 umgewandelt (Hardware QSV)', buffer: '11 MB', timeshift: '0.9 GB (1 Puffer)', recGB: 0, errors: null },
     { ch: 'srfinfo', source: 'src-kabel', backup: 0, state: 'running', reasons: ['preload'], since: at(0, '20:36'), viewers: 0, recordings: 0, bitrate: 5.2, transcode: '–', buffer: '9 MB', timeshift: '–', recGB: 0, errors: null },
     { ch: 'daserste', source: 'src-kabel', backup: 0, state: 'running', reasons: ['schedule'], schedule: 'Abends', since: at(0, '18:00'), viewers: 0, recordings: 0, bitrate: 8.0, transcode: '–', buffer: '12 MB', timeshift: '–', recGB: 0, errors: null },
     { ch: 'zdfinfo', source: 'src-xtream', backup: 2, state: 'reconnecting', attempt: [3, 5], reasons: ['viewer'], since: at(0, '20:12'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: 'alle Quellen fehlgeschlagen' },
@@ -336,7 +362,7 @@
   ];
   const settings = {
     dvr: { padBefore: 2, padAfter: 10, keep: 'forever', instantMaxH: 4, followEpg: true, maxParallel: null },
-    timeshift: { maxMin: 120, totalGB: 64 },
+    timeshift: { maxMin: 120, defaultMin: 60, totalGB: 64 }, // factory default 60 min (03-fachkonzept), this sample server: 2 h
     reception: { default: 'ondemand', neighbours: 1, keepHot: 3, favourites: true, stopAfterS: 60, recLeadS: 30 },
     schedules: [{ id: 'sch-abends', name: 'Abends', times: 'Mo–Fr 18:00–23:30, Sa–So 10:00–24:00', channels: ['daserste', 'zdf', 'srf1'] }],
     epg: { previewDays: 7 },

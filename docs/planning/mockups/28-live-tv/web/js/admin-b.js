@@ -1,7 +1,7 @@
 /* Web Verwaltung B, Teil 1: gemeinsame Helfer, LA-09 Empfang, LA-10 EPG-Quellen, LA-11 EPG-Zuordnungen.
    Bauvorlage: 15-administration.md 3.9 bis 3.11, Vorlage: page-la02.js und admin-a.js. Globale Namen mit Präfix «ab».
    Die Seiten ändern die Beispieldaten (LIVE.*) direkt und rufen render(); Neuladen stellt alles wieder her.
-   Aus admin-a.js gelesen (nur lesen): aaViewers, aaRecRunning, aaCounts, aaLiveText, AA.ended. */
+   Gemeinsame Zähler aus dem Kern (web/js/admin-core.js): admViewers, admRecRunning, admCounts, admLiveText, ADM.ended. */
 'use strict';
 
 /* ---------- gemeinsame Helfer ---------- */
@@ -9,12 +9,12 @@ const abClone = (o) => JSON.parse(JSON.stringify(o));
 const abMode = () => SIM.mode();
 const abEmpty = () => abMode() === 'empty';
 const abPl = (n, one, many) => `${fmt.num(n)} ${n === 1 ? one : many}`;
-const abDe = (n, d) => Number(n).toFixed(d == null ? 1 : d).replace('.', ',');
+const abDe = (n, d) => Number(n).toFixed(d == null ? 1 : d);
 const abGB = (x) => (x >= 1000 ? `${abDe(x / 1000, 1)} TB` : `${Number.isInteger(x) ? fmt.num(x) : abDe(x, 1)} GB`);
 const abWhen = (t) => { const r = fmt.dayRel(t); return (['Heute', 'Morgen', 'Gestern'].includes(r) ? r.toLowerCase() : r) + ' ' + fmt.time(t); };
 const abHM = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 const abDur = (min) => { min = Math.max(0, Math.round(min)); if (min >= 1440) { const d = Math.floor(min / 1440); const h = Math.floor((min % 1440) / 60); return `${d} ${d === 1 ? 'Tag' : 'Tage'}${h ? ` ${h} Std.` : ''}`; } return fmt.dur(min); };
-const abLive = () => (typeof aaLiveText === 'function' ? aaLiveText() : 'Aktualisiert vor 1 s');
+const abLive = () => (admLiveText());
 const abView = (o) => Object.assign({ type: 'admin', area: 'livetv' }, o);
 const abDot = (k) => `<span class="dot ${k}" aria-hidden="true"></span>`;
 const abNorm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüéèà]/g, '');
@@ -67,7 +67,6 @@ const AB = { stoState: 'normal', epgState: 'normal', epgBusy: {}, just: {}, orph
 (function abSeed() {
   const S = LIVE.settings;
   S.schedules.forEach((s) => { if (!s.rows) s.rows = [{ days: [1, 2, 3, 4, 5], from: 1080, to: 1410 }, { days: [6, 7], from: 600, to: 1440 }]; });
-  LIVE.sources.forEach((s) => { if (s.moreConn == null) s.moreConn = s.id === 'src-kabel'; });
   LIVE.epgSources.forEach((e) => { if (e.tz == null) Object.assign(e, { tz: 'Europe/Zurich', localNet: false, compression: 'auto', hdr: [], ua: '' }); });
   if (S.limits.warnPct == null) S.limits.warnPct = 10;
   if (S.reception.schedule == null) S.reception.schedule = '';
@@ -93,7 +92,7 @@ function abInWindow(name) {
 const abSchedChannels = (name) => LIVE.channels.filter((c) => c.active && c.reception === 'schedule' && c.schedule === name);
 /** Zahl der Sender je Art: eigene Einstellungen aus den Beispielsendern, der Rest folgt der Vorgabe */
 function abStratCounts() {
-  const def = LIVE.settings.reception.default; const total = abEmpty() ? 0 : aaCounts().active;
+  const def = LIVE.settings.reception.default; const total = abEmpty() ? 0 : admCounts().active;
   const act = LIVE.channels.filter((c) => c.active); const explicit = act.filter((c) => c.reception !== 'default');
   const by = { permanent: 0, auto: 0, ondemand: 0, schedule: 0 };
   explicit.forEach((c) => { by[c.reception] = (by[c.reception] || 0) + 1; });
@@ -138,7 +137,7 @@ function abStrategyTab() {
     ? notice('warn', `Standard «Permanent» für alle Sender: ${fmt.num(cnt.total)} dauerhafte Verbindungen`, 'Jeder permanent empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer. Wie viele gleichzeitige Verbindungen dein Anbieter erlaubt, musst du selbst im Blick behalten.') : '';
   const schedSel = d.default === 'schedule' ? abFld('la09-defsch', 'Zeitplan für alle Sender', abSel(`${P}.schedule`, 'la09-defsch', [['', 'Zeitplan wählen …'], ...LIVE.settings.schedules.map((s) => [s.name, `${s.name} (${s.times})`])], { err: e.sched, label: 'Zeitplan für alle Sender' }), { err: e.sched }) : '';
   const extraPerSession = 2 * d.neighbours + d.keepHot;
-  const srcTable = `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Art</th><th>Weitere gleichzeitige Verbindungen erlaubt</th></tr></thead><tbody>${LIVE.sources.map((s) => `<tr><td class="main" data-l="Quelle">${esc(s.name)}</td><td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td><td data-l="Weitere Verbindungen">${s.kind === 'single' && s.localNet ? '<span class="muted">Einzelstrom im Heimnetz: wird nie vorsorglich geöffnet</span>' : `<span class="ab-swl">${sw(`${P}.more.${s.id}`, `Weitere gleichzeitige Verbindungen für ${s.name} erlaubt`)}<span>${d.more[s.id] ? 'erlaubt' : 'aus'}</span></span>`}</td></tr>`).join('')}</tbody></table></div>`;
+  const srcTable = `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Art</th><th>Darf vorsorglich zusätzliche Verbindungen öffnen (Vorladen, Bereithalten)</th></tr></thead><tbody>${LIVE.sources.map((s) => `<tr><td class="main" data-l="Quelle">${esc(s.name)}</td><td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td><td data-l="Weitere Verbindungen">${s.kind === 'single' && s.localNet ? '<span class="muted">Einzelstrom im Heimnetz: wird nie vorsorglich geöffnet</span>' : `<span class="ab-swl">${sw(`${P}.more.${s.id}`, `${s.name}: vorsorglich zusätzliche Verbindungen öffnen`)}<span>${d.more[s.id] ? 'erlaubt' : 'aus'}</span></span>`}</td></tr>`).join('')}</tbody></table></div><p class="muted aa-small">Kein Anbieterlimit: Slouchcat zählt keine Verbindungen je Anbieter (LTV-017). Der Schalter sagt nur, ob Slouchcat für diese Quelle über das Schauen und Aufnehmen hinaus Verbindungen öffnen darf. Der Schalter (T-18 in 04-architektur.md) hängt an einer offenen Frage an Marco (LTV-017, Werkszustand F-9).</p>`;
   return `${notice('', 'Wie der Empfang arbeitet', 'Laufende Wiedergaben und Aufnahmen sind immer geschützt: Keine Einstellung beendet sie. Nach einem Neustart nimmt der Server permanente Sender wieder auf. Slouchcat zählt keine Verbindungen je Anbieter. Jeder permanent, vorgeladen oder nach Zeitplan empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer.')}
     <section class="card"><div class="ch"><span class="ik">${icon('wifi', 18)}</span><h2>Strategie für alle Sender</h2></div>
       <p class="muted aa-small">Die Werte sind Vorschläge. Was ab Werk eingeschaltet ist, steht noch offen (Frage F-9 in der Architektur).</p>
@@ -168,7 +167,7 @@ ACT.abRcSave = () => {
   toast('Empfang gespeichert. Laufende Wiedergaben und Aufnahmen bleiben unberührt.');
 };
 DIALOGS.abRcConfirm = () => {
-  const c = abStratCounts(); const n = abEmpty() ? 0 : aaCounts().active;
+  const c = abStratCounts(); const n = abEmpty() ? 0 : admCounts().active;
   return { title: 'Alle Sender permanent empfangen?', body: `<p class="lead">Damit empfängt Slouchcat bis zu ${fmt.num(n)} Sender rund um die Uhr, auch ohne Zuschauer. Jeder davon belegt dauerhaft eine Verbindung zu seiner Quelle.</p><p class="muted">Slouchcat kennt das Limit deines Anbieters nicht. Zu viele Verbindungen können dazu führen, dass die Quelle Sender sperrt. Du kannst die Vorgabe jederzeit zurücksetzen. ${fmt.num(c.explicit.length)} Sender haben schon eine eigene Einstellung und bleiben davon unberührt.</p>`,
     actions: `<button type="button" class="btn secondary" data-act="close" data-fid="la09c:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="abRcConfirmOk" data-fid="la09c:ok">Trotzdem speichern</button>` };
 };
@@ -434,7 +433,7 @@ function abEpgSources() {
   const set = `<section class="card"><div class="ch"><span class="ik">${icon('settings', 18)}</span><h2>Einstellungen</h2></div>
     ${abRow('Vorschauzeitraum', 'So weit in die Zukunft zeigt das Programm und plant Serienaufnahmen.', `${abSel('ui.draft.epgset.previewDays', 'la10-pd', Array.from({ length: 14 }, (_, i) => [i + 1, `${i + 1} ${i ? 'Tage' : 'Tag'}`]), { num: true, label: 'Vorschauzeitraum' })}${cover.length ? `<span class="ab-bad ab-full">${icon('alert', 14)}${cover.map((e) => `«${esc(e.name)}» liefert nur ${abEpgCover(e)} Tage`).join(', ')}.</span>` : ''}`)}
     <p class="muted">Ein Ausfall der Programmdaten beeinträchtigt das Fernsehen nicht. Nur Programm, Erinnerungen und Serienaufnahmen können dann veraltet sein.</p></section>`;
-  return `${abMock('la10-mock', 'Ergebnis des Imports', 'ui.abEpg', AB_EST, 'abEpgState')}${fail}${tbl}${set}${dirty ? abSaveBar('abEpgSetSave', 'abEpgSetDisc', 'la10', 0) : ''}`;
+  return `${fail}${tbl}${set}${dirty ? abSaveBar('abEpgSetSave', 'abEpgSetDisc', 'la10', 0) : ''}`;
 }
 ACT.abEpgSetDisc = () => { delete ui.draft.epgset; render(); };
 ACT.abEpgSetSave = () => { LIVE.settings.epg.previewDays = ui.draft.epgset.previewDays; delete ui.draft.epgset; render(); toast(`Vorschauzeitraum: ${LIVE.settings.epg.previewDays} Tage.`); };

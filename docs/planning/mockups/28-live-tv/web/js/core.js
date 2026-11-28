@@ -83,6 +83,20 @@ const ICONS = {
   home2: '<path d="M3.500 11 12 4l8.500 7M6 9.500V20h12V9.500"/><path d="M10 20v-5h4v5"/>',
   arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   arrowDown: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  recordHollow: '<circle cx="12" cy="12" r="6.5"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  loadspin: '<path d="M12 3a9 9 0 1 0 9 9"/>',
+  /* player controls of the web app (formerly added by viewer-b.js) */
+  vbVol: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  vbMute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
+  vbFull: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  vbBack: '<path d="M4 4v4.5h4.5M4.7 8.5A8 8 0 1 1 4 13"/>',
+  vbFwd: '<path d="M20 4v4.5h-4.5M19.3 8.5A8 8 0 1 0 20 13"/>',
+  vbSub: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M7 12.5h4M13 12.5h4M7 15.5h7"/>',
+  vbAudio: '<path d="M4 13v-2M8 16V8M12 19V5M16 15V9M20 13v-2"/>',
+  vbChapter: '<path d="M5 5v14M9 8h10M9 12h10M9 16h6"/>',
+  vbBlank: '',
   copy: '<rect x="8" y="8" width="11.500" height="11.500" rx="2"/><path d="M5 15.500V6A1.500 1.500 0 0 1 6.500 4.500H15"/>',
 };
 function icon(name, size = 20) {
@@ -194,7 +208,7 @@ function restoreFocus(f) {
 }
 function renderNow() {
   const { path, query } = parseHash();
-  if (path !== lastPath) ui.menu = null;
+  if (path !== lastPath) { ui.menu = null; if (lastPath !== null && ui.dialog) ui.dialog = null; } /* a dialog belongs to its page */
   let view = liveGate(path);
   if (!view) for (const r of ROUTES) {
     const m = path.match(r.re);
@@ -346,6 +360,8 @@ const fmt = LU.fmt;
 /** Without the right the area is missing: every address answers «Nicht gefunden» (404, never 403). */
 function liveGate(path) {
   const r = SIM.rights();
+  /* right taken away while watching (mockup state «Recht entzogen …»): the player says so (14, 4.12; page of viewer-b.js) */
+  if (SIM.flags().revoked && path.startsWith('/live/watch/')) { const rv = ROUTES.find((x) => x.pattern === '/player/revoked'); if (rv) return rv.fn({}, { ch: path.split('/')[3] }); }
   if (path.startsWith('/live') && !r.liveTv) return notFoundView();
   if (/^\/live\/(recordings|scheduled)/.test(path) && !r.recordings) return notFoundView();
   if (path === '/live/recordings/profiles' && !SIM.profile().primary) return notFoundView();
@@ -419,7 +435,7 @@ const LiveDlg = {
 };
 const DIALOG_DEMO = {
   'LD-01': () => LiveDlg.planRecording('p-zdf-1215'), 'LD-02': () => LiveDlg.seriesRecording('p-daserste-2655'), 'LD-03': () => LiveDlg.manualRecording({ ch: 'telezueri' }),
-  'LD-04': () => LiveDlg.instantRecording('srfzwei'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
+  'LD-04': () => LiveDlg.instantRecording('zdf'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
   'LD-07': () => LiveDlg.warning('w-quota'), 'LD-08': () => LiveDlg.pickTime({ day: 0, time: 1215 }), 'LD-09': () => LiveDlg.filterSheet(chFilterSheet({})),
   'LD-10': () => LiveDlg.zapConfirm({ to: 'zdf' }), 'LD-11': () => LiveDlg.retention('rec-arena'),
 };
@@ -482,7 +498,7 @@ function chFilterSheet(values, onApply) {
       { key: 'group', label: 'Gruppe', options: [{ v: '', t: 'Alle Sender' }, { v: 'fav', t: 'Meine Sender' }, ...LIVE.groups.map((g) => ({ v: g.id, t: g.name }))] },
       { key: 'country', label: 'Land', options: [{ v: '', t: 'Alle Länder' }, ...Object.entries(LIVE.countries).map(([v, t]) => ({ v, t }))] },
       { key: 'lang', label: 'Sprache', options: [{ v: '', t: 'Alle Sprachen' }, ...Object.entries(LIVE.languages).map(([v, t]) => ({ v, t }))] },
-      { key: 'category', label: 'Kategorie', options: [{ v: '', t: 'Alle Kategorien' }, ...[...new Set(LIVE.channels.map((c) => c.category))].map((v) => ({ v, t: v }))] },
+      { key: 'category', label: 'Kategorie', options: [{ v: '', t: 'Alle Kategorien' }, ...[...new Set(LIVE.channels.filter(SIM.viewerChannel).map((c) => c.category))].map((v) => ({ v, t: v }))] },
     ],
     values: Object.assign({}, values), onApply: onApply || (() => toast('Filter angewendet (Vorschau).')),
   };

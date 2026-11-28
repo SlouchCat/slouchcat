@@ -241,6 +241,4 @@
 @container app (min-width: 768px) { .va-hero h1 { font-size: 52px; } }
 .va-homenote, .va-homefoot { padding: 0 var(--gut); }
 
-/* the tab bar of the Live-TV frame must shrink to the page width on a phone (its list scrolls inside) */
-.lhead { min-width: 0; }
-.lhead .ltabs { min-width: 0; max-width: 100%; }
+/* the Live-TV tab bar shrinks to the page width on a phone: in core.css (.lhead, .ltabs) */

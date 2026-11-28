@@ -2,23 +2,33 @@
 
 Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
 
-Öffne `index.html` per Doppelklick oder über einen einfachen Dateiserver (zum Beispiel
-`python3 -m http.server` im Ordner `docs/planning/mockups/`). Alles läuft ohne Vorbereitung, ohne Build
-und ohne Netz; Inhalte sind Beispieldaten mit simulierter Wiedergabe.
+Doppelklick auf `index.html` genügt (ohne Server, über `file://`). Wer lieber einen Dateiserver nimmt:
+`python3 -m http.server 8728 --directory docs/planning/mockups/28-live-tv` im Repo starten und
+`http://localhost:8728/` öffnen. Kein Build, keine Abhängigkeit, kein Netz; alles sind Beispieldaten mit
+simulierter Wiedergabe. Rundgang, Abdeckung des Auftrags und Abweichungen: `docs/planning/28-live-tv/19-mockups.md`.
 
 ## Einstiege
 
 | Einstieg | Datei | Was |
 |---|---|---|
-| Übersicht | `index.html` | vier Einstiege und die Liste aller Seiten und Dialoge mit Stand |
+| Übersicht | `index.html` | vier Einstiege und die Liste aller 121 Seiten und Dialoge (alle gebaut) |
 | Web-App | `web/index.html#/live/channels` | Zuschauer; Breitenumschalter Desktop, Tablet, Handy |
-| Verwaltung | `web/index.html#/admin/live/sources` | neuer Bereich «Live-TV» der Verwaltung |
-| Fernseher | `tv/index.html#/live/channels` | Android TV im gezeichneten Fernseher mit Fernbedienung |
-| Handy und Tablet | `handy/index.html#/live/channels` | Handy-App im Geräterahmen, hoch und quer |
+| Verwaltung | `web/index.html#/admin/live` | neuer Bereich «Live-TV» der Verwaltung |
+| Fernseher | `tv/index.html#/live/channels` | Android TV im gezeichneten Fernseher; Fernbedienung mit Kanal +/−, Guide, Info, Aufnahme, Ziffern |
+| Handy und Tablet | `handy/index.html#/live/channels` | Handy-App im Geräterahmen, Handy und Tablet, hoch und quer |
 
-Jedes Mockup hat oben eine Leiste mit **Zustände** (Uhr, Profil Anna/Luca/Mia, Rechte, leer, lädt,
-Fehler, ohne EPG, Sender gestört) und einem **Sprungmenü** mit allen Seiten (Kennungen LS-, LD-, LA-).
+## Leiste oben
 
-Senderlogos und Sendungsbilder liegen nur lokal in `shared/img/` (nicht im Repo). Fehlen sie, zeigt das
-Mockup Initialen auf heller Fläche und ruhige Flächen statt Bildern. Wer Seiten ergänzt, liest
-`BAUKASTEN.md`.
+- **Zustände:** Uhr (anhalten, vorspulen), Profil Anna (Hauptprofil), Luca (ab 16), Mia (ab 6), Rechte des
+  Profils und Deckel des Kontos, «Recht entzogen während der Wiedergabe», Seiten leer, lädt, Fehler, ohne EPG,
+  Sender gestört, viele Sender (2'000 im Raster), Kontingent voll, Fehler im Player (nicht erreichbar,
+  Ersatzquelle, Grenze erreicht, Strom stockt, langsamer Start, nicht abspielbar, Server ausgelastet), in der
+  Web-App zusätzlich Speicher knapp oder voll, Netzlaufwerk nicht eingehängt, EPG-Import fehlgeschlagen.
+  Je Zustand gibt es genau einen Schalter.
+- **Seite:** Sprungmenü mit allen Seiten des Clients (Kennungen LS-, LD-, LA-).
+
+## Bilder
+
+Senderlogos und Sendungsbilder liegen nur lokal in `shared/img/` (git-ignoriert, Markenrechte). Fehlen sie,
+zeigt das Mockup Initialen auf heller Fläche und ruhige Flächen statt Bildern; bedienbar bleibt alles.
+Wer Seiten ändert, liest `BAUKASTEN.md`.

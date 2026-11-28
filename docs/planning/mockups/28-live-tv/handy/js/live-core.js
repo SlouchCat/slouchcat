@@ -11,6 +11,8 @@ const fmt = LU.fmt;
 function liveGate(path) {
   const r = SIM.rights();
   const nf = () => ({ html: `${bar('Nicht gefunden', { back: false })}<div class="empty">${icon('alert', 40)}<b>Nicht gefunden</b><p>Diese Seite gibt es nicht.</p><p style="margin-top:16px"><a class="btn ghost" href="#/" data-fid="nf-home">Zur Startseite</a></p></div>` });
+  /* right taken away while watching (mockup state «Recht entzogen …»): the player shows the message (14, 4.12) */
+  if (SIM.flags().revoked && path.startsWith('/live/watch/')) return null;
   if (path.startsWith('/live') && !r.liveTv) return nf();
   if (/^\/live\/(recordings|scheduled)/.test(path) && !r.recordings) return nf();
   if (path === '/live/recordings/profiles' && !SIM.profile().primary) return nf();
@@ -71,7 +73,7 @@ ACT.ld09Reset = () => { Object.keys(LD09.v).forEach((k) => { LD09.v[k] = ''; });
 ACT.ld09Apply = () => { const { p, v } = LD09; LD09 = null; closeSheet(); if (p.onApply) p.onApply(v); };
 const DIALOG_DEMO = {
   'LD-01': () => LiveDlg.planRecording('p-zdf-1215'), 'LD-02': () => LiveDlg.seriesRecording('p-daserste-2655'), 'LD-03': () => LiveDlg.manualRecording({ ch: 'telezueri' }),
-  'LD-04': () => LiveDlg.instantRecording('srfzwei'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
+  'LD-04': () => LiveDlg.instantRecording('zdf'), 'LD-05': () => LiveDlg.reminder('p-srf1-2645'), 'LD-06': () => LiveDlg.confirmDelete({ kind: 'recording', ids: ['rec-arena'] }),
   'LD-07': () => LiveDlg.warning('w-quota'), 'LD-08': () => LiveDlg.pickTime({ day: 0, time: 1215 }), 'LD-09': () => LiveDlg.filterSheet(chFilterSheet({}, () => toast('Filter angewendet (Vorschau)'))),
   'LD-10': () => LiveDlg.zapConfirm({ to: 'zdf' }), 'LD-11': () => LiveDlg.retention('rec-arena'),
 };
@@ -83,7 +85,7 @@ function chFilterSheet(values, onApply) {
       { key: 'group', label: 'Gruppe', options: [{ v: '', t: 'Alle Sender' }, { v: 'fav', t: 'Meine Sender' }, ...LIVE.groups.map((g) => ({ v: g.id, t: g.name }))] },
       { key: 'country', label: 'Land', options: [{ v: '', t: 'Alle' }, ...Object.entries(LIVE.countries).map(([v, t]) => ({ v, t }))] },
       { key: 'lang', label: 'Sprache', options: [{ v: '', t: 'Alle' }, ...Object.entries(LIVE.languages).map(([v, t]) => ({ v, t }))] },
-      { key: 'category', label: 'Kategorie', options: [{ v: '', t: 'Alle' }, ...[...new Set(LIVE.channels.map((c) => c.category))].map((v) => ({ v, t: v }))] },
+      { key: 'category', label: 'Kategorie', options: [{ v: '', t: 'Alle' }, ...[...new Set(LIVE.channels.filter(SIM.viewerChannel).map((c) => c.category))].map((v) => ({ v, t: v }))] },
     ],
     values: Object.assign({}, values), onApply,
   };

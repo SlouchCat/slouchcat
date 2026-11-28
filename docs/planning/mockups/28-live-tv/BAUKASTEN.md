@@ -2,6 +2,9 @@
 
 Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
 
+Endstand nach dem Kern-Durchgang: Alle Seiten sind gebaut; die sechs Seitenagenten arbeiten nicht mehr.
+Wer etwas ändert, hält sich trotzdem an diesen Vertrag. Rundgang und Abdeckung: `docs/planning/28-live-tv/19-mockups.md`.
+
 Vertrag für alle, die Seiten ergänzen. Bauvorlage sind `docs/planning/28-live-tv/14-oberflaeche.md`
 (Zuschauer, LS-01…15, LS-20…26, LD-01…11) und `15-administration.md` (LA-01…16, LA-20…28). Reines
 HTML, CSS und JavaScript: klassische `<script src>`, kein Modul-Import, kein `fetch` lokaler Dateien, kein
@@ -17,9 +20,9 @@ shared/             gehört dem Kern
   live-ui.js        window.LIVE_UI: Formatierer, Logo und Bild mit Rückfall, Fortschritt, Abzeichen, Texte
   live-ui.css       Stile dazu und die Live-Tokens (--live-rec, --live-now, --live-cur, --live-past, --live-gap-*)
   live-register.js  window.LIVE_REG: Register aller Seiten und Dialoge, Agenten, Clients
-  live-mock.js/.css Leiste «Zustände» und Sprungmenü (in allen drei Clients gleich)
+  live-mock.js/.css Leiste «Zustände» und Sprungmenü (in allen drei Clients gleich), Aktionen je Client
   img/              NUR LOKAL (git-ignoriert): logos/<slug>.png, lib/<datei>.webp
-web/                Web-App (Zuschauer und Verwaltung), Vorlage Mockup 25
+web/                Web-App (Zuschauer und Verwaltung), Vorlage Mockup 25; js/admin-core.js = gemeinsame Zähler der Verwaltung
 tv/                 Android TV, Vorlage Mockup 26
 handy/              Handy-App (Handy und Tablet), Vorlage Mockup 27
 ```
@@ -29,7 +32,7 @@ Jede `index.html` lädt: `shared/live-data.js`, `live-sim.js`, `live-ui.js`, `li
 Seitendateien der Agenten** (schon eingebunden, zunächst leer) und zuletzt `js/boot.js`. Seitenagenten
 ändern keine `index.html` und keine Datei des Kerns.
 
-## 2. Dateizuschnitt (sechs Agenten gleichzeitig, ohne Überschneidung)
+## 2. Dateizuschnitt (so wurde gebaut; sechs Agenten gleichzeitig, ohne Überschneidung)
 
 | Agent | Seiten | Eigene Dateien (nur diese ändern) |
 |---|---|---|
@@ -39,7 +42,7 @@ Seitendateien der Agenten** (schon eingebunden, zunächst leer) und zuletzt `js/
 | **Web Verwaltung B** | LA-09 bis LA-16 | `web/js/admin-b.js`, `web/js/admin-b-2.js`, `web/css/admin-b.css`, `web/js/reg-admin-b.js` |
 | **TV** | alle Zuschauerseiten der TV-App ausser LS-02 und LS-20, die Dialoge der TV-App | `tv/js/pages.js`, `tv/js/pages-2.js`, `tv/js/pages-3.js`, `tv/css/pages.css`, `tv/js/reg-tv.js` |
 | **Handy** | alle Zuschauerseiten der Handy-App ausser LS-02 und LS-20, die Dialoge (LD-09 Grundform im Kern) | `handy/js/pages.js`, `handy/js/pages-2.js`, `handy/js/pages-3.js`, `handy/css/pages.css`, `handy/js/reg-handy.js` |
-| Kern | Gerüst, Musterseiten LS-02 (alle drei Clients), LS-20, LA-02, LA-25, Grundform LD-09 | alles andere |
+| Kern | Gerüst, Musterseiten LS-02 (alle drei Clients), LS-20, LA-02, LA-25, Grundform LD-09, gemeinsame Zähler der Verwaltung (`web/js/admin-core.js`), alle Mockup-Zustände | alles andere |
 
 Musterseiten zum Abschauen: `web/js/page-ls02.js`, `web/js/page-la02.js`, `tv/js/channels.js`,
 `handy/js/channels.js`. Wer etwas im Kern vermisst, ergänzt es in der eigenen Datei (Präfix für globale
@@ -165,6 +168,41 @@ Filme und Serien; Nachrichten, Sport, Shows haben keines). Logos über den Slug.
 
 ## 5. Zustand und Aktionen `window.LIVE_SIM`
 
+**Mockup-Zustände: je Zustand genau ein Schalter, in der Leiste «Zustände» jedes Clients.** Seiten lesen sie
+nur (`SIM.flags()`, `SIM.mode()`, `SIM.quota()`), sie bauen keine eigenen Schalter. Was kein Zustand ist, sondern
+eine einmalige Vorführung (z. B. «Erinnerung jetzt zeigen»), meldet ein Client mit
+`LIVE_MOCK.addAction(text, fn)` im Abschnitt «Aktionen (dieser Client)» an. Einzige Auswahl auf einer Seite:
+das Testergebnis in LA-03 («Nur im Mockup: Ergebnis des Tests»), weil es kein Zustand ist, sondern die Antwort
+einer gedachten Quelle auf genau diesen Test.
+
+| Schalter | Wert in `SIM.flags()` | Wirkung |
+|---|---|---|
+| Uhr anhalten, +5 Min., +30 Min., +2 Std. | – | `now()`, Fortschritt, laufende Aufnahmen wachsen |
+| Wer schaut? Anna, Luca, Mia | – | `setProfile` |
+| Rechte des Profils / Deckel des Kontos | – | `rights()`; ohne Live-TV «Nicht gefunden» (404) |
+| Recht entzogen während der Wiedergabe | `revoked` | Recht weg; der Player zeigt «Live-TV ist für dieses Profil nicht mehr freigegeben.», alle anderen Adressen 404 |
+| Zustand der Seiten: Normal, Leer, Lädt, Fehler | `SIM.mode()` | jede Seite |
+| Ohne EPG | `noEpg` | kein Sender hat Programmdaten |
+| Sender gestört: zusätzlich SRF 1 | `disturbed` | `chState('srf1')` = disturbed |
+| Viele Sender | `many` | 2'000 Testsender zusätzlich im Raster (Web: Testzeilen von LS-04, TV: `gridChannels()`) |
+| Kontingent voll | `quotaFull` | `quota().full`, Sofortaufnahme abgelehnt, `rejectForQuota` |
+| Player: Sender nicht erreichbar, Ersatzquelle aktiv, Grenze erreicht, Strom stockt, Langsamer Start, Nicht abspielbar, Server ausgelastet | `fault` | über `LIVE_UI.playerPhase` in allen drei Playern |
+| Verwaltung (nur Web): Speicher knapp, voll, Netzlaufwerk nicht eingehängt | `admStorage` | LA-01, LA-12, LA-14 bis LA-16 |
+| Verwaltung (nur Web): EPG-Import fehlgeschlagen | `epgFail` | LA-01, LA-10 |
+
+**Player-Phasen** (gleich in allen Clients): `LIVE_UI.playerPhase(msSeitUmschalten, sender, { hot })` →
+`{ k: 'loading'|'slow'|'ok'|'error', spin, err, stall, fallback }`, Schwellen in `LIVE_UI.LOAD` (im Mockup
+verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s; Konzept 0.5 / 5 / 15 s),
+Fehlertexte in `LIVE_UI.PLAYER_ERR`.
+
+**Zahlen:** Die Belegung eines Profils ist die Summe seiner Aufnahmen (`usageOf(id)`, `usage()` →
+`{ usedGB, count, byProfile }`); `LIVE.account.usedGB` und der Eintrag des Kontos in `LIVE.accounts` rechnen
+damit (142 GB, 31 Aufnahmen um 20:41). «Geplant · n» kommt immer aus `upcoming()`. Die Verwaltung zählt Sender,
+Zuschauer, laufende Aufnahmen und Eingänge nur über `admCounts()`, `admViewers()`, `admRecRunning()`,
+`admRecSoon(min)`, `admInputs()` (`web/js/admin-core.js`), damit LA-01, LA-12, LA-16 und LA-21 gleich zeigen.
+Zahlen immer im Format de-CH: Dezimalpunkt und Hochkomma (`4.1 GB`, `10'354`) über `fmt.dec`, `fmt.num`,
+`fmt.gb`; nie `toLocaleString` und nie ein Komma als Dezimalzeichen.
+
 - Ereignisse: `LIVE_SIM.on(fn)` mit `'change'` (Kern zeichnet neu), `'minute'`, `'tick'` (Fortschritt und
   Uhren aktualisiert `LIVE_UI` selbst).
 - Uhr: `now()`, `advance(min)`, `setClock(läuft)`, `clockRunning()`.
@@ -183,22 +221,25 @@ Filme und Serien; Nachrichten, Sport, Shows haben keines). Logos über den Slug.
 - Aufnahmen: `recordings(profil?)` (laufende wachsen: `liveGB`), `recording(id)`, `deleteRecordings(ids)`,
   `stopRecording(id)`, `setKeep(id, keep)`, `setWatched(id, pct)`, `runningOn(ch)`, `childProfiles()`.
 - Planung: `rules()`, `rule(id)`, `upcoming()` → konkrete Termine `{ id, rule, kind, ch, title, sub,
-  start, end, program }`, `recState(programId)` → `null|'scheduled'|'series'|'recording'`,
+  start, end, program }` (Serien mit Zeitfenster `window` und Wochentagen 0 = So … 6 = Sa),
+  `recState(programId)` → `null|'scheduled'|'series'|'recording'`, `skippedWhy(programId)` → Grund, warum
+  eine Serienaufnahme die Sendung auslässt (`'schon geplant'`, `'Wiederholung'`, `'schon aufgenommen'`, `'ausgelassen'`),
   `ruleForProgram(id)`, `planRecording(programId, { padBefore, padAfter, keep })`, `planSeries(programId,
   opts)`, `planManual({ ch, title, start, end } | { ch, title, from, to, weekdays })`, `updateRule`,
   `removeRule`, `skipOccurrence(terminId)`, `startInstant(ch, { until: 'end'|30|60|'stop' })` → `{ ok, id,
-  end }` oder `{ ok: false, reason: 'quota' }`.
+  end }` oder `{ ok: false, reason: 'quota' }`, `rejectForQuota(termin)` (Termin startet nicht, erscheint unter
+  «Nicht aufgenommen», Meldung an Profil und Hauptprofil), `notices(profil?)` (Meldungen für die Glocke).
 - Warnungen und Erinnerungen: `warnings()`, `warningsFor(ruleId)`, `dismissWarning(id)`, `reminders()`,
   `reminderFor(programId)`, `setReminder(programId, vorlauf)`, `removeReminder(programId)`; `quota()` →
-  `{ totalGB, usedGB, mineGB, othersGB, freeGB, pct }`.
+  `{ totalGB, usedGB, mineGB, othersGB, freeGB, pct, full }`; `usage()`, `usageOf(profil)`.
 - Player und Timeshift: `tune(ch, { list })` (Timeshift beginnt neu), `zap(±1)`, `lastChannel()`,
   `pause()`, `resume()`, `seek(minutenZurück)`, `toLive()`, `stop()`, `player()` → `{ ch, joinedAt,
   offset, paused, list, prev, max, position, live }`. `reset()`.
 
 **Anzeige `window.LIVE_UI`:** `fmt.time|clock|day|dayLong|dayRel|when|range|dur|offset|gb|num|ago|left`,
-`logo(ch, {cls, label})` (helle Fläche, Logo eingepasst, sonst Initialen), `picture(programm, { fallback:
+`logo(ch, {cls, label})` (helle Fläche, Logo eingepasst; nur die 16 bekannten Slugs laden eine Datei, sonst Initialen), `picture(programm, { fallback:
 'logo'|'title'|'none', cls })`, `progress(start, ende, { cls: 'rec', label })` (läuft mit der Uhr),
-`nowText('time'|'left', ende)`, `badge('scheduled'|'recording'|'series'|'reminder'|'warning'|'incomplete'|
+`nowText('time'|'left', ende)`, `fmt.dec(n, max, min)`, `LOAD`, `playerPhase`, `PLAYER_ERR`, `badge('scheduled'|'recording'|'series'|'reminder'|'warning'|'incomplete'|
 'failed', { text })`, `programBadges(programm, { text })`, `fakeVideo(ch, { paused })` (simuliertes Bild
 mit Vermerk), `sampleNote()`, Texte `TX`, `REC_STATE`, `REASON`, `RULE_KIND`, `RECEPTION`, `SOURCE_KIND`.
 CSS-Klassen: `.lv-logo`, `.lv-pic`, `.lv-prog`, `.lv-badge`, `.lv-gap` (Schraffur «Keine Programmdaten»),
@@ -240,7 +281,9 @@ Jeder Dialog hat zudem eine Vorschauseite `#/live/dialog/LD-xx`, die ihn mit Bei
    geteilten Aufnahmen, keine Aufnahmen auf Startseite, in Suche oder Bibliothek (14 Abschnitt 8). Der
    Verwalter sieht nie Titel fremder Aufnahmen.
 7. **Jeder Knopf tut sichtbar etwas** (Navigation, Zustand, Dialog, Meldung). Kein toter Knopf.
-8. Prüfen: `node --check <datei>.js`; im Browser über einen Dateiserver und per Doppelklick.
+8. Prüfen: `node --check <datei>.js`; im Browser über einen Dateiserver und per Doppelklick (`file://`).
+9. Symbole: `recordSeries`, `recordHollow`, `stop`, `arrowUp`, `arrowDown`, `loadspin`, `expand` stehen in jedem
+   `core.js`, die Player-Symbole `vb…` im Web-Kern. Seitendateien ergänzen `ICONS` nicht mehr.
 
 ## 8. Prüfliste je Seite
 

@@ -4,29 +4,11 @@
 'use strict';
 
 const AA = {
-  t0: Date.now(), addedImported: 0, ended: {}, endedS: {}, sel: {}, selAll: false, srcFor: null, focusStep: false, dupHandled: 0,
-  sinceMin: { 0: 101, 1: 38, 2: 17, 5: 27 }, chVisited: false, test: {},
+  sel: {}, selAll: false, srcFor: null, focusStep: false, dupHandled: 0,
+  chVisited: false, test: {},
 };
 
-/* ---------- Beispieldaten ergänzen (nur Verwaltung): Duplikate und neue Sender als eigene, inaktive Einträge ---------- */
-(function aaSeed() {
-  const mk = (id, no, name, slug, src, o) => Object.assign({
-    id, no, name, slug, country: 'CH', langs: ['de'], groups: [], category: 'Vollprogramm', epg: 'none', epgKey: null, reception: 'default', preload: true, state: 'ok', since: null,
-    bitrate: 8.1, video: 'H.264 · 1920 × 1080 · 50 Halbbilder/s', audio: ['Deutsch (AAC Stereo)'], subs: [], sources: src ? [src] : [], favCount: 0, active: false, nameInSource: name,
-  }, o || {});
-  const xt = (n, u) => ({ source: 'src-xtream', name: n, url: 'http://xtream.example.com:8080/live/••••/••••/' + u + '.ts', state: 'ok' });
-  LIVE.channels.push(
-    mk('x-srf1hd', null, 'SRF1 HD CH (Xtream)', 'srf1', xt('SRF1 HD CH', 2201), { epgKey: 'SRF1.ch' }),
-    mk('x-zdfhd', null, 'ZDF HD (Xtream)', 'zdf', xt('ZDF HD', 2202), { country: 'DE', groups: ['de'] }),
-    mk('x-3sat', null, '3sat HD (Senderliste Region)', '3sat', { source: 'src-region', name: '3sat HD', url: 'https://region.example.net/3sat/••••.m3u8', state: 'ok' }, { country: 'DE', category: 'Kultur' }),
-    mk('bluezoom', 41, 'Blue Zoom', 'bluezoom', { source: 'src-kabel', name: 'Blue Zoom', url: 'https://iptv.example.net/live/••••/bluezoom.m3u8', state: 'ok' }, { isNew: true, groups: ['ch'], epgKey: 'BlueZoom.ch' }),
-    mk('kanal9', null, 'Kanal 9', 'kanal9', { source: 'src-kabel', name: 'Kanal 9', url: 'https://iptv.example.net/live/••••/kanal9.m3u8', state: 'ok' }, { isNew: true, groups: ['regional'], category: 'Regional' }),
-    mk('cnn', 120, 'CNN International', 'cnn', { source: 'src-kabel', name: 'CNN International', url: 'https://iptv.example.net/live/••••/cnn.m3u8', state: 'ok' }, { isNew: true, country: 'DE', langs: ['de'], groups: ['news'], category: 'Nachrichten', epgKey: 'CNNInt.us' }),
-  );
-  AA.baseActive = LIVE.channels.filter((c) => c.active).length;
-  AA.baseDist = LIVE.channels.filter((c) => c.active && c.state !== 'ok').length;
-  LIVE.mappings.push(['bluezoom', 'epg-xmltv', 'BlueZoom.ch', 'auto', 'gleiche Kennung (tvg-id)'], ['cnn', 'epg-xmltv', 'CNNInt.us', 'unsure', 'Name ähnlich (84 %)']);
-})();
+/* Beispieldaten der Verwaltung (neue und doppelte Sender, Zuordnungen): in shared/live-data.js */
 
 /* ---------- gemeinsame Helfer ---------- */
 const aaMode = () => SIM.mode();
@@ -35,8 +17,6 @@ const aaSources = () => (aaEmpty() ? [] : LIVE.sources);
 const aaClone = (o) => JSON.parse(JSON.stringify(o));
 const aaWhen = (t) => { const r = fmt.dayRel(t); return (['Heute', 'Morgen', 'Gestern'].includes(r) ? r.toLowerCase() : r) + ' ' + fmt.time(t); };
 const aaPl = (n, one, many) => `${fmt.num(n)} ${n === 1 ? one : many}`;
-const aaLiveText = () => `Aktualisiert vor ${Math.floor(((Date.now() - AA.t0) / 1000) % 5) + 1} s`;
-setInterval(() => { const el = document.querySelector('.alive'); if (el && !ui.dialog && /^Aktualisiert/.test(el.textContent.trim())) el.lastChild.textContent = aaLiveText(); }, 1000);
 /** Seitenzustände: lädt (Skeleton in Endmass), Fehler (mit «Erneut versuchen»), leer (eigener Text), sonst der Inhalt */
 function aaGate(emptyHtml, build, o) {
   const m = aaMode();
@@ -60,31 +40,9 @@ const aaT = (path, id, o) => { o = o || {}; return `<textarea class="inp aa-ta" 
 const aaRadio = (path, name, v, text, fid, o) => `<label class="check"><input type="radio" name="${name}" value="${esc(v)}" data-bind="${path}" ${String(getPath(path)) === String(v) ? 'checked' : ''} data-fid="${fid}"${o && o.after ? ` data-after="${o.after}"` : ''}${o && o.dis ? ' disabled' : ''}><span>${text}</span></label>`;
 const aaMask = (u) => String(u).replace(/\/\/[^/@]*@/, '//••••@').replace(/([?&][^=&]+=)[^&]*/g, '$1••••');
 
-/* ---------- Zahlen aus dem simulierten Zustand ---------- */
-function aaCounts() {
-  const act = LIVE.channels.filter((c) => c.active).length;
-  const dist = LIVE.channels.filter((c) => c.active && SIM.chState(c) !== 'ok').length;
-  const active = aaEmpty() ? 0 : LIVE.totals.active + act - AA.baseActive;
-  const unavailable = aaEmpty() ? 0 : Math.max(0, LIVE.totals.unavailable - AA.baseDist + dist);
-  return { imported: aaEmpty() ? 0 : LIVE.totals.imported + AA.addedImported, active, unavailable, available: active - unavailable };
-}
-/** Zuschauer mit allen Angaben; beendete Zuschauer (LA-21) fehlen */
-function aaViewers() {
-  if (aaEmpty()) return [];
-  return LIVE.consumers.map((c, i) => ({ c, i })).filter((x) => x.c[1] === 'viewer' && !AA.ended[x.i]).map(({ c, i }) => {
-    const [ch, , acct, prof, dev, mode, off] = c; const inp = LIVE.inputs.find((n) => n.ch === ch); const tr = /umgewandelt/.test(mode); const res = (mode.match(/(\d{3,4})p/) || [])[1];
-    return { i, ch, acct, prof, dev, mode, off, tr, res, br: tr ? (res === '720' ? 2.8 : 3.8) : (inp ? inp.bitrate : 8), since: LIVE.NOW - (AA.sinceMin[i] || 20) };
-  });
-}
-const aaViewersOf = (ch) => aaViewers().filter((v) => v.ch === ch).length;
-function aaRecRunning() { // laufende Aufnahmen: die des Mockup-Kontos aus dem Zustand, die anderer Konten aus den Beispieldaten
-  if (aaEmpty()) return 0;
-  const mine = LIVE.profiles.reduce((n, p) => n + SIM.recordings(p.id).filter((r) => r.state === 'running').length, 0);
-  return mine + LIVE.consumers.filter((c) => c[1] === 'recording' && c[2] !== LIVE.account.email).length;
-}
-function aaRecSoon(min) { return aaEmpty() ? 0 : LIVE.profiles.reduce((n, p) => n + SIM.upcoming(p.id).filter((u) => u.start - SIM.now() <= min && u.start >= SIM.now()).length, 0); }
+/* ---------- Zahlen aus dem simulierten Zustand: im Kern (web/js/admin-core.js: admCounts, admViewers, admRecRunning, admRecSoon) ---------- */
 function aaState() {
-  const c = aaCounts();
+  const c = admCounts();
   if (!aaSources().length) return ['Keine Quelle', 'bad', 'Füge eine Quelle hinzu'];
   if (SIM.flags().noEpg || LIVE.epgSources.every((e) => SIM.now() - e.last > 48 * 60)) return ['Programmdaten veraltet', 'warn', 'Programmdaten laden prüfen'];
   if (c.unavailable > 0) return ['Eingeschränkt', 'warn', `${aaPl(c.unavailable, 'Sender', 'Sender')} nicht verfügbar`];
@@ -116,21 +74,21 @@ function aaSetupBand() {
     <ol class="aa-steps">${steps.map(([t, h, done], i) => `<li class="${done ? 'done' : ''}"><span class="n">${done ? icon('check', 14) : i + 1}</span><a class="lnk" href="${h}" data-fid="la01:step${i}">${t}</a>${done ? '<span class="vh"> (erledigt)</span>' : ''}</li>`).join('')}</ol></section>`;
 }
 function aaOverview() {
-  const empty = !aaSources().length; const c = aaCounts(); const st = aaState(); const inp = aaEmpty() ? [] : LIVE.inputs; const R = LIVE.resources; const vs = aaViewers();
+  const empty = !aaSources().length; const c = admCounts(); const st = aaState(); const inp = admInputs(); const R = LIVE.resources; const vs = admViewers();
   const perm = inp.filter((n) => n.reasons.includes('permanent')).length; const pre = inp.filter((n) => n.reasons.includes('preload')).length; const sch = inp.filter((n) => n.reasons.includes('schedule')).length;
-  const trans = vs.filter((v) => v.tr).length; const run = aaRecRunning(); const bandOut = Math.round(vs.reduce((a, v) => a + v.br, 0) * 10) / 10;
+  const trans = vs.filter((v) => v.tr).length; const run = admRecRunning(); const bandOut = Math.round(vs.reduce((a, v) => a + v.br, 0) * 10) / 10;
   const dash = '–';
   const stats = `<div class="stats" style="--n:3">${aaStat('Zustand', empty ? 'Keine Quelle' : st[0], empty ? 'Füge eine Quelle hinzu' : st[2], { cls: empty ? 'bad' : st[1], href: '#/admin/live/diagnostics', fid: 'la01:s-state' })}
     ${aaStat('Sender', empty ? dash : fmt.num(c.active) + ' aktiv', empty ? '' : `${fmt.num(c.available)} verfügbar · ${fmt.num(c.unavailable)} nicht verfügbar`, { href: '#/admin/live/channels?tab=channels', fid: 'la01:s-ch', cls: c.unavailable ? '' : '' })}
     ${aaStat('Eingänge', empty ? dash : inp.length + ' aktiv', empty ? '' : `davon ${perm} permanent · ${pre} vorgeladen · ${sch} nach Zeitplan`, { href: '#/admin/live/streams', fid: 'la01:s-in' })}
     ${aaStat('Zuschauer', empty ? dash : vs.length, empty ? '' : `Umwandlungen: ${trans}`, { href: '#/admin/live/streams', fid: 'la01:s-vi' })}
     ${aaStat('Aufnahmen', empty ? dash : run + ' laufen', empty ? '' : `${R.recPlanned24h} geplant (nächste 24 h)`, { href: '#/admin/live/storage?tab=dvr', fid: 'la01:s-rec' })}
-    ${aaStat('Bandbreite', empty ? dash : `ein ${R.bandIn.toLocaleString('de-CH', { minimumFractionDigits: 1 })} Mbit/s`, empty ? '' : `aus ${bandOut.toLocaleString('de-CH', { minimumFractionDigits: 1 })} Mbit/s`, { href: '#/admin/live/streams', fid: 'la01:s-bw' })}</div>`;
+    ${aaStat('Bandbreite', empty ? dash : `ein ${fmt.dec(R.bandIn, 1, 1)} Mbit/s`, empty ? '' : `aus ${fmt.dec(bandOut, 1, 1)} Mbit/s`, { href: '#/admin/live/streams', fid: 'la01:s-bw' })}</div>`;
   const att = aaAttention();
   const cardAtt = `<section class="card"><div class="ch"><span class="ik">${icon('alert', 18)}</span><h2>Braucht Aufmerksamkeit</h2></div>${att.length ? `<ul class="aa-atts">${att.map(aaAttRow).join('')}</ul>` : `<p class="muted">${empty ? 'Noch nichts zu prüfen.' : 'Alles in Ordnung. Nichts braucht Aufmerksamkeit.'}</p>`}</section>`;
-  const top = inp.map((n) => Object.assign({ v: aaViewersOf(n.ch) }, n)).sort((a, b) => b.v + b.recordings - (a.v + a.recordings)).slice(0, 5);
+  const top = inp.map((n) => Object.assign({ v: admViewersOf(n.ch) }, n)).sort((a, b) => b.v + b.recordings - (a.v + a.recordings)).slice(0, 5);
   const cardIn = `<section class="card"><div class="ch"><span class="ik">${icon('play', 18)}</span><h2>Aktive Eingänge</h2><a class="btn quiet sm" href="#/admin/live/streams" data-fid="la01:all-in">Alle ansehen</a></div>
-    ${top.length ? `<div class="tblw aa-tbl-in"><table class="tbl"><thead><tr><th>Sender</th><th>Grund</th><th class="end">Zuschauer</th><th class="end">Aufnahmen</th><th class="end">Bitrate</th></tr></thead><tbody>${top.map((n) => { const c0 = SIM.channel(n.ch); return `<tr><td class="main"><span class="aa-chn">${LU.logo(c0)}<a class="lnk" href="#/admin/live/streams" data-fid="la01:in:${n.ch}">${esc(c0.name)}</a></span></td><td data-l="Grund">${n.state === 'reconnecting' ? `<span class="chip bad">Wiederverbindet ${n.attempt[0]} von ${n.attempt[1]}</span>` : n.reasons.map((r) => `<span class="chip info">${AA_REASON[r]}${r === 'schedule' ? ` «${esc(n.schedule)}»` : ''}</span>`).join(' ')}</td><td class="end" data-l="Zuschauer">${n.v}</td><td class="end" data-l="Aufnahmen">${n.recordings}</td><td class="end" data-l="Bitrate">${n.bitrate ? n.bitrate.toLocaleString('de-CH', { minimumFractionDigits: 1 }) + ' Mbit/s' : '–'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted">Gerade ist kein Sender eingeschaltet.</p>'}</section>`;
+    ${top.length ? `<div class="tblw aa-tbl-in"><table class="tbl"><thead><tr><th>Sender</th><th>Grund</th><th class="end">Zuschauer</th><th class="end">Aufnahmen</th><th class="end">Bitrate</th></tr></thead><tbody>${top.map((n) => { const c0 = SIM.channel(n.ch); return `<tr><td class="main"><span class="aa-chn">${LU.logo(c0)}<a class="lnk" href="#/admin/live/streams" data-fid="la01:in:${n.ch}">${esc(c0.name)}</a></span></td><td data-l="Grund">${n.state === 'reconnecting' ? `<span class="chip bad">Wiederverbindet ${n.attempt[0]} von ${n.attempt[1]}</span>` : n.reasons.map((r) => `<span class="chip info">${AA_REASON[r]}${r === 'schedule' ? ` «${esc(n.schedule)}»` : ''}</span>`).join(' ')}</td><td class="end" data-l="Zuschauer">${n.v}</td><td class="end" data-l="Aufnahmen">${n.recordings}</td><td class="end" data-l="Bitrate">${n.bitrate ? fmt.dec(n.bitrate, 1, 1) + ' Mbit/s' : '–'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted">Gerade ist kein Sender eingeschaltet.</p>'}</section>`;
   const chs = inp.filter((n) => n.recordings > 0).length;
   const cardRec = `<section class="card"><div class="ch"><span class="ik">${icon('record', 18)}</span><h2>Aufnahmen</h2></div>
     <p>${empty ? 'Noch keine Aufnahmen.' : `<b>${aaPl(run, 'läuft', 'laufen')}</b> auf ${aaPl(chs, 'Sender', 'Sendern')} · <b>${R.recPlanned24h}</b> geplant in 24 Std. · höchstens ${R.recMaxParallel} gleichzeitig`}</p>
@@ -138,7 +96,7 @@ function aaOverview() {
   const sto = LIVE.storage; const cap = (s) => (s.id === 'timeshift' ? 256 : s.totalGB);
   const meter = (l, v, m, fmtv) => `<div class="aa-res"><span>${l}</span><b>${fmtv}</b>${aaMeter(v, m, l)}</div>`;
   const cardRes = `<section class="card"><div class="ch"><span class="ik">${icon('server', 18)}</span><h2>Ressourcen</h2></div>
-    ${empty ? '<p class="muted">Ohne Quelle läuft nichts.</p>' : `${meter('CPU', R.cpu, 100, R.cpu + ' %')}${meter('GPU', R.gpu, 100, R.gpu + ' %')}${meter('RAM von Slouchcat', R.ramGB, 8, R.ramGB.toLocaleString('de-CH', { minimumFractionDigits: 1 }) + ' GB')}
+    ${empty ? '<p class="muted">Ohne Quelle läuft nichts.</p>' : `${meter('CPU', R.cpu, 100, R.cpu + ' %')}${meter('GPU', R.gpu, 100, R.gpu + ' %')}${meter('RAM von Slouchcat', R.ramGB, 8, fmt.dec(R.ramGB, 1, 1) + ' GB')}
     <h3 class="la02-h3">Speicher</h3>${sto.map((s) => meter(esc(s.name), s.usedGB, cap(s), `${fmt.gb(s.usedGB)} von ${fmt.gb(cap(s))}`)).join('')}
     <p class="muted aa-small">Wo der Server einen Wert nicht lesen kann, steht «–» und «Nicht verfügbar auf diesem System».</p>`}</section>`;
   const eps = LIVE.epgSources; const last = Math.max(...eps.map((e) => e.last)); const until = Math.max(...eps.map((e) => e.until)); const warns = eps.reduce((n, e) => n + e.warnings.length, 0);
@@ -148,7 +106,7 @@ function aaOverview() {
 }
 route('/admin/live', () => {
   const m = aaMode();
-  return aaView({ area: 'livetv', page: 'live', title: 'Live-TV', intro: 'Zustand von Quellen, Sendern, Empfang und Aufnahmen auf einen Blick.', live: m === 'normal' ? aaLiveText() : null,
+  return aaView({ area: 'livetv', page: 'live', title: 'Live-TV', intro: 'Zustand von Quellen, Sendern, Empfang und Aufnahmen auf einen Blick.', live: m === 'normal' ? admLiveText() : null,
     actions: `<a class="btn secondary" href="#/admin/live/channels?tab=channels" data-fid="la01:ch">Sender verwalten</a><a class="btn primary" href="#/admin/live/sources/new" data-fid="la01:add">${icon('plus', 16)}Quelle hinzufügen</a>`,
     html: aaGate(null, aaOverview, { rows: 4, h: 96 }) });
 });
@@ -229,11 +187,11 @@ ACT.aaToSingle = () => { const d = ui.draft.src; d.kind = 'single'; d.test = nul
 ACT.aaKind = () => { const d = ui.draft.src; d.interval = d.kind === 'xtream' ? 12 : 24; d.test = null; d.err1 = false; };
 ACT.aaHdrAdd = () => { ui.draft.src.hdr.push({ k: '', v: '', set: false }); render(); setTimeout(() => { const el = document.querySelector(`[data-fid="la03:hk${ui.draft.src.hdr.length - 1}"]`); if (el) el.focus(); }, 0); };
 ACT.aaHdrDel = (dd) => { ui.draft.src.hdr.splice(Number(dd.i), 1); render(); };
-ACT.aaSample = () => { const d = ui.draft.src; d.file = 'senderliste-beispiel.m3u'; d.fileSize = '0,9 MB'; d.fileBig = false; d.test = null; render(); };
+ACT.aaSample = () => { const d = ui.draft.src; d.file = 'senderliste-beispiel.m3u'; d.fileSize = '0.9 MB'; d.fileBig = false; d.test = null; render(); };
 document.addEventListener('change', (e) => {
   const el = e.target; if (!el.matches || !el.matches('input[type="file"][data-aa]') || !ui.draft.src) return;
   const f = el.files && el.files[0]; if (!f) return; const d = ui.draft.src;
-  d.file = f.name; d.fileSize = (f.size / 1048576).toLocaleString('de-CH', { maximumFractionDigits: 1 }) + ' MB'; d.fileBig = f.size > 20 * 1048576; d.test = null; render();
+  d.file = f.name; d.fileSize = fmt.dec(f.size / 1048576, 1) + ' MB'; d.fileBig = f.size > 20 * 1048576; d.test = null; render();
 });
 function aaFileField(d, e, repl) {
   return aaF('la03-file', repl ? 'Datei ersetzen' : 'Datei', `<div class="row-gap"><label class="btn secondary aa-file">${icon('upload', 16)}Datei wählen<input type="file" class="vh" accept=".m3u,.m3u8" data-aa data-fid="la03:file" id="la03-file"></label><button type="button" class="btn quiet" data-act="aaSample" data-fid="la03:sample">Beispieldatei verwenden</button><span>${d.file ? `<span class="mono">${esc(d.file)}</span> · ${esc(d.fileSize || '')}` : '<span class="muted">Keine Datei gewählt</span>'}</span></div>`, { hint: '.m3u oder .m3u8, höchstens 20 MB.', err: e.file });
@@ -327,7 +285,7 @@ ACT.aaFinish = () => {
   const s = { id, name: d.name.trim(), kind: d.kind, address: d.kind === 'single' ? '' : aaMask(d.address.trim()), host: aaHost(d.address), user: d.user, file: d.file, fileSize: d.fileSize, uploaded: now, streams: d.kind === 'single' ? d.address.split('\n').map((x) => aaMask(x.trim())).filter(Boolean) : undefined,
     active: d.kind === 'single' ? t.total : d.offerNew ? t.total : 0, total: t.total || 0, groups: t.groups || 0, gone: 0, interval: d.kind === 'single' ? 0 : d.interval, last: d.kind === 'single' ? null : now, lastOk: true, next: d.interval && d.kind !== 'single' ? now + d.interval * 60 : null, state: 'ok', localNet: d.localNet, offerNew: d.offerNew,
     hdr: d.hdr.map((h) => ({ k: h.k, v: '', set: !!(h.v || h.set) })), uaMode: d.uaMode, ua: d.ua, hour: d.hour, takeGroups: d.takeGroups, takeNumbers: d.takeNumbers, goneMode: d.goneMode, safety: d.safety };
-  LIVE.sources.push(s); AA.addedImported += t.total || 0; let run = null;
+  LIVE.sources.push(s); ADM.addedImported += t.total || 0; let run = null;
   if (d.kind === 'single') {
     if (d.single.mode === 'new') { const no = d.single.no === '' ? null : Number(d.single.no); LIVE.channels.push({ id: 'n-' + id, no, name: d.single.name.trim(), slug: 'n-' + id, country: 'CH', langs: ['de'], groups: [d.single.group], category: 'Sonstiges', epg: 'none', epgKey: null, reception: 'default', preload: true, state: 'ok', since: null, bitrate: 8, video: 'H.264 · 1920 × 1080 · 25 Bilder/s', audio: ['Deutsch (AAC Stereo)'], subs: [], sources: [{ source: id, name: d.single.name.trim(), url: aaMask(d.address.split('\n')[0]), state: 'ok' }], favCount: 0, active: true, nameInSource: d.single.name.trim() }); }
     else { const c = SIM.channel(d.single.backup); if (c) c.sources.push({ source: id, name: s.name, url: aaMask(d.address.split('\n')[0]), state: 'ok' }); }

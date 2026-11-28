@@ -4,14 +4,7 @@
    14-oberflaeche.md 3.1, 3.3, 3.5, 3.6, 3.15, 4.1, 4.2. Plain script, own globals start with hp / HP. */
 'use strict';
 
-Object.assign(ICONS, {
-  recordHollow: '<circle cx="12" cy="12" r="6.5"/>',
-  recordSeries: '<circle cx="8.5" cy="12" r="5" fill="currentColor" stroke="none"/><circle cx="16.5" cy="12" r="4.5"/>',
-  arrowUp: '<path d="M12 19V5m0 0-6 6m6-6 6 6"/>',
-  arrowDown: '<path d="M12 5v14m0 0-6-6m6 6 6-6"/>',
-  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
-  loadspin: '<path d="M12 3a9 9 0 1 0 9 9"/>',
-});
+/* icons recordHollow, recordSeries, arrowUp, arrowDown, expand, loadspin: in core.js */
 
 /* ---------- shared page state ---------- */
 const HP = {
@@ -113,8 +106,7 @@ function hpRemIb(p) {
 /** skipped by a series recording: «schon geplant» … */
 function hpSkip(p) {
   if (!SIM.rights().recordings) return '';
-  for (const r of SIM.rules()) { if (r.kind !== 'series') continue; const s = (r.skipped || []).find((x) => x[0] === p.id); if (s) return s[1]; }
-  return '';
+  return SIM.recState(p.id) ? '' : SIM.skippedWhy(p.id) || ''; /* from the core */
 }
 /** programme row: time, (channel), title, sub, progress, badges, actions */
 function hpPR(p, o) {

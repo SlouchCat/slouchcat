@@ -75,6 +75,13 @@ const ICONS = {
   backspace: '<path d="M21 5H9l-6 7 6 7h12z"/><path d="m12 9 6 6m0-6-6 6"/>',
   shift: '<path d="M12 4 4 12h4v7h8v-7h4z"/>',
   power: '<path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/>',
+  recordHollow: '<circle cx="12" cy="12" r="6.5"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  loadspin: '<path d="M12 3a9 9 0 1 0 9 9"/>',
+  recordSeries: '<circle cx="8.5" cy="12" r="5" fill="currentColor" stroke="none"/><circle cx="16.5" cy="12" r="4.5"/>',
+  arrowUp: '<path d="M12 19V5m0 0-6 6m6-6 6 6"/>',
+  arrowDown: '<path d="M12 5v14m0 0-6-6m6 6 6-6"/>',
   live: '<path d="M12 13.5v7M9 20.5h6"/><circle cx="12" cy="11" r="1.8"/><path d="M8.2 7.5a5.2 5.2 0 0 0 0 7M15.8 7.5a5.2 5.2 0 0 1 0 7M5.5 5a9 9 0 0 0 0 12M18.5 5a9 9 0 0 1 0 12"/>',
   record: '<circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/>',
   reminder: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/><path d="M12 8.5V11l1.8 1.2"/>',
@@ -395,7 +402,7 @@ ACT.toggle = d => { const o = d.scope === 'S' ? S : ui; const p = d.path.split('
 ACT.set = d => { const p = d.path.split('.'); let t = p[0] === 'S' ? S : ui; for (let k = 1; k < p.length - 1; k++) t = t[p[k]] = t[p[k]] || {}; t[p[p.length - 1]] = d.num != null ? Number(d.value) : d.value; closeAll(); commit(); };
 ACT.watch = d => { const i = Number(d.i); const k = S.watch.indexOf(i); if (k < 0) { S.watch.unshift(i); toast('Zur Merkliste hinzugefügt'); } else { S.watch.splice(k, 1); toast('Von der Merkliste entfernt'); } commit(); };
 ACT.seen = d => { const i = Number(d.i); const k = S.seen.indexOf(i); if (k < 0) S.seen.push(i); else S.seen.splice(k, 1); toast(k < 0 ? 'Als gesehen markiert' : 'Markierung entfernt'); commit(); };
-ACT.libs = () => menu(`<h2>Bibliotheken</h2><div class="mlist">${LIBS.map((l, n) => `<a class="mi" href="#/library/${l.key}" data-f="lib-${l.key}"${n === 0 ? ' data-default' : ''}><span class="mi-ic">${icon(l.icon, 40)}</span><span class="mi-tx"><b>${esc(l.name)}</b><small>${l.count.toLocaleString('de-CH')} Titel</small></span>${icon('right', 32)}</a>`).join('')}</div>`);
+ACT.libs = () => menu(`<h2>Bibliotheken</h2><div class="mlist">${LIBS.map((l, n) => `<a class="mi" href="#/library/${l.key}" data-f="lib-${l.key}"${n === 0 ? ' data-default' : ''}><span class="mi-ic">${icon(l.icon, 40)}</span><span class="mi-tx"><b>${esc(l.name)}</b><small>${LIVE_UI.fmt.num(l.count)} Titel</small></span>${icon('right', 32)}</a>`).join('')}</div>`);
 
 /* ---------- menus and dialogs (focus is trapped in the top one) ---------- */
 const OV = [];

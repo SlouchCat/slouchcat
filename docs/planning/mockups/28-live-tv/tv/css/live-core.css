@@ -64,8 +64,8 @@
 .ltv-heart.on.is-f { color: var(--live-rec); }
 .ltv-prev { position: sticky; top: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 30px 34px; border-radius: 28px; background: var(--elev); border: 2px solid var(--line); }
 .ltv-pv-top { display: flex; align-items: center; gap: 26px; }
-.ltv-pv-top b { display: block; font-size: var(--fs-h2); }
-.ltv-pv-top small { display: block; font-size: var(--fs-s); color: var(--tx3); }
+.ltv-pv-top > span > b { display: block; font-size: var(--fs-h2); }
+.ltv-pv-top > span > small { display: block; font-size: var(--fs-s); color: var(--tx3); }
 .ltv-pv-lbl { font-size: 22px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx3) !important; margin-top: 8px; }
 .ltv-pv-t { font-size: var(--fs-h2); font-weight: 700; line-height: 1.15; margin: 0; }
 .ltv-pv-t span { font-weight: 500; color: var(--tx2); }

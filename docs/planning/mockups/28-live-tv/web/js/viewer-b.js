@@ -5,51 +5,21 @@
    Part 2 (viewer-b-2.js): LS-08 to LS-14, LS-10 and the dialogs LD-01 to LD-11. Global names start with «vb». */
 'use strict';
 
-/* ---------- icons this agent needs in addition to the core set (added at run time, prefixed) ---------- */
-Object.assign(ICONS, {
-  vbVol: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
-  vbMute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
-  vbFull: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
-  vbBack: '<path d="M4 4v4.5h4.5M4.7 8.5A8 8 0 1 1 4 13"/>',
-  vbFwd: '<path d="M20 4v4.5h-4.5M19.3 8.5A8 8 0 1 0 20 13"/>',
-  vbSub: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M7 12.5h4M13 12.5h4M7 15.5h7"/>',
-  vbAudio: '<path d="M4 13v-2M8 16V8M12 19V5M16 15V9M20 13v-2"/>',
-  vbChapter: '<path d="M5 5v14M9 8h10M9 12h10M9 16h6"/>',
-  vbBlank: '',
-});
+/* icons vbVol, vbMute, vbFull, vbBack, vbFwd, vbSub, vbAudio, vbChapter, vbBlank: in core.js */
 
-/* ---------- extra mockup states of this agent ---------- */
-const VB = { quotaFull: false, perr: '', fallback: false, slow: false, many: false, noAskZap: false, fbShown: false };
-const VB_PERR = { '': 'Kein Fehler', limit: 'Grenze des Kontos erreicht', notPlayable: 'Auf diesem Gerät nicht abspielbar', busy: 'Server ausgelastet', stall: 'Strom stockt' };
-function vbPanel() {
-  const o = (label, act, v, on) => `<button type="button" class="lvm-o" data-vbm="${act}" data-v="${esc(v)}" aria-pressed="${!!on}">${label}</button>`;
-  const sw = (label, k) => o(`${VB[k] ? '☑' : '☐'} ${label}`, 'flag', k, VB[k]);
-  return `<section data-vbpanel><h3>Aufnahmen, Programm und Player (Web)</h3><div class="lvm-row">${sw('Kontingent voll (200 von 200 GB)', 'quotaFull')}${sw('Ersatzquelle aktiv', 'fallback')}${sw('Langsamer Start (über 5 s)', 'slow')}${sw('Viele Sender im Raster (2\'000)', 'many')}</div>
-    <h3>Fehler im Live-Player</h3><div class="lvm-row">${Object.entries(VB_PERR).map(([k, l]) => o(l, 'perr', k, VB.perr === k)).join('')}</div>
-    <div class="lvm-row">${o('Erinnerung jetzt zeigen', 'remind', '', false)}${VB.quotaFull ? o('Start einer geplanten Aufnahme bei vollem Kontingent', 'reject', '', false) : ''}${VB.noAskZap ? o('Beim Senderwechsel wieder fragen', 'ask', '', false) : ''}</div>
-    <p>Recht entzogen während der Wiedergabe: im Player «Live-TV» (Profil) ausschalten. Gestörter Sender: ZDFinfo (Nr. 15). Sender nicht mehr im Angebot: Adresse #/live/watch/tv24.</p></section>`;
-}
-(function vbMountPanel() {
-  const host = document.getElementById('lvm'); if (!host) return;
-  const inject = () => { const p = host.querySelector('.lvm-panel'); if (p && !p.querySelector('[data-vbpanel]')) { const end = p.querySelector('.lvm-end'); if (end) end.insertAdjacentHTML('beforebegin', vbPanel()); else p.insertAdjacentHTML('beforeend', vbPanel()); } };
-  new MutationObserver(inject).observe(host, { childList: true });
-  host.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-vbm]'); if (!b) return;
-    e.preventDefault();
-    const a = b.dataset.vbm, v = b.dataset.v;
-    vbMockAct(a, v);
-    const sec = host.querySelector('[data-vbpanel]');
-    if (sec) { sec.outerHTML = vbPanel(); const nb = host.querySelector(`[data-vbpanel] [data-vbm="${a}"][data-v="${CSS.escape(v)}"]`) || host.querySelector('[data-vbpanel] button'); if (nb) nb.focus(); }
-  });
-})();
-function vbMockAct(a, v) {
-  if (a === 'flag') { VB[v] = !VB[v]; if (v === 'fallback') VB.fbShown = false; }
-  else if (a === 'perr') { VB.perr = v; if (ui.vbp) ui.vbp.readyAt = Date.now(); }
-  else if (a === 'remind') vbRemindNow();
-  else if (a === 'reject') vbSimReject();
-  else if (a === 'ask') VB.noAskZap = false;
-  render();
-}
+/* ---------- mockup states: all in the core (LIVE_SIM.flags(), bar «Zustände»); VB only reads them ---------- */
+const VB = {
+  get quotaFull() { return SIM.quota().full; },
+  get perr() { const f = SIM.flags().fault; return ['limit', 'notPlayable', 'busy', 'stall'].includes(f) ? f : ''; },
+  get fallback() { return SIM.flags().fault === 'fallback'; },
+  get slow() { return SIM.flags().fault === 'slow'; },
+  get many() { return SIM.flags().many; },
+  noAskZap: false, fbShown: false,
+};
+/* actions of this client in the bar «Zustände» (not states) */
+LIVE_MOCK.addAction('Erinnerung jetzt zeigen', () => vbRemindNow());
+LIVE_MOCK.addAction('Start einer geplanten Aufnahme (bei vollem Kontingent: abgelehnt)', () => vbSimReject());
+LIVE_MOCK.addAction('Beim Senderwechsel wieder fragen', () => { VB.noAskZap = false; toast('Beim Senderwechsel mit Zeitversatz wird wieder gefragt.'); });
 
 /* ---------- small helpers ---------- */
 const vbWidth = () => { const d = document.getElementById('device'); const w = d ? d.clientWidth : 1280; if (typeof S !== 'undefined' && S.view === 'phone') return Math.min(w, 390); if (typeof S !== 'undefined' && S.view === 'tablet') return Math.min(w, 834); return w; };
@@ -59,23 +29,13 @@ const vbMaxDay = () => Math.floor((LIVE.EPG_END - 1) / 1440);
 const vbHm = (t) => fmt.time(t);
 const vbMin = (n) => `${n} ${n === 1 ? 'Minute' : 'Minuten'}`;
 /** account storage as the viewer sees it; «Kontingent voll» of the mockup fills it */
-function vbQuota() {
-  const q = SIM.quota(); if (!VB.quotaFull) return q;
-  return Object.assign({}, q, { usedGB: q.totalGB, othersGB: Math.round((q.totalGB - q.mineGB) * 10) / 10, freeGB: 0, pct: 100 });
-}
+const vbQuota = () => SIM.quota(); // «Kontingent voll» of the mockup is in the core
 /** size estimate from the measured bitrate of the channel (Mbit/s); null = unknown */
 function vbEstGB(chId, min) { const c = SIM.channel(chId); if (!c || !c.bitrate) return null; return Math.round(c.bitrate * 60 * min / 8 / 1000 * 10) / 10; }
 const vbRuleWarnText = { quota: 'Warnung: Kontingent', serverStorage: 'Warnung: Speicher des Servers', overlap: 'Warnung: Überschneidung', duplicate: 'Hinweis: doppelt', channelGone: 'Warnung: Sender weg', programGone: 'Warnung: Sendung verschwunden', timeChanged: 'Zeit angepasst', dst: 'Hinweis: Zeitumstellung' };
 const vbWd = (t) => (6 + Math.floor(t / 1440)) % 7; // 0 = Sunday, day 0 is a Saturday
-/** concrete upcoming recordings; series rules also honour their time window and weekdays */
-function vbUpcoming(pid) {
-  return SIM.upcoming(pid).filter((u) => {
-    const r = u.rule; if (r.kind !== 'series') return true;
-    if (r.weekdays && r.weekdays.length && !r.weekdays.includes(vbWd(u.start))) return false;
-    if (r.window) { const m = ((u.start % 1440) + 1440) % 1440; if (m < LIVE.hm(r.window[0]) || m > LIVE.hm(r.window[1])) return false; }
-    return true;
-  });
-}
+/** concrete upcoming recordings; the core applies time window and weekdays of series rules */
+const vbUpcoming = (pid) => SIM.upcoming(pid);
 /** one context per drawing pass: rights, upcoming, running recordings, reminders, rules with warnings */
 function vbCtx() {
   const r = SIM.rights();
@@ -157,10 +117,8 @@ SIM.on((t) => {
 /** «Kontingent voll» at the start of a planned recording: the server rejects it and both profiles get a message */
 function vbSimReject() {
   const o = vbUpcoming().find((u) => SIM.chState(u.ch) !== 'gone'); if (!o) { toast('Keine geplante Aufnahme vorhanden.', 'warn'); return; }
-  const res = SIM.startInstant(o.ch, { until: 30 }); if (!res.ok) return;
-  const r = SIM.recording(res.id);
-  Object.assign(r, { state: 'rejected', reason: 'quota', title: o.title, sub: o.sub || '', start: o.start, end: o.end, sizeGB: 0, origin: o.kind === 'series' ? 'series' : 'single', rule: o.kind === 'series' ? o.rule.id : null, program: o.program });
-  if (o.kind === 'single' || o.kind === 'manual') SIM.removeRule(o.rule.id); else SIM.skipOccurrence(o.id);
+  if (!VB.quotaFull) { toast(`«${esc(o.title)}» startet normal: Der Speicher des Kontos hat Platz. Schalte unter «Zustände» → Aufnahmen «Kontingent voll» ein.`, 'warn', 7000); return; }
+  SIM.rejectForQuota(o);
   const main = SIM.profiles().find((x) => x.primary);
   toast(`«${esc(o.title)}» wurde nicht aufgenommen: ${esc(LU.REASON.quota)} ${SIM.profile().primary ? 'Du hast' : `Du und ${esc(main.name)} habt`} eine Meldung in der Glocke. <a href="#/live/recordings">Meine Aufnahmen</a>`, 'warn', 8000);
 }
@@ -588,19 +546,18 @@ function vbpLoadState(p) {
   const P = vbpS(); const key = `${p.ch}@${p.joinedAt}#${P.retry}`;
   if (!P.load || P.load.key !== key) {
     const recv = LIVE.inputs.some((i) => i.ch === p.ch && i.state === 'running');
-    const dur = VB.slow ? 7000 : recv ? 350 : 1900;
+    const L = LU.LOAD; const dur = VB.slow ? L.slowReadyMs : recv ? L.hotReadyMs : L.coldReadyMs; /* thresholds of the core, shortened in the mockup */
     P.load = { key, t0: Date.now(), dur, recv }; P.readyAt = Date.now() + dur; P.infoUntil = Date.now() + dur + 5000;
-    [500, 5000, dur, dur + 5050].forEach((ms) => { if (ms <= dur + 5050 && (ms <= dur || ms === dur + 5050)) setTimeout(() => { if (P.load && P.load.key === key && parseHash().path.startsWith('/live/watch/')) render(); }, ms + 10); });
+    [L.spinnerMs, L.slowAfterMs, dur, L.giveUpMs, dur + 5050].forEach((ms) => setTimeout(() => { if (P.load && P.load.key === key && parseHash().path.startsWith('/live/watch/')) render(); }, ms + 10));
   }
-  const el = Date.now() - P.load.t0;
-  return el >= P.load.dur ? 'ready' : el >= 5000 ? 'slow' : el >= 500 ? 'connecting' : 'switching';
+  const ph = LU.playerPhase(Date.now() - P.load.t0, SIM.channel(p.ch), { hot: P.load.recv });
+  P.load.err = ph.err || null;
+  return ph.k === 'ok' || ph.k === 'error' ? 'ready' : ph.k === 'slow' ? 'slow' : ph.spin ? 'connecting' : 'switching';
 }
 function vbpError(c) {
   const s = SIM.chState(c);
   if (s === 'gone') return 'gone';
-  if (VB.perr === 'limit' || VB.perr === 'notPlayable' || VB.perr === 'busy') return VB.perr;
-  if (s === 'disturbed') return 'unreachable';
-  return null;
+  const P = vbpS(); return P.load && P.load.err !== 'revoked' ? P.load.err : null; /* from LIVE_UI.playerPhase (fault states and disturbed channels) */
 }
 function vbpErrHtml(kind, c) {
   const T = {

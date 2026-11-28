@@ -3,12 +3,11 @@
    Vorlage: LS-02 in channels.js. Alle globalen Namen beginnen mit «tv». 14-oberflaeche.md 3.1, 3.3, 3.5, 3.6, 3.15. */
 'use strict';
 
-ICONS.recordSeries = '<circle cx="8" cy="12" r="4.5" fill="currentColor" stroke="none"/><circle cx="16.5" cy="12" r="4.5" fill="currentColor" stroke="none"/>';
-ICONS.stop = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>';
+/* icons recordSeries, stop: in core.js */
 
 const TV_USED0 = LIVE.account.usedGB;
 const TVS = { sq: { sig: null }, search: { q: '', when: 'week', genre: '', group: '' }, own: { order: false, held: null, orig: null }, open: {}, ctab: 'upcoming' };
-RESETS.push(() => { TVS.sq = { sig: null }; TVS.search = { q: '', when: 'week', genre: '', group: '' }; TVS.own = { order: false, held: null, orig: null }; TVS.open = {}; TVS.ctab = 'upcoming'; LIVE.account.usedGB = TV_USED0; });
+RESETS.push(() => { TVS.sq = { sig: null }; TVS.search = { q: '', when: 'week', genre: '', group: '' }; TVS.own = { order: false, held: null, orig: null }; TVS.open = {}; TVS.ctab = 'upcoming'; });
 
 /* ---------- small helpers ---------- */
 const tvAllIds = () => SIM.channels().map((c) => c.id);

@@ -1,12 +1,12 @@
 /* Web Verwaltung B, Teil 2: LA-12 Aktive Streams, LA-13 Überwachung und Diagnose, LA-14 Aufnahmen (DVR),
    LA-15 Timeshift, LA-16 Speicher. Bauvorlage: 15-administration.md 3.12 bis 3.16 und 4 (Privatsphäre).
    Globale Namen mit Präfix «ab» (Helfer in admin-b.js). Zahlen kommen aus dem simulierten Zustand und sind
-   dieselben wie in LA-01: aaViewers(), aaRecRunning(), LIVE.inputs, LIVE.resources, LIVE.storage, LIVE.accounts. */
+   dieselben wie in LA-01: admViewers(), admRecRunning(), LIVE.inputs, LIVE.resources, LIVE.storage, LIVE.accounts. */
 'use strict';
 
 /* ---------- Beispieldaten ergänzen: Timeshift je Puffer ---------- */
 (function abSeed2() {
-  LIVE.inputs.forEach((n) => { const m = String(n.timeshift || '').match(/([\d,]+) GB \((\d+)/); n.tsPer = m ? parseFloat(m[1].replace(',', '.')) / Number(m[2]) : 0; });
+  LIVE.inputs.forEach((n) => { const m = String(n.timeshift || '').match(/([\d.]+) GB \((\d+)/); n.tsPer = m ? parseFloat(m[1]) / Number(m[2]) : 0; });
 })();
 
 /* ---------- Protokoll und Kennzahlen der Woche ---------- */
@@ -37,7 +37,7 @@ function abSyncRecInputs() {
 }
 const abRank = (n) => (n.backup ? n.backup : 1);
 function abInfo(n) {
-  const c = SIM.channel(n.ch); const vs = aaViewers().filter((v) => v.ch === n.ch); const recs = abRecsOn(n.ch);
+  const c = SIM.channel(n.ch); const vs = admViewers().filter((v) => v.ch === n.ch); const recs = abRecsOn(n.ch);
   const reconnecting = n.state === 'reconnecting'; const dist = SIM.chState(c) !== 'ok'; const busy = !!AB.busyIn[n.ch];
   const status = busy ? ['Verbindet', 'info'] : reconnecting ? [`Wiederverbindet (Versuch ${n.attempt[0]} von ${n.attempt[1]})`, 'bad'] : dist ? ['Gestört', 'bad'] : ['Läuft', 'ok'];
   const direct = vs.filter((v) => !v.tr).length; const trans = vs.length - direct;
@@ -86,10 +86,9 @@ ACT.abInF = (dd) => { ui.abIn.f = dd.k; render(); };
 ACT.abInSort = (dd) => { abSortToggle(AB.inSort, dd.k); render(); };
 const AB_INF = [['all', 'Alle'], ['viewer', 'Zuschauer'], ['recording', 'Aufnahme'], ['permanent', 'Permanent'], ['preload', 'Vorgeladen'], ['schedule', 'Zeitplan'], ['bad', 'Gestört']];
 function abStreams() {
-  abSyncRecInputs();
-  const all = LIVE.inputs.map(abInfo); const vs = aaViewers(); const R = LIVE.resources;
+  const all = admInputs().map(abInfo); /* the same inputs as LA-01 (admin-core.js) */ const vs = admViewers(); const R = LIVE.resources;
   const trans = vs.filter((v) => v.tr).length; const bandOut = Math.round(vs.reduce((a, v) => a + v.br, 0) * 10) / 10;
-  const strip = `<div class="stats ab-strip" style="--n:6">${abStat('Eingänge', all.length, 'empfängt Slouchcat gerade', { href: '#/admin/live', fid: 'la12:s-in' })}${abStat('Zuschauer', vs.length, 'alle Eingänge zusammen')}${abStat('Aufnahmen', aaRecRunning(), 'laufen gerade')}${abStat('Umwandlungen', trans, 'für einzelne Geräte')}${abStat('Bandbreite ein', `${abDe(R.bandIn, 1)}`, 'Mbit/s von den Quellen')}${abStat('Bandbreite aus', `${abDe(bandOut, 1)}`, 'Mbit/s zu den Geräten')}</div>`;
+  const strip = `<div class="stats ab-strip" style="--n:6">${abStat('Eingänge', all.length, 'empfängt Slouchcat gerade', { href: '#/admin/live', fid: 'la12:s-in' })}${abStat('Zuschauer', vs.length, 'alle Eingänge zusammen')}${abStat('Aufnahmen', admRecRunning(), 'laufen gerade')}${abStat('Umwandlungen', trans, 'für einzelne Geräte')}${abStat('Bandbreite ein', `${abDe(R.bandIn, 1)}`, 'Mbit/s von den Quellen')}${abStat('Bandbreite aus', `${abDe(bandOut, 1)}`, 'Mbit/s zu den Geräten')}</div>`;
   const cnt = (k) => k === 'all' ? all.length : k === 'bad' ? all.filter((i) => i.bad).length : all.filter((i) => i.reasons.includes(k)).length;
   const f = ui.abIn.f; let list = all.filter((i) => f === 'all' || (f === 'bad' ? i.bad : i.reasons.includes(f)));
   const S = AB.inSort; const key = { ch: (i) => (i.c.no == null ? 9999 : i.c.no), src: (i) => i.srcName, st: (i) => i.status[0], run: (i) => i.runMin, v: (i) => i.vs.length, r: (i) => i.recs.length, br: (i) => i.br }[S.sort] || ((i) => i.c.no);
@@ -138,7 +137,7 @@ DIALOGS.abInEnd = (p) => {
 };
 ACT.abInEndOk = (dd) => {
   const n = LIVE.inputs.find((x) => x.ch === dd.ch); if (!n) return; const i = abInfo(n); const c = i.c;
-  i.vs.forEach((v) => { AA.ended[v.i] = true; });
+  i.vs.forEach((v) => { ADM.ended[v.i] = true; });
   const pl = SIM.player(); if (pl && pl.ch === dd.ch) SIM.stop();
   const ts = LIVE.storage.find((s) => s.id === 'timeshift'); if (ts) ts.usedGB = Math.max(0, Math.round((ts.usedGB - n.tsPer * i.vs.length) * 10) / 10);
   abLog(dd.ch, 'info', 'Eingang beendet (Verwaltung)');
@@ -273,7 +272,7 @@ route('/admin/live/diagnostics', (pm, q) => {
 /* ======================================================================================
    Aufnahmen und Speicher: gemeinsame Teile (Zustand der Speicherorte, Belegung je Konto)
    ====================================================================================== */
-ui.abSto = 'normal'; ui.abEpg = 'normal';
+/* ui.abSto and ui.abEpg point to the mockup states of the core (admin-core.js, bar «Zustände» → Verwaltung) */
 const AB_STO_MOCK = [['normal', 'alles in Ordnung'], ['low', 'Aufnahmen fast voll'], ['full', 'Aufnahmen voll'], ['unmounted', 'Netzlaufwerk der Aufnahmen nicht eingehängt'], ['readonly', 'Timeshift-Ordner nicht beschreibbar'], ['tsfull', 'Timeshift-Grenze erreicht']];
 const AB_STS = { ok: ['Bereit', 'ok'], low: ['Fast voll', 'warn'], full: ['Voll', 'bad'], unmounted: ['Netzlaufwerk nicht eingehängt', 'bad'], readonly: ['Nicht beschreibbar', 'bad'] };
 const abSto = (id) => LIVE.storage.find((s) => s.id === id);
@@ -307,7 +306,7 @@ function abStoBanner(only) {
   const out = LIVE.storage.filter((s) => (!only || only.includes(s.id))).map((s) => [s, abStoStatus(s)]).filter(([, st]) => st !== 'ok');
   return out.map(([s, st]) => notice(st === 'low' ? 'warn' : 'bad', `${esc(s.name)}: ${AB_STS[st][0]}`, abStoExplain(s, st), `<a class="btn secondary" href="#/admin/live/storage?tab=storage" data-fid="sto:ban:${s.id}">Zu «Speicher»</a>`)).join('');
 }
-const abMockSto = () => abMock('ab-mock-sto', 'Zustand der Speicherorte', 'ui.abSto', AB_STO_MOCK, 'abStoState');
+const abMockSto = () => ''; /* storage states: bar «Zustände» → Verwaltung */
 /* Belegung je Konto */
 const abAcc = () => LIVE.accounts.filter((a) => a.quotaGB > 0 || a.rights.recordings);
 function abAccInfo(a) {
@@ -353,7 +352,7 @@ function abRecProblems() {
 }
 function abDvrTab() {
   const base = abDvrBase(); const d = abDraft('dvr', base); const e = abDvrErr(d); const nerr = Object.keys(e).length; const dirty = abDirty('dvr', base); const P = 'ui.draft.dvr'; const R = LIVE.resources;
-  const run = aaRecRunning(); const chs = LIVE.inputs.filter((n) => abRecsOn(n.ch).length).length;
+  const run = admRecRunning(); const chs = LIVE.inputs.filter((n) => abRecsOn(n.ch).length).length;
   const rows = [
     abRow('Standard-Vorlauf', 'Wie früh vor dem Beginn die Aufnahme startet.', abSel(`${P}.padBefore`, 'la14-pb', [0, 1, 2, 5, 10, 15, 30].map((x) => [x, x ? `${x} ${x === 1 ? 'Minute' : 'Minuten'}` : 'keiner']), { num: true, label: 'Standard-Vorlauf' })),
     abRow('Standard-Nachlauf', 'Wie lange nach dem Ende die Aufnahme weiterläuft.', abSel(`${P}.padAfter`, 'la14-pa', [0, 5, 10, 15, 30, 60].map((x) => [x, x ? `${x} Minuten` : 'keiner']), { num: true, label: 'Standard-Nachlauf' })),
@@ -385,13 +384,13 @@ const abTsBase = () => ({ maxMin: LIVE.settings.timeshift.maxMin, totalGB: LIVE.
 function abTsErr(d) { const e = {}; const ts = abSto('timeshift'); if (!Number.isInteger(d.totalGB) || d.totalGB < 1) e.gb = 'Gib eine ganze Zahl in GB ein (mindestens 1).'; else if (d.totalGB > ts.freeGB + ts.usedGB) e.gb = `Mehr als der freie Platz: höchstens ${abGB(ts.freeGB + ts.usedGB)}.`; return e; }
 function abTimeshift() {
   const base = abTsBase(); const d = abDraft('ts', base); const e = abTsErr(d); const nerr = Object.keys(e).length; const dirty = abDirty('ts', base); const P = 'ui.draft.ts'; const ts = abSto('timeshift');
-  const bufGB = d.maxMin * 0.06; const fit = Math.floor((Number.isInteger(d.totalGB) ? d.totalGB : 0) / Math.max(0.01, bufGB)); const n = aaViewers().length;
+  const bufGB = d.maxMin * 0.06; const fit = Math.floor((Number.isInteger(d.totalGB) ? d.totalGB : 0) / Math.max(0.01, bufGB)); const n = admViewers().length;
   const tsOn = LIVE.accounts.filter((a) => a.rights.liveTv && a.rights.timeshift).length; const accN = LIVE.accounts.filter((a) => a.rights.liveTv).length;
   const used = ts.usedGB; const lim = LIVE.settings.timeshift.totalGB;
   return `${abMockSto()}${abStoBanner(['timeshift'])}${notice('', 'Jeder Zuschauer hat seinen eigenen Puffer', 'Der Puffer beginnt beim Einschalten. Beim Senderwechsel und am Ende der Wiedergabe wird er gelöscht. Es gibt keinen gemeinsamen Puffer und kein Archiv. Der kurze Startpuffer für schnelles Umschalten ist davon getrennt und nicht einstellbar.')}
     <div class="stats" style="--n:4">${abStat('Puffer jetzt', abPl(n, 'Puffer', 'Puffer'), 'einer je Zuschauer')}${abStat('Belegt', abGB(used), `von ${abGB(lim)} Grenze`, { cls: used >= lim ? 'bad' : used >= lim * 0.8 ? 'warn' : '' })}${abStat('Ein voller Puffer', `ca. ${abDe(bufGB, 1)} GB`, `bei 8 Mbit/s und ${abDur(d.maxMin)}`)}${abStat('Platz für', abPl(fit, 'volle Puffer', 'volle Puffer'), 'innerhalb der Grenze', { cls: fit < 4 ? 'warn' : '' })}</div>
     <section class="card"><div class="ch"><span class="ik">${icon('clock', 18)}</span><h2>Einstellungen</h2></div>
-      ${abRow('Höchstdauer je Zuschauer', 'So weit kann ein Zuschauer höchstens zurückspulen. Vor das Einschalten geht es nie.', abSel(`${P}.maxMin`, 'la15-mm', [[15, '15 Minuten'], [30, '30 Minuten'], [60, '1 Stunde'], [120, '2 Stunden'], [240, '4 Stunden']], { num: true, label: 'Höchstdauer je Zuschauer' }))}
+      ${abRow('Höchstdauer je Zuschauer', `So weit kann ein Zuschauer höchstens zurückspulen. Vor das Einschalten geht es nie. Werksvorgabe ${abDur(LIVE.settings.timeshift.defaultMin || 60)}; auf diesem Server eingestellt: ${abDur(LIVE.settings.timeshift.maxMin)}.`, abSel(`${P}.maxMin`, 'la15-mm', [[15, '15 Minuten'], [30, '30 Minuten'], [60, '1 Stunde (Vorgabe)'], [120, '2 Stunden'], [240, '4 Stunden']], { num: true, label: 'Höchstdauer je Zuschauer' }))}
       ${abRow('Timeshift-Speicher insgesamt höchstens', `Alle Puffer zusammen. Auf dem Speicherort sind ${abGB(ts.freeGB)} frei.`, `<span class="ab-unit">${abInp(`${P}.totalGB`, 'la15-gb', { num: true, min: 1, err: e.gb, label: 'Timeshift-Speicher in GB' })}<span>GB</span></span>${abErr('la15-gb', e.gb)}`)}
       ${abRow('Wenn die Grenze erreicht ist', 'Nur Anzeige.', '<span>Slouchcat kürzt zuerst den ältesten Teil des grössten Puffers. Die betroffenen Zuschauer sehen die kürzere Rückspulgrenze.</span>')}
       ${abRow('Wer Timeshift nutzen darf', 'Das stellst du bei den Konten und Profilen ein.', `<span>${tsOn} von ${accN} Konten mit Live-TV</span><a class="lnk" href="#/admin/accounts" data-fid="la15:acc">Zu den Konten</a>`)}</section>
@@ -401,7 +400,7 @@ function abTimeshift() {
 ACT.abTsDisc = () => { delete ui.draft.ts; render(); };
 ACT.abTsSave = () => {
   const d = ui.draft.ts; if (Object.keys(abTsErr(d)).length) return;
-  LIVE.settings.timeshift = { maxMin: d.maxMin, totalGB: d.totalGB }; LIVE.timeshiftMaxMin = d.maxMin; const ts = abSto('timeshift'); ts.limitGB = d.totalGB; AB.base.timeshift.limitGB = d.totalGB;
+  LIVE.settings.timeshift = { maxMin: d.maxMin, defaultMin: LIVE.settings.timeshift.defaultMin || 60, totalGB: d.totalGB }; LIVE.timeshiftMaxMin = d.maxMin; const ts = abSto('timeshift'); ts.limitGB = d.totalGB; AB.base.timeshift.limitGB = d.totalGB;
   delete ui.draft.ts; abStoApply(); render(); toast(`Timeshift: höchstens ${abDur(d.maxMin)} je Zuschauer, ${abGB(d.totalGB)} insgesamt. Laufende Puffer behalten ihre Länge.`);
 };
 
@@ -450,7 +449,7 @@ function abLimits() {
   return `${abRow('Aufnahmen insgesamt höchstens', 'Alle Konten zusammen. Ohne Grenze gilt nur der freie Platz.', `<div class="stack">${abRadio(`${P}.recMode`, 'lim-rec', 'none', 'ohne Grenze', 'la16:rm:none')}${abRadio(`${P}.recMode`, 'lim-rec', 'limit', 'Grenze', 'la16:rm:limit')}${d.recMode === 'limit' ? `<span class="ab-unit ab-ind">${abInp(`${P}.recN`, 'la16-rn', { num: true, min: 1, err: e.recN, label: 'Aufnahmen insgesamt höchstens in GB' })}<span>GB</span></span>${abErr('la16-rn', e.recN)}` : ''}</div>`, { col: true })}
     ${abRow('Mindestens frei lassen', 'Je Speicherort. Darunter legt Slouchcat nichts Neues an.', `<div class="ab-res"><label>Aufnahmen<span class="ab-unit">${abInp(`${P}.reserveRec`, 'la16-rr', { num: true, min: 0, err: e.reserveRec, label: 'Mindestreserve Aufnahmen in GB' })}<span>GB</span></span>${abErr('la16-rr', e.reserveRec)}</label><label>Timeshift<span class="ab-unit">${abInp(`${P}.reserveTs`, 'la16-rt', { num: true, min: 0, err: e.reserveTs, label: 'Mindestreserve Timeshift in GB' })}<span>GB</span></span>${abErr('la16-rt', e.reserveTs)}</label><label>Startpuffer<span class="ab-unit">${abInp(`${P}.reserveBufPct`, 'la16-rb', { num: true, min: 0, err: e.reserveBufPct, label: 'Mindestreserve Startpuffer in Prozent' })}<span>%</span></span>${abErr('la16-rb', e.reserveBufPct)}</label></div>`)}
     ${abRow('Warnen, wenn frei weniger als', `Mindestreserve plus ein Zuschlag. Heute: Aufnahmen ${w(d.reserveRec)}, Timeshift ${w(d.reserveTs)}.`, abSel(`${P}.warnPct`, 'la16-wp', [0, 10, 20, 50].map((x) => [x, x ? `Mindestreserve + ${x} %` : 'Mindestreserve']), { num: true, label: 'Warnen' }))}
-    ${abRow('Standard-Kontingent für neue Konten', 'Etwa 17 Stunden HD bei 8 Mbit/s je 100 GB. Im Konto änderbar.', `<span class="ab-unit">${abInp(`${P}.defaultQuotaGB`, 'la16-dq', { num: true, min: 1, err: e.defaultQuotaGB, label: 'Standard-Kontingent in GB' })}<span>GB</span></span>${abErr('la16-dq', e.defaultQuotaGB)}`)}
+    ${abRow('Standard-Kontingent für neue Konten', `Etwa ${fmt.dec(admHours(100, 8), 1)} Stunden HD bei 8 Mbit/s je 100 GB (3.6 GB je Stunde). Im Konto änderbar.`, `<span class="ab-unit">${abInp(`${P}.defaultQuotaGB`, 'la16-dq', { num: true, min: 1, err: e.defaultQuotaGB, label: 'Standard-Kontingent in GB' })}<span>GB</span></span>${abErr('la16-dq', e.defaultQuotaGB)}`)}
     ${dirty ? abSaveBar('abLimSave', 'abLimDisc', 'la16', nerr) : ''}`;
 }
 ACT.abLimDisc = () => { delete ui.draft.lim; render(); };
@@ -516,7 +515,7 @@ DIALOGS.abMove = () => {
     body = `<p class="lead">${m.id === 'recordings' ? 'Bestehende Aufnahmen bleiben am alten Ort und sind weiter abspielbar. Der alte Ort bleibt nur lesend eingebunden, bis er leer ist. Slouchcat verschiebt nichts von selbst.' : 'Laufende Puffer bleiben am alten Ort, bis sie enden. Neue Puffer entstehen am neuen Ort.'}</p><dl class="kv"><dt>Alter Ort</dt><dd><span class="mono">${esc(s.path)}</span></dd><dt>Neuer Ort</dt><dd><span class="mono">${esc(m.path)}</span></dd></dl>`;
     acts = `<button type="button" class="btn secondary" data-act="abMvBack" data-fid="mv:back">Zurück</button><button type="button" class="btn primary" data-act="abMvNext" data-fid="mv:next">Weiter</button>`;
   } else {
-    const run = m.id === 'recordings' ? aaRecRunning() : 0;
+    const run = m.id === 'recordings' ? admRecRunning() : 0;
     body = `<p class="lead">${m.id === 'recordings' ? 'Neue Aufnahmen ab jetzt in' : `${esc(s.name)} ab jetzt in`} <span class="mono">${esc(m.path)}</span>.</p>${run ? notice('warn', `${abPl(run, 'Aufnahme läuft', 'Aufnahmen laufen')} gerade`, 'Der Wechsel wirkt erst für die nächste Aufnahme. Laufende Aufnahmen bleiben am alten Ort.') : ''}`;
     acts = `<button type="button" class="btn secondary" data-act="abMvBack" data-fid="mv:back">Zurück</button><button type="button" class="btn primary" data-act="abMvOk" data-fid="mv:ok">Speicherort wechseln</button>`;
   }

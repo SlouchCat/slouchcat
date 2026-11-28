@@ -72,7 +72,7 @@ route('/live/channels', (pm, query) => {
   if (!ui.ls02row || !ids.includes(ui.ls02row)) ui.ls02row = ids[0];
   const sel = (k, all, opts) => `<label class="fld fsel"><span class="lbl">${ls02FieldName[k]}</span><select class="sel" data-act-change="ls02Filter" data-key="${k}" data-fid="ls02:${k}" aria-label="${ls02FieldName[k]}"><option value="">${all}</option>${opts.map(([v, t]) => `<option value="${esc(v)}"${f[k] === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
   const groupOpts = [['fav', 'Meine Sender'], ...LIVE.groups.map((g) => [g.id, g.name])];
-  const cats = [...new Set(LIVE.channels.map((c) => c.category))].map((v) => [v, v]);
+  const cats = [...new Set(LIVE.channels.filter(SIM.viewerChannel).map((c) => c.category))].map((v) => [v, v]);
   const tools = `<div class="ls02-tools" role="search">
       <label class="fld fsearch"><span class="vh">Sender suchen</span><span class="sic">${icon('search', 18)}</span><input class="inp" type="search" placeholder="Sender suchen" value="${esc(f.q)}" data-ls02q data-fid="ls02:q" aria-label="Sender suchen (Name oder Nummer)"></label>
       <div class="ls02-facets">${sel('group', 'Alle Sender', groupOpts)}${sel('country', 'Alle Länder', Object.entries(LIVE.countries))}${sel('lang', 'Alle Sprachen', Object.entries(LIVE.languages))}${sel('category', 'Alle Kategorien', cats)}</div>

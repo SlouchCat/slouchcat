@@ -33,8 +33,10 @@
     dur: (min) => { min = Math.round(min); return min >= 60 ? `${Math.floor(min / 60)} Std.${min % 60 ? ` ${min % 60} Min.` : ''}` : `${min} Min.`; },
     /** «−12:30» for a timeshift offset in minutes */
     offset: (min) => { const s = Math.round(min * 60); return `−${Math.floor(s / 60)}:${pad(s % 60)}`; },
-    /** «2,9 GB», «1,2 TB» */
-    gb: (x) => (x >= 1000 ? `${(x / 1000).toLocaleString('de-CH', { maximumFractionDigits: 1 })} TB` : `${(Math.round(x * 10) / 10).toLocaleString('de-CH')} GB`),
+    /** number in de-CH: decimal point, apostrophe for thousands: dec(10354) «10'354», dec(8.1, 1) «8.1», dec(8, 1, 1) «8.0» */
+    dec: (n, max, min) => { const v = Number(n).toFixed(max == null ? 0 : max); let [i, f] = v.split('.'); i = i.replace(/\B(?=(\d{3})+(?!\d))/g, "'"); if (f && (min == null || min < f.length)) { f = f.replace(/0+$/, ''); while (min && f.length < min) f += '0'; } return f ? `${i}.${f}` : i; },
+    /** «2.9 GB», «1.2 TB» (de-CH: decimal point) */
+    gb: (x) => (x >= 1000 ? `${fmt.dec(x / 1000, 1)} TB` : `${fmt.dec(x, 1)} GB`),
     /** «10'354» (Swiss thousands separator) */
     num: (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'"),
     /** «vor 5 Min.», «vor 2 Std.», «gestern» */
@@ -45,12 +47,14 @@
 
   /* ---------- logo with fallback (no logos in the repository) ---------- */
   const initials = (name) => { const w = String(name).replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/); return (w.length > 1 ? w[0][0] + (w[1][0] || '') : w[0].slice(0, 3)).toUpperCase(); };
+  /* only these 16 logos exist (locally in shared/img/logos/); other channels (TV24, new, test) show initials */
+  const LOGOS = new Set(['srf1', 'srfzwei', 'srfinfo', 'rts1', 'rsila1', 'telezueri', 'daserste', 'zdf', '3sat', 'arte', 'zdfneo', 'zdfinfo', 'tagesschau24', 'phoenix', 'kika', 'orf2']);
   /** channel logo on a light neutral plate (logos are dark, black or tall); falls back to initials.
       o: { cls, label } — size comes from the client's CSS (.lv-logo width/height). */
   function logo(c, o) {
     o = o || {}; c = typeof c === 'string' ? SIM.channel(c) : c; if (!c) return '';
-    const ini = esc(initials(c.name));
-    return `<span class="lv-logo${o.cls ? ' ' + o.cls : ''}" data-ini="${ini}"${o.label ? ` role="img" aria-label="${esc(c.name)}"` : ' aria-hidden="true"'}><img src="${UI.img}logos/${esc(c.slug)}.png" alt="" loading="lazy" onerror="LIVE_UI.logoFail(this)"><b>${ini}</b></span>`;
+    const ini = esc(initials(c.name)); const has = LOGOS.has(c.slug);
+    return `<span class="lv-logo${has ? '' : ' no-img'}${o.cls ? ' ' + o.cls : ''}" data-ini="${ini}"${o.label ? ` role="img" aria-label="${esc(c.name)}"` : ' aria-hidden="true"'}>${has ? `<img src="${UI.img}logos/${esc(c.slug)}.png" alt="" loading="lazy" onerror="LIVE_UI.logoFail(this)">` : ''}<b>${ini}</b></span>`;
   }
   function logoFail(im) { const s = im.parentNode; if (s) s.classList.add('no-img'); im.remove(); }
   /** programme picture (16:9) or fallback. Only films and series of the sample have pictures (stand-ins from
@@ -125,6 +129,35 @@
       <div class="lv-vid-logo">${logo(c)}</div><span class="lv-vid-tag">${esc(TX.sample)}</span></div>`;
   }
 
-  const UI = { img: '../shared/img/', esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
+  /* ---------- player: switching phases, the same in all three clients ----------
+     The concept proposes 0.5 s (calm loading sign), 5 s («Dauert länger als üblich …») and 15 s (error) (14, 4.11).
+     The mockup shortens 5 s and 15 s so that every state can be shown in a few seconds; LOAD.note says so. */
+  const LOAD = { spinnerMs: 500, hotReadyMs: 600, coldReadyMs: 1800, slowAfterMs: 2500, slowReadyMs: 4500, giveUpMs: 6000,
+    note: 'Im Mockup verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s (Konzept: 0.5 / 5 / 15 s).' };
+  /** phase of the player elapsedMs after switching to channel c (o.hot: input already received or preloaded).
+      → { k: 'loading'|'slow'|'ok'|'error', spin, err ('unreachable'|'limit'|'busy'|'notPlayable'|'revoked'|'gone'), stall, fallback }.
+      Reads the mockup states (LIVE_SIM.flags().fault, .revoked) and the channel state. */
+  function playerPhase(elapsedMs, c, o) {
+    o = o || {}; c = typeof c === 'string' ? SIM.channel(c) : c; const f = SIM.flags(); const e = elapsedMs;
+    if (!c || SIM.chState(c) === 'gone') return { k: 'error', err: 'gone', spin: false };
+    if (f.revoked) return { k: 'error', err: 'revoked', spin: false };
+    if (f.fault === 'limit' || f.fault === 'busy' || f.fault === 'notPlayable') return { k: 'error', err: f.fault, spin: false };
+    const wait = (k) => ({ k: e < LOAD.slowAfterMs ? 'loading' : 'slow', spin: e > LOAD.spinnerMs });
+    if (SIM.chState(c) !== 'ok' || f.fault === 'unreachable') return e < LOAD.giveUpMs ? wait() : { k: 'error', err: 'unreachable', spin: false };
+    const ready = f.fault === 'slow' ? LOAD.slowReadyMs : o.hot ? LOAD.hotReadyMs : LOAD.coldReadyMs;
+    if (e < ready) return wait();
+    return { k: 'ok', spin: false, stall: f.fault === 'stall', fallback: f.fault === 'fallback' };
+  }
+  /** texts of the player errors (14, 4.12); err from playerPhase */
+  const PLAYER_ERR = {
+    unreachable: (c) => `${c.name} ist gerade nicht erreichbar. Slouchcat versucht es weiter.`,
+    limit: () => 'Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.',
+    revoked: () => 'Live-TV ist für dieses Profil nicht mehr freigegeben.',
+    busy: () => 'Der Server ist gerade ausgelastet. Versuche es gleich nochmals.',
+    gone: () => 'Diesen Sender gibt es nicht mehr.',
+    notPlayable: () => 'Dieser Sender lässt sich auf diesem Gerät nicht abspielen.',
+  };
+
+  const UI = { LOAD, playerPhase, PLAYER_ERR, img: '../shared/img/', esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
   g.LIVE_UI = UI;
 })(typeof window !== 'undefined' ? window : globalThis);

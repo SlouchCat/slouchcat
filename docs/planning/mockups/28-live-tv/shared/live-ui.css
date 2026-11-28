@@ -21,6 +21,9 @@
 .lv-logo img { width: 100%; height: 100%; object-fit: contain; padding: 12%; box-sizing: border-box; }
 .lv-logo b { display: none; color: var(--live-plate-tx); font-weight: 800; font-size: 0.8em; letter-spacing: 0.02em; line-height: 1; }
 .lv-logo.no-img b { display: block; }
+/* page styles like «.x b { display: block }» must never show the initials next to a loaded logo */
+.lv-logo > b { display: none !important; font-size: 0.8em !important; margin: 0 !important; }
+.lv-logo.no-img > b { display: block !important; }
 
 /* programme picture 16:9, no frame; fallback: logo on a calm surface or the title */
 .lv-pic { position: relative; display: block; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--s2); border-radius: inherit; }

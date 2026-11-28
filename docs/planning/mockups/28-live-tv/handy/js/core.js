@@ -70,6 +70,13 @@ const ICONS = {
   key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9m-4 4 3 3"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.300 3 14.700 0 18M12 3c-3 3.300-3 14.700 0 18"/>',
   shield: '<path d="M12 3 5 6v6c0 4.500 3 7.700 7 9 4-1.300 7-4.500 7-9V6z"/>',
+  recordHollow: '<circle cx="12" cy="12" r="6.5"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  loadspin: '<path d="M12 3a9 9 0 1 0 9 9"/>',
+  recordSeries: '<circle cx="8.5" cy="12" r="5" fill="currentColor" stroke="none"/><circle cx="16.5" cy="12" r="4.5"/>',
+  arrowUp: '<path d="M12 19V5m0 0-6 6m6-6 6 6"/>',
+  arrowDown: '<path d="M12 5v14m0 0-6-6m6 6 6-6"/>',
   live: '<path d="M12 13.5v7M9 20.5h6"/><circle cx="12" cy="11" r="1.8"/><path d="M8.2 7.5a5.2 5.2 0 0 0 0 7M15.8 7.5a5.2 5.2 0 0 1 0 7M5.5 5a9 9 0 0 0 0 12M18.5 5a9 9 0 0 1 0 12"/>',
   record: '<circle cx="12" cy="12" r="6.5" fill="currentColor" stroke="none"/>',
   reminder: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/><path d="M12 8.5V11l1.8 1.2"/>',
@@ -126,7 +133,7 @@ function mediaNav() {
   const it = (h, ic, label, end) => { const on = path === h.slice(1); return `<a class="dn${on ? ' on' : ''}" href="${h}"${on ? ' aria-current="page"' : ''} data-fid="dn${h}"><span class="dn-i">${icon(ic, 22)}</span><span class="dn-t">${esc(label)}</span>${end !== '' && end != null ? `<span class="dn-e">${end}</span>` : ''}</a>`; };
   const liveOn = path.startsWith('/live');
   const live = LIVE_SIM.rights().liveTv ? `<a class="dn${liveOn ? ' on' : ''}" href="#/live"${liveOn ? ' aria-current="page"' : ''} data-fid="dn#/live"><span class="dn-i">${icon('live', 22)}</span><span class="dn-t">Live-TV</span><span class="dn-e">${LIVE_SIM.player() ? 'Live' : LIVE_SIM.channels().length + ' Sender'}</span></a>` : '';
-  return `<div class="dn-sec">Medien</div>${LIBS.map(l => it('#/library/' + l.key, l.icon, l.name, l.count.toLocaleString('de-CH'))).join('')}${it('#/radio', 'radio', 'Webradio', 3)}${live}
+  return `<div class="dn-sec">Medien</div>${LIBS.map(l => it('#/library/' + l.key, l.icon, l.name, LIVE_UI.fmt.num(l.count))).join('')}${it('#/radio', 'radio', 'Webradio', 3)}${live}
     <div class="dn-sec">Meine Medien</div>${it('#/watchlist', 'bookmark', 'Merkliste', 12)}${it('#/watched', 'eye', 'Gesehen', '')}${it('#/collections', 'grid', 'Sammlungen', 337)}`;
 }
 const railShown = () => getComputedStyle($('#rail')).display !== 'none';

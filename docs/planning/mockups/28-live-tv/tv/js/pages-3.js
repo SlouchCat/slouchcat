@@ -26,8 +26,8 @@ function tvStore() {
     <p class="tvp-ml"><span><i class="me"></i>Du ${fmt.gb(q.mineGB)}</span><span><i class="ot"></i>Übrige Profile ${fmt.gb(q.othersGB)}</span><span><i></i>Frei ${fmt.gb(q.freeGB)}</span></p>
     ${q.freeGB <= 0 ? tvNote('alert', 'Der Speicher des Kontos ist voll.', 'Neue Aufnahmen werden abgelehnt. Lösche Aufnahmen, um Platz zu schaffen.', 'bad') : q.pct >= 90 ? tvNote('alert', 'Der Speicher des Kontos ist fast voll.', 'Neue Aufnahmen können abgelehnt werden.', 'warn') : ''}</div>`;
 }
-const tvMockQuota = () => `<div class="mockvar"><span class="mk">Mockup</span><span class="tvp-mv">Speicher des Kontos</span><button type="button" class="tb ghost sm" data-act="tvQuotaFull" data-f="mv-quota" aria-pressed="${SIM.quota().freeGB <= 0}">${icon('alert', 28)}<span>${SIM.quota().freeGB <= 0 ? 'Wieder 58 GB frei' : 'Kontingent voll zeigen'}</span></button></div>`;
-ACT.tvQuotaFull = () => { LIVE.account.usedGB = SIM.quota().freeGB <= 0 ? TV_USED0 : LIVE.account.quotaGB; SIM.emit('change'); };
+/* «Kontingent voll»: mockup bar «Zustände» → Aufnahmen (LIVE_SIM.flags().quotaFull) */
+const tvMockQuota = () => '';
 
 /* ---------- LS-08 Meine Aufnahmen ---------- */
 route('/live/recordings/profiles', () => tvProfilesPage());

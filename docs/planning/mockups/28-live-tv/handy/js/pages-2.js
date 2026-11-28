@@ -10,15 +10,20 @@ const hpPlOn = () => !!$('.hp-pl[data-live]');
 const hpList = (pl) => (HP.p && HP.p.list) || (pl && pl.list) || SIM.channels().map((c) => c.id);
 const hpListName = (ids) => { const fav = SIM.favorites(); const all = SIM.channels().map((c) => c.id); if (ids.length === fav.length && ids.every((x, i) => x === fav[i])) return 'Meine Sender'; if (ids.length === all.length) return 'Alle Sender'; for (const g of LIVE.groups) { const l = SIM.channels({ group: g.id }).map((c) => c.id); if (l.length === ids.length && l.every((x, i) => x === ids[i])) return 'Gruppe ' + g.name; } return `Auswahl (${ids.length} Sender)`; };
 
+/* phases and faults come from the core (LIVE_UI.playerPhase, the same thresholds in all clients; mockup states in
+   «Zustände» → Player): start (black, banner) · loading (from 0.5 s) · slow («Dauert länger») · play · error */
+const HP_ERRMAP = { unreachable: 'unreach', notPlayable: 'notplay' };
 function hpPhase(c) {
-  const P = HP.p; const el = Date.now() - P.tuneAt; const st = SIM.chState(c);
-  if (P.force && P.force !== 'stall') return 'error';
-  if (st === 'gone') return 'error';
+  const P = HP.p; const el = Date.now() - P.tuneAt;
   if (Date.now() < P.reload) return 'loading';
-  if (st === 'disturbed') return el > 7000 ? 'error' : el > 3000 ? 'slow' : el > 500 ? 'loading' : 'start';
-  return el > 1500 ? 'play' : el > 500 ? 'loading' : 'start';
+  const ph = LU.playerPhase(el, c, { hot: LIVE.inputs.some((i) => i.ch === c.id && i.state === 'running') });
+  P.coreErr = ph.err || null; P.stall = ph.stall ? Date.now() + 60000 : 0;
+  if (ph.fallback && !P.fb) { P.fb = true; setTimeout(() => toast(LU.TX.fallback || 'Auf eine Ersatzquelle umgeschaltet.'), 0); } else if (!ph.fallback && ph.k === 'ok') P.fb = false;
+  if (ph.k === 'error') return 'error';
+  if (ph.k === 'ok') return 'play';
+  return ph.spin ? ph.k : 'start';
 }
-const hpErrKind = (c) => HP.p.force || (SIM.chState(c) === 'gone' ? 'gone' : 'unreach');
+const hpErrKind = (c) => { const e = HP.p.coreErr || (SIM.chState(c) === 'gone' ? 'gone' : 'unreach'); return HP_ERRMAP[e] || e; };
 const HP_ERR = {
   unreach: (c) => ({ t: `${c.name} ist gerade nicht erreichbar. Slouchcat versucht es weiter.`, w: true, b: [['hpRetryPl', 'Erneut versuchen'], ['hpOther', 'Anderer Sender']] }),
   gone: () => ({ t: 'Diesen Sender gibt es nicht mehr.', b: [['hpOther', 'Anderer Sender']] }),
@@ -112,7 +117,8 @@ function hpPlTick() {
   const c = SIM.channel(pl.ch); const ph = SIM.mode() === 'loading' ? 'loading' : hpPhase(c);
   if (st.dataset.phase !== ph) st.dataset.phase = ph;
   const lt = $('[data-hp-loadtxt]', st); if (lt) { const tx = Date.now() < P.reload ? P.reloadTxt : ph === 'slow' ? 'Dauert länger als üblich …' : `${c.name} wird geladen`; if (lt.textContent !== tx) lt.textContent = tx; }
-  if (P.stall && Date.now() > P.stall) { P.stall = 0; if (P.force === 'stall') P.force = null; const s = $('.hp-stall', st); if (s) s.classList.remove('on'); }
+  { const s = $('.hp-stall', st); if (s) s.classList.toggle('on', P.stall > Date.now() && ph === 'play'); }
+  if ((ph === 'error') !== (st.dataset.err === '1')) render(); /* a fault state of the core switched */
   const rt = $('[data-hp-retry]', st); if (rt) rt.textContent = String(20 - (Math.floor(Math.max(0, Date.now() - P.tuneAt - 7000) / 1000) % 20));
   if (P.ctl && ph === 'play' && !pl.paused && Date.now() > P.ctlUntil && !$('.hp-ctl :focus-visible')) { P.ctl = false; st.classList.remove('ctl-on'); }
   const bn = $('.hp-banner', st); if (bn) bn.classList.toggle('on', Date.now() < P.infoUntil || P.info);
@@ -172,7 +178,6 @@ function hpSetHtml() {
   return `<h2>Ton, Untertitel, Qualität</h2><div class="sec">Ton</div><div class="chips lh-wrap">${c.audio.map((a, i) => chip('audio', i, a.replace(/ \(.*\)$/, '') + (/Audiodeskription/.test(a) ? ' (Audiodeskription)' : ''), P.audio === i)).join('')}</div>
     <div class="sec">Untertitel</div><div class="chips lh-wrap">${chip('subs', -1, 'Aus', P.subs === -1)}${c.subs.map((s, i) => chip('subs', i, s, P.subs === i)).join('')}</div>${c.subs.length ? '' : `<p class="pad hint">Dieser Sender sendet keine Untertitel.</p>`}
     <div class="sec">Qualität</div><div class="chips lh-wrap">${chip('q', 'auto', 'Automatisch', P.q === 'auto')}${chip('q', 'orig', 'Original (1080i)', P.q === 'orig', mia)}${chip('q', '720', '720p', P.q === '720')}${chip('q', '480', '480p', P.q === '480')}</div>${mia ? '<p class="pad hint">Höchstens 720p für dieses Profil.</p>' : ''}
-    ${li('alert', 'Mockup: Störung zeigen', 'Fehler- und Ladezustände ansehen', null, 'data-act="hpErrSheet" data-fid="set-err"')}
     <div class="acts"><button type="button" class="btn primary" data-act="close" data-fid="set-ok">Fertig</button></div>`;
 }
 ACT.hpSettings = () => { HPS = true; sheet(hpSetHtml()); };
@@ -183,18 +188,7 @@ ACT.hpSetPick = (d) => {
   const sh = $('#overlays .sheet'); if (sh) { const f = document.activeElement && document.activeElement.dataset.fid; const sc = sh.scrollTop; sh.innerHTML = hpSetHtml(); sh.scrollTop = sc; const e = f && sh.querySelector(`[data-fid="${f}"]`); if (e) e.focus(); }
   const st = $('.hp-stage'); if (st) hpPlTick();
 };
-ACT.hpErrSheet = () => {
-  const o = [['stall', 'Strom stockt: Verbindung wird wiederhergestellt'], ['fallback', 'Ersatzquelle aktiv'], ['unreach', 'Sender nicht erreichbar'], ['gone', 'Sender nicht mehr im Angebot'], ['limit', 'Grenze gleichzeitiger Wiedergaben'], ['time', 'Sehzeit aufgebraucht'], ['revoked', 'Recht entzogen'], ['notplay', 'Auf diesem Gerät nicht abspielbar'], ['busy', 'Server überlastet'], ['none', 'Normal, Störung beenden']];
-  sheet(`<h2>Mockup: Störung zeigen</h2><p class="pad hint">Nur im Mockup: so sehen die Zustände aus 4.8 und 4.12 aus.</p>${o.map(([k, t]) => li(k === 'none' ? 'check' : 'alert', t, '', '', `data-act="hpForce" data-k="${k}" data-fid="fe-${k}"`)).join('')}<div class="acts"><button type="button" class="btn ghost" data-act="close" data-fid="fe-x">Schliessen</button></div>`);
-};
-ACT.hpForce = (d) => {
-  closeSheet(true); const P = HP.p;
-  if (d.k === 'none') { P.force = null; P.stall = 0; P.tuneAt = Date.now() - 2000; }
-  else if (d.k === 'stall') { P.force = 'stall'; P.stall = Date.now() + 4000; }
-  else if (d.k === 'fallback') { P.fb = true; toast(LU.TX.fallback || 'Auf eine Ersatzquelle umgeschaltet.'); }
-  else P.force = d.k;
-  render();
-};
+/* fault states of the player: mockup bar «Zustände» → Player (LIVE_SIM.flags().fault) */
 
 /* swipe up/down on the picture = next/previous channel; drag on the bar = timeshift position */
 (function hpPlGestures() {
@@ -250,9 +244,9 @@ function hpMeter() {
   return `<div class="card hp-meter"><p><b>${esc(`Speicher des Kontos: ${fmt.gb(q.usedGB)} von ${fmt.gb(q.totalGB)} belegt`)}</b></p><div class="hp-bar" role="img" aria-label="Du ${fmt.gb(q.mineGB)}, übrige Profile ${fmt.gb(q.othersGB)}, frei ${fmt.gb(q.freeGB)}"><i class="a" style="width:${w(q.mineGB)}"></i><i class="b" style="width:${w(q.othersGB)}"></i></div>
     <p class="hp-legend"><span><i class="a"></i>Du ${fmt.gb(q.mineGB)}</span><span><i class="b"></i>Übrige Profile ${fmt.gb(q.othersGB)}</span><span><i class="c"></i>Frei ${fmt.gb(q.freeGB)}</span></p></div>${q.pct >= 90 ? `<div class="note warn" role="status">${icon('alert', 20)}<div>Der Speicher des Kontos ist fast voll. Neue Aufnahmen können abgelehnt werden.</div></div>` : ''}`;
 }
-const hpFullSwitch = () => `<p class="pad hp-mockline"><button type="button" class="btn ghost sm" role="switch" aria-checked="${HP.fullQuota}" data-act="hpFullQuota" data-fid="rec-full">Nur Mockup: Speicher des Kontos voll${HP.fullQuota ? ' (an)' : ''}</button></p>`;
-ACT.hpFullQuota = () => { HP.fullQuota = !HP.fullQuota; LIVE.account.usedGB = HP.fullQuota ? LIVE.account.quotaGB : HP.origUsed; SIM.emit('change'); if ($('#overlays .sheet') && HPD && HPD.redraw) HPD.redraw(); };
-document.addEventListener('click', (e) => { if (e.target.closest('[data-tool="reset"]')) setTimeout(() => { HP.fullQuota = false; LIVE.account.usedGB = HP.origUsed; HP.noAsk = false; HP.radio = null; SIM.emit('change'); }, 0); }, true);
+/* «Kontingent voll» is a mockup state of the core (bar «Zustände» → Aufnahmen); SIM.quota() reports it */
+const hpFullSwitch = () => '';
+document.addEventListener('click', (e) => { if (e.target.closest('[data-tool="reset"]')) setTimeout(() => { HP.noAsk = false; HP.radio = null; SIM.emit('change'); }, 0); }, true);
 
 function hpRecUnits(list) {
   const out = []; const seen = {};

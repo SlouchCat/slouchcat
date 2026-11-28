@@ -23,6 +23,13 @@
       mode: 'normal',          // normal | empty | loading | error  (page states of the whole Live-TV area)
       noEpg: false,            // no channel has programme data
       disturbed: false,        // additionally SRF 1 is disturbed (ZDFinfo is disturbed in the data anyway)
+      quotaFull: false,        // account storage full: new recordings are rejected and reported
+      fault: '',               // player: '' | unreachable | fallback | limit | stall | slow | notPlayable | busy
+      revoked: false,          // the right «Live-TV» was taken away while watching: the player shows the message
+      many: false,             // 2'000 extra test channels in the programme grid
+      admStorage: '',          // administration: '' | low (Speicher knapp) | full (voll) | unmounted (Netzlaufwerk nicht eingehängt)
+      epgFail: false,          // administration: the last EPG import failed (old data stays)
+      notices: [],             // messages to profiles (bell): { profile, kind, text, at, href }
       favorites: clone(L.favorites),
       recent: clone(L.recent),
       recordings: clone(L.recordings),
@@ -63,11 +70,19 @@
 
   /* ---------- mockup states ---------- */
   function setMode(m) { st.mode = m; emit('change'); }
-  function setFlag(k, v) { st[k] = !!v; emit('change'); }
+  /** setFlag('noEpg'|'disturbed'|'quotaFull'|'many'|'epgFail', bool) or ('fault'|'admStorage', string) */
+  function setFlag(k, v) {
+    if (k === 'revoked') { setRevoked(v); return; }
+    st[k] = typeof st[k] === 'string' ? String(v || '') : !!v; emit('change');
+  }
+  /** «Recht entzogen während der Wiedergabe»: takes the right away; the player shows the message, every other
+      Live-TV address answers «Nicht gefunden». Off gives the right back. */
+  function setRevoked(on) { st.revoked = !!on; st.profiles[st.profileId].liveTv = !on; emit('change'); }
+  const flags = () => ({ noEpg: st.noEpg, disturbed: st.disturbed, quotaFull: st.quotaFull, fault: st.fault, revoked: st.revoked, many: st.many, admStorage: st.admStorage, epgFail: st.epgFail });
 
   /* ---------- channels ---------- */
   const allChannels = () => L.channels;
-  const channel = (id) => L.channels.find((c) => c.id === id) || L.goneChannels.find((c) => c.id === id) || null;
+  const channel = (id) => L.channels.find((c) => c.id === id) || L.goneChannels.find((c) => c.id === id) || (String(id).startsWith('test-') ? testChannels().find((c) => c.id === id) : null) || null;
   /** 'ok' | 'disturbed' | 'gone' */
   function chState(c) { c = typeof c === 'string' ? channel(c) : c; if (!c) return 'gone'; if (c.state === 'gone') return 'gone'; if (c.state === 'disturbed' || (st.disturbed && c.id === 'srf1')) return 'disturbed'; return 'ok'; }
   /** 'ok' | 'none' | 'partial' (as the viewer sees it) */
@@ -78,7 +93,7 @@
   function channels(f) {
     f = f || {};
     if (st.mode === 'empty') return [];
-    let list = allChannels().filter((c) => c.active).slice().sort(sortChannels);
+    let list = allChannels().filter(viewerChannel).slice().sort(sortChannels);
     if (f.group === 'fav') { const fv = favs(); list = fv.map(channel).filter(Boolean); }
     else if (f.group) list = list.filter((c) => c.groups.includes(f.group));
     if (f.country) list = list.filter((c) => c.country === f.country);
@@ -88,13 +103,29 @@
     return list;
   }
   const channelByNo = (no) => channels().find((c) => c.no === Number(no)) || null;
+  /** what viewers may see: active channels that are not a duplicate waiting for the admin */
+  function viewerChannel(c) { return !!c && c.active && !c.dupOf && c.state !== 'gone'; }
+  /* «Viele Sender»: 2'000 test channels for the grid, programme generated on demand (hourly blocks) */
+  const TEST = [];
+  function testChannels() {
+    if (!TEST.length) for (let i = 0; i < 2000; i++) { const n = String(i + 1).padStart(4, '0'); TEST.push({ id: 'test-' + n, no: 1000 + i, name: 'Testsender ' + n, slug: 'test', country: 'CH', langs: ['de'], groups: ['test'], category: 'Sonstiges', epg: 'ok', state: 'ok', sources: [], active: true, test: true }); }
+    return TEST;
+  }
+  /** channels for the programme grid: like channels(f), with «Viele Sender» plus 2'000 test channels */
+  const gridChannels = (f) => { const l = channels(f); return st.many && l.length && !(f && f.group === 'fav') ? l.concat(testChannels()) : l; };
+  const TITLES = ['Nachrichten', 'Magazin', 'Dokumentation', 'Serie', 'Spielfilm', 'Sport', 'Show', 'Wetter'];
+  function testPrograms(id, from, to) {
+    const k = Number(id.slice(5)); const out = [];
+    for (let h = Math.max(0, Math.floor(from / 60)); h * 60 < Math.min(to, L.EPG_END); h++) { const s = h * 60 + (k % 4) * 15 - 15; const p = { id: `p-${id}-${s}`, ch: id, start: Math.max(0, s), end: s + 60, title: `${TITLES[(h + k) % TITLES.length]} ${(h + k) % 9 + 1}`, sub: '', genre: TITLES[(h + k) % TITLES.length], desc: '', series: null, flags: [], img: null, repeat: false, test: true }; if (p.end > from && p.start < to) out.push(p); }
+    return out;
+  }
 
   /* ---------- programme guide ---------- */
   const byCh = {};
   L.programs.forEach((p) => (byCh[p.ch] || (byCh[p.ch] = [])).push(p));
-  const program = (id) => L.programs.find((p) => p.id === id) || null;
+  const program = (id) => L.programs.find((p) => p.id === id) || (String(id).startsWith('p-test-') ? testPrograms(id.split('-').slice(1, 3).join('-'), Number(id.split('-')[3]), Number(id.split('-')[3]) + 1)[0] : null) || null;
   /** programmes of a channel overlapping [from, to); none without programme data */
-  function programsOf(chId, from, to) { if (epgOf(chId) === 'none') return []; return (byCh[chId] || []).filter((p) => p.end > from && p.start < to); }
+  function programsOf(chId, from, to) { if (epgOf(chId) === 'none') return []; if (String(chId).startsWith('test-')) return testPrograms(chId, from, to); return (byCh[chId] || []).filter((p) => p.end > from && p.start < to); }
   const programAt = (chId, t) => programsOf(chId, t, t + 0.001)[0] || null;
   /** { now, next } at time t (default now); now null = no data at that time */
   function nowNext(chId, t) {
@@ -163,7 +194,11 @@
       if (r.kind === 'single' || r.kind === 'manual') { if (r.end > t) out.push({ id: r.id, rule: r, kind: r.kind, ch: r.ch, title: r.title, sub: (program(r.program) || {}).sub || '', start: r.start, end: r.end, program: r.program || null }); }
       else if (r.kind === 'series') {
         const chans = r.channels === 'all' ? null : r.channels;
-        L.programs.filter((p) => p.series === r.series && p.start >= t && (!chans || chans.includes(p.ch)) && (!r.onlyNew || !p.repeat))
+        const tm = (x) => (typeof x === 'number' ? x : L.hm(String(x)));
+        const win = r.window ? (Array.isArray(r.window) ? [tm(r.window[0]), tm(r.window[1])] : [tm(r.window.from), tm(r.window.to)]) : null; // web: [from, to], phone: { from, to }
+        L.programs.filter((p) => p.series === r.series && p.start >= t && (!chans || chans.includes(p.ch)) && (!r.onlyNew || !p.repeat)
+          && (!r.weekdays || !r.weekdays.length || r.weekdays.includes(wd(p.start)) || (wd(p.start) === 0 && r.weekdays.includes(7))) // 0 = Sunday
+          && (!win || ((p.start % 1440) >= win[0] && (p.start % 1440) <= win[1])))
           .sort((a, b) => a.start - b.start).forEach((p) => {
             const key = p.sub || p.id;
             const dupe = r.noDup && (seenEp.has(r.id + key) || st.recordings.some((x) => x.rule === r.id && x.sub === p.sub && p.sub));
@@ -173,7 +208,7 @@
           });
       } else if (r.kind === 'recurring') {
         for (let d = Math.floor(t / 1440); d < L.EPG_END / 1440; d++) {
-          const day = d * 1440; if (!r.weekdays.includes(wd(day))) continue;
+          const day = d * 1440; if (!r.weekdays.includes(wd(day) || 7) && !r.weekdays.includes(wd(day))) continue;
           const s = day + L.hm(r.from); const e = day + L.hm(r.to);
           if (e > t) out.push({ id: r.id + ':' + d, rule: r, kind: 'recurring', ch: r.ch, title: r.title, sub: '', start: s, end: e, program: (programAt(r.ch, s + 1) || {}).id || null });
         }
@@ -187,8 +222,23 @@
     const run = recordings().find((r) => r.state === 'running' && r.ch === p.ch && r.start < p.end && r.end > p.start);
     if (run) return 'recording';
     const up = upcoming().find((u) => u.program === programId || (u.ch === p.ch && u.start < p.end && u.end > p.start + 1));
-    if (!up) return null;
+    if (!up) return null; // a programme a series rule leaves out: skippedWhy(programId)
     return up.kind === 'series' ? 'series' : 'scheduled';
+  }
+  /** why a series rule leaves this programme out ('schon geplant', 'Wiederholung', 'schon aufgenommen', 'ausgelassen') or null */
+  function skippedWhy(programId) {
+    const p = program(programId); if (!p || p.end <= now()) return null;
+    for (const r of rules()) {
+      if (r.kind !== 'series') continue;
+      const s = (r.skipped || []).find((x) => x[0] === programId); if (s) return s[1];
+      if ((r.skip || []).some((o) => o.endsWith(':' + programId))) return 'ausgelassen';
+      if (p.series === r.series && (r.channels === 'all' || (r.channels || []).includes(p.ch))) {
+        if (r.onlyNew && p.repeat) return 'Wiederholung';
+        if (r.noDup && p.sub && upcoming().some((u) => u.rule === r && u.sub === p.sub && u.program !== programId)) return 'schon geplant';
+        if (r.noDup && p.sub && st.recordings.some((x) => x.rule === r.id && x.sub === p.sub)) return 'schon aufgenommen';
+      }
+    }
+    return null;
   }
   const ruleForProgram = (programId) => { const u = upcoming().find((x) => x.program === programId); return u ? u.rule : null; };
   function planRecording(programId, o) {
@@ -217,7 +267,7 @@
   /** instant recording in the player. o.until: 'end' | 30 | 60 | 'stop' (max 4 h) */
   function startInstant(chId, o) {
     o = o || {}; const t = now(); const nn = nowNext(chId).now;
-    if (quota().freeGB <= 0) return { ok: false, reason: 'quota' };
+    if (quota().freeGB <= 0) { notify(st.profileId, 'recRejected', `Sofortaufnahme auf ${channel(chId).name} nicht möglich: Der Speicher des Kontos ist voll.`, '#/live/recordings'); return { ok: false, reason: 'quota' }; }
     const end = o.until === 'end' && nn ? nn.end + L.settings.dvr.padAfter : t + (o.until === 'stop' ? L.settings.dvr.instantMaxH * 60 : Number(o.until) || 60);
     const r = { id: nid('rec'), profile: st.profileId, title: nn ? nn.title : `${channel(chId).name}, ${fmtShort(t)}`, sub: nn ? nn.sub : '', ch: chId, start: t, end, padBefore: 0, padAfter: o.until === 'end' ? L.settings.dvr.padAfter : 0, sizeGB: 0, sizedAt: t, gbPerMin: 0.06, state: 'running', origin: 'instant', keep: o.keep || { mode: 'forever' }, gaps: [], watchedPct: 0, watched: false, tracks: 'Ton: Deutsch', program: nn ? nn.id : null };
     st.recordings.push(r); emit('change'); return { ok: true, id: r.id, end };
@@ -239,11 +289,34 @@
   function removeReminder(programId) { st.reminders = st.reminders.filter((r) => !(r.program === programId && r.profile === st.profileId)); emit('change'); }
 
   /* ---------- quota ---------- */
-  function quota() {
-    const total = L.account.quotaGB; const mine = profile().usedGB || 0; // server figures (14, 0.1)
-    const used = L.account.usedGB; const others = Math.round((used - mine) * 10) / 10;
-    return { totalGB: total, usedGB: used, mineGB: mine, othersGB: others, freeGB: Math.round((total - used) * 10) / 10, pct: Math.round(used / total * 100) };
+  const r1 = (x) => Math.round(x * 10) / 10;
+  /** storage of one profile = the sum of its recordings (running ones with their current size) */
+  const usageOf = (pid) => r1(recordings(pid).reduce((a, r) => a + (r.state === 'running' ? (r.liveGB || r.sizeGB) : r.sizeGB || 0), 0));
+  /** storage of the account: { usedGB, count (stored recordings), byProfile: {id: GB} } */
+  function usage() {
+    const by = {}; let n = 0; L.profiles.forEach((p) => { by[p.id] = usageOf(p.id); n += recordings(p.id).filter((r) => r.sizeGB > 0 || r.state === 'running').length; });
+    return { usedGB: r1(Object.values(by).reduce((a, b) => a + b, 0)), count: n, byProfile: by };
   }
+  /** storage of the account as the active profile sees it; «Kontingent voll» of the mockup fills it */
+  function quota() {
+    const total = L.account.quotaGB; const u = usage(); const mine = u.byProfile[st.profileId] || 0;
+    const used = st.quotaFull ? total : Math.min(total, u.usedGB);
+    return { totalGB: total, usedGB: used, mineGB: mine, othersGB: r1(used - mine), freeGB: r1(total - used), pct: Math.round(used / total * 100), full: used >= total };
+  }
+  /** «abgelehnt bei vollem Kontingent»: a planned recording does not start; it appears under «Nicht aufgenommen»
+      and the profile and the primary profile get a message. occ = an entry of upcoming() or { ch, title, sub, start, end, program } */
+  function rejectForQuota(occ) {
+    const r = { id: nid('rec'), profile: st.profileId, title: occ.title, sub: occ.sub || '', ch: occ.ch, start: occ.start, end: occ.end, padBefore: 0, padAfter: 0, sizeGB: 0, state: 'rejected', reason: 'quota', origin: occ.rule && occ.rule.kind === 'series' ? 'series' : 'single', rule: occ.rule ? occ.rule.id : null, program: occ.program || null, keep: { mode: 'forever' }, gaps: [], watchedPct: 0, watched: false, tracks: '' };
+    st.recordings.push(r);
+    if (occ.rule) { if (occ.rule.kind === 'single' || occ.rule.kind === 'manual') st.rules = st.rules.filter((x) => x !== occ.rule); else (occ.rule.skip || (occ.rule.skip = [])).push(occ.id); }
+    const text = `«${occ.title}» wurde nicht aufgenommen: Der Speicher des Kontos ist voll.`;
+    const main = L.profiles.find((x) => x.primary);
+    notify(st.profileId, 'recRejected', text, '#/live/recordings?state=failed');
+    if (main && main.id !== st.profileId) notify(main.id, 'recRejected', `${profile().name}: ${text}`, '#/live/recordings/profiles');
+    emit('change'); return r;
+  }
+  function notify(pid, kind, text, href) { st.notices.unshift({ profile: pid, kind, text, href: href || null, at: now() }); }
+  const notices = (pid) => st.notices.filter((n) => n.profile === (pid || st.profileId));
 
   /* ---------- player and timeshift ---------- */
   const maxShift = () => (st.player ? Math.min(L.timeshiftMaxMin, now() - st.player.joinedAt) : 0);
@@ -267,19 +340,27 @@
 
   function reset() { st = fresh(); lastMin = Math.floor(now()); emit('minute'); emit('change'); }
 
+  /* the account of the mockup in the administration lists (LA-16, LA-22) and LIVE.account show the same
+     storage as the viewers: computed from the recordings, never a fixed number */
+  const accUsed = () => (st.quotaFull ? L.account.quotaGB : usage().usedGB);
+  [L.account, (L.accounts || []).find((a) => a.email === L.account.email)].filter(Boolean).forEach((a) => {
+    Object.defineProperty(a, 'usedGB', { configurable: true, enumerable: true, get: accUsed, set: () => {} });
+    if ('count' in a) Object.defineProperty(a, 'count', { configurable: true, enumerable: true, get: () => usage().count, set: () => {} });
+  });
+
   g.LIVE_SIM = {
     on: (fn) => { listeners.push(fn); return () => { const k = listeners.indexOf(fn); if (k >= 0) listeners.splice(k, 1); }; },
     emit, now, setClock, advance, clockRunning: () => st.clock.running,
     profile, profiles: () => L.profiles, setProfile, rights, rawRights, setRight,
-    mode: () => st.mode, setMode, flags: () => ({ noEpg: st.noEpg, disturbed: st.disturbed }), setFlag,
-    channels, channel, channelByNo, chState, epgOf, allChannels,
+    mode: () => st.mode, setMode, flags, setFlag, setRevoked,
+    channels, channel, channelByNo, chState, epgOf, allChannels, viewerChannel, gridChannels, testChannels,
     program, programsOf, programAt, nowNext, gapsOf, genresSoon, search,
     favorites: () => favs().slice(), isFav, toggleFav, moveFav, recent,
     recordings, recording, deleteRecordings, stopRecording, setKeep, setWatched, runningOn, childProfiles,
-    rules, rule, upcoming, recState, ruleForProgram, planRecording, planSeries, planManual, updateRule, removeRule, skipOccurrence, startInstant,
+    rules, rule, upcoming, recState, skippedWhy, ruleForProgram, planRecording, planSeries, planManual, updateRule, removeRule, skipOccurrence, startInstant,
     warnings, warningsFor, dismissWarning,
     reminders, reminderFor, setReminder, removeReminder,
-    quota,
+    quota, usage, usageOf, rejectForQuota, notices,
     tune, zap, lastChannel, pause, resume, seek, toLive, stop, player,
     reset,
   };

@@ -23,9 +23,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 
 /* ---------- Live-TV frame ---------- */
 .page.live { gap: 20px; }
-.lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-width: 0; }
+.ltabs { min-width: 0; max-width: 100%; }
 .eyebrow-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-.ltabs ul { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 4px; border-radius: 9999px; background: var(--s1); border: 1px solid var(--frame); }
+.ltabs ul { min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 4px; border-radius: 9999px; background: var(--s1); border: 1px solid var(--frame); }
 .ltabs a { display: inline-flex; align-items: center; height: 36px; padding: 0 16px; border-radius: 9999px; font-size: 14px; font-weight: 600; color: var(--tx2); white-space: nowrap; }
 .ltabs a:hover { color: var(--tx); background: var(--s2); }
 .ltabs a[aria-current='page'] { background: var(--tx); color: var(--bg); }

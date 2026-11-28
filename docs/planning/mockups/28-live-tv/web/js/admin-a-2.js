@@ -73,7 +73,7 @@ function aaChFiltered() {
   rows.sort((a, b) => f.dir * (f.sort === 'name' ? a.name.localeCompare(b.name, 'de') : f.sort === 'state' ? rank(a) - rank(b) || a.name.localeCompare(b.name, 'de') : (a.no == null) - (b.no == null) || (a.no || 0) - (b.no || 0) || a.name.localeCompare(b.name, 'de')) || 0);
   return rows;
 }
-const aaSelCount = () => (AA.selAll ? aaCounts().imported : Object.keys(AA.sel).length);
+const aaSelCount = () => (AA.selAll ? admCounts().imported : Object.keys(AA.sel).length);
 const aaHasFilter = () => { const f = aaCF(); return !!(f.q || AA_FACETS.some(([k]) => f[k])); };
 function aaChTable(rows) {
   const f = aaCF(); const all = rows.length > 0 && rows.every((c) => AA.sel[c.id] || AA.selAll);
@@ -97,13 +97,13 @@ function aaChTable(rows) {
 function aaBulkBar(rows) {
   const n = aaSelCount(); if (!n) return '';
   const b = (op, l, o) => `<button type="button" class="btn secondary sm" data-act="aaBulk" data-op="${op}" data-fid="la05:bk:${op}"${o && o.dis ? ' disabled' : ''}>${l}</button>`;
-  const full = rows.length && rows.every((c) => AA.sel[c.id]) && !AA.selAll && !aaHasFilter() && rows.length < aaCounts().imported;
-  return `<div class="savebar aa-bulk" role="region" aria-label="Massenbearbeitung"><b class="grow">${fmt.num(n)} ausgewählt${full ? ` · <button type="button" class="lnk" data-act="aaSelEvery" data-fid="la05:every">Alle ${fmt.num(aaCounts().imported)} Treffer auswählen</button>` : ''}${AA.selAll ? ' · <button type="button" class="lnk" data-act="aaSelClear" data-fid="la05:onlypage">Nur diese Liste</button>' : ''}</b>
+  const full = rows.length && rows.every((c) => AA.sel[c.id]) && !AA.selAll && !aaHasFilter() && rows.length < admCounts().imported;
+  return `<div class="savebar aa-bulk" role="region" aria-label="Massenbearbeitung"><b class="grow">${fmt.num(n)} ausgewählt${full ? ` · <button type="button" class="lnk" data-act="aaSelEvery" data-fid="la05:every">Alle ${fmt.num(admCounts().imported)} Treffer auswählen</button>` : ''}${AA.selAll ? ' · <button type="button" class="lnk" data-act="aaSelClear" data-fid="la05:onlypage">Nur diese Liste</button>' : ''}</b>
     ${b('on', 'Aktivieren')}${b('off', 'Deaktivieren')}${b('gadd', 'Zu Gruppe hinzufügen …')}${b('grem', 'Aus Gruppe entfernen …')}${b('country', 'Land …')}${b('lang', 'Sprache …')}${b('category', 'Kategorie …')}${b('rec', 'Empfang …')}${b('numbers', 'Nummern vergeben …')}${b('merge', 'Zusammenführen', { dis: n < 2 })}
     <button type="button" class="btn ghost sm" data-act="aaSelClear" data-fid="la05:clear">Auswahl aufheben</button></div>`;
 }
 function aaChannelsTab(q) {
-  const f = aaCF(); const c = aaCounts();
+  const f = aaCF(); const c = admCounts();
   return aaGate(aaEmptyBox('Noch keine Sender', 'Füge zuerst eine Quelle hinzu. Aus ihr entstehen die Sender.', `<a class="btn primary" href="#/admin/live/sources/new" data-fid="la05:addsrc">${icon('plus', 16)}Quelle hinzufügen</a>`), () => {
     const rows = aaChFiltered(); const nf = AA_FACETS.filter(([k]) => f[k]).length;
     const facets = AA_FACETS.map(([k, l, opts]) => `<label class="fld fsel"><span class="lbl">${l}</span>${selectEl('ui.draft.cf.' + k, opts().map(([v, t]) => ({ v, t })), { label: l })}</label>`).join('');
@@ -132,7 +132,7 @@ route('/admin/live/channels', (pm, q) => {
   const fresh = parseHash().path !== lastPath; const tab = ['channels', 'groups', 'duplicates'].includes(q.tab) ? q.tab : 'channels';
   if (fresh) { ui.draft.cf = null; AA.sel = {}; AA.selAll = false; const f = aaCF(); ['state', 'source', 'group', 'country', 'lang', 'category', 'epg', 'rec', 'q'].forEach((k) => { if (q[k]) f[k] = q[k]; }); if (q.filter === 'missing') f.epg = 'missing'; }
   if (aaSources().length) AA.chVisited = true;
-  const c = aaCounts(); let html; const tabs = subTabs('#/admin/live/channels', [['channels', 'Sender', null], ['groups', 'Gruppen', aaEmpty() ? 0 : LIVE.groups.length], ['duplicates', `Duplikate`, aaDupCount()]], tab);
+  const c = admCounts(); let html; const tabs = subTabs('#/admin/live/channels', [['channels', 'Sender', null], ['groups', 'Gruppen', aaEmpty() ? 0 : LIVE.groups.length], ['duplicates', `Duplikate`, aaDupCount()]], tab);
   if (tab === 'groups') html = aaGroupsTab(); else if (tab === 'duplicates') html = aaDupTab(); else html = aaChannelsTab(q);
   return aaView({ area: 'livetv', page: 'channels', title: tab === 'groups' ? 'Sendergruppen' : tab === 'duplicates' ? 'Duplikate' : `Sender · ${fmt.num(c.active)} aktiv von ${fmt.num(c.imported)}`, h1: tab === 'channels' ? `Sender <span class="lcount">${fmt.num(c.active)} aktiv von ${fmt.num(c.imported)}</span>` : undefined,
     intro: tab === 'groups' ? 'Gruppen ordnen Sender für die Zuschauer. Sie sind keine Rechte: Wer Live-TV darf, sieht alle aktiven Sender.' : tab === 'duplicates' ? 'Slouchcat erkennt Sender, die vermutlich dasselbe zeigen. Du entscheidest, was zusammengehört.' : 'Alle Sender aller Quellen. Ein Klick auf eine Zeile öffnet den Sender zum Bearbeiten.',
@@ -207,7 +207,7 @@ const aaCeSum = (ce) => {
     epg: ce.epgSel === 'without' ? 'bewusst ohne Programmdaten' : ce.epgSel ? esc((aaEpgOptions().find((o) => o.v === ce.epgSel) || { t: ce.epgSel }).t) : 'nicht zugeordnet',
     sources: `${aaPl(ce.sources.length, 'Quelle', 'Quellen')}${first ? `, aktiv: ${esc(aaSrcName(first.source))}` : ''}`,
     reception: `${rec}${ce.reception === 'schedule' ? ` «${esc(ce.schedule)}»` : ''}`,
-    tech: `${esc(ce.video.split('·').slice(0, 2).join('·').trim())} · ${ce.bitrate.toLocaleString('de-CH', { minimumFractionDigits: 1 })} Mbit/s`,
+    tech: `${esc(ce.video.split('·').slice(0, 2).join('·').trim())} · ${fmt.dec(ce.bitrate, 1, 1)} Mbit/s`,
     avail: SIM.chState(ce) === 'ok' ? `Verfügbar, ${aaPl(n, 'Ausfall', 'Ausfälle')} in 7 Tagen` : `${SIM.chState(ce) === 'gone' ? 'Verschwunden' : 'Gestört'}, ${aaPl(n, 'Ausfall', 'Ausfälle')} in 7 Tagen`,
     use: `${aaPl(ce.favCount, 'Favorit', 'Favoriten')} · ${aaPl(aaPlannedOn(ce.id), 'geplante Aufnahme', 'geplante Aufnahmen')}`,
   };
@@ -237,7 +237,7 @@ DIALOGS.aaChEd = () => {
   const rec = `<div class="stack">${Object.entries(AA_RECL).map(([k, t]) => aaRadio('ui.draft.ce.reception', 'laerc', k, k === 'default' ? 'Standard des Servers (bei Bedarf)' : t, 'lae:rc:' + k)).join('')}${ce.reception === 'schedule' ? aaF('lae-sch', 'Zeitplan', selectEl('ui.draft.ce.schedule', LIVE.settings.schedules.map((s) => ({ v: s.name, t: `${s.name} (${s.times})` })), { label: 'Zeitplan' }).replace('<select ', '<select id="lae-sch" ')) : ''}
     <div class="srow"><div class="st"><b>Darf vorgeladen werden</b></div><div class="sc">${sw('ui.draft.ce.preload', 'Darf vorgeladen werden')}</div></div>
     ${['permanent', 'schedule'].includes(ce.reception) || ce.preload ? notice('', 'Dauerhafte Verbindung', 'Jeder permanent, vorgeladen oder nach Zeitplan empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer.') : ''}</div>`;
-  const tech = `<dl class="kv"><dt>Bild</dt><dd>${esc(ce.video)}</dd><dt>Ton</dt><dd>${ce.audio.map(esc).join('<br>')}</dd><dt>Untertitel</dt><dd>${ce.subs.length ? ce.subs.map(esc).join(', ') : 'keine'}</dd><dt>Bitrate</dt><dd>${ce.bitrate.toLocaleString('de-CH', { minimumFractionDigits: 1 })} Mbit/s</dd><dt>Gemessen</dt><dd>${aaWhen(SIM.now() - 6)}</dd></dl>
+  const tech = `<dl class="kv"><dt>Bild</dt><dd>${esc(ce.video)}</dd><dt>Ton</dt><dd>${ce.audio.map(esc).join('<br>')}</dd><dt>Untertitel</dt><dd>${ce.subs.length ? ce.subs.map(esc).join(', ') : 'keine'}</dd><dt>Bitrate</dt><dd>${fmt.dec(ce.bitrate, 1, 1)} Mbit/s</dd><dt>Gemessen</dt><dd>${aaWhen(SIM.now() - 6)}</dd></dl>
     <div class="srow"><div class="st"><b>Sender hat keinen Ton</b><span>Die Überwachung meldet fehlenden Ton dann nicht als Fehler.</span></div><div class="sc">${sw('ui.draft.ce.noAudio', 'Sender hat keinen Ton')}</div></div>
     <div class="srow"><div class="st"><b>Sender hat kein Bild</b><span>Reiner Tonsender.</span></div><div class="sc">${sw('ui.draft.ce.noVideo', 'Sender hat kein Bild')}</div></div>`;
   const log = LIVE.diagnostics.log.filter((l) => l[1] === ce.id).sort((a, b) => b[0] - a[0]);
@@ -376,18 +376,18 @@ ACT.aaGrDelOk = (d) => { const k = LIVE.groups.findIndex((x) => x.id === d.id); 
    Nur das Neue ist ausgearbeitet; alles andere zeigt die Seite in ihrer bisherigen Art knapp als Beispiel.
    ====================================================================================== */
 const aaAv = (name) => `<span class="av ${({ Anna: 'a1', Luca: 'a2', Mia: 'a3' })[name] || 'a1'}" aria-hidden="true">${esc(name[0])}</span>`;
-const aaMbit = (x) => `${x.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mbit/s`;
+const aaMbit = (x) => `${fmt.dec(x, 1, 1)} Mbit/s`;
 const AA_SAMPLES = [
   { k: 'v1', type: 'Video', title: 'Oppenheimer', acct: 'familie.keller@example.ch', prof: 'Luca', dev: 'Tablet Kinderzimmer', mode: 'direkt', br: 5.6 },
   { k: 'h1', type: 'Hörbuch', title: 'Der Prozess', acct: 'grosseltern@example.ch', prof: 'Grosseltern', dev: 'Küchenradio', mode: 'direkt', br: 0.2 },
   { k: 'r1', type: 'Radio', title: 'Radio SRF 3', acct: 'familie.keller@example.ch', prof: 'Mia', dev: 'Pixel 8', mode: 'direkt', br: 0.1 },
 ];
-const aaSamples = () => (aaEmpty() ? [] : AA_SAMPLES.filter((s) => !AA.endedS[s.k]));
-const aaPrivPlay = () => (aaEmpty() || AA.endedS.pr ? null : { acct: 'familie.keller@example.ch', prof: 'Luca', dev: 'Tablet Kinderzimmer', mode: 'direkt', br: 4.8 });
+const aaSamples = () => (aaEmpty() ? [] : AA_SAMPLES.filter((s) => !ADM.endedS[s.k]));
+const aaPrivPlay = () => (aaEmpty() || ADM.endedS.pr ? null : { acct: 'familie.keller@example.ch', prof: 'Luca', dev: 'Tablet Kinderzimmer', mode: 'direkt', br: 4.8 });
 
 /* ---------- LA-20 Verwaltungsübersicht ---------- */
 function aaHome() {
-  const empty = aaEmpty(); const st = aaState(); const vs = aaViewers(); const run = aaRecRunning(); const c = aaCounts(); const sm = aaSamples();
+  const empty = aaEmpty(); const st = aaState(); const vs = admViewers(); const run = admRecRunning(); const c = admCounts(); const sm = aaSamples();
   const tiles = [['Medien', 'film', 'Bibliotheken, Metadaten, Pflege, Wünsche, Podcasts, Radio', '#/admin/x/libraries', false],
     ['Live-TV', 'live', empty ? 'Noch nicht eingerichtet · Quelle hinzufügen' : `${st[0]} · ${aaPl(vs.length, 'Zuschauer', 'Zuschauer')} · ${aaPl(run, 'Aufnahme läuft', 'Aufnahmen laufen')} · ${aaPl(c.unavailable, 'Sender gestört', 'Sender gestört')}`, '#/admin/live', true],
     ['Nutzer & Geräte', 'users', `${LIVE.accounts.length} Konten, Geräte und Streams`, '#/admin/accounts', false], ['Automatisierung', 'zap', 'Hintergrundjobs, Integrationen, Benachrichtigungen', '#/admin/jobs', false], ['System', 'server', 'Statistiken, Sicherung, Server', '#/admin/server', false]];
@@ -398,12 +398,12 @@ function aaHome() {
     <section class="card"><div class="ch"><span class="ik">${icon('alert', 18)}</span><h2>Braucht Aufmerksamkeit</h2></div>${att.html}${att.more ? `<a class="lnk" href="#/admin/live" data-fid="la20:more">Alle in Live-TV (${att.n})</a>` : ''}</section></div>`;
 }
 function aaAttRowsFor3() { const a = aaAttention(); const top = a.filter((x) => x.k !== 'info').slice(0, 3); return { html: top.length ? `<ul class="aa-atts">${top.map(aaAttRow).join('')}</ul>` : '<p class="muted">Alles in Ordnung.</p>', more: a.length > top.length, n: a.length }; }
-route('/admin', () => aaView({ area: 'overview', page: '', title: 'Übersicht', intro: 'Der Zustand deines Servers auf einen Blick.', live: aaMode() === 'normal' ? aaLiveText() : null, html: aaGate(null, aaHome, { rows: 4, h: 96 }) }));
+route('/admin', () => aaView({ area: 'overview', page: '', title: 'Übersicht', intro: 'Der Zustand deines Servers auf einen Blick.', live: aaMode() === 'normal' ? admLiveText() : null, html: aaGate(null, aaHome, { rows: 4, h: 96 }) }));
 
 /* ---------- LA-21 Aktive Wiedergaben ---------- */
 const AA_TYPES = ['Alle', 'Video', 'Hörbuch', 'Podcast', 'Radio', 'Live-TV'];
 function aaPlays() {
-  const live = aaViewers().map((v) => ({ type: 'Live-TV', k: 'l' + v.i, i: v.i, ch: v.ch, prof: v.prof, acct: v.acct, dev: v.dev, mode: v.tr ? `umgewandelt ${v.res}p (Hardware QSV)` : 'direkt', br: v.br, off: v.off, since: v.since }));
+  const live = admViewers().map((v) => ({ type: 'Live-TV', k: 'l' + v.i, i: v.i, ch: v.ch, prof: v.prof, acct: v.acct, dev: v.dev, mode: v.tr ? `umgewandelt ${v.res}p (Hardware QSV)` : 'direkt', br: v.br, off: v.off, since: v.since }));
   const pp = aaPrivPlay(); if (pp) live.push(Object.assign({ type: 'Live-TV', k: 'pr', priv: true, since: SIM.now() - 52 }, pp));
   return live.concat(aaSamples().map((s) => Object.assign({ since: SIM.now() - 25 }, s)));
 }
@@ -422,8 +422,8 @@ function aaStreamsView() {
   return `${strip}${bar}${list.length ? `<div class="tiles">${list.map(aaPlayTile).join('')}</div>` : aaEmptyBox(f === 'Alle' ? 'Gerade schaut niemand' : `Gerade läuft kein ${f}`, 'Sobald jemand etwas startet, erscheint es hier.')}<p class="muted aa-small">Für Live-TV zeigt die Verwaltung wie bei Videos Konto, Profil, Gerät und laufende Sendung. Bei der Wiedergabe einer Aufnahme steht nur «Private Aufnahme»: ohne Titel, ohne Sender.</p>`;
 }
 ACT.aaStF = (d) => { ui.draft.stf = d.t; render(); };
-ACT.aaEnd = (d) => { if (d.i != null && d.i !== '') AA.ended[Number(d.i)] = true; else AA.endedS[d.k] = true; toast('Wiedergabe beendet. Das Gerät zeigt eine Meldung.', 'ok'); render(); };
-route('/admin/streams', () => aaView({ area: 'people', page: 'streams', title: 'Aktive Wiedergaben', intro: 'Was gerade auf deinem Server läuft: Video, Hörbuch, Podcast, Radio und neu Live-TV.', live: aaMode() === 'normal' ? aaLiveText() : null, html: aaGate(aaEmptyBox('Gerade schaut niemand', 'Sobald jemand etwas startet, erscheint es hier.'), aaStreamsView, { rows: 3, h: 150 }) }));
+ACT.aaEnd = (d) => { if (d.i != null && d.i !== '') ADM.ended[Number(d.i)] = true; else ADM.endedS[d.k] = true; toast('Wiedergabe beendet. Das Gerät zeigt eine Meldung.', 'ok'); render(); };
+route('/admin/streams', () => aaView({ area: 'people', page: 'streams', title: 'Aktive Wiedergaben', intro: 'Was gerade auf deinem Server läuft: Video, Hörbuch, Podcast, Radio und neu Live-TV.', live: aaMode() === 'normal' ? admLiveText() : null, html: aaGate(aaEmptyBox('Gerade schaut niemand', 'Sobald jemand etwas startet, erscheint es hier.'), aaStreamsView, { rows: 3, h: 150 }) }));
 
 /* ---------- LA-22 Konten und Einladungen ---------- */
 const aaAccR = (a) => (a.email === LIVE.account.email ? SIM.rawRights('account') : a.rights);
@@ -484,7 +484,7 @@ function aaJobs() {
   return [
     { id: 'live.sources.refresh', name: 'Senderlisten aktualisieren', sched: 'alle 15 Min. prüfen, wählt fällige Quellen', last: l('live.sources.refresh', grid - 15), next: grid, res: failed.length ? ['warn', `${aaPl(failed.length, 'Quelle', 'Quellen')} fehlgeschlagen: ${failed.map((s) => esc(s.name)).join(', ')}`] : ['ok', 'in Ordnung'] },
     { id: 'live.epg.import', name: 'Programmdaten laden', sched: 'je Quelle (Intervall bei den EPG-Quellen)', last: l('live.epg.import', epgLast), next: Math.min(...LIVE.epgSources.map((e) => e.last + e.interval * 60)), res: LIVE.epgSources.some((e) => e.warnings.length) ? ['warn', `${LIVE.epgSources.reduce((n, e) => n + e.warnings.length, 0)} Warnung: 312 Sendungen ohne Zeitzone`] : ['ok', 'in Ordnung'] },
-    { id: 'live.channels.check', name: 'Verfügbarkeit prüfen', sched: `alle ${LIVE.diagnostics.settings.checkEvery.replace('h', ' Std.')}`, last: l('live.channels.check', now - 140), next: now + 220, res: ['ok', `${aaCounts().unavailable} Sender nicht verfügbar gemeldet`] },
+    { id: 'live.channels.check', name: 'Verfügbarkeit prüfen', sched: `alle ${LIVE.diagnostics.settings.checkEvery.replace('h', ' Std.')}`, last: l('live.channels.check', now - 140), next: now + 220, res: ['ok', `${admCounts().unavailable} Sender nicht verfügbar gemeldet`] },
     { id: 'live.dvr.reschedule', name: 'Aufnahmen neu planen', sched: 'nach jedem EPG-Import', last: l('live.dvr.reschedule', epgLast + 2), next: epgLast + 12 * 60 + 2, res: ['ok', '2 Aufnahmen verschoben'] },
     { id: 'live.cleanup', name: 'Aufräumen', sched: 'täglich 03:00: abgelaufene Aufnahmen, «behalte N», verwaiste Puffer', last: l('live.cleanup', LIVE.at(0, '03:00')), next: LIVE.at(1, '03:00'), res: ['ok', 'in Ordnung'] },
   ];
@@ -507,7 +507,7 @@ ACT.aaJobRun = (d) => {
   setTimeout(step, 450);
 };
 ACT.aaJobPause = (d) => { AA.jobPause[d.id] = !AA.jobPause[d.id]; toast(AA.jobPause[d.id] ? `«${esc(d.id)}» pausiert. Laufende Aufnahmen laufen weiter.` : `«${esc(d.id)}» läuft wieder nach Zeitplan.`, 'ok'); render(); };
-route('/admin/jobs', () => aaView({ area: 'automation', page: 'jobs', title: 'Hintergrundjobs', intro: 'Aufgaben, die der Server von selbst erledigt. Neu: die Gruppe «Live-TV».', live: aaMode() === 'normal' ? aaLiveText() : null, html: aaGate(null, aaJobsView, { rows: 3, h: 56 }) }));
+route('/admin/jobs', () => aaView({ area: 'automation', page: 'jobs', title: 'Hintergrundjobs', intro: 'Aufgaben, die der Server von selbst erledigt. Neu: die Gruppe «Live-TV».', live: aaMode() === 'normal' ? admLiveText() : null, html: aaGate(null, aaJobsView, { rows: 3, h: 56 }) }));
 
 /* ---------- LA-24 Benachrichtigungen der Verwaltung ---------- */
 const AA_NT = [
@@ -543,7 +543,7 @@ route('/admin/my-media', () => aaView({ area: 'home', page: 'my-media', title: '
 
 /* ---------- LA-27 Server › Update ---------- */
 AA.ver = { cur: '1.45.0', next: '1.46.0', done: false };
-function aaUpdSoon() { return { run: aaRecRunning(), soon: aaRecSoon(30) }; }
+function aaUpdSoon() { return { run: admRecRunning(), soon: admRecSoon(30) }; }
 DIALOGS.aaUpdate = () => {
   const u = aaUpdSoon(); const any = u.run + u.soon > 0;
   const w = any ? notice('warn', `${aaPl(u.run, 'Aufnahme läuft', 'Aufnahmen laufen')}${u.soon ? `, ${u.soon === 1 ? '1 beginnt' : u.soon + ' beginnen'} in den nächsten 30 Minuten` : ''}.`, 'Ein Update unterbricht sie (Lücke von etwa einer Minute). Hier stehen nur Zahlen, keine Titel.') : '';
@@ -556,7 +556,7 @@ route('/admin/server', () => aaView({ area: 'system', page: 'server', title: 'Se
 /* ---------- LA-28 Sicherung ---------- */
 AA.bk = { last: LIVE.at(0, '03:30'), busy: false, hist: [[LIVE.at(0, '03:30'), '38 MB'], [LIVE.at(-1, '03:30'), '38 MB'], [LIVE.at(-2, '03:30'), '37 MB']] };
 function aaBackupView() {
-  const e = aaEmpty(); const c = aaCounts(); const rules = LIVE.profiles.reduce((a, p) => a + SIM.rules(p.id).length, 0);
+  const e = aaEmpty(); const c = admCounts(); const rules = LIVE.profiles.reduce((a, p) => a + SIM.rules(p.id).length, 0);
   const inc = [['Quellen', LIVE.sources.length], ['Sender', c.active], ['Zuordnungen (EPG)', LIVE.mappingCounts.all], ['Planungen (Aufnahmen)', rules]];
   return `${notice('', 'Aufnahmen und Puffer sind nicht Teil der Sicherung.', 'Gesichert werden Quellen, Sender, Zuordnungen und Planungen.')}
     <section class="card"><div class="ch"><span class="ik">${icon('database', 18)}</span><h2>Sicherung</h2><button type="button" class="btn primary sm" data-act="aaBackup" data-fid="la28:go" ${AA.bk.busy ? 'disabled' : ''}>${AA.bk.busy ? '<span class="spin"></span>' : ''}Jetzt sichern</button></div>

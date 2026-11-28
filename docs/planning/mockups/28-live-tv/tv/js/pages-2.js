@@ -11,7 +11,7 @@ const tvgSnap = (t) => Math.max(0, Math.min(LIVE.EPG_END - TVG_SPAN, Math.floor(
 const tvgNew = () => ({ gs: tvgSnap(SIM.now() - 37), top: 0, pos: 0, group: '', anchor: SIM.now() });
 const TVG = tvgNew(); const TVGO = tvgNew();
 RESETS.push(() => { Object.assign(TVG, tvgNew()); });
-const tvgRows = (g) => SIM.channels({ group: g.group || undefined });
+const tvgRows = (g) => SIM.gridChannels({ group: g.group || undefined }); // «Viele Sender» adds 2'000 test channels (core)
 /** segments (programmes and data gaps) of a channel in the visible window, sorted */
 function tvgSegs(g, ch) {
   const lo = g.gs; const hi = g.gs + TVG_SPAN;
@@ -206,12 +206,15 @@ const tvpIsPlayer = () => /^\/live\/watch\//.test(curPath());
 const tvpPl = () => SIM.player();
 const tvpInput = (id) => LIVE.inputs.some((i) => i.ch === id && i.state === 'running');
 /** phase of the switching: { k: 'loading'|'slow'|'ok'|'error', spin } */
+/* phases and faults come from the core (LIVE_UI.playerPhase: the same thresholds in all clients, mockup states
+   in the bar «Zustände» → Player) */
+const TVP_ERRMAP = { notPlayable: 'notplayable' };
 function tvpPhase(c) {
-  if (PL.force) return { k: 'forced', spin: false };
-  const e = Date.now() - PL.t0; const st = SIM.chState(c);
-  if (st === 'disturbed') return e < 6500 ? { k: e < 2000 ? 'loading' : 'slow', spin: e > 400 } : { k: 'error', spin: false };
-  if (tvpInput(c.id)) return e < 700 ? { k: 'loading', spin: e > 300 } : { k: 'ok', spin: false };
-  return e < 3600 ? { k: e < 2200 ? 'loading' : 'slow', spin: e > 300 } : { k: 'ok', spin: false };
+  const ph = LU.playerPhase(Date.now() - PL.t0, c, { hot: tvpInput(c.id) });
+  if (ph.fallback && !PL.fb) { PL.fb = true; PL.info = true; PL.infoUntil = Date.now() + 5000; setTimeout(() => toast('Auf eine Ersatzquelle umgeschaltet.'), 0); }
+  if (!ph.fallback) PL.fb = false;
+  if (ph.k === 'error') return { k: 'forced', spin: false, err: TVP_ERRMAP[ph.err] || ph.err };
+  return ph;
 }
 const tvpFmtOff = (min) => fmt.offset(min);
 const tvpShiftMin = () => { const p = tvpPl(); return p ? p.offset : 0; };
@@ -289,7 +292,7 @@ route('/live/watch/:id', (pm) => {
   if (PL.id !== pm.id) Object.assign(PL, { id: pm.id, t0: now, info: true, infoUntil: now + 5000, infoFocus: false, bar: false, list: false, guide: false, force: '', pend: null, fb: false });
   const pl = SIM.player(); const synced = !!pl && pl.ch === pm.id; const ph = tvpPhase(c);
   PL.shown = ph.k + (ph.spin ? '+' : '') + (PL.bar ? 'b' : '') + (PL.info ? 'i' : '');
-  const err = ph.k === 'forced' ? PL.force : ph.k === 'error' ? 'unreachable' : null;
+  const err = ph.k === 'forced' ? ph.err : null;
   const paused = !!(pl && pl.paused); const r = SIM.rights();
   const run = r.recordings && SIM.runningOn(c.id);
   const showVid = !err && (ph.k === 'ok' || ph.k === 'forced');
@@ -298,6 +301,7 @@ route('/live/watch/:id', (pm) => {
     <div class="tvp-vid">${showVid ? LU.fakeVideo(c, { paused }) : ''}</div><i class="tvp-scrim" aria-hidden="true"></i>
     ${paused && showVid ? `<span class="tvp-pause" aria-hidden="true">${icon('pause', 120)}</span>` : ''}
     ${!showVid && !err ? `<div class="tvp-load" role="status">${ph.spin ? `<span class="spin"></span>` : ''}<p>${ph.spin ? loadTxt : ''}</p></div>` : ''}
+    ${showVid && ph.stall ? `<div class="tvp-load" role="status"><span class="spin"></span><p>Verbindung wird wiederhergestellt …</p></div>` : ''}
     ${err ? tvpErrHtml(c, err) : ''}
     ${run && showVid ? `<span class="tvp-recind">${LU.badge('recording', { text: true, label: `Nimmt auf · ${fmt.dur(Math.max(1, Math.round(SIM.now() - run.start)))}` })}</span>` : ''}
     ${PL.info && !err ? tvpBannerHtml(c, pl) : ''}
@@ -327,7 +331,7 @@ setInterval(() => {
   if (PL.info && !PL.infoFocus && now > PL.infoUntil && !PL.list) { PL.info = false; redo = true; }
   if (PL.bar && now > PL.barUntil && !(pl && pl.paused)) { PL.bar = false; redo = true; }
   if (PL.pend && now > PL.pend.until) PL.pend = null;
-  if (ph.k === 'error' || PL.force === 'unreachable') { const w = $('.tvp-err .tvp-hint'); if (w) w.textContent = `Nächster Versuch in ${20 - Math.floor(((now - PL.t0) / 1000) % 20)} s`; }
+  if (ph.err === 'unreachable') { const w = $('.tvp-err .tvp-hint'); if (w) w.textContent = `Nächster Versuch in ${20 - Math.floor(((now - PL.t0) / 1000) % 20)} s`; }
   if (redo) render(); else tvpPaint();
 }, 250);
 window.addEventListener('hashchange', (e) => { const was = /#\/live\/watch\//.test(e.oldURL || ''); const is = /#\/live\/watch\//.test(e.newURL || ''); if (was && !is) { PL.leaving = true; PL.id = null; SIM.stop(); } });
@@ -353,13 +357,11 @@ const focus_ = (el) => focus(el, { instant: true });
 function tvpPlayPause() {
   const r = SIM.rights(); const pl = tvpPl();
   if (!r.timeshift) { toast('Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); return; }
-  if (PL.tsoff) { toast('Zurückspulen ist gerade nicht möglich.'); return; }
   if (pl && pl.paused) SIM.resume(); else { SIM.pause(); PL.bar = true; PL.barUntil = Date.now() + 8000; }
 }
 function tvpSeekBy(sec) {
   const r = SIM.rights(); const pl = tvpPl();
   if (!r.timeshift) { toast('Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); return; }
-  if (PL.tsoff) { toast('Zurückspulen ist gerade nicht möglich.'); return; }
   if (!pl || pl.max < 0.05) { toast('Noch nichts zum Zurückspulen: die Leiste beginnt bei deinem Einschalten.'); return; }
   SIM.seek(pl.offset - sec / 60);
 }
@@ -439,7 +441,7 @@ ACT.tvpRec = () => tvpRecAct();
 ACT.tvpListOpen = () => tvpListShow();
 ACT.tvpGuide = () => tvGuideOverlay();
 ACT.tvpInfo = () => tvpShowInfo(true);
-ACT.tvpRetry = () => { PL.t0 = Date.now(); PL.force = ''; render(); };
+ACT.tvpRetry = () => { PL.t0 = Date.now(); render(); };
 ACT.tvpHome = () => { PL.leaving = true; SIM.stop(); PL.id = null; go('#/'); };
 ACT.tvpZapPick = (d) => tvpRequest(d.ch, 'pick');
 ACT.tvpListCycle = () => {
@@ -452,21 +454,14 @@ function tvpAudioHtml() {
   const c = SIM.channel(PL.id); const pf = S.prefs; const subs = c.subs || [];
   const row = (f, ic, t, v, act, dis) => `<button type="button" class="mi" data-act="${act}" data-f="${f}"${dis ? ' aria-disabled="true"' : ''}><span class="mi-ic">${icon(ic, 36)}</span><span class="mi-tx"><b>${t}</b><small>${esc(v)}</small></span>${dis ? '' : icon('sort', 30)}</button>`;
   return `<h2>Ton, Untertitel, Qualität</h2><div class="mlist">${row('au-a', 'audio', 'Ton', c.audio && c.audio.includes(pf.audio) ? pf.audio : (c.audio || ['Deutsch'])[0], 'tvpAu', false)}
-    ${row('au-s', 'subs', 'Untertitel', subs.length ? (subs.includes(pf.subs) ? pf.subs : 'Aus') : 'Dieser Sender sendet keine Untertitel', 'tvpSub', !subs.length)}${row('au-q', 'hd', 'Qualität', pf.quality, 'tvpQual', false)}</div>
-    <div class="mockvar"><span class="mk">Mockup</span><span class="tvp-mv">Fehlerbilder und Zustände zeigen</span>${[['unreachable', 'Nicht erreichbar'], ['limit', 'Grenze erreicht'], ['revoked', 'Recht entzogen'], ['busy', 'Server ausgelastet'], ['notplayable', 'Nicht abspielbar'], ['fallback', 'Ersatzquelle'], ['tsoff', 'Spulen gesperrt'], ['', 'Alles normal']].map(([k, l], i) => `<button type="button" class="tb ghost sm" data-act="tvpForce" data-k="${k}" data-f="mv-${i}">${l}</button>`).join('')}</div>`;
+    ${row('au-s', 'subs', 'Untertitel', subs.length ? (subs.includes(pf.subs) ? pf.subs : 'Aus') : 'Dieser Sender sendet keine Untertitel', 'tvpSub', !subs.length)}${row('au-q', 'hd', 'Qualität', pf.quality, 'tvpQual', false)}</div>`;
 }
 ACT.tvpAudio = () => menu(tvpAudioHtml());
 const tvpCycle = (arr, cur) => arr[(Math.max(0, arr.indexOf(cur)) + 1) % arr.length];
 ACT.tvpAu = () => { const c = SIM.channel(PL.id); const a = c.audio || ['Deutsch']; S.prefs.audio = tvpCycle(a, a.includes(S.prefs.audio) ? S.prefs.audio : a[0]); save(); redrawMenu(tvpAudioHtml()); toast('Wechsle Tonspur …'); };
 ACT.tvpSub = () => { const c = SIM.channel(PL.id); if (!(c.subs || []).length) { toast('Dieser Sender sendet keine Untertitel'); return; } const a = ['Aus', ...c.subs]; S.prefs.subs = tvpCycle(a, a.includes(S.prefs.subs) ? S.prefs.subs : 'Aus'); save(); redrawMenu(tvpAudioHtml()); };
 ACT.tvpQual = () => { S.prefs.quality = tvpCycle(TV_Q, S.prefs.quality); save(); redrawMenu(tvpAudioHtml()); };
-ACT.tvpForce = (d) => {
-  closeMenu(); PL.fb = false; PL.tsoff = false; PL.force = '';
-  if (d.k === 'fallback') { PL.fb = true; PL.info = true; PL.infoUntil = Date.now() + 5000; toast('Auf eine Ersatzquelle umgeschaltet.'); }
-  else if (d.k === 'tsoff') { PL.tsoff = true; toast('Spulen gesperrt: Anhalten zeigt «Zurückspulen ist gerade nicht möglich.»'); }
-  else if (d.k) PL.force = d.k;
-  PL.bar = false; render();
-};
+/* fault states of the player: mockup bar «Zustände» → Player (LIVE_SIM.flags().fault) */
 
 /* LD-10 Senderwechsel bei Zeitversatz: small hint dialog with the stay button first */
 registerLiveDialog('LD-10', (props) => {

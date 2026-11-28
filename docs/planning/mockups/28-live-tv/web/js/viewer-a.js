@@ -95,7 +95,7 @@ function vaProgRow(p, o) {
   o = o || {}; const t = SIM.now(); const c = SIM.channel(p.ch); const running = p.start <= t && p.end > t; const past = p.end <= t;
   let badges = LU.programBadges(p, { text: false });
   /* skipped by a series rule: say why (Aufgenommen / Schon geplant), from the rule's list */
-  if (SIM.rights().recordings && !SIM.recState(p.id) && !past) { const sk = SIM.rules().map((x) => (x.skipped || []).find((s) => s[0] === p.id)).find(Boolean); if (sk) badges += LU.badge('scheduled', { text: true, label: sk[1] === 'schon aufgenommen' ? 'Schon aufgenommen' : sk[1] === 'Wiederholung' ? 'Wiederholung übersprungen' : 'Schon geplant' }); }
+  if (SIM.rights().recordings && !SIM.recState(p.id) && !past) { const why = SIM.skippedWhy(p.id); if (why) badges += LU.badge('scheduled', { text: true, label: why === 'schon aufgenommen' ? 'Schon aufgenommen' : why === 'Wiederholung' ? 'Wiederholung übersprungen' : why === 'ausgelassen' ? 'Ausgelassen' : 'Schon geplant' }); }
   const play = running && SIM.chState(c) !== 'gone' ? `<button type="button" class="btn secondary sm va-act va-play" data-act="tune" data-ch="${c.id}" data-fid="play:${p.id}" tabindex="-1" aria-label="${esc(c.name)} einschalten">${icon('play', 14)}<span>Einschalten</span></button>` : '';
   return `<li class="va-prow${running ? ' now' : ''}${past ? ' past' : ''}" data-k="${p.id}"${running && o.cur ? ' aria-current="time"' : ''}>
     <a class="va-pmain" href="#/live/programs/${p.id}" data-fid="pm:${p.id}" tabindex="-1" aria-label="${esc(`${fmt.range(p.start, p.end)}${o.noCh ? '' : ', ' + c.name}, ${p.title}${p.sub ? ', ' + p.sub : ''}${running ? ', läuft' : past ? ', vorbei' : ''}`)}">
