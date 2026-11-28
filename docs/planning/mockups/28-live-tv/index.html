@@ -49,8 +49,8 @@
   </header>
   <section aria-labelledby="h-img" class="imgsw">
     <h2 id="h-img">Echte Logos und Bilder</h2>
-    <p>Senderlogos und Sendungsbilder liegen nur lokal in <code>shared/img/</code> (nicht im Repo). Ohne Schalter zeigen die Mockups Initialen und ruhige Flächen und fragen keine Bilddatei an. Hast du den Ordner, schalte sie hier ein; der Schalter gilt für alle drei Mockups und steht auch unter «Zustände».</p>
-    <p><button type="button" id="imgsw" aria-pressed="false">Echte Logos und Bilder: aus</button></p>
+    <p>Senderlogos und Sendungsbilder liegen nur lokal: <code>shared/img</code> ist ein Link auf <code>~/.local/share/slouchcat-design/media/live-tv-2026-11-28</code>, nie im Repo. Ab Werk «automatisch»: Ist der Bildsatz da, zeigen die Mockups echte Logos und Bilder, sonst Initialen und ruhige Flächen. Der Schalter wechselt automatisch, an, aus; er gilt für alle drei Mockups und steht auch unter «Zustände».</p>
+    <p><button type="button" id="imgsw" aria-pressed="false">Echte Logos und Bilder: automatisch</button></p>
   </section>
   <section aria-labelledby="h-in">
     <h2 id="h-in">Einstiege</h2>
@@ -99,10 +99,26 @@
       draw();
     });
     draw();
+    /* same keys as shared/live-ui.js: mode in localStorage sc28-img-mode, probe result in sessionStorage sc28-img-probe */
     const sw = document.getElementById('imgsw');
-    const get = () => { try { return localStorage.getItem('sc28-img') === 'on'; } catch (e) { return false; } };
-    const show = () => { const on = get(); sw.setAttribute('aria-pressed', String(on)); sw.textContent = `Echte Logos und Bilder: ${on ? 'an' : 'aus'}`; };
-    sw.addEventListener('click', () => { try { localStorage.setItem('sc28-img', get() ? 'off' : 'on'); } catch (e) { /* private mode */ } show(); });
+    const MODES = ['auto', 'on', 'off']; const NAMES = { auto: 'automatisch', on: 'an', off: 'aus' };
+    const mode = () => { try { const v = localStorage.getItem('sc28-img-mode'); return MODES.includes(v) ? v : 'auto'; } catch (e) { return 'auto'; } };
+    let probe = null;
+    try { probe = sessionStorage.getItem('sc28-img-probe'); } catch (e) { /* private mode */ }
+    const show = () => {
+      const m = mode(); const on = m === 'on' || (m === 'auto' && probe === 'ok');
+      sw.setAttribute('aria-pressed', String(on));
+      sw.textContent = `Echte Logos und Bilder: ${NAMES[m]}${m === 'auto' ? (probe ? (probe === 'ok' ? ' (gefunden, an)' : ' (nicht gefunden, aus)') : ' (wird geprüft)') : ''}`;
+    };
+    const runProbe = () => {
+      if (probe || mode() !== 'auto') return;
+      const im = new Image();
+      const end = (r) => { probe = r; try { sessionStorage.setItem('sc28-img-probe', r); } catch (e) { /* private mode */ } show(); };
+      im.onload = () => end('ok'); im.onerror = () => end('fail');
+      im.src = 'shared/img/logos/srf1.png';
+    };
+    sw.addEventListener('click', () => { const m = MODES[(MODES.indexOf(mode()) + 1) % 3]; try { localStorage.setItem('sc28-img-mode', m); } catch (e) { /* private mode */ } runProbe(); show(); });
+    runProbe();
     show();
   })();
 </script>

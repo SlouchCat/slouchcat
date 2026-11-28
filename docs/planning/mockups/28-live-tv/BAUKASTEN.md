@@ -163,8 +163,13 @@ route('/live/watch/:id', (p) => ({ full: true, rot: 'l', html: '…' }));   // P
 | `inputs[]`, `consumers[]`, `diagnostics`, `resources`, `limits` | aktive Eingänge (Zustand `'deferred'` mit `deferredReason`: zurückgestellt, z. B. 3sat), Abnehmer (ohne Titel), Diagnose, Kennzahlen; `limits` = `{ inputs: 8, preloaded: 4 }` |
 | `storage[]`, `accounts[]`, `settings` | drei Speicherorte, Belegung je Konto, Einstellungen (DVR, Timeshift, Empfang, Zeitpläne, EPG, Grenzen) |
 
-Bilder: Nur wenn `LIVE_UI.imagesOn()` (Schalter «Echte Logos und Bilder», `setImages(an)`, Schlüssel
-`sc28-img`) fragt ein Mockup überhaupt eine Bilddatei an; sonst Initialen und Flächen. `img` eines Programms zeigt auf ein Bild der Testbibliothek aus Mockup 27 als Stellvertreter (nur
+Bilder: `shared/img` ist ein Link auf `~/.local/share/slouchcat-design/media/live-tv-2026-11-28` (nie in Git,
+nie in öffentliche Artefakte oder PR-Texte). Nur wenn `LIVE_UI.imagesOn()` wahr ist, fragt ein Mockup eine
+Bilddatei an; sonst Initialen und Flächen. `imageMode()` → `'auto'|'on'|'off'` (localStorage
+`sc28-img-mode`, ab Werk `auto`), `setImageMode(m)`; bei `auto` entscheidet eine einzige Probe je
+Browsersitzung (`new Image()` auf `logos/srf1.png`, Ergebnis `probeResult()` in sessionStorage
+`sc28-img-probe`). Während der Probe bleibt die Seite höchstens 600 ms verborgen, danach zeichnet der Kern
+einmal neu (`'change'`). `img` eines Programms zeigt auf ein Bild der Testbibliothek aus Mockup 27 als Stellvertreter (nur
 Filme und Serien; Nachrichten, Sport, Shows haben keines). Logos über den Slug.
 
 ## 5. Zustand und Aktionen `window.LIVE_SIM`
@@ -180,7 +185,7 @@ einer gedachten Quelle auf genau diesen Test.
 |---|---|---|
 | Uhr anhalten, +5 Min., +30 Min., +2 Std. | – | `now()`, Fortschritt, laufende Aufnahmen wachsen |
 | Wer schaut? Anna, Luca, Mia | – | `setProfile` |
-| Echte Logos und Bilder | `LIVE_UI.imagesOn()` | aus ab Werk: keine Bildanfrage |
+| Echte Logos und Bilder: automatisch, an, aus | `LIVE_UI.imageMode()`, `imagesOn()` | automatisch ab Werk: eine Probe je Sitzung |
 | Rechte des Profils / Deckel des Kontos | – | `rights()`; ohne Live-TV «Nicht gefunden» (404) und **kein Wort** vom Bereich auf anderen Seiten (Start, Suche, Glocke, Profil, Radio, Menü, Leiste), Tasten stumm |
 | Recht entzogen während der Wiedergabe | `revoked` | Recht weg; der Player zeigt «Live-TV ist für dieses Profil nicht mehr freigegeben.», alle anderen Adressen 404 |
 | Zustand der Seiten: Normal, Leer, Lädt, Fehler | `SIM.mode()` | jede Seite; bei «Leer» liefern auch `recent()`, `recordings()`, `rules()`, `upcoming()`, `warnings()`, `reminders()`, `favorites()` nichts |
@@ -305,5 +310,6 @@ Jeder Dialog hat zudem eine Vorschauseite `#/live/dialog/LD-xx`, die ihn mit Bei
 - [ ] Web: mit Tastatur bedienbar (Tab, Pfeile, Enter, Esc, sichtbarer Fokus, keine Fokusfalle).
       TV: nur mit Fernbedienung (Steuerkreuz, OK, Zurück; Kanal ±, Guide, Ziffern, wo die Seite sie nutzt).
 - [ ] Im Sprungmenü erreichbar (Registereintrag, Stand auf «gebaut»), Adresse fest (Hash-Route).
-- [ ] Ohne `shared/img/` und mit Schalter aus geprüft: Initialen und Flächen statt Bilder, 0 Konsolenfehler.
+- [ ] Ohne Link `shared/img` (umbenannt, nicht gelöscht) geprüft: Initialen und Flächen statt Bilder, höchstens
+      die eine fehlgeschlagene Probe.
 - [ ] Ohne Recht Live-TV (bzw. Aufnahmen, Timeshift): kein Wort vom Bereich auf anderen Seiten.

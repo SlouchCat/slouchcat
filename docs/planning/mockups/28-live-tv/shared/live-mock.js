@@ -19,7 +19,7 @@
     return `<div class="lvm-panel" role="region" aria-label="Zustände des Mockups">
       <div class="lvm-top"><b>Zustände des Mockups</b><button type="button" class="lvm-o" data-lvm="close">Schliessen</button></div>
       <p>Alles ist gespielt: Beispieldaten, simulierte Wiedergabe, kein Server.</p>
-      <section><h3>Bilder</h3><div class="lvm-row">${sw('Echte Logos und Bilder (liegen nur lokal in shared/img/)', 'img', '', UI.imagesOn())}</div><p>Aus: Initialen und ruhige Flächen, keine Anfrage nach Bilddateien. In einem Klon des Repos fehlen die Bilder.</p></section>
+      <section><h3>Echte Logos und Bilder</h3><div class="lvm-row">${[['auto', 'Automatisch'], ['on', 'An'], ['off', 'Aus']].map(([v, t]) => o(t, 'img', v, UI.imageMode() === v)).join('')}</div><p>Jetzt ${UI.imagesOn() ? 'an' : 'aus'}${UI.imageMode() === 'auto' ? (UI.probeResult() === 'ok' ? ' (Bildsatz gefunden)' : ' (kein Bildsatz in shared/img/)') : ''}. Die Bilder liegen nur lokal (Link shared/img/), nie im Repo. Aus: Initialen und ruhige Flächen.</p></section>
       <section><h3>Uhr</h3><p class="lvm-clock">${esc(UI.fmt.dayLong(SIM.now()))}, <span data-lv-now="time">${UI.fmt.time(SIM.now())}</span> ${SIM.clockRunning() ? '(läuft)' : '(angehalten)'}</p>
         <div class="lvm-row">${o(SIM.clockRunning() ? 'Anhalten' : 'Weiterlaufen', 'clock', '', false)}${o('+5 Min.', 'adv', 5)}${o('+30 Min.', 'adv', 30)}${o('+2 Std.', 'adv', 120)}</div></section>
       <section><h3>Wer schaut?</h3><div class="lvm-row">${SIM.profiles().map((x) => o(`${esc(x.name)}${x.primary ? ' · Hauptprofil' : ''}${x.age ? ' · ab ' + x.age : ''}`, 'profile', x.id, x.id === p.id)).join('')}</div></section>
@@ -56,7 +56,7 @@
     else if (a === 'ra') SIM.setRight('account', v, !SIM.rawRights('account')[v]);
     else if (a === 'mode') SIM.setMode(v);
     else if (a === 'flag') SIM.setFlag(v, !SIM.flags()[v]);
-    else if (a === 'img') UI.setImages(!UI.imagesOn());
+    else if (a === 'img') UI.setImageMode(v);
     else if (a === 'fault') SIM.setFlag('fault', v);
     else if (a === 'adm') SIM.setFlag('admStorage', v);
     else if (a === 'action') { open = false; draw(); actions[Number(v)].fn(); return; }

@@ -47,13 +47,37 @@
 
   /* ---------- logo with fallback (no logos in the repository) ---------- */
   const initials = (name) => { const w = String(name).replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/); return (w.length > 1 ? w[0][0] + (w[1][0] || '') : w[0].slice(0, 3)).toUpperCase(); };
-  /* Logos and pictures live only locally in shared/img/ (not in the repository). A browser logs every missing
-     file as a console error and no script can tell beforehand whether the folder is there; so pictures are
-     loaded only after the switch «Echte Logos und Bilder» (index.html or bar «Zustände») was turned on once.
-     It is remembered in localStorage (key sc28-img). Off: initials and calm surfaces, no request at all. */
-  const IMGKEY = 'sc28-img';
-  const imagesOn = () => { try { return localStorage.getItem(IMGKEY) === 'on'; } catch (e) { return false; } };
-  const setImages = (on) => { try { localStorage.setItem(IMGKEY, on ? 'on' : 'off'); } catch (e) { /* private mode */ } if (SIM) SIM.emit('change'); };
+  /* Logos and pictures live only locally in shared/img/ (a link to ~/.local/share/slouchcat-design/media/…,
+     never in the repository). Mode «automatisch» (default): once per browser session a single probe
+     (new Image() on shared/img/logos/srf1.png) decides; loaded = pictures on, failed = off, and then that one
+     failed request is the only one. The switch «Echte Logos und Bilder» (index.html or bar «Zustände»)
+     overrides with on/off and is remembered in localStorage (key sc28-img-mode); the probe result is kept in
+     sessionStorage (key sc28-img-probe), so no page probes again. While the probe runs, the page stays hidden
+     (at most 600 ms), so no initials flash before the logos. */
+  const IMGKEY = 'sc28-img-mode'; const PROBEKEY = 'sc28-img-probe';
+  const IMGBASE = '../shared/img/';
+  let probeMem = null;
+  const imageMode = () => { try { const v = localStorage.getItem(IMGKEY); return v === 'on' || v === 'off' ? v : 'auto'; } catch (e) { return 'auto'; } };
+  const probeResult = () => { try { return sessionStorage.getItem(PROBEKEY) || probeMem; } catch (e) { return probeMem; } };
+  const imagesOn = () => { const m = imageMode(); return m === 'on' || (m === 'auto' && probeResult() === 'ok'); };
+  const setImageMode = (m) => { try { localStorage.setItem(IMGKEY, m); } catch (e) { /* private mode */ } if (m === 'auto') probeImages(); if (SIM) SIM.emit('change'); };
+  const setImages = (on) => setImageMode(on ? 'on' : 'off');
+  function probeImages() {
+    if (imageMode() !== 'auto' || probeResult()) return;
+    const root = document.documentElement; let done = false;
+    const finish = (r) => {
+      if (done) return; done = true; probeMem = r;
+      try { sessionStorage.setItem(PROBEKEY, r); } catch (e) { /* private mode */ }
+      root.style.visibility = '';
+      if (r === 'ok' && SIM) SIM.emit('change');
+    };
+    root.style.visibility = 'hidden';
+    const im = new Image();
+    im.onload = () => finish('ok'); im.onerror = () => finish('fail');
+    setTimeout(() => { if (!done) { root.style.visibility = ''; } }, 600);
+    im.src = IMGBASE + 'logos/srf1.png';
+  }
+  probeImages();
   /* only these 16 logos exist (locally in shared/img/logos/); other channels (TV24, new, test) show initials */
   const LOGOS = new Set(['srf1', 'srfzwei', 'srfinfo', 'rts1', 'rsila1', 'telezueri', 'daserste', 'zdf', '3sat', 'arte', 'zdfneo', 'zdfinfo', 'tagesschau24', 'phoenix', 'kika', 'orf2']);
   /** channel logo on a light neutral plate (logos are dark, black or tall); falls back to initials.
@@ -167,6 +191,6 @@
     notPlayable: () => 'Dieser Sender lässt sich auf diesem Gerät nicht abspielen.',
   };
 
-  const UI = { warnText, imagesOn, setImages, LOAD, playerPhase, PLAYER_ERR, img: '../shared/img/', esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
+  const UI = { warnText, imagesOn, setImages, imageMode, setImageMode, probeResult, LOAD, playerPhase, PLAYER_ERR, img: IMGBASE, esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
   g.LIVE_UI = UI;
 })(typeof window !== 'undefined' ? window : globalThis);

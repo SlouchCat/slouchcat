@@ -19,7 +19,7 @@ simulierter Wiedergabe. Rundgang, Abdeckung des Auftrags und Abweichungen: `docs
 
 ## Leiste oben
 
-- **Zustände:** Schalter «Echte Logos und Bilder», Uhr (anhalten, vorspulen), Profil Anna (Hauptprofil), Luca (ab 16), Mia (ab 6), Rechte des
+- **Zustände:** «Echte Logos und Bilder» (automatisch, an, aus), Uhr (anhalten, vorspulen), Profil Anna (Hauptprofil), Luca (ab 16), Mia (ab 6), Rechte des
   Profils und Deckel des Kontos, «Recht entzogen während der Wiedergabe», Seiten leer (auf jeder Seite:
   keine Sender, Aufnahmen, Planungen, Erinnerungen, Favoriten, nichts zuletzt gesehen), lädt, Fehler, ohne EPG,
   Sender gestört, viele Sender (2'000 im Raster), Kontingent voll, Fehler im Player (nicht erreichbar,
@@ -30,8 +30,19 @@ simulierter Wiedergabe. Rundgang, Abdeckung des Auftrags und Abweichungen: `docs
 
 ## Bilder
 
-Senderlogos und Sendungsbilder liegen nur lokal in `shared/img/` (git-ignoriert, Markenrechte), nie in Git.
-Das Mockup lädt sie nur, wenn der Schalter «Echte Logos und Bilder» an ist (auf `index.html` oder unter
-«Zustände»; gemerkt im Browser unter `sc28-img`). Ab Werk ist er aus: Initialen auf heller Fläche und ruhige
-Flächen statt Bildern, keine Anfrage nach Bilddateien, keine Fehler in der Konsole; bedienbar bleibt alles.
+Senderlogos und Sendungsbilder (Markenrechte) liegen nicht im Repo. `shared/img` ist ein Link auf `~/.local/share/slouchcat-design/media/live-tv-2026-11-28` ausserhalb jedes Arbeitsbaums (darin `logos/` mit den 16 Senderlogos und `lib` als Verweis auf den Satz `ct190-2026-11-19`). Die Bilder gehören nie in Git und nie in öffentliche Artefakte oder PR-Texte; `shared/.gitignore` nennt `img` und `img/`.
+
+Link neu anlegen, aus der Wurzel des Arbeitsbaums:
+
+```
+ln -s ~/.local/share/slouchcat-design/media/live-tv-2026-11-28 docs/planning/mockups/28-live-tv/shared/img
+```
+
+Nach dem Zusammenführen mit `main`: `scripts/design-media.sh link`.
+
+Der Schalter «Echte Logos und Bilder» (auf `index.html` und unter «Zustände») steht ab Werk auf «automatisch»:
+Einmal je Browsersitzung lädt das Mockup zur Probe `shared/img/logos/srf1.png`. Lädt sie, zeigt es echte Logos
+und Bilder; sonst Initialen auf heller Fläche und ruhige Flächen, und die Probe bleibt die einzige
+fehlgeschlagene Anfrage. «an» und «aus» übersteuern und bleiben gemerkt (`sc28-img-mode`). Zum Prüfen ohne
+Bilder den Link umbenennen, nicht löschen, und danach zurückbenennen.
 Wer Seiten ändert, liest `BAUKASTEN.md`.

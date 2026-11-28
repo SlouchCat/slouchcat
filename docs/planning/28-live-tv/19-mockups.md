@@ -20,11 +20,14 @@ Geräterahmen (Handy und Tablet, hoch und quer). Ordner: `docs/planning/mockups/
   Zugangsdaten.
 - **Getrennt von der Anwendung:** Die Mockups teilen keinen Code mit `web/`, `android/` oder `server/`. Sie
   übernehmen nur das Aussehen der bestehenden Mockups 25 (Web), 26 (TV) und 27 (Handy).
-- **Bilder nur lokal:** Senderlogos und Sendungsbilder liegen in `shared/img/` und sind nicht im Repo
-  (Markenrechte). Echte Logos und Bilder siehst du nur in diesem Arbeitsbaum und nur, wenn du den Schalter
-  «Echte Logos und Bilder» einschaltest (auf `index.html` oder unter «Zustände»). Ab Werk ist er aus: Dann
-  zeigen die Mockups Initialen auf heller Fläche und ruhige Flächen und fragen keine Bilddatei an, auch
-  nicht in einem Klon des Repos, wo die Bilder fehlen. Bedienbar bleibt alles.
+- **Bilder nur lokal:** Senderlogos und Sendungsbilder (Markenrechte) liegen nicht im Repo. `shared/img` ist ein Link auf `~/.local/share/slouchcat-design/media/live-tv-2026-11-28` ausserhalb jedes Arbeitsbaums (darin `logos/` mit den 16 Senderlogos und `lib` als Verweis auf den Satz `ct190-2026-11-19`). Die Bilder gehören nie in Git und nie in öffentliche Artefakte oder PR-Texte; `shared/.gitignore` nennt `img` und `img/`.
+  Link neu anlegen (aus der Wurzel des Arbeitsbaums): `ln -s ~/.local/share/slouchcat-design/media/live-tv-2026-11-28 docs/planning/mockups/28-live-tv/shared/img`; nach dem Zusammenführen mit `main` macht
+  das `scripts/design-media.sh link`. Der Schalter «Echte Logos und Bilder» steht ab Werk auf «automatisch»:
+  Beim ersten Laden prüft das Mockup einmal je Browsersitzung mit einer einzigen Probe
+  (`shared/img/logos/srf1.png`), ob der Bildsatz da ist. Ist er da, zeigt es echte Logos und Bilder; sonst
+  Initialen auf heller Fläche und ruhige Flächen, und die Probe ist die einzige fehlgeschlagene Anfrage. Auf
+  `index.html` oder unter «Zustände» übersteuerst du mit «an» oder «aus»; die Wahl bleibt gemerkt.
+  Bedienbar bleibt alles.
 - **Gespielte Zahlen:** Was nicht aus dem Mockup-Zustand kommt (zum Beispiel 584 aktive Sender, 10'354
   importierte Einträge, CPU 31 %), sind feste Beispielwerte. Zeiten beim Umschalten im Player sind für die
   Vorführung verkürzt (Abschnitt 4).
@@ -34,7 +37,8 @@ Geräterahmen (Handy und Tablet, hoch und quer). Ordner: `docs/planning/mockups/
 1. Im Dateimanager den Ordner `docs/planning/mockups/28-live-tv/` des Arbeitsbaums öffnen.
 2. `index.html` doppelklicken. Der Browser zeigt vier Kacheln: **Web-App**, **Verwaltung**, **Fernseher**,
    **Handy und Tablet**, darunter die Liste aller 121 Seiten und Dialoge mit Kennung (LS-, LD-, LA-).
-3. Hast du den Ordner `shared/img/`: oben «Echte Logos und Bilder» einschalten (gilt für alle drei Mockups).
+3. Fehlt der Link `shared/img`: ihn anlegen (Abschnitt 2). Der Schalter «Echte Logos und Bilder» oben steht auf
+   «automatisch» und braucht dann nichts.
 4. Eine Kachel anklicken. Oben steht immer eine gelbliche Leiste, die nicht zur App gehört:
    - **Zustände** öffnet die Schalter des Mockups (Abschnitt 4).
    - **Seite** springt direkt zu einer Seite oder einem Dialog.
@@ -147,7 +151,7 @@ darstellt und kein Zustand ist.
 
 | Schalter | Was du siehst |
 |---|---|
-| Echte Logos und Bilder | an: Logos und Bilder aus `shared/img/`; aus (ab Werk): Initialen und Flächen, keine Anfrage nach Bilddateien |
+| Echte Logos und Bilder: automatisch, an, aus | automatisch (ab Werk): eine Probe je Sitzung, Bilder, wenn der Link `shared/img` da ist; an: immer; aus: Initialen und Flächen, keine Anfrage nach Bilddateien |
 | Uhr: Anhalten, +5 Min., +30 Min., +2 Std. | Fortschrittsbalken, laufende Aufnahme, Programm rücken vor |
 | Wer schaut? Anna, Luca, Mia | andere Favoriten, Aufnahmen, Rechte; LS-14 nur für Anna |
 | Rechte des Profils / Deckel des Kontos: Live-TV, Aufnahmen, Timeshift | ohne Live-TV fehlt der Bereich ganz: kein Eintrag, kein Hinweis auf Start, Suche, Benachrichtigungen, Profilseite, Radio, im Menü oder in der Leiste; Adressen «Nicht gefunden»; die neuen Fernbedienungstasten tun nichts. Ohne Aufnahmen fehlen alle Aufnahme-Knöpfe und -Texte; ohne Timeshift fehlen Anhalten, Spulen und ihre Hinweise. Das Hauptprofil sieht in «Profile verwalten» weiter den Block «Live-TV», weil es dort die Rechte setzt |
@@ -243,7 +247,7 @@ Abbrechen, LD-08 Tag und Uhrzeit, LD-09 Filterblatt (W, H), LD-11 Aufbewahrung.
 | Buttons, Dialoge, Menüs, Submenüs, Kontextmenüs | Kontextmenüs (Web ⋯, Rechtsklick und Shift+F10 im Raster), Seitenmenüs am TV, Blätter am Handy |
 | Filter, Tabs, Suchfelder, Eingabe- und Auswahlfelder | Filter und Suche in LS-02, LS-05, LA-05; Reiterleisten; Formulare LA-03, LD-01 bis LD-03 |
 | wesentliche Bedienabläufe | Rundgänge in Abschnitt 3 |
-| echte Senderlogos und Beispielbilder | lokal in `shared/img/` (nicht im Repo); ohne sie Initialen und Flächen |
+| echte Senderlogos und Beispielbilder | Link `shared/img` auf `~/.local/share/slouchcat-design/media/live-tv-2026-11-28` (nie im Repo); ohne ihn Initialen und Flächen |
 | keine statischen Screenshots, keine Wireframes, zusammenhängende Navigation | HTML, CSS und JavaScript im Stil der bestehenden Mockups, gemeinsame Daten und Zustände über alle Seiten |
 | keine produktiven Zugangsdaten oder Stream-URLs | nur `example.*`-Adressen, maskiert |
 | keine produktive Streaming-Engine nötig | Wiedergabe simuliert |
@@ -290,7 +294,8 @@ jetzt dem Mockup; «Mockup nachgezogen» heisst: das Mockup folgt jetzt 14/15.
 - Spracheingabe am TV, Push-Mitteilungen und echte Tastenkürzel des Betriebssystems sind nicht gespielt.
 - Im Mockup-Ordner liegt ein Laufzeit-Ordner `.omc/` (Statusdateien der Agenten, git-ignoriert, nicht im Repo).
   Vor dem Weitergeben des Ordners löschen; ich habe ihn nicht gelöscht, weil das Löschen Marco überlassen ist.
-- Echte Logos und Bilder sieht nur, wer den Ordner `shared/img/` hat (dieser Arbeitsbaum), nicht aus einem Klon.
+- Echte Logos und Bilder sieht nur, wer den Bildsatz unter `~/.local/share/slouchcat-design/media/` und den
+  Link `shared/img` hat, nicht aus einem Klon. Sie gehören nie in Git, öffentliche Artefakte oder PR-Texte.
 
 ## 8. Was geprüft wurde
 
@@ -301,9 +306,12 @@ Alle Läufe mit Chromium ohne Kopf (Playwright aus dem Haupt-Checkout), **ohne D
   Aufnahme- und Planungsarten, die Serie «Tatort», Rechte, Zustände und Register. Belegung: Anna 82 GB,
   Luca 56.7 GB, Mia 3.3 GB, zusammen 142 GB in 31 gespeicherten Aufnahmen.
 - **Alle Adressen:** jede Register-Adresse aller vier Einstiege, die Web-App in Desktop- und Handy-Breite, die
-  Handy-App als Handy hoch und Tablet quer (212 Adressen). Mit Bildern (Schalter an): 0 Konsolenfehler,
-  0 fehlgeschlagene Anfragen, 0 Seiten mit waagrechtem Überlauf, 0 Mal «undefined», «NaN» oder
-  «[object Object]». Ohne `shared/img/` (umbenannt, Schalter aus): dieselben Werte, auch 0 Konsolenfehler.
+  Handy-App als Handy hoch und Tablet quer (212 Adressen), Schalter «automatisch». Mit Link `shared/img`:
+  Probe geladen, 0 Konsolenfehler, 0 fehlgeschlagene Anfragen, 0 Seiten mit waagrechtem Überlauf, 0 Mal
+  «undefined», «NaN» oder «[object Object]»; geladene Logos auf den Senderlisten Web 16, TV 17, Handy 16,
+  Tablet 16. Ohne Link (umbenannt, danach zurück): je Browsersitzung genau die eine fehlgeschlagene Probe
+  (5 Sitzungen, 5 Anfragen und die zugehörigen 5 Meldungen beim ersten Laden), danach auf allen 212 Adressen
+  0 Konsolenfehler, 0 fehlgeschlagene Anfragen, 0 geladene Bilder, sonst dieselben Werte.
 - **Nichts vom Bereich ohne Recht:** Mit Luca und mit Anna, Recht «Live-TV» aus, prüft ein Skript Start,
   Suche, Benachrichtigungen, Einstellungen, Profile, Radio, eine Bibliothek, das Menü der Handy-App und die
   Leiste der TV-App in allen drei Clients auf die Wörter «Live-TV», «Aufnahme», «Sender», «Programm»,
@@ -349,7 +357,8 @@ Fassung 1 → 2 (Review 3 und Nachzug nach 14/15 Fassung 2, 28. November 2026):
   Webradio 3).
 - **RM-09** bis **RM-11**, **RM-14** bis **RM-16:** behoben (Handy «Erinnern», Weitere Termine, Marke «NEU»,
   Textfehler, gleiche Meldungen nur einmal, Meldungen am TV oben, Fehlerschalter wirken sofort).
-- **RM-12:** Bilder nur nach Schalter; ohne Bilder keine Anfrage und kein Konsolenfehler. **RM-13:** `.omc/`
+- **RM-12:** Schalter «automatisch» mit einer Probe je Sitzung: mit Bildsatz echte Logos, ohne ihn nur die eine
+  fehlgeschlagene Probe; «an» und «aus» übersteuern. Bilder liegen ausserhalb des Arbeitsbaums (Link `shared/img`). **RM-13:** `.omc/`
   nicht gelöscht (Abschnitt 7).
 - **Nachzug** nach `MOCKUP-NACHZUG.md` und 14/15 Fassung 2 (Abschnitt 6, Zeilen «Mockup nachgezogen»); neue
   Beispieldaten: Startpuffer im Arbeitsspeicher, Timeshift-Deckel 50 GB, 3sat zurückgestellt, Obergrenze
