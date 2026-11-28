@@ -1,6 +1,6 @@
 # Konzept 28 · EPG und Programmzeitschrift
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 > **Kurz gesagt.** Slouchcat liest Programmdaten aus XMLTV-Dateien (Upload), XMLTV-Adressen und dem
 > `xmltv.php` einer Xtream-Quelle, gepackt oder ungepackt. Jeder Sender hat **genau eine** EPG-Quelle. Der
@@ -10,11 +10,13 @@ Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
 > hängt nie an Programmdaten. Fehlende Angaben bleiben leer, Abgeleitetes ist als «abgeleitet» markiert.
 > Aufnahmen und Erinnerungen verweisen nicht auf Datenbankzeilen, sondern speichern die Merkmale der Sendung
 > und finden sie nach jedem Import wieder, aber nur bei genau einem Kandidaten. **Tragende Empfehlung:** Die
-> Programmdaten liegen in einer **eigenen SQLite-Datei**, die nicht gesichert wird (F-1). Vier Fragen an
-> Marco (F-1 bis F-4), 13 offene Punkte, 12 Messpunkte.
+> Programmdaten liegen in einer **eigenen SQLite-Datei**, die nicht gesichert wird (F-1). Drei offene Fragen
+> an Marco (F-1, F-2, F-4; F-3 ist in `03` F-3 aufgegangen), 13 offene Punkte, 12 Messpunkte.
 
-Dieses Dokument ändert keinen Code. Alles hier ist **spezifiziert**, nichts ist gebaut. Die Tabellen in
-Abschnitt 13 sind ein Vorschlag; `07-datenmodell.md` übernimmt sie und ist danach die einzige Quelle.
+Dieses Dokument ändert keinen Code. Alles hier ist **spezifiziert**, nichts ist gebaut. Das Schema steht
+**nur** in `07-datenmodell.md` (Abschnitt 13 hier verweist darauf); Schnittstellen nur in `08-api.md`; Zahlen
+zu Grenzen nach `04-architektur.md` Abschnitt 14 und `12-sicherheit.md` Abschnitt 7; Stufen nach
+`18-umsetzungsplan.md`.
 
 ## Lesart
 
@@ -25,8 +27,17 @@ Abschnitt 13 sind ein Vorschlag; `07-datenmodell.md` übernimmt sie und ist dana
   immer als Annahme) · **[offen O-n / F-n]** · **[zu messen M-n]**.
 - **Nummern** F-n, O-n, M-n und T-n zählen in diesem Dokument ab 1; `20-offene-entscheidungen.md` führt sie
   zusammen und vergibt dort die Gesamtnummern. Verweise von aussen schreiben «09 F-1».
-- **Stufen** wie in `03-fachkonzept.md`: Die Programmzeitschrift ist Stufe 2; was nur Aufnahmen betrifft,
-  greift ab Stufe 5 (Einzelaufnahmen) und Stufe 6 (Serien, Folgenerkennung).
+- **Stufen** nach `18-umsetzungsplan.md` (4.3, 4.4, 4.6, 4.8, 4.9):
+  - **1a/1b** brauchen kein EPG. Der Listen-Import speichert schon die Merkmale, die Stufe 2 für die Zuordnung
+    braucht (`tvg-id`, `tvg-shift`, Xtream-`stream_id`; `07` 3.3 `live_channel_streams`). Senderliste, Zapliste
+    und Player zeigen in Stufe 1 **keine** Programmfelder («jetzt/danach» fehlt ganz, kein Platzhalter; `18`
+    4.3: LS-01 «ohne Programmteile»). `getLiveNowNext` und `now=true` kommen mit Stufe 2 (`08` 2).
+  - **2:** alles, was unten nicht einer anderen Stufe zugeordnet ist: Quellen, Import, Zuordnung, Raster, jetzt/danach,
+    Details, Suche, Bilder, Erinnerungen samt Wiederfinden, eigene Datei `epg.db`.
+  - **H:** EPG-Adressen im Heimnetz mit festen Zielen, nur wenn F-4 (a) gilt.
+  - **5:** Aufnahme aus dem Programm (LTV-005.18) und Anpassung geplanter und laufender Aufnahmen
+    (LTV-005.26) über `livetv.epg.reconcile`.
+  - **6:** Folgenerkennung für Serienaufnahmen (Abschnitt 7).
 - **Fachwörter:** XMLTV ist das verbreitete XML-Format für Programmdaten; ein «EPG-Kanal» ist ein
   `<channel>`-Eintrag in einer XMLTV-Datei (nicht zu verwechseln mit dem Slouchcat-Sender); eine
   «Transaktion» ist ein Schreibvorgang der Datenbank, der ganz oder gar nicht gilt; FTS5 ist die
@@ -47,25 +58,25 @@ Abschnitt 13 sind ein Vorschlag; `07-datenmodell.md` übernimmt sie und ist dana
 | Manuelle Senderzuordnung | Administrator wählt EPG-Kanal je Sender | 5.3 | 2 |
 | Automatische Senderzuordnung | nur über Kennungen; Namen nur als Vorschlag (F-2) | 5.1, 5.2 | 2 |
 | Automatische Aktualisierung | Zeitplan je Quelle, bedingter Abruf | 2.5, 11 | 2 |
-| Aktuelle Sendungen | «läuft jetzt» je Sender | 8.2 | 2 |
+| Aktuelle Sendungen | «läuft jetzt» je Sender (in 1a/1b ohne Programmfelder) | 8.2 | 2 |
 | Kommende Sendungen | «als Nächstes», Raster, Sendungsliste je Sender | 8.1, 8.2 | 2 |
-| Sendungstitel | `title`, Pflichtfeld | 4, 13 | 2 |
-| Sendungsbeschreibungen | `desc`, gekappt | 4, 13 | 2 |
+| Sendungstitel | `title`, Pflichtfeld | 4, 8.3 | 2 |
+| Sendungsbeschreibungen | `desc`, gekappt | 4, 8.3 | 2 |
 | Verfügbare Sendungsbilder | `icon` der Sendung, nur über den Server | 9 | 2 |
 | Kategorien | Senderkategorien aus LTV-006 (Senderverwaltung) und `category` der Sendung | 8.5 | 2 |
 | Genres | `category` der Sendung, wie geliefert (Auslegung, O-8) | 8.5 | 2 |
 | Senderübergreifende Programmsuche | FTS5 über Titel und Untertitel | 8.4 | 2 |
 | Konfigurierbarer EPG-Vorschauzeitraum | global, Vorgabe 7 Tage | 2.6 | 2 |
 | Elektronische Programmzeitschrift | Raster Sender × Zeit, seitenweise | 8.1 | 2 |
-| Aufnahmeplanung direkt aus dem EPG | EPG liefert die Sendungsmerkmale (Abschnitt 6) an `11-dvr.md` | 6 | 5 |
+| Aufnahmeplanung direkt aus dem EPG (LTV-005.18) | EPG liefert die Sendungsmerkmale (Abschnitt 6) an `11-dvr.md` | 6 | 5 |
 | Sendungserinnerungen | Erinnerung je Profil über das bestehende Benachrichtigungssystem | 10 | 2 |
 | *Berücksichtige:* Zeitzonen | Zeitzone je Quelle für Zeiten ohne Versatz | 2.4, 4 | 2 |
 | Sommer- und Winterzeit | Speicherung in UTC; mehrdeutige Ortszeit markiert | 4 | 2 |
 | Fehlerhafte Zeitangaben | verwerfen, zählen, nie raten | 4 | 2 |
 | Unvollständige Programmdaten | leer lassen, nichts erfinden | 4 | 2 |
 | Fehlende EPG-Zuordnungen | Liste und Zähler in der Verwaltung | 5.5 | 2 |
-| Geänderte Sendungszeiten | Wiedererkennen bei genau einem Kandidaten | 6.3 | 2 (Erinnerung), 5 (Aufnahme) |
-| Aktualisierung geplanter Aufnahmen | dasselbe Verfahren, Ausführung in `11-dvr.md` | 6.3 | 5 |
+| Geänderte Sendungszeiten | Wiederfinden bei genau einem Kandidaten | 6.3 | 2 (Erinnerung), 5 (Aufnahme) |
+| Aktualisierung geplanter Aufnahmen (LTV-005.26) | dasselbe Verfahren, auch Verlängern laufender Aufnahmen; Ausführung in `11-dvr.md` 2.3 | 6.3 | 5 |
 | *Satz:* keine erfundenen Ergänzungen | Regel R-0 in Abschnitt 4 | 4 | 2 |
 | *Satz:* Ausfall des Anbieters verhindert die Wiedergabe nicht | Abschnitt 3.6 | 3.6 | 2 |
 
@@ -100,8 +111,8 @@ Abschnitt 13 sind ein Vorschlag; `07-datenmodell.md` übernimmt sie und ist dana
 | Art | Woher die Daten kommen | Aktualisierung | Netz |
 |---|---|---|---|
 | `file` | Upload einer Datei in der Verwaltung | nur durch neuen Upload | keins |
-| `url` | Adresse, die der Administrator einträgt | Intervall je Quelle | geschützter Client (3.2); Heimnetz nur nach F-4 |
-| `xtream` | `xmltv.php` der Xtream-Eingangsquelle, mit deren Zugangsdaten | Intervall je Quelle | wie die Xtream-Quelle selbst (`12-sicherheit.md`) |
+| `url` | Adresse, die der Administrator einträgt | Intervall je Quelle | eigener geprüfter Dialer der Quelle (3.2); Heimnetz nur mit festen Zielen nach F-4 (Stufe H) |
+| `xtream` | `xmltv.php` der Xtream-Eingangsquelle, mit deren Zugangsdaten; Adresse nur aus dem vom Administrator eingetragenen Host gebaut (`04` 10.5) | Intervall je Quelle | wie die Xtream-Quelle selbst, mit deren festen Zielen (`04` T-5, `12` 4.3) |
 
 Regeln:
 
@@ -117,8 +128,8 @@ Regeln:
 - **`url-tvg` aus einer M3U-Liste [Empfehlung]:** Eine M3U-Kopfzeile nennt oft eine XMLTV-Adresse (R3 §1,
   Annahme). Slouchcat zeigt sie beim Import der Liste als **Vorschlag** «EPG-Quelle anlegen»; der Administrator
   bestätigt. Sie wird nie still abgerufen, und weil die Liste (nicht der Administrator) sie bestimmt, gilt
-  immer der geschützte Client ohne Heimnetz-Ausnahme (Muster `FeedOriginFile`, gebaut
-  `internal/netguard/netguard.go:113-128`).
+  immer nur öffentliche Ziele, nie feste Ziele im Heimnetz (Muster `FeedOriginFile`, gebaut
+  `internal/netguard/netguard.go:113-116`; `12` 4.3).
 - **Datei in einem Ordner** (zum Beispiel WebGrab+Plus schreibt `guide.xml` auf das NAS): nicht in Stufe 2,
   O-5.
 - **Reihenfolge der Quellen [spezifiziert]:** Der Administrator ordnet die Quellen. Die Reihenfolge zählt
@@ -143,8 +154,8 @@ dort als Wissen geführt; im Bau mit Testdateien zu belegen):
 - **Doppeltes Entpacken vermeiden [Empfehlung]:** Der Abruf setzt `Accept-Encoding: identity`, wie der
   Download der Podcasts (gebaut `internal/fetch/fetch.go:127-128`). Damit entpackt der HTTP-Client nichts
   selbst, und allein die Magic Bytes entscheiden.
-- **Verschachtelung:** Nach dem Entpacken wird einmal nachgeprüft. Höchstens eine Schicht (gzip in zip oder
-  gzip in gzip wird einmal entpackt, eine dritte Schicht bricht ab).
+- **Verschachtelung:** genau **eine** Kompressionsschicht (`12` 7.4, Zeile «gzip, bzip2, zip»). Zeigt der
+  entpackte Inhalt wieder Magic Bytes einer Kompression, bricht der Import ab.
 
 ### 2.3 Abruf und Zwischenablage
 
@@ -164,8 +175,8 @@ Zusätzlich bedingter Abruf mit `If-None-Match`/`If-Modified-Since`; Muster geba
 
 **[spezifiziert]** Zwei Einstellungen je Quelle:
 
-- **«Zeiten ohne Angabe gelten als»**: `UTC` (Vorgabe, so verlangt es die XMLTV-DTD; Beleg in R4 §1.1, DTD
-  abgerufen) oder eine Zeitzone aus der IANA-Datenbank (zum Beispiel `Europe/Zurich`). Die Datenbank ist im
+- **«Zeiten ohne Angabe gelten als»**: `UTC` (Vorgabe, so verlangt es die XMLTV-DTD; **belegt**,
+  `anhang/nachpruefung-quellen.md` Nr. 39) oder eine Zeitzone aus der IANA-Datenbank (zum Beispiel `Europe/Zurich`). Die Datenbank ist im
   Image vorhanden (gebaut `deploy/Dockerfile:96`, Paket `tzdata`). Slouchcat errät die Zone nie.
 - **«Verschiebung in Minuten»** (−720 bis +720, Vorgabe 0): für Quellen, die einen falschen Versatz schreiben
   (zum Beispiel `+0000` bei Ortszeit). Wirkt auf alle Zeiten der Quelle, auch mit Versatz. Die Verwaltung zeigt
@@ -175,7 +186,7 @@ Zusätzlich bedingter Abruf mit `If-None-Match`/`If-Modified-Since`; Muster geba
   Slouchcat den Wert als Verschiebung **dieser Zuordnung**, sichtbar als «aus der Senderliste», änderbar. Die
   genaue Bedeutung bei Anbietern ist nicht belegt (R3 §1, nicht abgerufen) → O-9.
 
-Gespeichert werden alle Zeiten als UTC in Sekunden. Angezeigt wird in der Zeitzone des Geräts; Tagesgrenzen der
+Gespeichert werden alle Zeiten als UTC in **Millisekunden** (wie der Bestand des Servers; `07` 1.4, W-12). Angezeigt wird in der Zeitzone des Geräts; Tagesgrenzen der
 Programmzeitschrift («heute», «morgen») rechnet der Client in seiner Zone [Empfehlung].
 
 ### 2.5 Aktualisierungsintervall je Quelle
@@ -218,7 +229,7 @@ sequenceDiagram
     participant SCH as Scheduler (jobs)
     participant POLL as Job livetv.epg.poll
     participant IMP as Job livetv.epg.import
-    participant NET as geschützter Client (netguard)
+    participant NET as Dialer der Quelle (netguard, feste Ziele)
     participant SRC as EPG-Anbieter
     participant SP as Zwischenablage (Cache)
     participant EPG as EPG-Datei (epg.db)
@@ -236,7 +247,7 @@ sequenceDiagram
     else neue Datei
         SRC-->>SP: Körper gepackt speichern (Grenze gepackt)
         IMP->>SP: Magic Bytes, entpacken (Grenze entpackt, Verhältnis)
-        IMP->>IMP: Zeichensatz, Token-Schleife (Tiefe ≤ 16)
+        IMP->>IMP: Zeichensatz, Token-Schleife (Tiefe ≤ 16, ≤ 256 KiB je Element)
         IMP->>EPG: channel-Elemente → epg_channels (Upsert, eine Transaktion)
         IMP->>DB: automatische Zuordnung neuer und verwaister Sender
         IMP->>DB: Liste zugeordneter, aktiver Sender dieser Quelle
@@ -251,7 +262,7 @@ sequenceDiagram
             IMP->>EPG: Titelwörterbuch und FTS nachführen
             IMP->>DB: Status «Programmdaten vom …», Zähler, Bericht
             IMP->>REC: einreihen (Schlüssel epg-reconcile)
-            REC->>DB: Erinnerungen und geplante Aufnahmen wiederfinden
+            REC->>DB: Erinnerungen, geplante und laufende Aufnahmen wiederfinden
         else nicht plausibel
             IMP->>DB: Status «zurückgehalten», alter Stand bleibt
             IMP->>NOT: errors, Source epg:ID (höchstens 1× je Stunde)
@@ -262,12 +273,18 @@ sequenceDiagram
 
 ### 3.2 Regeln für den Abruf
 
-- **Geschützter Client [spezifiziert]:** Abruf mit einem eigenen Satz `netguard.Clients`
-  (`NewClients`, gebaut `internal/netguard/netguard.go:93-111`): kein Proxy aus der Umgebung, die Prüfung der
-  aufgelösten Adresse bei jeder Verbindung und jeder Weiterleitung (`RefuseLocal`, `:73-82`), höchstens
-  5 Weiterleitungen, nur `http`/`https` (Muster `internal/fetch/fetch.go:46-53`). Fehlertexte nennen nur
-  Schema und Host (`netguard.Clean`, `:144-150`), weil Xtream-Adressen Zugangsdaten tragen (Regel 10).
-- **Heimnetz:** Für `url`-Quellen nur nach F-4; für Bild-Adressen nie (Abschnitt 9).
+- **Dialer der Quelle [spezifiziert]:** Jeder Abruf einer EPG-Quelle läuft über den Dialer je Quelle aus
+  `04` T-5 und `12` 4.1 (SM-01): die aufgelöste Adresse wird bei **jeder** Verbindung geprüft, auch nach
+  Weiterleitungen und bei DNS-Rebinding (Prüfung gebaut als `RefuseLocal`, `internal/netguard/netguard.go:73-82`);
+  öffentliche Adressen sind erlaubt, eine lokale nur, wenn sie in den **festen Zielen dieser EPG-Quelle** liegt
+  (F-4, Stufe H; Tabelle `live_net_targets` in `07` 3.11). Kein Proxy aus der Umgebung; höchstens 5
+  Weiterleitungen; nur `http`/`https` (Muster `internal/fetch/fetch.go:46-53`).
+- **Nie der ungeprüfte Client:** `netguard.NewClients` baut neben dem geprüften auch einen Client **ohne**
+  Prüfung (`internal/netguard/netguard.go:94-110`), und `Clients.For` gibt ihn bei lokalem Host heraus
+  (`:123-128`). Live-TV verwendet ihn nie (`04` T-5; `12` O-9). Fassung 1 nannte hier `NewClients`; das ist
+  korrigiert.
+- **Fehlertexte** nennen nur Schema und Host (`netguard.Clean`, `:144-150`), weil Xtream-Adressen Zugangsdaten
+  tragen (Regel 10). Bild-Adressen: immer nur öffentlich (Abschnitt 9).
 - **Zeitgrenzen [Empfehlung, Annahme für die Zahlen]:** Antwortkopf binnen 30 s (wie `fetch.HeaderTimeout`,
   `internal/fetch/fetch.go:31`), ganzer Import höchstens 30 Minuten über `context` (danach Abbruch wie ein Fehler).
 - **Grössengrenzen:** Abschnitt 12.
@@ -291,7 +308,12 @@ Muster [Empfehlung; Technik nach Go-Doku `encoding/xml`, in R4 §4.2 abgerufen]:
    `<channel>` vor die `<programme>` (Annahme aus R4 §4.2). Stehen `<channel>` später, arbeitet der Import mit
    der Zuordnung vom Stand vor dem Import, und neu zugeordnete Sender kommen beim nächsten Lesen der
    Zwischenablage dazu (2.3); kein zweiter Durchgang in Stufe 2.
-4. Tiefe, Elementgrössen und Feldlängen sind begrenzt (Abschnitt 12).
+4. **Eigene Grenzen in der Token-Schleife [spezifiziert]:** Die Tiefengrenze von Go (10'000) gilt nur für
+   `Unmarshal` und `DecodeElement`, **nicht** für `Decoder.Token` (belegt, `anhang/nachpruefung-quellen.md`
+   Nr. 32), und der Decoder puffert ein einzelnes Token ohne Grenze (`12` 7.1). Darum zählt der Import selbst:
+   Tiefe höchstens 16; ein zählender Leser bricht ab, sobald seit Beginn des aktuellen Elements der obersten
+   Ebene mehr als 256 KiB gelesen sind (damit ist auch jedes Token zwischen zwei Elementen begrenzt);
+   höchstens 1'000 Direktiven und Kommentare. Werte: `12` 7.4, Zeile XMLTV. Feldlängen: Abschnitt 4.
 
 ### 3.4 Nur zugeordnete, aktive Sender
 
@@ -361,7 +383,7 @@ Programmdaten den Stand **«Programmdaten vom <Zeitpunkt des letzten erfolgreich
 
 **R-0 [spezifiziert]: Slouchcat erfindet nichts.** Fehlt eine Angabe, bleibt sie leer. Abgeleitet wird nur aus
 Daten derselben Quelle und desselben Kanals, und jede Ableitung ist als **«abgeleitet»** gespeichert und
-sichtbar (Spalte `flags`, Abschnitt 13). Nie aufgefüllt: Lücken, Beschreibungen, Bilder, Folgennummern, Genres.
+sichtbar (Spalte `flags`, `07` 3.7). Nie aufgefüllt: Lücken, Beschreibungen, Bilder, Folgennummern, Genres.
 
 | Fall | Regel [spezifiziert] | Kennzeichnung |
 |---|---|---|
@@ -412,6 +434,8 @@ denselben EPG-Kanal haben (HD und SD desselben Programms). Stufen, erster Treffe
 | 4 | normalisierter Name gleich, mehrere Kandidaten | Vorschlagsliste, Rang 70 |
 | 5 | ähnlicher Name (Trigramm-Ähnlichkeit ≥ 0,6, Wert Annahme) | Vorschlagsliste, Rang 50–69, nie automatisch |
 | – | nichts | «ohne Zuordnung» |
+
+Die Vorschläge der Stufen 3 bis 5 liegen in `epg_suggestions` (`07` 3.7), nach jedem Import neu berechnet.
 
 **Schwelle [Empfehlung]:** Automatisch nur bei einer **Kennung** (Stufe 1, 2), nie bei einem Namen. Begründung:
 «keine falschen stillen Treffer». Ein Namenstreffer kann falsch sein, obwohl er eindeutig aussieht (gleicher
@@ -466,8 +490,10 @@ Live-TV-Dashboard ein Zähler «aktive Sender ohne Programmdaten». Zuschauer se
 
 ### 6.1 Ausgangslage
 
-XMLTV hat **keine** stabile Kennung einer Sendung (Beleg: DTD, R4 §1.1 und §7). Optional gibt es
-`episode-num system="dd_progid"` (anbieterspezifisch); `clumpidx` ist keine Kennung. Dazu wechseln beim
+XMLTV hat **keine** stabile Kennung einer Sendung (Beleg: DTD, R4 §1.1 und §7; `anhang/nachpruefung-quellen.md`
+Nr. 39). Die DTD kennt für `episode-num` nur die Systeme `xmltv_ns` und `onscreen` (Nachprüfung Nr. 40).
+`dd_progid` steht **nicht** in der DTD: es ist eine **verbreitete Konvention** (Schedules Direct, Gracenote),
+keine Norm, und kommt nur bei manchen Quellen vor. `clumpidx` ist keine Kennung. Dazu wechseln beim
 Ersetzen (3.5) die Zeilennummern bei jedem Import.
 
 ### 6.2 Verweise speichern Rohmerkmale
@@ -480,21 +506,29 @@ Ersetzen (3.5) die Zeilennummern bei jedem Import.
 |---|---|
 | `channel_id` | stabile Slouchcat-Sender-Kennung (führend) |
 | `epg_source_id`, `epg_xmltv_id` | Quelle und Kanal der Zuordnung zu diesem Zeitpunkt (nur zur Auskunft) |
-| `prog_start_utc`, `prog_stop_utc` | Zeiten laut EPG beim Anlegen (`stop` darf leer sein) |
+| `prog_start_utc`, `prog_stop_utc` | Zeiten laut EPG beim Anlegen, UTC in Millisekunden (`stop` darf leer sein) |
 | `prog_title`, `prog_title_norm` | Titel wie geliefert und normalisiert (Kleinschreibung, Akzente, Leerraum, Satzzeichen) |
 | `prog_subtitle` | Untertitel wie geliefert |
-| `prog_episode_ns`, `prog_episode_onscreen`, `prog_ext_id` | `xmltv_ns`, `onscreen`, `dd_progid` roh, falls vorhanden |
+| `prog_episode_ns`, `prog_episode_onscreen`, `prog_ext_id` | `xmltv_ns`, `onscreen`, `dd_progid` (Konvention, 6.1) roh, falls vorhanden |
 | `prog_match_state` | `exact`, `moved_auto`, `ambiguous`, `missing` (6.3) |
 
-Im API heisst eine Sendung `programmeRef` = Sender-Kennung, Start und eine kurze Prüfsumme des normalisierten
-Titels (überlappende Sendungen mit gleichem Start bleiben unterscheidbar). Die Sendungsseite löst den Verweis
-bei jedem Aufruf neu auf (`08-api.md`).
+Die Spaltengruppe heisst in `07` 3.10 «Programmverweis (P)» und ist dort die einzige Definition. Im API heisst
+eine Sendung `programmeRef` = Sender-Kennung, Beginn in Millisekunden und eine kurze Prüfsumme des
+normalisierten Titels (überlappende Sendungen mit gleichem Start bleiben unterscheidbar; `08` 4.2). Die
+Sendungsseite löst den Verweis bei jedem Aufruf neu auf.
 
 ### 6.3 Wiederfinden nach einem Import
 
-**[spezifiziert]** Der Job `livetv.epg.reconcile` (Abschnitt 11) prüft nach jedem erfolgreichen Import alle
-**künftigen** Verweise der betroffenen Sender (Erinnerungen vor ihrem Zeitpunkt, geplante Aufnahmen vor Beginn
-des Vorlaufs). Eine laufende oder begonnene Aufnahme wird nie verschoben (`11-dvr.md`).
+**[spezifiziert]** Der Job `livetv.epg.reconcile` (Abschnitt 11) prüft nach jedem erfolgreichen Import der
+betroffenen Sender:
+
+1. **künftige Verweise**: offene Erinnerungen vor ihrem Zeitpunkt (Stufe 2), geplante Aufnahmen vor Beginn des
+   Vorlaufs (Stufe 5);
+2. **laufende Aufnahmen** mit Verweis `exact` (Stufe 5; `11` 2.3 und `11` O-1): Liegt das neue Ende der
+   Sendung später als das gespeicherte, meldet der Job das neue Ende an den Aufnahmedienst, der die Aufnahme
+   verlängert. Eine laufende Aufnahme wird **nie verschoben und nie gekürzt** (`15` LA-14 «verlängert, nie
+   gekürzt»); ob die Anpassung überhaupt wirkt, schaltet der Administrator global (`live_config.dvr_follow_epg`,
+   `07` 3.1). Fehlt die laufende Sendung im neuen Import oder ist sie nicht eindeutig, bleibt alles, wie es ist.
 
 ```mermaid
 flowchart TD
@@ -513,16 +547,21 @@ flowchart TD
 
 - **Suchfenster** −6 h bis +24 h um den gespeicherten Start [Annahme aus R4 §7; einstellbar im Bau, nicht in der
   Oberfläche].
-- **Nie raten:** Bei mehreren oder keinem Kandidaten bleibt der Verweis auf der alten Zeit. Eine geplante
-  Aufnahme läuft dann zur alten Zeit, eine Erinnerung kommt zur alten Zeit mit dem Zusatz «laut früherem
-  Programm» [Empfehlung; ob eine Aufnahme in diesem Fall stattdessen ausgesetzt wird, entscheidet `11-dvr.md`].
+- **Nie raten:** Bei mehreren oder keinem Kandidaten übernimmt Slouchcat keine neue Zeit.
+  - **Aufnahmen** (`11` 2.3, massgeblich): `ambiguous` und `missing` **laufen zur alten Zeit** und sind markiert;
+    sie werden nicht ausgesetzt, weil ein Ausfall die schlechtere Überraschung ist.
+  - **Erinnerungen** (`03` DR-08, massgeblich): `ambiguous` kommt zur alten Zeit mit dem Zusatz «laut früherem
+    Programm»; `missing` (Sendung fällt weg) sendet keine Erinnerung, setzt den Zustand `dropped` (`07` 3.6) und
+    legt in der Glocke des Profils den Hinweis «Sendung nicht mehr im Programm» ab.
 - **Was der Benutzer sieht [spezifiziert]:**
   - `moved_auto`: in «Geplante Aufnahmen» und bei der Erinnerung «Verschoben: neu 20:30 (vorher 20:15)»,
     dazu eine Meldung in der Glocke des Profils.
   - `ambiguous`: «Die Sendung ist nicht mehr eindeutig im Programm. Bleibt auf 20:15–21:00.» mit den Kandidaten
     zur Auswahl («diese nehmen») und «löschen».
-  - `missing`: «Nicht mehr im Programm gefunden. Bleibt auf 20:15–21:00.» mit «behalten» und «löschen».
-- **Sender ohne EPG mehr** (Zuordnung gelöst oder verwaist): Verweise bleiben, Zustand `missing`.
+  - `missing` bei einer Aufnahme: «Nicht mehr im Programm gefunden. Läuft auf 20:15–21:00.» mit «behalten» und
+    «löschen». Bei einer Erinnerung: Hinweis in der Glocke, die Erinnerung verschwindet aus LS-13.
+- **Sender ohne EPG mehr** (Zuordnung gelöst oder verwaist): Aufnahme-Verweise bleiben, Zustand `missing`
+  (`11` K-5); offene Erinnerungen werden `dropped` wie oben.
 
 ---
 
@@ -535,7 +574,7 @@ flowchart TD
 | Stufe | Merkmal | Gilt als |
 |---|---|---|
 | A | `episode-num system="xmltv_ns"` mit **Staffel und Folge** (beide Zahlen vorhanden), gleicher normalisierter Serientitel, gleiche Quelle | **zuverlässig** |
-| B | `dd_progid` mit Folgenteil (`EP…`), gleiche Quelle | **zuverlässig** (Bedeutung der Präfixe: Annahme, R4 §6.1) |
+| B | `dd_progid` mit Folgenteil (`EP…`), gleiche Quelle | **zuverlässig**, wenn die Quelle die Konvention nutzt; `dd_progid` ist kein Teil der DTD (6.1), Bedeutung der Präfixe: Annahme (R4 §6.1) |
 | C | `onscreen` wörtlich gleich (ganzer Text) und Titel gleich, gleiche Quelle | **wahrscheinlich**: nur wenn das Profil die Regeloption «auch nach Folgenangabe der Quelle» einschaltet (Vorgabe aus) |
 | D | `sub-title` gleich und nicht leer, Titel gleich | **wahrscheinlich**: nur mit Regeloption «nach Folgentitel» (Vorgabe aus), weil Untertitel oft Zufallstext ist (Annahme R4 §6.1) |
 | – | nur Titel und Zeit | **nicht identifizierbar** |
@@ -545,8 +584,10 @@ flowchart TD
 - Verglichen wird gegen die **eigenen Aufnahmen des Profils** mit ihren gespeicherten Merkmalen (6.2), nie gegen
   die EPG-Tabelle und nie gegen die Bibliothek.
 - Aus `onscreen` wird keine Staffel- oder Folgennummer herausgelesen (kein Muster wie «S02E05» als
-  Automatik); angezeigt wird der Text, wie er kommt. `xmltv_ns` ist nullbasiert; die Anzeige «Staffel 2, Folge 5»
-  rechnet nur das Format um (+1), sie erfindet nichts.
+  Automatik); angezeigt wird der Text, wie er kommt. `xmltv_ns` zählt ab null (Annahme aus R4 §1.1; die
+  Nachprüfung Nr. 40 fand die Nullbasierung nicht in der gelesenen Zusammenfassung, im Bau an der DTD
+  nachlesen, O-2); die Anzeige «Staffel 2, Folge 5» rechnet nur das Format um (+1), sie erfindet nichts.
+- Vergleichsregel D0 bis D3 im Einzelnen: `11` F-2. Stufe 6 (`18` 4.9).
 
 ### 7.2 Was der Benutzer sieht
 
@@ -555,7 +596,9 @@ flowchart TD
 - Sendungsseite: «Staffel 2, Folge 5» (Stufe A) oder der `onscreen`-Text; fehlt beides: nichts.
 - Beim Anlegen einer Serienaufnahme: Hat die gewählte Sendung kein zuverlässiges Merkmal (Stufe A/B), steht dort:
   «Slouchcat kann bei dieser Sendung Folgen nicht unterscheiden. Jede passende Ausstrahlung wird aufgenommen.»
-  mit den Wahlmöglichkeiten aus `11-dvr.md` (zum Beispiel «höchstens eine je Tag»).
+  Das ist die Empfehlung (a) von `03` F-8; bis zu deiner Antwort dort gilt sie. Eine Zusatzregel «höchstens eine
+  je Tag» bietet dieses Dokument **nicht** an (Fassung 1 tat es; das war Variante (b) von `03` F-8, die der
+  Auftrag nicht nennt). Wählst du dort (b) oder (c), folgt dieser Satz.
 - In «Geplante Aufnahmen» je erzeugter Aufnahme: «übersprungen: Folge schon aufgenommen (S2 F5)» oder «Folge
   nicht identifizierbar».
 
@@ -585,7 +628,7 @@ Sender des Kontos, LTV-015); das EPG kennt keine eigene Sichtbarkeitsregel und k
    Liste von `epg_channel_id` (Zeilennummer in der EPG-Datei, über eine kleine Zuordnung im Speicher aus
    `(source_id, xmltv_id)` gewonnen).
 2. EPG-Datei:
-   `SELECT … FROM epg_programmes WHERE epg_channel_id IN (…) AND start_utc < :to AND start_utc >= :from - 86400 AND (stop_utc IS NULL OR stop_utc > :from) ORDER BY epg_channel_id, start_utc`.
+   `SELECT … FROM epg_programmes WHERE epg_channel_id IN (…) AND start_utc < :to AND start_utc >= :from - 86400000 AND (stop_utc IS NULL OR stop_utc > :from) ORDER BY epg_channel_id, start_utc`.
    Weil Sendungen über 24 h verworfen werden (Abschnitt 4), reicht die Untergrenze `:from − 24 h` für den
    Index `(epg_channel_id, start_utc)`; keine Unterabfrage je Sender nötig.
 3. Zeitfenster Vorgabe 3 h (Annahme für die Oberfläche, `14-oberflaeche.md`); Tages- und Uhrzeitsprung
@@ -597,10 +640,12 @@ Menge je Seite: 50 Sender × 3 h ≈ 150 bis 500 Zeilen (Annahme). Antwortzeit: 
 
 **[spezifiziert]** Für eine Senderliste (Seite oder Favoriten, nie alle 10'000 auf einmal):
 
-- jetzt: `start_utc <= :now AND start_utc > :now - 86400 AND (stop_utc IS NULL OR stop_utc > :now)`, je Sender die
-  zuletzt begonnene;
-- als Nächstes: `start_utc > :now AND start_utc < :now + 86400`, je Sender die erste (`ROW_NUMBER()` über
-  `epg_channel_id`).
+- jetzt: `start_utc <= :now AND start_utc > :now - 86400000 AND (stop_utc IS NULL OR stop_utc > :now)`, je Sender
+  die zuletzt begonnene;
+- als Nächstes: `start_utc > :now AND start_utc < :now + 86400000`, je Sender die erste (`ROW_NUMBER()` über
+  `epg_channel_id`). (Zeiten in Millisekunden.)
+- Schnittstelle: `getLiveNowNext` für bis zu 200 Sender und `listLiveChannels` mit `now=true` (`08` 2), beide
+  ab Stufe 2. In Stufe 1a/1b liefern Senderliste und Zapliste keine Programmfelder.
 
 [Empfehlung] Erst messen (M-5); nur wenn Senderlisten mit vielen Sendern zu langsam sind, einen Zwischenspeicher
 im Arbeitsspeicher «jetzt/als Nächstes» für alle zugeordneten Sender, erneuert nach jedem Import und jeweils zum
@@ -703,7 +748,7 @@ Sicherung.
   `internal/store/store.go:35`), nimmt Slouchcat `<config>/live-epg.db`. Auch dort ist sie nicht in der
   Sicherung, weil diese nur `slouchcat.db` kopiert (`internal/admin/backup.go:33-40`).
 - **Regel 5** (Migrationen nur vorwärts) gilt weiter für `slouchcat.db`. Für `epg.db` gilt «Neuaufbau statt
-  Migration». Das braucht einen ADR (Nummer vergibt der Bau; O-12).
+  Migration». Das braucht einen ADR; `18` 4.4 sieht dafür ADR 0049 in Stufe 2 vor (O-12).
 - **Variante C (verworfen):** je Quelle eine eigene Datei, bei jedem Import neu gebaut und atomar ausgetauscht.
   Sauberer Tausch, aber Rückschau-Daten müssten in jede neue Datei mitkopiert werden, und Raster und Suche
   müssten über viele Dateien laufen. Zu viel für ein Homelab.
@@ -717,10 +762,11 @@ Sicherung.
 - **Nur über den Server.** Der Client lädt nie direkt vom fremden Host (kein IP-Leck an Dritte, kein gemischter
   Inhalt). Die Adresse aus `<icon src>` (Sendung) bleibt gespeichert, an den Client geht nur eine Slouchcat-Adresse
   (`08-api.md`), mit Bildern über das Cookie wie heute.
-- **Abruf** über einen geschützten Client **ohne** Heimnetz-Ausnahme, auch wenn die Quelle selbst im Heimnetz
-  liegt (A-3: die Freigabe gilt nicht für Adressen, auf die eine Quelle verweist). Höchstens 10 MiB wie die
-  Radio-Logos (gebaut `internal/radio/logo.go:48`), Antwortkopf 10 s, höchstens 5 Weiterleitungen, Inhalt muss
-  sich als JPEG, PNG, WebP oder GIF entschlüsseln lassen (nicht dem `Content-Type` trauen).
+- **Abruf** immer **nur an öffentliche Ziele**, nie über feste Ziele im Heimnetz, auch wenn die Quelle selbst im
+  Heimnetz liegt (A-3; `04` 10.9 Zeile «Logos, EPG-Bilder»; `12` 4.9, SM-13). Höchstens 10 MiB und 50 Megapixel
+  (`12` 7.4; 10 MiB wie die Radio-Logos, gebaut `internal/radio/logo.go:48`), Antwortkopf 10 s, höchstens 5
+  Weiterleitungen. Ein Go-Decoder prüft das Bild zuerst (JPEG, PNG, GIF; WebP braucht `golang.org/x/image`,
+  `12` O-11); nur ein gültiges Bild geht an die Skalierung. Dem `Content-Type` wird nicht vertraut.
 - **Wann:** beim ersten Aufruf der Sendungsseite, nicht beim Import [Empfehlung]: höchstens 4 Abrufe gleichzeitig,
   gleiche Adresse nur einmal (Prüfsumme der Adresse als Schlüssel). Das Raster zeigt keine Sendungsbilder, nur
   Senderlogos (LTV-006).
@@ -741,14 +787,16 @@ Sicherung.
 ### 10.1 Anlegen
 
 **[spezifiziert]** Ein Profil mit wirksamem Recht «Live-TV» legt eine Erinnerung an einer **künftigen
-Sendung** an (Raster, Sendungsseite, Suchtreffer). Gespeichert in der Haupt-DB (Tabelle `live_reminders`,
-Abschnitt 13), privat je Profil, mit Programmverweis (6.2). Es gibt keine Serienerinnerung (nicht verlangt).
+Sendung** an (Raster, Sendungsseite, Suchtreffer; `03` DR-08). Ein Sender ohne Programmdaten bietet keine
+Erinnerung an (`03` DR-09; Fehler `live_no_epg`, `08`). Gespeichert in der Haupt-DB (Tabelle `live_reminders`,
+`07` 3.6) mit zufälliger Kennung (ULID, `04` T-9), privat je Profil, mit Programmverweis (6.2). Es gibt keine Serienerinnerung (nicht verlangt).
 Höchstens 200 offene Erinnerungen je Profil (Annahme, Schutz vor Missbrauch).
 
 ### 10.2 Zeitpunkt
 
-**[spezifiziert]** Wahl beim Anlegen: zu Beginn, 5, 15, 30 oder 60 Minuten vorher. **Vorgabe 5 Minuten**
-[Empfehlung]. Erinnerungszeitpunkt = Start − Vorlauf.
+**[spezifiziert, nach `03` DR-08]** Wahl beim Anlegen: zu Beginn, 5, 15 oder 30 Minuten vorher. **Vorgabe
+5 Minuten** (Annahme in `03`). Erinnerungszeitpunkt = Start − Vorlauf. Fassung 1 bot zusätzlich 60 Minuten an;
+das ist gestrichen. `14` LD-05 nennt andere Stufen (0, 2, 5, 10, 15); massgeblich ist `03` (`07` W-2).
 
 ### 10.3 Zustellung
 
@@ -756,24 +804,27 @@ Höchstens 200 offene Erinnerungen je Profil (Annahme, Schutz vor Missbrauch).
 
 - **Auslösen:** Beim Anlegen reiht Slouchcat einen Job `livetv.reminder.fire` mit Verzögerung bis zum
   Erinnerungszeitpunkt ein (Feld `Delay`, gebaut `internal/jobs/queue.go:159-161`; Eindeutigkeit über
-  `IdempotencyKey` `reminder:<id>:<zeitpunkt>`). Die Worker fragen jede Sekunde (gebaut `internal/jobs/worker.go:45`);
+  `IdempotencyKey` `reminder:<ULID>:<zeitpunkt>`). Die Worker fragen jede Sekunde (gebaut `internal/jobs/worker.go:45`);
   der Minutentakt des Schedulers (`internal/jobs/scheduler.go:56`) spielt keine Rolle. Die Warteschlange liegt in
   SQLite und übersteht Neustarts.
 - **Der Handler prüft vor dem Senden:** Erinnerung noch offen? Recht «Live-TV» für Profil und Konto noch
-  wirksam? Zeitpunkt stimmt mit dem gespeicherten überein (sonst ist der Job veraltet und tut nichts)?
+  wirksam? Sender noch aktiv (`03` DR-08)? Zeitpunkt stimmt mit dem gespeicherten überein (sonst ist der Job
+  veraltet und tut nichts)?
 - **Glocke (Posteingang je Profil):** neue Art `live_reminder` in `notifications`. Die Tabelle hat eine CHECK-Liste
   und verlangt `item_id` oder `wish_id` (gebaut `server/migrations/00070_wishes_notifications.sql:27-42`): sie
   muss mit einer neuen Spalte `live_reminder_id` neu gebaut werden (`07-datenmodell.md`).
 - **Web-Push und Push an die Handy-App:** über ein neues Ereignis `live_reminder` (CHECK in `deliveries.event`
   neu bauen wie in `00084`); Zustellung als Job `notify.deliver` (gebaut `internal/notify/dispatch.go:68-75`).
   Die Handy-App bekommt Push über den Weiterleitungsdienst wie heute (ADR 0044).
-- **E-Mail und Telegram:** dasselbe Ereignis, je nach Wahl des Kontos. Vorgabe für neue Konten: Push an,
-  E-Mail und Telegram aus [Empfehlung].
+- **Kanäle nach `03` F-3 (Empfehlung a):** Glocke des Profils **und** die Kanäle des Kontos mit Profilpräfix;
+  je Ereignisart ein Schalter in den bestehenden Kontoeinstellungen (`getMyChannels`, `updateMyChannel`, `08`).
+  Profile mit PIN: externe Meldungen ohne Sendungs- und Sendertitel (`03` DR-05). Vorgabe für neue Konten: Push an, E-Mail
+  und Telegram aus [Empfehlung dieses Dokuments, bis `03` F-3 entschieden ist].
 - **Dringlichkeit:** Der Server sendet Web-Push immer mit `UrgencyNormal` (gebaut
   `internal/notify/push/push.go:174`); Android darf solche Meldungen verzögern (ADR 0044). Ob Erinnerungen `high`
   bekommen: O-6, Verzögerung messen M-8.
 
-### 10.4 Einstellungen je Konto, Erinnerungen je Profil (F-3)
+### 10.4 Einstellungen je Konto, Erinnerungen je Profil (`03` F-3)
 
 Die Kanäle sind **je Konto** eingestellt (`account_channels`, gebaut `server/migrations/00016_admin.sql:27-35`),
 Web-Push-Abos hängen an Konto und Gerät (`00016_admin.sql:44-58`), Geräte kennen kein Profil
@@ -782,7 +833,8 @@ getrennt schalten, und eine Push-Meldung erreicht alle Geräte des Kontos. Heute
 mit dem Präfix «[Profilname]» (gebaut `internal/notify/dispatch.go:104-110`).
 
 Folge für Erinnerungen: Die Glocke ist privat je Profil; Push, E-Mail und Telegram sieht jeder, der die Geräte
-oder Postfächer des Kontos sieht, mit Profilname und Sendungstitel. Varianten in F-3.
+oder Postfächer des Kontos sieht, mit Profilname und Sendungstitel (bei PIN-Profilen ohne Titel, `03` DR-05). Die Frage
+dazu steht in `03` F-3; F-3 dieses Dokuments verweist dorthin.
 
 ### 10.5 Verschobene Sendung, Ablauf
 
@@ -790,13 +842,15 @@ oder Postfächer des Kontos sieht, mit Profilname und Sendungstitel. Varianten i
 
 - **Verschoben** (`moved_auto`, 6.3): neuer Erinnerungszeitpunkt, neuer Job (neuer `IdempotencyKey`), der alte Job
   findet beim Feuern einen anderen Zeitpunkt und tut nichts. Meldung in der Glocke «Sendung verschoben».
-- **Nicht eindeutig / nicht gefunden:** die Erinnerung bleibt auf der alten Zeit; Text «laut früherem Programm».
+- **Nicht eindeutig** (`ambiguous`): die Erinnerung bleibt auf der alten Zeit; Text «laut früherem Programm».
+- **Nicht mehr im Programm** (`missing`): keine Erinnerung, Zustand `dropped`, Hinweis in der Glocke (`03` DR-08).
 - **Server war aus:** Feuert der Job verspätet, sendet der Handler nur, solange die Sendung noch nicht länger als
   10 Minuten läuft (Text «hat vor N Minuten begonnen»); sonst Zustand «verpasst», keine Meldung [Empfehlung].
-- **Zustände:** `planned` → `sent` | `missed` | `cancelled` (vom Profil gelöscht). Recht entzogen: nichts senden,
+- **Zustände** (`07` 3.6): `planned` → `sent` | `missed` | `cancelled` (vom Profil gelöscht) | `dropped`
+  (Sendung entfallen). Recht entzogen oder Sender deaktiviert: nichts senden,
   Zeile bleibt (unsichtbar, 404), wie bei Aufnahmen (`03-fachkonzept.md` 2.4). Profil gelöscht: Zeile weg
   (Fremdschlüssel mit Löschweitergabe).
-- **Aufräumen:** `sent`, `missed`, `cancelled` 7 Tage nach Sendungsende löschen (Aufräumjob, Abschnitt 11).
+- **Aufräumen:** `sent`, `missed`, `cancelled`, `dropped` 7 Tage nach Sendungsende löschen (Aufräumjob, Abschnitt 11).
 
 ---
 
@@ -816,7 +870,7 @@ genügt das; Aufnahmen brauchen den eigenen Dienst aus `11-dvr.md`.
 |---|---|---|---|---|---|---|
 | `livetv.epg.poll` | Zeitplan | alle 15 min (Vorgabe; Muster `podcast.poll` → `podcast.fetch`, gebaut `internal/metadata/metadata.go:565-567`): reiht für jede fällige Quelle `livetv.epg.import` ein | `general` | 3 | Sekunden | Pause: keine neuen Imports; Zeitfenster ja |
 | `livetv.epg.import` | Ereignis, Hand («Jetzt aktualisieren», Priorität 7, `internal/jobs/registry.go:68`), Upload, geänderte Zuordnung/Einstellung | Schlüssel `epg:<source_id>` (nie zwei gleichzeitig je Quelle) | **neuer Pool `epg` mit 1 Worker** [Empfehlung, Vorbild `index`/`trickplay`] | 3 | zu messen M-1 (Sekunden bis Minuten) | Pause bricht zwischen zwei Stapeln ab; vor dem Tausch: nichts geändert, Neustart später von vorn (die Zwischenablage spart den Download); Zeitfenster ja |
-| `livetv.epg.reconcile` | Ereignis nach erfolgreichem Import | Schlüssel `epg-reconcile` (mehrere Imports → ein Lauf) | `general` | 4 | Sekunden | Pause: Verschiebungen werden später nachgezogen; kein Zeitfenster |
+| `livetv.epg.reconcile` | Ereignis nach erfolgreichem Import | Schlüssel `epg-reconcile` (mehrere Imports → ein Lauf); prüft Erinnerungen (Stufe 2), geplante und laufende Aufnahmen (Stufe 5, 6.3) | `general` | 4 | Sekunden | Pause: Verschiebungen und Verlängerungen werden später nachgezogen (eine Verlängerung kann dann zu spät kommen, die Aufnahme endet zum alten Ende); kein Zeitfenster |
 | `livetv.reminder.fire` | Ereignis beim Anlegen/Verschieben einer Erinnerung | Verzögerung bis Erinnerungszeitpunkt | `notify` (gebaut: ein Worker) | 6 | Millisekunden | **nicht** pausierbar über ein Zeitfenster; eine Pause der Jobart zeigt die Verwaltung als Warnung «Erinnerungen werden nicht zugestellt» |
 | Aufräumaufgabe EPG (kein eigener Typ) | `jobs.prune` über `AddPruneTask` | mit `jobs.prune` | – | – | Sekunden bis Minuten | wie `jobs.prune` |
 
@@ -836,197 +890,61 @@ gross, weil jeden Tag gleich viel nachkommt; Annahme).
 
 | Gefahr | Massnahme |
 |---|---|
-| XML External Entities (XXE), Nachladen der DTD | Go `encoding/xml` wertet `<!DOCTYPE>` und `<!ENTITY>` nicht aus und lädt nichts nach (Annahme, R4 §5.1 als Wissen; Testfall im Bau, O-2). `Decoder.Entity` nur die feste Tabelle `xml.HTMLEntity`. Der Kopf `xmltv.dtd` wird nie abgerufen. |
-| Entity-Expansion («Billion Laughs») | ohne ausgewertete `<!ENTITY>` nicht möglich (Annahme wie oben, Testfall O-2) |
-| Tiefe Verschachtelung | eigene Grenze Tiefe 16 in der Token-Schleife; ein `<programme>` höchstens 256 KiB, sonst überspringen und zählen |
-| Dekompressionsbombe | Zähler **nach** dem Entpacken: höchstens 4 GiB entpackt, Verhältnis entpackt/gepackt höchstens 100 (XMLTV packt etwa 8–12-fach, R4 §4.1 Annahme), sonst Abbruch; zip: genau ein Eintrag, Grössenangabe des Archivs nicht vertrauen, zählend lesen |
+| XML External Entities (XXE), Nachladen der DTD | Go `encoding/xml` sammelt `<!DOCTYPE>` und `<!ENTITY>` nur als Direktive, wertet sie nie aus und lädt nichts nach (**belegt** am Quelltext von Go 1.27.3, `12` 7.1, Review RS-15; Fassung 1 führte das als Annahme). `Decoder.Entity` nur die feste Tabelle `xml.HTMLEntity`, `Strict = true`. Der Kopf `xmltv.dtd` wird nie abgerufen. Testfall im Bau (SM-28). |
+| Entity-Expansion («Billion Laughs») | ohne ausgewertete `<!ENTITY>` nicht möglich (belegt, `12` 7.1); Testfall SM-28 |
+| Tiefe Verschachtelung, riesige Tokens | Die Go-Grenze (10'000) gilt nicht für `Decoder.Token` (Nachprüfung Nr. 32). Eigene Grenzen in der Token-Schleife (3.3 Punkt 4): Tiefe 16, 256 KiB je Element der obersten Ebene und damit je Token, 1'000 Direktiven und Kommentare; Überschreitung bricht den Import ab (alter Stand bleibt) |
+| Dekompressionsbombe | Zähler **nach** dem Entpacken: höchstens 4 GiB entpackt, Verhältnis entpackt/gepackt höchstens 100 (XMLTV packt etwa 8- bis 12-fach, R4 §4.1 Annahme), sonst Abbruch; genau eine Kompressionsschicht; zip: genau ein Eintrag, Grössenangabe des Archivs nicht vertrauen, zählend lesen (`12` 7.2, 7.4) |
 | Riesige Datei | höchstens 1 GiB gepackt beim Abruf und beim Upload; Upload nur durch Administratoren, eigene Grenze in `largeBodies` (`internal/api/limits.go:33-44`) |
 | Parser-Zeit, Erschöpfung | 30 min je Import über `context`; ein Import zur Zeit (Pool `epg` mit 1 Worker); Speicher O(Stapel), nicht O(Datei) |
 | Unbekannter Zeichensatz | Liste erlaubter Zeichensätze (Abschnitt 4), sonst Abbruch |
-| SSRF (Server fragt im Auftrag einer fremden Adresse im Heimnetz an) | geschützter Client (3.2): Prüfung der aufgelösten Adresse bei jeder Verbindung und Weiterleitung, kein Proxy aus der Umgebung; Heimnetz nur für vom Administrator eingetragene `url`-Quellen mit ausdrücklicher Freigabe (F-4); nie für `url-tvg` aus Listen, nie für Bilder |
+| SSRF (Server fragt im Auftrag einer fremden Adresse im Heimnetz an) | Dialer je Quelle (3.2; `12` 4.1, SM-01): Prüfung der aufgelösten Adresse bei jeder Verbindung und Weiterleitung, kein Proxy aus der Umgebung, nie der ungeprüfte Client von `NewClients`; Heimnetz nur über feste Ziele einer vom Administrator eingetragenen `url`-Quelle (F-4, Stufe H); nie für `url-tvg` aus Listen, nie für Bilder |
 | Zugangsdaten in Adressen | Xtream-Adressen tragen Benutzername und Passwort: nie loggen, Fehler nur mit Schema und Host (`netguard.Clean`), Parameter in die Redaction-Liste (Regel 10) |
 | Fremde Bild-Adressen | nur über den Server, Grenzen aus Abschnitt 9, nie Heimnetz, Inhalt muss sich als Bild entschlüsseln lassen |
 | Feldinhalte | gekappt (Abschnitt 4); Beschreibungen sind Text, der Client zeigt sie nie als HTML |
 
 ---
 
-## 13. Tabellenentwurf
+## 13. Datenmodell (Verweis auf `07`)
 
-Vorschlag für `07-datenmodell.md`, das ihn übernimmt und danach die einzige Quelle ist. Namen englisch, `STRICT`.
-Fremdschlüssel auf `live_channels` (die Sendertabelle aus `07-datenmodell.md`; Name dort festgelegt) und
-`profiles`/`accounts`.
+Das Schema steht **nur** in `07-datenmodell.md`. Fassung 1 hatte hier einen eigenen Entwurf; `07` hat ihn
+übernommen und ist jetzt die einzige Quelle. Dieser Abschnitt nennt nur, wo was steht, und begründet die
+Entwurfsentscheide, die aus diesem Dokument kommen.
 
-### 13.1 Haupt-DB `slouchcat.db` (gesichert, Migration nach Vorlage)
+| Was | Wo in `07` | Datei |
+|---|---|---|
+| EPG-Quellen, Importberichte, Zuordnung Sender ↔ EPG-Kanal (`live_epg_sources`, `live_epg_imports`, `live_channel_epg`) | 3.5 | `slouchcat.db` |
+| Erinnerungen (`live_reminders`) | 3.6 | `slouchcat.db` |
+| Globale Werte Vorschau, Rückschau, Sendungsbilder, «Aufnahmen folgen dem EPG» (`live_config.epg_days`, `epg_lookback_hours`, `epg_images`, `dvr_follow_epg`) | 3.1 | `slouchcat.db` |
+| Feste Ziele im Heimnetz einer EPG-Quelle (`live_net_targets.epg_source_id`, nur nach F-4 (a)) | 3.11 | `slouchcat.db` |
+| Spaltengruppe «Programmverweis (P)» | 3.10 | `slouchcat.db` |
+| EPG-Kanäle, Sendungen, Titelwörterbuch mit FTS5, Zwischentabelle, Bilderzustand, Zuordnungsvorschläge (`epg_channels`, `epg_programmes`, `epg_titles`, `epg_titles_fts`, `epg_stage`, `epg_images`, `epg_suggestions`) | 3.7 | `epg.db` |
+| Neubau `notifications` (Art `live_reminder`) und `deliveries` (Ereignis `live_reminder`) | 11.2 | `slouchcat.db` |
 
-```sql
--- EPG sources (admin data)
-CREATE TABLE live_epg_sources (
-    id                 INTEGER PRIMARY KEY,
-    kind               TEXT    NOT NULL CHECK (kind IN ('file', 'url', 'xtream')),
-    name               TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
-    position           INTEGER NOT NULL,                 -- order for automatic matching only
-    enabled            INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-    url_enc            BLOB,                             -- kind 'url': encrypted, may carry credentials
-    input_source_id    INTEGER REFERENCES live_input_sources(id) ON DELETE CASCADE, -- kind 'xtream'
-    allow_local        INTEGER NOT NULL DEFAULT 0 CHECK (allow_local IN (0, 1)),   -- F-4
-    naive_tz           TEXT    NOT NULL DEFAULT 'UTC',   -- zone for times without offset
-    shift_minutes      INTEGER NOT NULL DEFAULT 0 CHECK (shift_minutes BETWEEN -720 AND 720),
-    preferred_lang     TEXT,                             -- NULL: server language
-    every_minutes      INTEGER CHECK (every_minutes IS NULL OR every_minutes BETWEEN 60 AND 10080),
-    next_fetch_at      INTEGER,
-    etag               TEXT,
-    last_modified      TEXT,
-    content_sha256     TEXT,                             -- of the stored file of the last import
-    last_success_at    INTEGER,                          -- «Programmdaten vom …»
-    last_attempt_at    INTEGER,
-    state              TEXT    NOT NULL DEFAULT 'new'
-                       CHECK (state IN ('new', 'ok', 'unchanged', 'failed', 'held', 'running')),
-    state_reason       TEXT    CHECK (state_reason IS NULL OR length(state_reason) <= 200),
-    created_at         INTEGER NOT NULL,
-    CHECK ((kind = 'url') = (url_enc IS NOT NULL)),
-    CHECK ((kind = 'xtream') = (input_source_id IS NOT NULL))
-) STRICT;
+**Abweichungen von Fassung 1, die `07` festgelegt hat und dieses Dokument übernimmt:**
 
--- Import reports, last 10 per source
-CREATE TABLE live_epg_imports (
-    id              INTEGER PRIMARY KEY,
-    source_id       INTEGER NOT NULL REFERENCES live_epg_sources(id) ON DELETE CASCADE,
-    started_at      INTEGER NOT NULL,
-    finished_at     INTEGER,
-    outcome         TEXT    NOT NULL CHECK (outcome IN ('running', 'ok', 'unchanged', 'failed', 'held')),
-    bytes_packed    INTEGER,
-    bytes_unpacked  INTEGER,
-    channels_seen   INTEGER,
-    programmes_kept INTEGER,
-    counters        TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(counters)), -- dropped, derived, overlaps …
-    error           TEXT    CHECK (error IS NULL OR length(error) <= 500)
-) STRICT;
-CREATE INDEX live_epg_imports_source ON live_epg_imports (source_id, started_at);
+- **Zeiten in Millisekunden** (UTC), auch in `epg.db` (`07` W-12): so rechnen alle bestehenden Tabellen.
+- **Erinnerung mit ULID** statt Zahl (`07` W-3, `04` T-9): Kennungen von Erinnerungen sind nie fortlaufend.
+- **Vorlauf** 0, 5, 15, 30 Minuten (`07` W-2, `03` DR-08); Zustand zusätzlich `dropped`.
+- **Heimnetz** über feste Ziele (`live_net_targets`) statt eines Schalters `allow_local` (`07` W-4, `04` T-5).
+- **Verschlüsselte Adresse** als `TEXT` im Format `v1:…` statt `BLOB` (`07` W-13); dazu Spalte `site` (nur
+  Schema und Host, für Anzeige und Fehler) und `file_sha256` für Uploads.
+- **`epg_suggestions`** (neu in `07`): die Vorschläge der Stufen 3 bis 5 aus 5.1 mit Rang 50 bis 90, nach jedem
+  Import neu berechnet; Grundlage für «alle Rang 90 übernehmen».
+- Fehler und Zustandsgründe als Codes (`a-z0-9_`), nicht als freier Text: keine Adresse oder Zugangsdaten in der
+  Datenbank (Regel 10).
 
--- Channel ↔ EPG channel mapping (one EPG source per channel)
-CREATE TABLE live_channel_epg (
-    channel_id     INTEGER PRIMARY KEY REFERENCES live_channels(id) ON DELETE CASCADE,
-    mode           TEXT    NOT NULL CHECK (mode IN ('auto', 'manual', 'none')),
-    reason         TEXT    CHECK (reason IN ('xtream_id', 'tvg_id', 'suggestion', 'admin')),
-    source_id      INTEGER REFERENCES live_epg_sources(id) ON DELETE CASCADE,
-    xmltv_id       TEXT    CHECK (xmltv_id IS NULL OR length(xmltv_id) <= 500),
-    shift_minutes  INTEGER NOT NULL DEFAULT 0,          -- from tvg-shift or the admin
-    orphaned_since INTEGER,                             -- xmltv_id missing in the last import
-    updated_at     INTEGER NOT NULL,
-    CHECK ((mode = 'none') = (source_id IS NULL AND xmltv_id IS NULL))
-) STRICT;
-CREATE INDEX live_channel_epg_target ON live_channel_epg (source_id, xmltv_id);
+**Entwurfsentscheide aus diesem Dokument (Begründung):**
 
--- Reminders (private per profile)
-CREATE TABLE live_reminders (
-    id                    INTEGER PRIMARY KEY,
-    profile_id            INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    account_id            INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    lead_minutes          INTEGER NOT NULL CHECK (lead_minutes IN (0, 5, 15, 30, 60)),
-    remind_at             INTEGER NOT NULL,
-    state                 TEXT    NOT NULL CHECK (state IN ('planned', 'sent', 'missed', 'cancelled')),
-    -- programme reference (same column group as in the DVR tables, 07-datenmodell.md)
-    channel_id            INTEGER NOT NULL REFERENCES live_channels(id) ON DELETE CASCADE,
-    epg_source_id         INTEGER,
-    epg_xmltv_id          TEXT,
-    prog_start_utc        INTEGER NOT NULL,
-    prog_stop_utc         INTEGER,
-    prog_title            TEXT    NOT NULL,
-    prog_title_norm       TEXT    NOT NULL,
-    prog_subtitle         TEXT,
-    prog_episode_ns       TEXT,
-    prog_episode_onscreen TEXT,
-    prog_ext_id           TEXT,
-    prog_match_state      TEXT    NOT NULL DEFAULT 'exact'
-                          CHECK (prog_match_state IN ('exact', 'moved_auto', 'ambiguous', 'missing')),
-    created_at            INTEGER NOT NULL,
-    UNIQUE (profile_id, channel_id, prog_start_utc, prog_title_norm)
-) STRICT;
-CREATE INDEX live_reminders_due ON live_reminders (state, remind_at);
-CREATE INDEX live_reminders_channel ON live_reminders (channel_id, prog_start_utc);
-```
-
-Globale Einstellungen (Vorschauzeitraum, Rückschau, «Sendungsbilder laden») in den bestehenden Systemeinstellungen
-(`07-datenmodell.md`). Neubauten bestehender Tabellen: `notifications` (Art `live_reminder`, Spalte
-`live_reminder_id`) und `deliveries` (Ereignis `live_reminder`), Abschnitt 10.3.
-
-### 13.2 EPG-Datei `epg.db` (nicht gesichert, Neuaufbau statt Migration)
-
-```sql
-PRAGMA user_version = 1;   -- mismatch: delete the file and import again
-
-CREATE TABLE epg_channels (
-    id            INTEGER PRIMARY KEY,
-    source_id     INTEGER NOT NULL,                -- live_epg_sources.id (other file, no FK)
-    xmltv_id      TEXT    NOT NULL,
-    display_names TEXT    NOT NULL CHECK (json_valid(display_names)),
-    name_norm     TEXT    NOT NULL,                -- first display name, normalised (5.1)
-    icon_url      TEXT,
-    last_seen_at  INTEGER NOT NULL,
-    UNIQUE (source_id, xmltv_id)
-) STRICT;
-
-CREATE TABLE epg_titles (
-    id        INTEGER PRIMARY KEY,
-    kind      TEXT NOT NULL CHECK (kind IN ('title', 'subtitle')),
-    text      TEXT NOT NULL,
-    text_norm TEXT NOT NULL,
-    UNIQUE (kind, text)
-) STRICT;
-CREATE INDEX epg_titles_norm ON epg_titles (kind, text_norm);
-
-CREATE VIRTUAL TABLE epg_titles_fts USING fts5(
-    text, content = 'epg_titles', content_rowid = 'id',
-    tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3'
-);
--- plus insert/delete triggers as in 00015_discover.sql
-
-CREATE TABLE epg_programmes (
-    id               INTEGER PRIMARY KEY,           -- changes on every import, never referenced
-    epg_channel_id   INTEGER NOT NULL REFERENCES epg_channels(id) ON DELETE CASCADE,
-    start_utc        INTEGER NOT NULL,
-    stop_utc         INTEGER,                       -- NULL: end unknown
-    flags            INTEGER NOT NULL DEFAULT 0,    -- bits: end_derived, end_unknown, time_derived,
-                                                    -- time_ambiguous, shifted, overlap
-    title_id         INTEGER NOT NULL REFERENCES epg_titles(id),
-    subtitle_id      INTEGER REFERENCES epg_titles(id),
-    title_norm       TEXT    NOT NULL,
-    description      TEXT,
-    categories       TEXT,                          -- up to 10, separated by U+001F
-    episode_ns       TEXT,
-    episode_onscreen TEXT,
-    ext_prog_id      TEXT,                          -- dd_progid
-    is_new           INTEGER NOT NULL DEFAULT 0 CHECK (is_new IN (0, 1)),
-    year             INTEGER,
-    icon_url         TEXT,
-    CHECK (stop_utc IS NULL OR stop_utc > start_utc)
-) STRICT;
-CREATE INDEX epg_programmes_channel_start ON epg_programmes (epg_channel_id, start_utc);
-CREATE INDEX epg_programmes_title_start ON epg_programmes (title_id, start_utc);
-CREATE INDEX epg_programmes_stop ON epg_programmes (stop_utc);  -- cleanup
-
-CREATE TABLE epg_stage (                           -- emptied at the start of each import of a source
-    source_id        INTEGER NOT NULL,
-    epg_channel_id   INTEGER NOT NULL,
-    start_utc        INTEGER NOT NULL,
-    -- same columns as epg_programmes, titles as text
-    stop_utc INTEGER, flags INTEGER NOT NULL, title TEXT NOT NULL, subtitle TEXT, title_norm TEXT NOT NULL,
-    description TEXT, categories TEXT, episode_ns TEXT, episode_onscreen TEXT, ext_prog_id TEXT,
-    is_new INTEGER NOT NULL, year INTEGER, icon_url TEXT
-) STRICT;
-CREATE INDEX epg_stage_channel ON epg_stage (source_id, epg_channel_id, start_utc);
-
-CREATE TABLE epg_images (
-    url_sha256  TEXT PRIMARY KEY,
-    state       TEXT NOT NULL CHECK (state IN ('ok', 'failed')),
-    bytes       INTEGER,
-    fetched_at  INTEGER NOT NULL,
-    retry_after INTEGER
-) STRICT;
-```
-
-Keine Unique-Bedingung auf `(epg_channel_id, start_utc)`: Überlappungen mit gleichem Start sind erlaubt
-(Abschnitt 4); Dubletten entfernt der Import.
+1. **Zwei Dateien** (8.7, F-1): Pflegedaten des Haushalts in `slouchcat.db` (gesichert, migriert), fremde
+   Massendaten in `epg.db` (nicht gesichert, Neuaufbau bei neuer Schemafassung über `PRAGMA user_version`).
+2. **Kein Verweis auf Programmzeilen** (6.2): Zeilen in `epg_programmes` wechseln bei jedem Import; Erinnerungen
+   und Aufnahmen tragen den Programmverweis (P).
+3. **Zuordnung über Text** `(source_id, xmltv_id)` statt Fremdschlüssel (5.4): übersteht Neuaufbau und Import.
+4. **Keine Eindeutigkeit auf `(epg_channel_id, start_utc)`**: Überlappungen mit gleichem Beginn sind erlaubt
+   (Abschnitt 4); Dubletten entfernt der Import.
+5. **Titelwörterbuch statt FTS über alle Sendungen** (8.4): billige Aktualisierung (M-6 prüft es).
+6. **Zwischentabelle `epg_stage`** (3.5): ein Fehler mitten im Import lässt den alten Stand stehen.
+7. **Kennzeichen als Bitfeld `flags`** (Abschnitt 4): «abgeleitet» bleibt je Sendung sichtbar.
 
 ---
 
@@ -1057,7 +975,7 @@ einem Generator, Marcos echte Dateien nur lokal.
 | Nr. | Punkt | Bis wann |
 |---|---|---|
 | O-1 | xz und zstd: brauchen eine Fremdbibliothek (Lizenz AGPL-verträglich prüfen, Pflege). Erst, wenn eine echte Quelle es verlangt. | nach Stufe 2, bei Bedarf |
-| O-2 | Verhalten von `encoding/xml` bei `<!DOCTYPE>`/`<!ENTITY>`, Tiefengrenze, und von `time.ParseInLocation` in Sommerzeit-Lücke und doppelter Stunde mit Go 1.27 belegen (Testdateien im Bau) | Bau Stufe 2, vor dem ersten Import |
+| O-2 | Verhalten von `time.ParseInLocation` in Sommerzeit-Lücke und doppelter Stunde mit Go 1.27 belegen; Nullbasierung von `xmltv_ns` im Wortlaut der DTD nachlesen (Nachprüfung Nr. 40). `<!DOCTYPE>`/`<!ENTITY>` und die Tiefengrenze sind erledigt (`12` 7.1, Nachprüfung Nr. 32); Testfälle bleiben (SM-28) | Bau Stufe 2, vor dem ersten Import |
 | O-3 | SQLite-Version in `modernc.org/sqlite v1.60.1` (gebaut `server/go.mod:26`); der Entwurf braucht nur FTS5 mit externem Inhalt (im Repo im Einsatz), kein `contentless_delete`, kein Trigramm | Bau Stufe 2 |
 | O-4 | Xtream-Anbieter ohne brauchbares `xmltv.php`: Einzelabfragen `get_short_epg` (Base64, eine Anfrage je Sender) nachrüsten? | nach Messung M-12 |
 | O-5 | XMLTV-Datei aus einem Ordner (WebGrab+Plus auf dem NAS), nur über `paths` (Regel 4) und registrierte Wurzeln | nach Stufe 2 |
@@ -1067,7 +985,7 @@ einem Generator, Marcos echte Dateien nur lokal.
 | O-9 | Bedeutung von `tvg-shift` (Stunden, Vorzeichen) bei echten Listen | M-12 |
 | O-10 | Titelzusätze wie «(Wh.)», «- Folge 3» im Titel: verhindern Serientreffer; bewusst nicht wegnormalisiert | nach M-12 |
 | O-11 | Beschreibung in die Programmsuche aufnehmen (Grösse, Nutzen) | nach M-6 |
-| O-12 | ADR «Programmdaten in eigener, nicht gesicherter Datei; Neuaufbau statt Migration» | mit F-1 |
+| O-12 | ADR 0049 «Programmdaten in eigener, nicht gesicherter Datei; Neuaufbau statt Migration» (`18` 4.4) | mit F-1, Stufe 2 |
 | O-13 | Anzeige-Zeitzone für E-Mail und Telegram (Server-TZ oder Profil); Geräte zeigen ihre eigene | `14-oberflaeche.md` |
 
 ### 14.3 Fragen an Marco (F-n)
@@ -1091,25 +1009,26 @@ einem Generator, Marcos echte Dateien nur lokal.
 - (b) eindeutiger Name ordnet automatisch zu, sichtbar markiert «automatisch (Name)». Weniger Arbeit, aber
   falsche Programme fallen erst beim Zuschauen auf.
 
-**F-3 · Wohin gehen Erinnerungen, solange die Benachrichtigungen je Konto eingestellt sind?**
-- Problem: Glocke ist je Profil, Push/E-Mail/Telegram sind je Konto. Eine Push-Erinnerung erreicht alle Geräte des
-  Kontos, mit Profilname und Sendungstitel (10.4).
-- **(a) Glocke je Profil, dazu Push/E-Mail/Telegram an das Konto mit «[Profilname]» (Empfehlung).** Wie heute
-  bei Wünschen; kein Umbau. Folge: Im gemeinsamen Haushalt sieht jeder die Erinnerungen der anderen auf
-  gemeinsamen Geräten.
-- (b) nur Glocke je Profil, kein Push. Ganz privat, aber die Erinnerung kommt nur, wenn die App offen ist; wenig
-  nützlich.
-- (c) Push nur an Geräte, deren letzte Anmeldung dieses Profil hatte. Privater, aber ein neuer Teil des
-  Benachrichtigungssystems (Geräte kennen heute kein Profil) und unzuverlässig bei geteilten Geräten.
+**F-3 · Wohin gehen Erinnerungen? — siehe `03` F-3.**
+Die Frage ist in `03` F-3 aufgegangen (dort zusätzlich für die Meldungen der Aufnahmen). Dieses Dokument folgt
+bis zu deiner Antwort dort der Empfehlung (a): Glocke des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile
+ohne Titel (`03` DR-05). Variante (b) aus Fassung 1 (nur Glocke) steht dort als (b); dort (c) ist «eigene
+Kanaleinstellungen je Profil». Die Variante (c) aus Fassung 1 (Push nur an Geräte, deren letzte Anmeldung das
+Profil hatte) entfällt: Geräte kennen kein Profil, und `03` führt sie nicht.
 
 **F-4 · EPG-Adressen im Heimnetz erlauben?**
 - Problem: Wer Programmdaten selbst erzeugt (zum Beispiel WebGrab+Plus auf dem NAS), stellt sie oft im Heimnetz
-  bereit. Der Netzwächter sperrt das heute (A-3 gilt ausdrücklich für Senderquellen).
-- **(a) ja, wie bei Senderquellen: nur vom Administrator eingetragen, ausdrückliche Freigabe je EPG-Quelle,
-  gilt nur für diese Adresse (Empfehlung).** Folge: Die Freigabe darf nicht wie heute bei Podcasts den ganzen
-  Client öffnen (`internal/netguard/netguard.go:118-128` gibt einen völlig ungeschützten Client, V1 L-5), sondern
-  nur den eingetragenen Host; das regelt `12-sicherheit.md`.
-- (b) nein. Selbst erzeugte Programmdaten gehen dann nur über Upload (von Hand, ohne automatische Aktualisierung).
+  bereit. Der Netzwächter sperrt das heute; A-3 und `04` T-5 erlauben Heimnetz-Ziele bisher nur für
+  **Senderquellen**, und zwar als Liste fester Ziele, nicht als Schalter.
+- **(a) ja, mit festen Zielen je EPG-Quelle wie bei Senderquellen (Empfehlung).** Nur vom Administrator
+  eingetragen; beim Freigeben bestätigt er Adresse oder kleines Netz (höchstens /24 bzw. /64) und Port (höchstens
+  64 Ports; `04` 14.9); jede Verbindung der Quelle wird an der wirklich angewählten Adresse geprüft, auch nach
+  Weiterleitungen; Loopback, Link-Local, Metadaten-Adressen und die eigenen Adressen des Servers sind nie
+  freigebbar (`04` T-5, 10.9; Tabelle `live_net_targets` in `07` 3.11). Der ungeprüfte Client von
+  `netguard.NewClients` und `Clients.For` (`internal/netguard/netguard.go:94-110`, `:123-128`) wird nie
+  verwendet (`12` O-9). Stufe H (`18` 4.6). Fassung 1 schlug einen Schalter je Quelle vor; das ist ersetzt.
+- (b) nein. Selbst erzeugte Programmdaten gehen dann nur über Upload (von Hand, ohne automatische Aktualisierung)
+  oder über eine öffentlich erreichbare Adresse.
 
 ---
 
@@ -1126,8 +1045,8 @@ einem Generator, Marcos echte Dateien nur lokal.
 | LTV-005 Automatische Aktualisierung | 2.5, 11 |
 | LTV-005 Aktuelle Sendungen | 8.2 |
 | LTV-005 Kommende Sendungen | 8.1, 8.2 |
-| LTV-005 Sendungstitel | 4, 8.3, 13.2 |
-| LTV-005 Sendungsbeschreibungen | 4, 8.3, 13.2 |
+| LTV-005 Sendungstitel | 4, 8.3, 13 (`07` 3.7) |
+| LTV-005 Sendungsbeschreibungen | 4, 8.3, 13 (`07` 3.7) |
 | LTV-005 Verfügbare Sendungsbilder | 9 |
 | LTV-005 Kategorien | 8.5, O-8 |
 | LTV-005 Genres | 8.5, O-8 |
@@ -1149,10 +1068,41 @@ einem Generator, Marcos echte Dateien nur lokal.
 | LTV-005 Nicht vorgesehen: KI-Empfehlungen | 1.2 |
 | LTV-005 Nicht vorgesehen: Verknüpfung mit der Bibliothek | 1.2, 7.1 |
 | LTV-008 Erkennung bereits aufgenommener Episoden | 7 |
-| LTV-008 Anpassung an aktualisierte EPG-Zeiten | 6.3 |
+| LTV-008 Anpassung an aktualisierte EPG-Zeiten (geplante und laufende Aufnahmen) | 6.3 (Ausführung `11` 2.3) |
 | LTV-015 keine altersabhängige EPG-Filterung, keine Sperre aus Programmdaten | 1.2, 8 |
 | LTV-018 Erhalt von EPG-Zuordnungen | 5.4 |
 | 9.4 EPG-Quellen, Aktualisierungsintervalle, Senderzuordnungen, automatische Zuordnung, fehlende Zuordnungen, Importstatus, Fehleranzeige, EPG-Vorschauzeitraum | 2.1, 2.5, 5, 5.5, 3.6, 4 (Bericht), 2.6; Oberfläche `15-administration.md` |
 | 10.4 XML External Entities, XML-Bomben, komprimierte Dateien, Dekompressionsbomben, Uploadlimits, Dateigrössenlimits, Parser-Zeitlimits, Ressourcenerschöpfung | 12 (fehlerhafte M3U-Dateien: `12-sicherheit.md`) |
 | 11.1/11.2 500, 5'000, 10'000 importierte Sender; EPG-Datenmenge; Datenbanklast | 8.6, 8.7, M-1 bis M-7 |
 | 16 Suchwortbasierte automatische Aufnahmen (ausgeschlossen) | 1.2, 7.3 |
+
+---
+
+## 16. Änderungen gegenüber der vorigen Fassung
+
+Fassung 2 (Konsolidierung 1, 28. November 2026). Quellen der Rückmeldungen: `RUECKMELDUNGEN-AN-ARCH.md`,
+`04` Abschnitt 15, `anhang/nachpruefung-quellen.md`, `07` 12.3, `12` O-9, `18`.
+
+- **Schema nach `07`:** Abschnitt 13 ist jetzt ein Verweis auf `07` 3.1, 3.5 bis 3.7, 3.10, 3.11 mit Begründung
+  der Entwurfsentscheide; übernommen: Millisekunden (W-12), ULID für Erinnerungen (W-3), `TEXT v1:` (W-13),
+  feste Ziele statt `allow_local` (W-4), `epg_suggestions`, Zustand `dropped`. Abfragen in 8.1 und 8.2 auf
+  Millisekunden umgestellt. (`07` 12.3; `04` 15.1)
+- **Heimnetz:** 3.2, 12 und F-4 auf feste Ziele je Quelle (`04` T-5, 10.9) umgestellt; der ungeprüfte Client von
+  `netguard.NewClients`/`Clients.For` wird ausdrücklich nie verwendet; Bilder und `url-tvg` nur öffentlich.
+  (`12` O-9; `04` 15.1; Sicherheit Punkt 6)
+- **Parser-Grenzen:** Die Go-Tiefengrenze gilt nicht für `Decoder.Token`; eigene Grenzen für Tiefe, 256 KiB je
+  Element der obersten Ebene und 1'000 Direktiven in 3.3 und 12 nach `12` 7.1/7.4. XXE und Entity-Expansion von
+  Annahme auf belegt gehoben (`12` 7.1). Eine Kompressionsschicht statt zwei (`12` 7.4). (Nachprüfung Nr. 32)
+- **`dd_progid`** als verbreitete Konvention gekennzeichnet, nicht als Teil der DTD (6.1, 7.1); DTD-Pflichtfelder
+  und UTC-Vorgabe als belegt (Nachprüfung Nr. 39, 40); Nullbasierung von `xmltv_ns` bleibt Annahme (O-2).
+- **Serien:** «höchstens eine je Tag» aus 7.2 gestrichen; es gilt die Empfehlung (a) von `03` F-8.
+  (dvr-autor Punkt 3)
+- **Verschobene Termine:** nicht eindeutige und fehlende Aufnahme-Termine laufen zur alten Zeit und sind markiert
+  (`11` 2.3); `livetv.epg.reconcile` prüft auch laufende Aufnahmen und meldet ein späteres Ende zur Verlängerung
+  (`11` O-1, `15` LA-14). (dvr-autor Punkte 2 und 4)
+- **Erinnerungen:** Vorlauf 0, 5, 15, 30 Minuten nach `03` DR-08 (60 gestrichen); entfallene Sendung →
+  `dropped` mit Hinweis in der Glocke; keine Erinnerung bei deaktiviertem Sender und für Sender ohne EPG
+  (`03` DR-08, DR-09); Kanäle nach `03` F-3, PIN-Profile nach `03` DR-05. F-3 dieses Dokuments verweist auf
+  `03` F-3. (`07` W-2, W-3)
+- **Stufen** nach `18`: Lesart neu; 1a/1b ohne Programmfelder, 2 Programmzeitschrift, H EPG im Heimnetz,
+  5 Aufnahme aus dem Programm und Anpassung (LTV-005.18, .26), 6 Folgenerkennung; ADR 0049 (O-12).
