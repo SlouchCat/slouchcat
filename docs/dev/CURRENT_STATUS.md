@@ -1,8 +1,8 @@
 # Aktueller Stand
 
-## CI-Optimierung Welle 1: Übernahme, apt-Grenzen, Fehlerauszug, Selbstprüfung (28. November 2026)
+## CI-Optimierung Welle 1: Übernahme, apt-Grenzen, Fehlerauszug, Selbstprüfung (28. November 2026, PR #240)
 
-Zweig `claude/ci-optimierung`. Marcos Auftrag vom 28. November 2026: die CI messen, Werkzeuge
+PR #240, Zweig `claude/ci-optimierung`. Marcos Auftrag vom 28. November 2026: die CI messen, Werkzeuge
 installieren, einen Plan zur Freigabe vorlegen (`docs/perf/ci-optimierungsplan.md`, M1 bis M10, H1
 bis H3). Freigegeben und umgesetzt ist **Welle 1** (M1, M2, M3, M7); Entscheide im Nachtrag vom
 28. November 2026 zu ADR 0013, Ausgangswerte in `docs/perf/ci.md`, Abschnitt 9.
