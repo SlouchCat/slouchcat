@@ -1,5 +1,26 @@
 # Aktueller Stand
 
+## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026, PR #241)
+
+PR #241, Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom
+28. November 2026 (`docs/perf/ci-optimierungsplan.md`, M4 und M5; ADR 0013, Nachtrag Welle 2;
+Messung `docs/perf/ci.md`, Abschnitt 10).
+
+- **Dauertabelle:** `web/e2e/durations.json` aus drei grünen PR-Läufen seit dem 26. November statt aus
+  zwei Läufen vom 3. November (34 der 106 Spec-Dateien fehlten darin). `task web:e2e:durations`
+  formatiert sie jetzt selbst mit prettier.
+- **Sieben Shards:** Auf dem Runner gemessen (Wegwerf-Workflow, je viermal) lag der längste Shard im
+  Median bei 6 → 12,5 min, 7 → 10,1, 8 → 10,0, 9 → 8,8; die Runner-Minuten der e2e-Jobs bei 69, 69,
+  74 und 77. Bisher in der CI: 12,7 min.
+- **Web-Job in zwei Hälften:** `web (generators, linters)` 3,3 min, `web (unit tests)` 4,9 bis 7,8 min
+  statt 7,8 min am Stück. `server-lint` in drei Schritten.
+- **Geprüft:** `task ci` grün in Teilen (server 1087 s, android 70 s, web 169 s, storybook 127 s,
+  e2e 806 von 806 Tests in 1388 s); `task ci:workflows` grün; `shards:check` mit 7 Shards: 806 Tests,
+  jeder in genau einem; Review ohne blockierenden Befund, Befunde umgesetzt.
+- **Nebenfund für M8:** `admin-library-delete.spec.ts:73` (Firefox) einmal rot, auch beim Retry, in der
+  Wiederholung desselben Shards grün.
+- **Offen:** Nachmessen über 10 volle PR-Läufe (erwartet rund 12,5 statt 15,2 min Wartezeit).
+
 ## CI-Optimierung Welle 1: Übernahme, apt-Grenzen, Fehlerauszug, Selbstprüfung (28. November 2026, PR #240)
 
 PR #240, Zweig `claude/ci-optimierung`. Marcos Auftrag vom 28. November 2026: die CI messen, Werkzeuge

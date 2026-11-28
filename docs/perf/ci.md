@@ -362,3 +362,44 @@ Die Auswerteskripte liegen lokal in `.omc/research/ci-optimierung/skripte/` (nic
 
 Welle 1 ändert keinen langen Pol; die Wartezeit eines PR bleibt bei rund 15 Minuten. Die Wartezeit
 senken erst M4 (e2e-Shards) und M5 (Web-Job teilen) aus Welle 2.
+
+## 10. Nachtrag vom 28. November 2026: Messung der e2e-Shard-Zahl und des geteilten Web-Jobs
+
+Wegwerf-Workflow `measure.yml` auf dem Zweig `claude/messung-e2e-shards` (ohne PR, danach gelöscht),
+Läufe 46150103062 und 46151712472, je zwei Wiederholungen jeder Variante, also n = 4. Grundlage ist
+die aufgefrischte Dauertabelle (806 Tests). «Längster Shard» ist die Job-Dauer des langsamsten Shards
+eines Durchgangs; sie bestimmt das Ende des e2e-Pfads. Runner-Minuten der e2e-Jobs eines Durchgangs,
+je Job aufgerundet.
+
+| Shards | längster Shard je Durchgang (min) | Median | Runner-Min e2e je Durchgang | Median |
+|---|---|---|---|---|
+| 6 | 10,9 · 12,5 · 12,6 (· 11,6*) | 12,5 | 63 · 69 · 69 (· 58*) | 69 |
+| 7 | 9,8 · 10,1 · 10,2 · 11,2 | 10,1 | 68 · 68 · 70 · 75 | 69 |
+| 8 | 9,3 · 10,0 · 10,0 · 10,1 | 10,0 | 73 · 74 · 74 · 75 | 74 |
+| 9 | 8,4 · 8,8 · 8,9 · 9,9 | 8,8 | 75 · 76 · 78 · 79 | 77 |
+
+\* Ein Shard rot (Flake in `admin-library-delete.spec.ts:73`, Firefox; derselbe Shard in der
+Wiederholung grün). Dieser Durchgang ist unvollständig und zählt nicht zum Median. Mediane aus den
+ungerundeten Job-Dauern.
+
+**Gewählt: sieben Shards** (Marcos Entscheid vom 28. November 2026; ADR 0013, Nachtrag Welle 2).
+
+Zum Vergleich in der CI seit dem 26. November mit der alten Tabelle: längster Shard Median 12,7 min
+(n = 11). Jeder Shard zahlt rund 2,5 min fest (Einrichtung 1,2 min, Server und `globalSetup`); darum
+sinkt die Dauer langsamer, als die Testzeit je Shard schrumpft, und die Runner-Minuten steigen.
+
+Web-Job geteilt (je vier Durchgänge, Job-Dauer): Lint-Hälfte 3,3 · 3,3 min vollständig (dazu 2,8 · 2,9
+bis zum Prettier-Fehler der Tabelle, ohne die letzten kleinen Prüfungen), Test-Hälfte 4,9 · 5,0 · 5,7 · 7,8 min. Bisher der ganze Job
+im Median 7,8 min (P95 11,6).
+
+### Nachmessen nach dem Merge
+
+| Kennzahl | vorher | erwartet (geschätzt aus der Messung) |
+|---|---|---|
+| Voller PR-Lauf bis Gate, Median | 15,2 min (n = 6) | rund 12,5 min |
+| längster e2e-Shard, Median | 12,7 min (n = 11) | rund 10,1 min |
+| Web-Pol (Ende des Jobs), Median / P95 | 8,1 / 11,9 min | rund 5 bis 6 / 8 min |
+| Runner-Minuten je vollem PR-Lauf | 188,0 | etwa gleich bis +2 (e2e gemessen gleich, zweite Web-Hälfte rund +1) |
+
+Über mindestens 10 volle PR-Läufe nachmessen (`.omc/research/ci-optimierung/skripte/`); weniger als
+10 als vorläufig melden.

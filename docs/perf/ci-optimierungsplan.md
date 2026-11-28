@@ -1,8 +1,11 @@
 # CI-Optimierungsplan (Vorschlag zur Freigabe)
 
-Stand: 28. November 2026, main `1220769b`. Zweig `claude/ci-optimierung`. **Welle 1 (M1, M2, M3, M7)
-hat Marco am 28. November 2026 freigegeben; sie ist auf diesem Zweig umgesetzt** (ADR 0013, Nachtrag
-vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). Alle anderen Massnahmen warten auf
+Stand: 28. November 2026. **Welle 1 (M1, M2, M3, M7)** ist umgesetzt und gemergt (PR #240; ADR 0013,
+Nachtrag vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). **Welle 2 (M4, M5)** ist
+freigegeben und umgesetzt: neue Dauertabelle, sieben statt sechs e2e-Shards (Marcos Wahl nach der
+Messung, `docs/perf/ci.md`, Abschnitt 10), Web-Job in zwei Hälften, `server-lint` in Einzelschritten.
+Die Lint-Hälfte des Web-Jobs bleibt ein Schritt (ein roter Generator-Abgleich verdeckt dort noch die
+Linter; eigene kleine Massnahme, wenn gewünscht). Alle anderen Massnahmen warten auf
 seine Freigabe und werden danach einzeln, messbar und mit einem Revert umkehrbar umgesetzt
 (Abschnitt 6).
 
@@ -120,7 +123,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 
 | Feld | Inhalt |
 |---|---|
-| Zustand | 6 Shards, geplant nach `web/e2e/durations.json` (zuletzt 12.11., `080f5eb4`). 19 von 106 Spec-Dateien fehlen darin und werden mit dem Median ihres Projekts geplant. ADR 0013 begründete «sechs» am 3.11. mit rund 6 min je Shard und server-test als kritischem Pfad. |
+| Zustand | 6 Shards, geplant nach `web/e2e/durations.json` (zuletzt 12.11., `080f5eb4`). 34 von 106 Spec-Dateien fehlen darin und werden mit dem Median ihres Projekts geplant. ADR 0013 begründete «sechs» am 3.11. mit rund 6 min je Shard und server-test als kritischem Pfad. |
 | Problem | Heute laufen die Shards 10,6–12,4 min, und der e2e-Pfad ist der einzige lange Pol. |
 | Nachweis | e2e-Pfad in 11 von 11 vollen Läufen der längste Pol, Ende Median 14,2 / P95 15,9 min. Der zweitlängste Pol (server-test) endet 5,0 min früher (P95 6,7). Shards: Median 10,6–12,4 min, Verhältnis 1,17. Shard 4 in Lauf 45977212910: Plan 406 s, Testzeit rund 640 s. Einrichtung je Shard 1,2 min. |
 | Lösung | Stufe a: `task web:e2e:durations RUNS="…"` mit drei grünen E3-Läufen. Stufe b: 6, 7, 8 und 9 Shards auf dem Runner messen, mit einem Wegwerf-Workflow auf eigenem Zweig (je Variante zwei Wiederholungen). Danach Wahl, ADR-0013-Nachtrag, `docs/perf/ci.md`. |
@@ -182,7 +185,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 |---|---|
 | Zustand | Playwright `retries: 1` weist Flakes als «flaky» aus. Rote Läufe werden von Hand neu gestartet. |
 | Problem | Jeder Neustart kostet eine volle Runde Wartezeit und Runner-Minuten. |
-| Nachweis | 22 Läufe mit Neustart, 17 davon ohne Codeänderung grün. Rangliste: `hdr.spec.ts` (Start unter 5 s) 9× rot auf 4 Zweigen, 3× auf demselben SHA später grün; `AudioServiceTest.headphonesPulledOutPauseTheSound` 5×; `admin-library-folders.spec.ts` 5× flaky; `episode.spec.ts` und `audiobook.spec.ts` je 4×; `LoginPage.test.tsx` (react-aria-Timer) 3×; `admin-integrations`, `metadata-editor`, `admin-wishes` je 3×. Emulator-Job im Fenster 53 rot, 33 grün (E3: 3 von 18 rot). |
+| Nachweis | 22 Läufe mit Neustart, 17 davon ohne Codeänderung grün. Dazu im Messlauf vom 28. November: `admin-library-delete.spec.ts:73` (Firefox), rot auch beim Retry, in der Wiederholung desselben Shards grün. Rangliste: `hdr.spec.ts` (Start unter 5 s) 9× rot auf 4 Zweigen, 3× auf demselben SHA später grün; `AudioServiceTest.headphonesPulledOutPauseTheSound` 5×; `admin-library-folders.spec.ts` 5× flaky; `episode.spec.ts` und `audiobook.spec.ts` je 4×; `LoginPage.test.tsx` (react-aria-Timer) 3×; `admin-integrations`, `metadata-editor`, `admin-wishes` je 3×. Emulator-Job im Fenster 53 rot, 33 grün (E3: 3 von 18 rot). |
 | Lösung | Je Test eine eigene Aufgabe, Ursache im Test oder in der App beheben. Nie überspringen, Wiederholungen erhöhen oder Zeitlimits verlängern. |
 | Laufzeit | je vermiedenem Neustart ≈ 15 min (gemessen, Median voller PR-Lauf E3) |
 | Runner-Min | je vermiedenem Neustart ≈ 188 (gemessen) |

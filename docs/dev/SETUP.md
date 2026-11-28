@@ -183,7 +183,7 @@ task e2e:quick E2E_PORT=8197 -- e2e/home.spec.ts:134
 task ci:e2e:parallel                     # die ganze e2e-Suite als 3 Shards nebeneinander
 task ci:e2e:parallel E2E_SHARDS=2 E2E_PORT=8197
 task web:e2e:shards:check                # Selbsttest: jeder Test in genau einem CI-Shard
-task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufen auffrischen
+task web:e2e:durations RUNS="<id> <id> <id>"  # Dauertabelle aus drei grünen PR-Läufen auffrischen
 ```
 
 - `task check:fast` ersetzt `task ci` nicht. Wann welcher Lauf fällig ist, steht im Abschnitt
