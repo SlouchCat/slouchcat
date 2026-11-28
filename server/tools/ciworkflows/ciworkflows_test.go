@@ -62,6 +62,8 @@ func TestBrokenRules(t *testing.T) {
 		{"informational job also in needs", "needs: [changes, web]", "needs: [changes, web, emulator]", "is informational and in the gate's needs", nil},
 		{"unlisted job outside the gate", "", "", `job "emulator" is not in the needs`, []string{}},
 		{"listed name that no job has", "", "", `"gone" (.github/ci-informational-jobs.txt) is no job`, []string{"emulator (informational)", "gone"}},
+		{"gate job with continue-on-error", "  web:\n    name: web\n    needs: changes\n", "  web:\n    name: web\n    needs: changes\n    continue-on-error: true\n", `job "web" is in the gate's needs and has continue-on-error`, nil},
+		{"gate job with continue-on-error from an expression", "  web:\n    name: web\n    needs: changes\n", "  web:\n    name: web\n    needs: changes\n    continue-on-error: ${{ matrix.experimental }}\n", `job "web" is in the gate's needs and has continue-on-error`, nil},
 		{"gate checks a job outside its needs", "          check web           '${{ needs.web.result }}'\n", "          check web           '${{ needs.web.result }}'\n          check emulator '${{ needs.emulator.result }}'\n", `the gate checks "emulator", which is not in its needs`, nil},
 	}
 	for _, c := range cases {

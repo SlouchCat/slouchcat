@@ -4,6 +4,7 @@
 //   - every job is watched: it is in the needs of the gate job `ci` and in the gate's list of
 //     `check <job> '${{ needs.<job>.result }}'` lines, or it is an informational job named in
 //     .github/ci-informational-jobs.txt with continue-on-error, never both;
+//   - a job the gate needs has no continue-on-error: its result must be able to turn the gate red;
 //   - the gate runs always (`if: always()`) and keeps its name `ci`, the status check a merge needs;
 //   - the job `changes` keeps the name .github/scripts/already-tested.sh looks for.
 //
@@ -138,6 +139,8 @@ func Check(data []byte, informational []string) ([]string, error) {
 			add("job %q is informational and in the gate's needs; it is one or the other", id)
 		case !info[id] && !inNeeds:
 			add("job %q is not in the needs of the gate %q: nobody would see its result (or list it in .github/ci-informational-jobs.txt)", id, GateJob)
+		case inNeeds && strings.TrimSpace(wf.Jobs[id].ContinueOnError.Value) != "" && strings.TrimSpace(wf.Jobs[id].ContinueOnError.Value) != "false":
+			add("job %q is in the gate's needs and has continue-on-error: its failure could not turn the gate red", id)
 		case inNeeds && id != ChangesJob && checked[id] != 1:
 			add("job %q needs exactly one line `check %s '${{ needs.%s.result }}'` in the gate step %q (found %d)", id, id, id, gateStep, checked[id])
 		}
