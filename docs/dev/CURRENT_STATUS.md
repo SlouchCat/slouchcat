@@ -1,5 +1,31 @@
 # Aktueller Stand
 
+## CI-Optimierung Welle 3: Cache-Haushalt, Release-Härtung, zwei Flakes (28. November 2026)
+
+Zweig `claude/ci-welle3`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
+umzusetzen (`docs/perf/ci-optimierungsplan.md`, M6, H2, M8; ADR 0013, Nachtrag Welle 3; Messwerte
+`docs/perf/ci.md`, Abschnitt 11).
+
+- **M6 Caches:** Die Verdrängung kam von den vielen Einträgen je Push auf main (acht `go-race`, zwei
+  `gradle-build`, rund 3,3 GiB). `go-race` speichert jetzt einmal am Tag. Den Gradle-Abhängigkeits-Cache
+  speichert nur noch main, ohne den veralteten Build-Cache darin; bisher legte jeder PR mit einer
+  geänderten Build-Datei eine eigene Kopie von 2,5 GiB an. `android-contract` liest die Caches von
+  `android`, statt eine eigene Kopie zu halten.
+- **H2 Releases:** Rechte auf Job-Ebene, kein Token im Checkout, Werte über `env:`, Prüfung «Tag liegt
+  auf main oder `release/*`» in `release.yml` und `release-relay.yml`, Release-Images ohne CI-Cache
+  (gemessen 3,5 bis 4,0 statt 2,3 bis 2,5 min).
+- **M8 Flakes:** `admin-library-delete.spec.ts` (Firefox) und `RadioScreenTest` behoben, belegt mit
+  10 von 10 bzw. 11 von 11 grün nach vorher nachgestelltem Fehler; `hdr.spec.ts`, `AudioServiceTest`,
+  `admin-wishes`/`admin-metadata` waren schon behoben.
+- **Geprüft:** `task ci` grün (server 1055 s, android 105 s, web 164 s, storybook 127 s, e2e 806 von
+  806 in 1481 s), danach `task ci:workflows`; Review: H2 und M8 korrekt, zwei Fehler im Cache-Teil
+  (Ausschlussmuster wirkungslos, Speichern in PRs) und vier kleine behoben.
+- **Für Marco (H1, Einstellungen):** Ruleset `main` steht (mit «up to date»). Offen: Tag-Ruleset für
+  `v*`, `relay-v*`, `app-v*`, `tv-v*`; Freigaberegel und Tag-Bindung für die Umgebung `android-release`
+  (heute ohne Schutz, Admin-Umgehung an); Secret Scanning und Push Protection (aus).
+- **Frage an Marco:** Lädt die Startseite der TV-App spät, nimmt sie auch auf dem Fernseher den Fokus
+  aus der Seitenleiste (Befund aus dem Flake von `RadioScreenTest`).
+
 ## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026, PR #241)
 
 PR #241, Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom
