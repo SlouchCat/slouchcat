@@ -1,12 +1,18 @@
 # Projekt-Skills von Slouchcat
 
-Hier entstehen die eigenen Skills für Design und Oberflächen. **Noch keiner ist angelegt:** Sie
-halten die Regeln des neuen Designs fest und werden erst nach Marcos Freigabe dieses Designs
-geschrieben (Auftrag vom 28. November 2026). Bis dahin gelten `CLAUDE.md`, die Tokens in
+Hier entstehen die eigenen Skills für Design und Oberflächen. **Noch keiner der Design-Skills ist
+angelegt:** Sie halten die Regeln des neuen Designs fest und werden erst nach Marcos Freigabe dieses
+Designs geschrieben (Auftrag vom 28. November 2026). Bis dahin gelten `CLAUDE.md`, die Tokens in
 `packages/design-tokens` und die Bauteile in `web/src/ui` und `android/core/design`.
 
 Ein Skill ist ein Ordner `<name>/SKILL.md`; diese Datei hier ist keiner. Die Skills von aussen
 liegen nicht hier, sondern in `~/.claude/skills` (`docs/dev/DESIGN-WERKZEUGE.md`).
+
+## Vorhanden
+
+| Skill | Inhalt | Quelle der Wahrheit |
+|---|---|---|
+| `slouchcat-ci` | CI-Strategie für alle Agents: rote Läufe sparsam lesen (`task ci:failures`), auf die CI warten, Workflows ändern und messen, Gate- und Cache-Regeln (28. November 2026, deutsch wie der Plan, den er umsetzt) | `docs/perf/ci-optimierungsplan.md`, ADR 0013, `docs/perf/ci.md` |
 
 ## Geplant
 

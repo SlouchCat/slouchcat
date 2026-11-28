@@ -1,5 +1,34 @@
 # Aktueller Stand
 
+## CI-Optimierung Welle 1: Übernahme, apt-Grenzen, Fehlerauszug, Selbstprüfung (28. November 2026)
+
+Zweig `claude/ci-optimierung`. Marcos Auftrag vom 28. November 2026: die CI messen, Werkzeuge
+installieren, einen Plan zur Freigabe vorlegen (`docs/perf/ci-optimierungsplan.md`, M1 bis M10, H1
+bis H3). Freigegeben und umgesetzt ist **Welle 1** (M1, M2, M3, M7); Entscheide im Nachtrag vom
+28. November 2026 zu ADR 0013, Ausgangswerte in `docs/perf/ci.md`, Abschnitt 9.
+
+- **Messung:** 505 Läufe vom 29. Oktober bis 28. November. Voller PR-Lauf seit dem 26. November
+  Median 15,2 min (P95 16,5, n = 6); der e2e-Pfad ist in 11 von 11 Läufen der längste Pol. 10 von 39
+  vollen main-Läufen liefen nur wegen des roten informativen Emulator-Jobs; 17 Jobs hingen bis zur
+  Jobgrenze in apt; ein rotes Job-Log kostet einen Agenten im Median 88 800 Tokens.
+- **M1:** Die Übernahme auf main zählt die Jobs aus `.github/ci-informational-jobs.txt` nicht mehr mit
+  und ist an den geprüften Baum gebunden (Annotation `tested-tree`); ein Merge mit Änderungen unter
+  `.github/` läuft auf main voll (auch der Merge dieses Zweigs). 15 Testfälle.
+- **M2:** apt-Aufrufe enden nach 300 s mit «apt hang (infrastructure)» statt nach 30 bis 45 Minuten.
+- **M3:** `task ci:failures RUN=<id>` gibt je rotem Job die Fehlerzeilen aus; an zehn Referenzläufen
+  Ursache 10 von 10 mit 332 bis 2340 Tokens. Das Gate schreibt seine Tabelle auf die Übersichtsseite.
+- **M7:** `task ci:workflows` (in `task ci` und im Job `server (generators, linters)`): actionlint mit
+  shellcheck, die Gate-Regel als Programm (`server/tools/ciworkflows`), die Selbsttests der
+  CI-Skripte. `.github/actions/android-sdk` statt vier Kopien; Eingaben über `env:`.
+- **Skill:** `.claude/skills/slouchcat-ci/SKILL.md`, verbindlich über `CLAUDE.md`.
+- **Geprüft:** `task ci` grün auf `15c221a9` in Teilen (server 1088 s, android 268 s, web 167 s,
+  storybook 127 s, e2e 806 von 806 Tests in 1607 s); die Korrekturen aus Code- und Sicherheitsreview
+  danach mit `task ci:workflows` und `task server:check:fast`. Sicherheitsreview: Risiko niedrig, kein
+  Weg zu einer Übernahme ungeprüften Inhalts.
+- **Offen:** Nachmessen nach dem Merge (`docs/perf/ci.md`, Abschnitt 9). Welle 2 (M4 e2e-Shards, M5
+  Web-Job teilen), M6, M8 bis M10 und die Härtung H1 bis H3 warten auf Marcos Wort; H1 sind
+  Einstellungen, die er selbst setzt.
+
 ## Design-Werkzeuge für den Relaunch eingerichtet (28. November 2026)
 
 Marcos Auftrag vom 28. November 2026: die Arbeitsumgebung für den UI-/UX-Relaunch und das
