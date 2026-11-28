@@ -1654,7 +1654,7 @@ sie ordnet.
 | N-5 | neue Verbindung gegen Ströme derselben Quelle | vorher enden nur Ströme **ohne Haltegrund** (Ende abwarten höchstens 1 s); Vorgeladenes und automatisch Gehaltenes bleibt | `04` 5.3, `05` 6 |
 | N-6 | zwei Vorladungen derselben Quelle | laufen nebeneinander (nur mit Schalter der Quelle) | `04` 5.3, `05` 6 |
 | N-7 | Ablehnung für einen Abnehmer gegen vorsorglichen Empfang derselben Quelle | bei dieser Quelle nach Rangfolge freigeben (ohne Haltegrund, Vorgeladenes, Prüfungen, automatisch; für Zuschauer und Aufnahme auch dauerhaft und Zeitplan ohne Abnehmer, zurückgestellt), einmal sofort neu; nie ein Strom mit Zuschauer oder Aufnahme; vorsorglicher Empfang ruht 30 min | `04` 5.3 |
-| N-8 | Abbruch eines gehaltenen Stroms kurz nach einer vorsorglichen Verbindung | «vermutlich Verbindungslimit»: vorsorgliche Ströme der Quelle enden, gehaltener Strom verbindet sofort neu | `04` 5.3 |
+| N-8 | Abbruch eines gehaltenen Stroms kurz nach einer vorsorglichen Verbindung | «Quelle lehnt eine weitere Verbindung ab»: vorsorgliche Ströme der Quelle enden, gehaltener Strom verbindet sofort neu | `04` 5.3 |
 | N-9 | Schreiber des Rings gegen Leser | Schreiber wartet nie; Leser kopiert, prüft danach, verwirft bei Überrundung und setzt am nächsten Keyframe fort; GOP-Index unter kurzer Lesesperre; «neue Daten» als ersetzter Kanal | T-8, `05` 3.5 |
 | N-10 | mehrere stockende Schreiber gegen das Byte-Budget | Rückstau zählt bei Gebrauch; der Rest des Budgets wird zu gleichen Teilen geteilt; wer seinen Teil ausschöpft, bekommt eine Lücke; niemand wird abgelehnt | `04` 8.1 |
 | N-11 | Quellwechsel gegen Aufnahme | neuer Zeitabschnitt, Aufnahme beginnt einen neuen Teil, bricht nicht ab | T-6, T-16, Ablauf 3.10 |
@@ -1727,3 +1727,4 @@ Fassung 1 → 2, Grundlage `04` und `05` Fassung 3 (Abschnitt 13.4, 14, 15.1) un
 - 6: Liste «offen in 04» ersetzt durch die Weichen, die `04`, `05` und `03` selbst offen führen.
 - Restebereinigung nach Konsolidierung 1: Schalter je Quelle heisst «Vorladen für Sender dieser Quelle: an/aus»
   (Ablauf 3 und Ablauf zum Vorladen; Koordinator zu RM-01).
+- Restebereinigung nach Konsolidierung 1, Nachtrag: Deutung «Quelle lehnt eine weitere Verbindung ab» (N-8; `20` U-18).

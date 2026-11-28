@@ -328,7 +328,7 @@ Zwei Aufnahmen zur selben Zeit sind kein Konflikt. Ein Konflikt (LTV-008.13, `03
 
 Was der Server **nicht** vorhersagt: Live-Zuschauer zur Zeit des Termins, und ob der Anbieter eine weitere
 Verbindung annimmt. Eine Aufnahme kann deshalb an einer Ablehnung der Quelle scheitern; dann gelten die Regeln
-aus `04` Abschnitt 5.3 (Deutung «vermutlich Verbindungslimit», kein Sperren), und die Aufnahme bekommt eine
+aus `04` Abschnitt 5.3 (Deutung «Quelle lehnt eine weitere Verbindung ab», kein Sperren), und die Aufnahme bekommt eine
 Lücke oder schlägt fehl.
 
 ### 4.2 Prognose des Platzbedarfs
@@ -1104,3 +1104,4 @@ Fassung 1 → 2 (Konsolidierung 1; Grundlage `04` Fassung 3 Abschnitte 13.4, 14,
 - Fragen F-1 und F-2 unverändert (beide «vor Stufe 5» in `18`).
 - Zahlenformat auf de-CH umgestellt (Dezimalpunkt).
 - Restebereinigung nach Konsolidierung 1: Fragen F-1 und F-2 mit Verweis auf `20` (E-28-44, E-28-50).
+- Restebereinigung nach Konsolidierung 1, Nachtrag: Deutung «Quelle lehnt eine weitere Verbindung ab» (`20` U-18).

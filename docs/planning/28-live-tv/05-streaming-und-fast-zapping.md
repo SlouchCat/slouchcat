@@ -900,7 +900,7 @@ Regeln für ruhende Sender, damit Prüfungen nicht zur Last werden:
 | Empfänger | Weg | Inhalt |
 |---|---|---|
 | Zuschauer | Herzschlag der Sitzung und die Zeichen im Strom | Zustand in Worten: «Verbindung wird wiederhergestellt», «Ersatzquelle», «Sender nicht verfügbar», «Quelle lehnt weitere Verbindung ab», mit stabilem Code |
-| Verwaltung | Abfrage wie heute | je Sender und Quelle: Zustand, seit wann, letzter Fehlercode, Zahl der Wiederverbindungen und Wechsel, Messwerte; Hinweis «vermutlich Verbindungslimit des Anbieters» |
+| Verwaltung | Abfrage wie heute | je Sender und Quelle: Zustand, seit wann, letzter Fehlercode, Zahl der Wiederverbindungen und Wechsel, Messwerte; Hinweis «Quelle lehnt eine weitere Verbindung ab» |
 | Administrator | bestehende Benachrichtigung «Fehler», entprellt | längere Ausfälle nach 9.2; Speicherorte |
 | Protokoll | `slog` über die Schwärzung | technische Fehler mit Sender-Kennung, Quelle nur als Schema und Host |
 

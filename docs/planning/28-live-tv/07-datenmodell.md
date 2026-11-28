@@ -362,7 +362,7 @@ CREATE UNIQUE INDEX live_storage_active ON live_storage (role) WHERE status = 'a
 
 **`live_sources`** · eine Quelle des Administrators (LA-02, LA-03): M3U-Adresse, M3U-Datei, Xtream oder
 Einzelstrom. Stufe 1a; `refresh_minutes`, `refresh_at_minute`, `next_refresh_at`, `guard_incomplete` Stufe 1b
-(automatische Aktualisierung, zurückgehaltene Liste, `18` 4.3); `allow_more_conns` Stufe 3; `listen_interface`
+(automatische Aktualisierung, zurückgehaltene Liste, `18` 4.3); `preload_enabled` Stufe 3 (Schalter «Vorladen für Sender dieser Quelle», Einstellung des Vorladens nach LTV-002/LTV-010, keine Verbindungsverwaltung; LTV-017, `04` F-3); `listen_interface`
 Stufe H.
 
 ```sql
@@ -378,7 +378,7 @@ CREATE TABLE live_sources (
     password_enc      TEXT    CHECK (password_enc IS NULL OR password_enc GLOB 'v[0-9]*:*'),
     user_agent_enc    TEXT    CHECK (user_agent_enc IS NULL OR user_agent_enc GLOB 'v[0-9]*:*'), -- RD-19
     file_sha256       TEXT    CHECK (file_sha256 IS NULL OR length(file_sha256) = 64), -- m3u_file
-    allow_more_conns  INTEGER NOT NULL DEFAULT 0 CHECK (allow_more_conns IN (0, 1)),  -- Stufe 3, T-18
+    preload_enabled   INTEGER NOT NULL DEFAULT 0 CHECK (preload_enabled IN (0, 1)),   -- Stufe 3, T-18
     listen_interface  TEXT    CHECK (listen_interface IS NULL OR length(listen_interface) <= 64), -- Stufe H
     refresh_minutes   INTEGER CHECK (refresh_minutes IS NULL OR refresh_minutes BETWEEN 60 AND 10080),
                       -- NULL: nur von Hand
@@ -1997,7 +1997,7 @@ nichts vorziehen); einzige Ausnahme sind geschlossene Wertelisten in Tabellen, d
 | 1a | `live_config` (Spalten 1a), `live_sources` (ohne Spalten 1b, 3, H), `live_source_headers`, `live_source_origins`, `live_source_imports`, `live_source_import_items`, `live_channels` (ohne `strategy`, `schedule_id`), `live_channel_locks`, `live_channel_categories`, `live_channel_streams`, `live_favorites`, `live_recent_channels`, `live_sessions` (ohne `recording_id`), `live_session_tunes`, `live_watch_time`, `live_stream_events`; Sicht `live_visible_channels` | `accounts`, `profiles`, `invitations`: `can_live_tv`, Werkseinstellung | `my_media` (Schlüssel `livetv`) |
 | 1b | `live_groups`, `live_group_channels`, `live_duplicate_dismissals` | `live_sources.refresh_minutes`, `.refresh_at_minute`, `.next_refresh_at`, `.guard_incomplete` | – |
 | 2 | `live_epg_sources`, `live_epg_imports`, `live_channel_epg`, `live_reminders`; `epg.db` (vom Server angelegt, keine Migration) | `live_config`: EPG-Spalten | `notifications`, `deliveries` (alle Live-Arten) |
-| 3 | `live_reception_schedules`, `live_reception_windows` | `live_channels.strategy`, `.schedule_id`; `live_sources.allow_more_conns`; `live_config`: Empfang, Überwachung | – |
+| 3 | `live_reception_schedules`, `live_reception_windows` | `live_channels.strategy`, `.schedule_id`; `live_sources.preload_enabled`; `live_config`: Empfang, Überwachung | – |
 | H | `live_net_targets` | `live_sources.listen_interface` | – |
 | 4 | `live_storage` | `can_live_timeshift` auf `accounts`, `profiles`, `invitations` mit Werkseinstellung; `live_config`: Timeshift, `startbuffer_mode` nur bei `04` F-2 (a) (D-3) | – |
 | 5 | `live_recordings` (ohne `rule_id`, `rule_key`), `live_recording_parts`, `live_recording_gaps` | `can_live_record` auf allen drei mit Werkseinstellung; `accounts.live_quota_bytes`, `invitations.live_quota_bytes`; `live_sessions.recording_id`; `live_config`: Aufnahmen | – |
@@ -2243,3 +2243,5 @@ Fassung 3 (T-29, 13.4, Abschnitte 14 und 15), `18` (Stufen, D-3, D-4), `11` Fass
 - Zählung: 32 Tabellen und 1 Sicht in `slouchcat.db`, 7 in `epg.db` (unverändert); 3 Neubauten; Erweiterungen von
   `accounts`, `profiles`, `invitations` jetzt je Stufe.
 - Restebereinigung nach Konsolidierung 1: Fragen F-1 bis F-3 mit Verweis auf `20` (E-28-07, E-28-09).
+- Restebereinigung nach Konsolidierung 1: `live_sources.allow_more_conns` heisst `preload_enabled` (Schalter «Vorladen für
+  Sender dieser Quelle», Entscheid des Koordinators zu `20` U-17).

@@ -703,7 +703,7 @@ Sender ganz aus dem Angebot nehmen will, deaktiviert ihn (LA-05, T-29).
 3. **Protokoll** (`ActivityFeed`/`DataTable`, Filter Sender, Art, Zeitraum): «20:12:04 ZDFinfo · Quelle
    ‹Kabelanbieter Schweiz› liefert keine Daten (Stillstand 10 s) · Wiederverbindung nach 1 s», «20:13:30
    ZDFinfo · Wechsel auf Ersatzquelle 2 ‹Xtream›», «20:14:02 ZDFinfo · Ersatzquelle 2: Anmeldung abgelehnt
-   (403), vermutlich Verbindungslimit des Anbieters». Texte ohne Zugangsdaten, Adressen nur als Host.
+   (403), Quelle lehnt eine weitere Verbindung ab». Texte ohne Zugangsdaten, Adressen nur als Host.
    Freigaben fester Ziele stehen hier ebenfalls (ab Stufe H).
 4. **Regeln der Überwachung** (Aufklapper, zu, Zusammenfassung «Meldung nach 10 Min. · Prüfungen nur bei
    erlaubten Quellen»), nur lesen ausser den zwei Schaltern:
@@ -1120,3 +1120,4 @@ Fassung 1 → 2 (Konsolidierung 1, 28. November 2026):
   Einstellung des Vorladens ohne Verbindungsrechnung (Grundsatz 3, LA-03 Schritt 5, LA-09, V-7, Abschnitt 8);
   LA-06 Logo-Vorschau einer eigenen Adresse erst nach dem Speichern; LA-07 Vereinigung der Gruppen abwählbar;
   Fragen mit Verweis auf `20`. Quelle: Koordinator (RM-01), `07`/`08` Fassung 2, `20` U-10.
+- Restebereinigung nach Konsolidierung 1, Nachtrag: Protokolltext in LA-13 «Quelle lehnt eine weitere Verbindung ab» (`20` U-18).

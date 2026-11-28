@@ -607,7 +607,7 @@ anwendbar, **nicht** übersprungen: Es gibt keinen Test mit `.skip`.
 | **AK-L-210** | LA-10, LTV-Q-09.42, .43, .47–.49 | EPG-Quellen: Quelle, Intervall, Status, Fehler, Vorschauzeitraum, Zeitzone und Verschiebung mit Vorschau. | 2 | CI (ja) |
 | **AK-L-211** | LA-11, LTV-Q-09.44–.46 | EPG-Zuordnungen: automatisch, von Hand, fehlend (Filter). | 2 | CI (ja) |
 | **AK-L-212** | LA-12, LTV-Q-09.50–.63, LTV-009.11 | Aktive Streams: Sender, aktive Quelle (ohne Zugangsdaten), Zustand, Laufzeit, Zuschauer, Aufnahmeprozesse (Zahl), Bitrate, Codecs, Auflösung, Fehler, Umwandlung, Speicher der Puffer; Beenden mit Rückfrage; **Aufnahmen nur als Zahl, ohne Konto** (`AK-L-165`, `AK-L-327`). | 1a (Puffer 3, Aufnahmen 5) | CI (ja) |
-| **AK-L-213** | LA-13, LTV-Q-09.75–.81, LTV-011.13 | Überwachung und Diagnose: nicht erreichbare Sender, fehlerhafte Ströme, Wiederverbindungen, Wechsel auf Ersatzquellen, Protokoll gefiltert (**ohne** Adressen und Zugangsdaten), Benachrichtigungen, Prüfung; Hinweis «vermutlich Verbindungslimit des Anbieters» bei der Deutung aus `04` 5.3. | 1a (Ersatzquellen 3) | CI (ja) |
+| **AK-L-213** | LA-13, LTV-Q-09.75–.81, LTV-011.13 | Überwachung und Diagnose: nicht erreichbare Sender, fehlerhafte Ströme, Wiederverbindungen, Wechsel auf Ersatzquellen, Protokoll gefiltert (**ohne** Adressen und Zugangsdaten), Benachrichtigungen, Prüfung; Hinweis «Quelle lehnt eine weitere Verbindung ab» bei der Deutung aus `04` 5.3. | 1a (Ersatzquellen 3) | CI (ja) |
 | **AK-L-214** | LA-14, LTV-Q-09.64–.67, LTV-008.07, .08 | Aufnahmen (DVR): Standard-Vorlauf, -Nachlauf, Aufbewahrung als Vorgabe (`03` F-10), Aufwärmzeit (10 bis 120 s); Anzeige der Zeitzone des Servers. | 5 | CI (ja) |
 | **AK-L-215** | LA-15, LTV-Q-09.71, LTV-007.10 | Timeshift: Höchstdauer (15 min bis 4 h) und Gesamtgrenze. Vorgabe 60 Minuten, Wahl 15, 30, 60, 120, 240 (`04` 14.6; `15` ist nachzuführen). | 4 | CI (ja) |
 | **AK-L-216** | LA-16, LTV-Q-09.68–.70, .72–.74, LTV-019.01–.03, .10, .11, .13 | Speicher: drei Speicherorte, Grenzen, Reserve, **Belegung je Konto ohne Titel**, Warnungen, Wechsel mit Hinweis. | 4 (Startpuffer nur bei `04` F-2 (a)), 5 | CI (ja) |
@@ -1261,7 +1261,8 @@ Fassung 2 (Konsolidierung 1). Grundlage: `KONSOLIDIERUNG.md`, `18-umsetzungsplan
 - Kopf: Fassung 2, Status «Entwurf nach Konsolidierung 1, nicht freigegeben».
 - Restebereinigung nach Konsolidierung 1: neuer Negativtest `AK-L-333` für LTV-X-29 (1a; 333 `AK-L`, 158 in 1a);
   Stufenzellen von `AK-L-019`, `-179`, `-186`, `-192`, `-212`, `-230`, `-309` um die Teilstufen aus `18` ergänzt
-  (Programmdaten 2, Aufnahmen 5, Puffer und Benchmark 3) und 8.1 neu gezählt. Quelle: `22` Abschnitt 7.
+  (Programmdaten 2, Aufnahmen 5, Puffer und Benchmark 3) und 8.1 neu gezählt. Quelle: `22` Abschnitt 7. Hinweis in `AK-L-213` heisst
+  «Quelle lehnt eine weitere Verbindung ab» (`20` U-18).
 
 ---
 

@@ -354,7 +354,7 @@ vorgeladen, und fällt eine Quelle aus, wechselt Slouchcat selbst auf die nächs
 | Punkt | Inhalt |
 |---|---|
 | **Umfang** | LTV-002.01, .02, .04 bis .07, .12 (dauerhaft, automatisch, zeitgesteuert, Vorgabe und Ausnahme je Sender, Vorladen, Wiederanlauf nach Neustart); LTV-003.22, LTV-004.32, LTV-011.09 (Ersatzquellen); LTV-010 (Startpuffer, Vorladen, Benchmark; LTV-001.06); LTV-011 Rest (Takt der Prüfungen, Bitrate, Auflösung, Codecs, kein Ton, Meldungen entprellt über das Benachrichtigungssystem); LTV-007.12, .13 und LTV-013.02 (Startpuffer getrennt, kein Archiv); Zustand «zurückgestellt» für dauerhafte Ströme, die bei Mangel weichen, mit Wiederanlauf (`04` 5.1, 5.3); LTV-011.04 nur für den Stillstand des Transports, das stehende Bild in Stufe E (D-5, `04` F-14 (a)) |
-| **Tabellen** | `live_reception_schedules`, `live_reception_windows`; `live_channels.strategy`, `.schedule_id`; `live_sources.allow_more_conns`; `live_config` Empfang, Startpuffer (Grösse), Überwachung; Sicht `live_visible_channels` neu anlegen (`07` O-6) |
+| **Tabellen** | `live_reception_schedules`, `live_reception_windows`; `live_channels.strategy`, `.schedule_id`; `live_sources.preload_enabled`; `live_config` Empfang, Startpuffer (Grösse), Überwachung; Sicht `live_visible_channels` neu anlegen (`07` O-6) |
 | **Operationen** | 5 neue: `switchLiveIngestSource`, Zeitpläne (4); `updateLiveChannel` mit Empfang; `getLiveDiagnostics` mit den Teilen der Stufe 3 |
 | **Seiten** | LA-09; LA-13 (erweitert); LA-24 (Ausfallmeldungen); LA-01 (Kosten des vorsorglichen Empfangs); LS-07 (Hinweis «Ersatzquelle») |
 | **Abhängigkeiten** | Stufe 1 (technisch), Stufe 2 (Reihenfolge); **V-8 als Baufreigabe**; Antworten «vor Stufe 3» |

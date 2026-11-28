@@ -924,7 +924,7 @@ LiveSource:
     hasCustomUserAgent: {type: boolean, description: The value is encrypted and never returned (RD-19).}
     origins: {type: array, items: {type: string}}
     localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTarget"}}   # stage H
-    allowMoreConnections: {type: boolean}                                                # stage 3, T-18
+    preloadEnabled: {type: boolean, description: "'Preload channels of this source' (04 T-18): a preload setting (LTV-002, LTV-010), not connection management; no per-source connection count (LTV-017, open question 04 F-3)."}   # stage 3, T-18
     listenInterface: {type: string}                                                      # stage H
     refresh: {type: object, properties: {everyMinutes: {type: integer}, atMinute: {type: integer}, next: {type: integer, format: int64}}}
     newChannelsEnabled: {type: boolean}
@@ -960,7 +960,7 @@ LiveSourceWrite:
     single: {type: object, description: single, step 4 of LA-03, properties: {newChannel: {type: object, properties: {name: {type: string}, number: {type: integer}, groupId: {type: integer}}}, addToChannelId: {type: integer, format: int64}}}
     origins: {type: array, items: {type: string}}
     localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTargetWrite"}}
-    allowMoreConnections: {type: boolean}
+    preloadEnabled: {type: boolean}
     listenInterface: {type: string}
     refreshEveryMinutes: {type: integer, minimum: 60, maximum: 10080, nullable: true}
     refreshAtMinute: {type: integer, minimum: 0, maximum: 1439, nullable: true}
@@ -1735,3 +1735,5 @@ zusammengelegt: 8 (S-1 bis S-7, `getLiveImportPreview` und `listLiveImportPrevie
 (`endLiveChannelNow`).
 
 Restebereinigung nach Konsolidierung 1: Frage F-1 mit Verweis auf `20` E-28-42.
+
+Restebereinigung nach Konsolidierung 1: `allowMoreConnections` heisst `preloadEnabled` (`20` U-17).
