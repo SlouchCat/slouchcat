@@ -483,3 +483,23 @@ Der Kartentest im Job `changes` braucht lokal rund 5 s (164 Lesezugriffe, 42 Tab
 M10 (`server tests (1)` teilen) bleibt zurückgestellt: Im ersten Lauf nach Welle 2 (PR #241) endete
 `server tests (1)` nach 11,6 min, der e2e-Pfad nach 13,1 min. server-test ist damit nicht der Pol;
 die Bedingung des Plans («erst wenn Pol») ist nicht erfüllt.
+
+## 13. Nachtrag vom 28. November 2026: vorläufige Nachmessung nach den Wellen 1 bis 3 und M9
+
+Alle vollen PR-Läufe mit sieben e2e-Shards bis zum Merge von M9 (n = 4, **vorläufig**; der Plan
+verlangt zehn). Gate-Zeit = Ende des Jobs `ci` minus Start des Laufs, Runner-Minuten = Summe der
+Jobdauern (mit dem informativen Emulator-Job, wie die Ausgangswerte in Abschnitt 9):
+
+| Lauf | PR | Gate | Runner-Min |
+|---|---|---|---|
+| 46158298349 | #241 | 13,7 min | 168 |
+| 46168563697 | #244 | 13,9 min | 173 |
+| 46173175395 | #245 | 14,4 min | 171 |
+| 46174572128 | #245 | 13,2 min | 167 |
+| **Median** | | **13,8 min** (vorher 15,2, E3) | **169,5** (vorher 188,0) |
+
+Alle vier Läufe änderten `.github/` und prüften deshalb alles; die Wirkung von M9 auf gefilterte PRs
+ist darin nicht enthalten (Abschnitt 12, nachmessen an zehn reinen Android-PRs). Die main-Läufe
+nach den Merges von #244 und #245 liefen voll (14,8 und 12,7 min), wie bei einer Änderung an
+`.github/` vorgesehen. **Nachmessen:** über zehn volle PR-Läufe mit denselben Skripten
+(`skripte/holen.sh`, `skripte/auswertung.py`).
