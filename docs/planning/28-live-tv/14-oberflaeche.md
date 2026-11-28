@@ -45,8 +45,8 @@ heisst schnell von Sender zu Sender schalten.
    für das Recht «Aufnahmen» (alle Aufnahme-Knöpfe, Seiten LS-08 bis LS-12 und LS-14 fehlen; vorhandene
    Aufnahmen sind dann 404 und bleiben gespeichert, Planungen ruhen, `03` F-7 (a) bis zu Marcos Antwort)
    und das Recht «Timeshift» (Anhalten und Zurückspulen fehlen, Abschnitt 4.7). Timeshift und Aufnahmen
-   setzen Live-TV voraus (`03` DR-22). Ausnahme A-12 (`12` 1.1): Das Hauptprofil sieht und löscht die
-   Aufnahmen seiner Profile mit Altersgrenze auch ohne eigenes Live-TV-Recht (LS-14). Der Server prüft in
+   setzen Live-TV voraus (`03` DR-22). Nur bei Variante (a) von `20` E-28-42 (A-12): Das Hauptprofil sieht
+   und löscht die Aufnahmen seiner Profile mit Altersgrenze auch ohne eigenes Live-TV-Recht (LS-14); Vorgabe (b): nicht. Der Server prüft in
    fester Reihenfolge (`12` 9.3): Anmeldung, Recht, Objekt, erst dann Grenzen und Zustände; ein Profil ohne
    Recht sieht darum nie «ausgelastet», «zu schnell» oder «Sehzeit aufgebraucht», sondern nur «Nicht gefunden».
 2. **Kein Altersfilter.** Live-TV zeigt allen freigegebenen Profilen alle Sender des Angebots. Es gibt
@@ -227,7 +227,7 @@ oben als fokussierbare Chips; ↑ aus der ersten Inhaltsreihe führt hinein, ↓
 |---|---|---|---|---|
 | LS-20 | Hauptnavigation | Eintrag «Live-TV» (oben 1.1) | alle | 1 |
 | LS-21 | Profile verwalten: Profilformular (`/settings/profiles`, `web/src/features/profiles/ProfileForm.tsx`; Handy-App Einstellungen › Profile; TV «Profile verwalten») | neuer Block «Live-TV» mit drei Schaltern (Abschnitt 1.3); Link «Aufnahmen meiner Profile» (LS-14, `03` DR-02); im Löschdialog eines Profils Zahl und Grösse seiner Aufnahmen (`03` DR-04) | alle | 1 (Schalter «Live-TV»), 4 («Timeshift»), 5 («Aufnahmen», Link, Löschdialog) |
-| LS-22 | Benachrichtigungen einstellen (`/settings/notifications`, `features/notifications/ChannelSettingsPage.tsx`) | drei neue Ereignisarten mit je einem Schalter: «Sendungserinnerung», «Aufnahme fertig», «Aufnahme fehlgeschlagen» (darunter auch «nicht aufgenommen, Kontingent voll»; `07` W-21); Kanäle nach `03` F-3 | Web, Handy-App | 2 (Erinnerung), 5 (Aufnahmen) |
+| LS-22 | Benachrichtigungen einstellen (`/settings/notifications`, `features/notifications/ChannelSettingsPage.tsx`) | drei neue Ereignisarten mit je einem Schalter: «Sendungserinnerung», «Aufnahme fertig», «Aufnahme fehlgeschlagen» (darunter auch «nicht aufgenommen, Kontingent voll»; `07` W-21); Kanäle nach `03` F-3; dazu ein Schalter des Profils «Titel und Sender in Meldungen nach aussen nennen» (ab Werk aus, für Profile mit PIN nie; `12` SM-56, `07` `profiles.live_notify_titles`, `08` `liveTitles`) | Web, Handy-App | 2 (Erinnerung), 5 (Aufnahmen) |
 | LS-23 | Benachrichtigungen (Glocke, `features/discover/NotificationsPage.tsx`, `ui/InboxEntry.tsx`) | neue Einträge mit Symbol `reminder`/`record`, Ziel Sendungsdetails, Player oder Aufnahme; bei Profilen mit PIN über externe Kanäle ohne Titel (`03` DR-05) | alle | 2, 5 |
 | LS-24 | Suche (`/search`, `features/discover/SearchPage.tsx`) | nach `03` F-5 (Empfehlung dort (a): keine Änderung); **nie Aufnahmen** | Web, Handy-App, TV | 2 (nur nach `03` F-5) |
 | LS-25 | Ton-Vorrang (`web/src/app/radio/priority.ts`) und Mini-Player-Dock | Live-TV ist eine dritte Tonquelle: Einschalten von Live-TV beendet Radio und Hörbuch vor dem Umschalten; Verlassen des Live-Players hinterlässt **keinen** Mini-Player (kein Bild-im-Bild) | Web; Handy-App analog | 1 |
@@ -684,12 +684,12 @@ sehen, abspielen und löschen. Profile ohne Altersgrenze erscheinen hier nie.
 Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat.» Je Profil ein Aufklapper (zu),
 Kopfzeile mit Avatar und Zusammenfassung «Mia · 4 Aufnahmen · 3,3 GB · 2 geplant». Aufgeklappt: Liste
 wie LS-08 (Karten oder Zeilen) mit Abspielen und Löschen, ohne Fortschritt und ohne «Weiter ab»
-(`03` DR-21). Geplante Termine des Profils erscheinen nur als Zahl in der Kopfzeile («2 geplant»; so `08`
-und das Mockup); ob mehr, ist F-4. Löschen geht auch, wenn das Recht «Aufnahmen» des Profils oder des
+(`03` DR-21). Geplante Termine des Profils erscheinen nach der Vorgabe (A) nicht, auch nicht als Zahl
+(`20` E-28-43); ob mehr, ist F-4. Löschen geht auch, wenn das Recht «Aufnahmen» des Profils oder des
 Kontos aus ist, damit Platz frei wird; Abspielen setzt «Live-TV» beim Hauptprofil voraus (`03` DR-03).
 
-**Ohne eigenes Live-TV-Recht** des Hauptprofils (Ausnahme A-12, `12` 1.1): Der Live-TV-Bereich fehlt, aber
-LS-14 bleibt über die Profilverwaltung erreichbar, mit Sehen und Löschen; «Abspielen» fehlt dann (`03` DR-03),
+**Ohne eigenes Live-TV-Recht** des Hauptprofils: Vorgabe (`20` E-28-42 (b)): auch LS-14 fehlt. Nur bei Variante
+(a) (A-12, `12` 1.1): Der Live-TV-Bereich fehlt, aber LS-14 bleibt über die Profilverwaltung erreichbar, mit Sehen und Löschen; «Abspielen» fehlt dann (`03` DR-03),
 mit dem Satz «Zum Abspielen braucht dein Profil selbst Live-TV.» So kann das Hauptprofil Speicher freigeben.
 
 **Erreichbar** aus der Profilverwaltung (LS-21, Link «Aufnahmen meiner Profile», Ort nach `03` DR-02),
@@ -1581,11 +1581,11 @@ Startseite (LS-26).
 weil die allgemeine Suche altersgefiltert ist, `02` A-2). Die frühere Empfehlung «nur ein Verweis» ist
 zurückgezogen; wählt Marco `03` F-5 (b), wird LS-24 entsprechend gebaut.
 
-**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** → `20` E-28-43; Vorgabe bis zur Antwort: geplante Termine nur als Zahl, sonst (A). Festgelegt ist
+**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** → `20` E-28-43; Vorgabe bis zur Antwort: (A), auch keine Zahl der geplanten Termine. Festgelegt ist
 «sehen, löschen, abspielen» der Aufnahmen (E-3, `03` DR-02). Offen: (A) nur Aufnahmen; (B) dazu die
 geplanten Termine und Regeln nur lesend; (C) geplante auch abbrechen und ändern. Dazu: Bekommt das Profil
 eine Meldung, wenn das Hauptprofil eine seiner Aufnahmen löscht? **Empfehlung B** mit Meldung an das Profil.
-Bis zur Antwort zeigt LS-14 die geplanten Termine nur als Zahl (wie `08` und das Mockup).
+Bis zur Antwort zeigt LS-14 keine geplanten Termine, auch keine Zahl.
 
 **F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** → `20` erledigt (Anhang A). **Erledigt durch
 `03` DR-21 und `11` 6.3:** kein Fortschritt, weder beim Profil noch beim Hauptprofil (LS-10).
@@ -1715,7 +1715,7 @@ Grundlage: `19-mockups.md` Abschnitt 6. «Nachgezogen» heisst: dieses Dokument 
 | LS-25, LD-10, LD-09, Ausblenden nach 4 s | entspricht diesem Dokument | 1.2, 5.10, 5.9, 4.5 |
 | Programm-Überlagerung zeigt Details künftiger Sendungen als Seitenleiste | nachgezogen | 4.9 |
 | «Recht entzogen» mit eigener Adresse im Mockup | nur Mockup; im Produkt Fehlerbild im Player, danach 404 | 4.12 |
-| LS-14: geplante Termine nur als Zahl | nachgezogen als Zwischenstand; offen F-4 | 3.14 |
+| LS-14: geplante Termine nur als Zahl | Mockup zieht nach: nach Vorgabe (A) keine Zahl (Abschnitt 13); offen F-4 | 3.14 |
 | TV: OK zeigt die Bedienleiste, ← die Senderliste | bleibt Frage F-7; das Mockup ist Variante A | 4.13, F-7 |
 | TV: Senderliste folgt der Herkunftsliste, Favoriten nur mit Herz | nachgezogen | 4.5 |
 | TV: «2 h»-Knöpfe im Raster | nachgezogen | 4.3 |
@@ -1778,7 +1778,10 @@ Was sich an den Seiten sichtbar ändert und im Mockup (`19`) nachzuziehen ist:
   Dauersender; deaktivierter Sender läuft weiter (kein Fehlerbild mitten in der Wiedergabe) (4.12).
 - **Pause:** Hinweis «zu lange angehalten, neu gestartet» nach 15 Minuten ohne Abruf (4.7).
 - **Apps im Hintergrund:** Sitzung endet nach 30 s, `toast` «Neu eingeschaltet» bei der Rückkehr (4.5).
-- **LS-14 ohne eigenes Live-TV-Recht:** über die Profilverwaltung erreichbar, ohne «Abspielen» (3.14).
+- **LS-14 ohne eigenes Live-TV-Recht:** nach der Vorgabe (`20` E-28-42 (b)) nicht erreichbar; nur bei Variante (a)
+  über die Profilverwaltung, ohne «Abspielen» (3.14).
+- **LS-14:** keine Zahl der geplanten Termine («2 geplant» entfällt; `20` E-28-43 (A)).
+- **LS-22:** Schalter «Titel und Sender in Meldungen nach aussen nennen» (ab Werk aus, für Profile mit PIN nie; `12` SM-56).
 - **Aus der Konsolidierung 1, noch offen im Mockup:** LD-04 ohne feste Dauern, LD-05 mit 0/5/15/30 Minuten,
   LD-02 ohne «ähnliche Titel» und «Angesehene zuerst» (Abschnitt 11).
 
@@ -1801,3 +1804,4 @@ Fassung 2 → 3 (Schlussbereinigung nach Review 4, 5, 6; 29. November 2026):
   12 Stunden und «Quelle entfernt oder geändert» innert 5 s (RB-05, RT-06).
 - Abdeckung: Zeilen zu Fire TV, Safari/iPhone/iPad und Untertitel neu.
 - Abschnitt 13 «Mockup zieht nach» neu.
+- Letzte Angleichung: F-4 mit Vorgabe (A) ohne Zahl (`20` E-28-43); A-12 nur als Variante (`20` E-28-42); LS-22 mit dem Schalter «Titel und Sender in Meldungen nach aussen nennen» (`12` SM-56); Abschnitt 13 ergänzt.

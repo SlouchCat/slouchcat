@@ -124,7 +124,7 @@ Empfehlung der Ist-Analyse (A1) nachweislich anders lautete.
 
 Diese Punkte stammen aus den Leitplanken des Koordinators oder aus dem Bestand des Repos, nicht aus Marcos Wort.
 Sie gelten bis zu seiner Antwort als **Vorgabe**, und zwar in der wortlauttreuen Form der Spalte «Vorgabe». Die
-Frage dazu führt `20` als «Bestätige die Auslegungen des Koordinators» (Nummer vergibt `20`).
+Frage dazu führt `20` als «Bestätige die Auslegungen des Koordinators» (→ `20` E-28-59 bis E-28-62).
 
 | Nr. | Auslegung | Woher | Vorgabe bis zur Antwort | Varianten |
 |---|---|---|---|---|
@@ -228,4 +228,4 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Marcos Antworten E-1 bis E-4 si
 - **T-29** nach `04` Fassung 4: 12 Stunden, Sofortaufnahme bis zur Höchstdauer, Quelle entfernen oder ändern
   beendet innert 5 Sekunden. Quelle: RB-05, RT-06.
 - **Abschnitt 5:** zwei Freigaben, Grundregel, A-10 bis A-13 in Frage 37 nachzutragen.
-
+- Letzte Angleichung: 3.1 verweist auf `20` E-28-59 bis E-28-62.

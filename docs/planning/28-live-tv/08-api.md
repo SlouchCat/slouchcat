@@ -148,7 +148,7 @@ bekommen, regelt `18` Abschnitt 5 (Stufe «Apps»); der Vertrag ist ihnen voraus
 | DELETE | `/live/recordings/{recordingId}` | `deleteLiveRecording` | löschen oder Termin absagen; `?skip=true` lässt einen Regeltermin aus | L + A (H: Profile mit Altersgrenze) | LD-06, LS-14 | 5 |
 | POST | `/live/recordings/delete` | `deleteLiveRecordings` | mehrere löschen | L + A | LS-08 Auswahl | 5 |
 | GET | `/live/warnings` | `listLiveRecordingWarnings` | Konflikte und Warnungen der eigenen Termine | L + A | LS-12, LS-01 Band, LS-11 | 5 |
-| GET | `/live/profile-recordings` | `listProfileLiveRecordings` | Übersicht je Profil mit Altersgrenze (Name, Zahl, Grösse, geplant als Zahl); die Aufnahmen kommen über `listLiveRecordings?profileId=` (RD-28) | H (3.5) | LS-14, LS-08 Karte | 5 |
+| GET | `/live/profile-recordings` | `listProfileLiveRecordings` | Übersicht je Profil mit Altersgrenze (Name, Zahl, Grösse; geplant als Zahl nur bei `20` E-28-43 (B)); die Aufnahmen kommen über `listLiveRecordings?profileId=` (RD-28) | H (3.5) | LS-14, LS-08 Karte | 5 |
 
 ### 2.5 Regeln (Serie, wiederkehrend; Stufe 6)
 
@@ -302,8 +302,8 @@ Die Rolle `startbuffer` gibt es in den Speicher-Operationen nur bei `04` F-2 (a)
 | **Neu insgesamt** | **115** (Fassung 1: 122) | **7** |
 | Erweiterte bestehende Operationen | 20 (dazu das Schema `PlaybackCapabilities`) | – |
 
-Je Stufe (neue Operationen): 1a 45, 1b 13, 2 24, 3 5, H 1, 4 7, 5 13, 6 7. `18` 4.3 bis 4.9 nennt noch die
-Zahlen aus Fassung 1 und ist nachzuziehen (Abschnitt 9.3, W-33).
+Je Stufe (neue Operationen): 1a 45, 1b 13, 2 24, 3 5, H 1, 4 7, 5 13, 6 7. `18` 4.3 bis 4.9 nennt dieselben
+Zahlen (Abschnitt 9.3, W-33 erledigt).
 
 ---
 
@@ -349,8 +349,8 @@ fest in dieser Reihenfolge und antwortet mit dem ersten Fehler: (1) Anmeldung (4
 (404), **erst dann** (5) Drosselung, Serverdeckel und Zustände (429, 503, 409, 403 `watch_limit_reached`, 410). Ein
 Profil ohne Recht bekommt so immer 404, auch wenn gedrosselt wird, der Deckel voll ist oder `epg.db` neu gebaut
 wird. Sammelantworten (`deleteLiveRecordings.skipped`) nennen fremde und unbekannte Kennungen mit demselben Grund
-`not_found`. Einzige benannte Ausnahme von (3) ist A-12 (3.5): Das Hauptprofil sieht und löscht Aufnahmen seiner
-Profile mit Altersgrenze auch ohne eigenes wirksames «Live-TV».
+`not_found`. Vorgabe (`20` E-28-42 (b)): keine Ausnahme von (3). Nur wenn Marco Variante (a) wählt, gilt A-12 (3.5):
+Das Hauptprofil sieht und löscht Aufnahmen seiner Profile mit Altersgrenze auch ohne eigenes wirksames «Live-TV».
 
 ### 3.2 Sender und Favoriten
 
@@ -863,17 +863,17 @@ sonst 404), `q` (Suche in Titel und Untertitel, `03` DR-13), `sort` (`newest` Vo
 `title`, `size`, `expiring`), `offset`, `limit` (1 bis 100, Vorgabe 50). Antwort `{items: [LiveRecordingBrief],
 total, offset, counts: {all, recording, completed, incomplete, failed}, series: [{ruleId, title, count}]}`. Ohne
 `profileId` sieht ein Hauptprofil hier nur die eigenen (`03` DR-02 «nicht vermischt»); mit `profileId` gibt es
-keine Termine des Kinds (bis `14` F-4 nur die Zahl).
+keine Termine des Kinds (Vorgabe `20` E-28-43 (A), auch keine Zahl).
 
 **`listProfileLiveRecordings` (LS-14):** nur wenn das aktive Profil das Hauptprofil ist und das Konto Profile mit
 Altersgrenze (heute, `07` 4.4) hat; sonst 404. Antwort in der üblichen Form `{items: [{profileId, name, avatar,
-count, bytes, scheduled}], total, offset}` (RD-28); die Aufnahmen eines Profils holt der Client mit
+count, bytes}], total, offset}` (RD-28; `scheduled` nur bei `20` E-28-43 (B)); die Aufnahmen eines Profils holt der Client mit
 `listLiveRecordings?profileId=`. Die Operation verlangt **kein** eigenes Recht «Aufnahmen» des Hauptprofils, damit
-es Platz frei machen kann (`03` DR-03), und nach der benannten Ausnahme **A-12** (`12` 1.1) auch kein eigenes
-wirksames «Live-TV», auch wenn das Konto den Schalter nicht hat: `listProfileLiveRecordings`,
-`listLiveRecordings?profileId=`, `getLiveRecording` und `deleteLiveRecording` auf Aufnahmen eines Profils mit
-Altersgrenze antworten dann wie mit Recht; **Abspielen** (`createLiveSession` mit `recordingId`) bleibt 404. Jede
-andere Live-Operation ohne Recht bleibt 404 (SM-38). Variante (b) von F-1 nähme die Ausnahme zurück.
+es Platz frei machen kann (`03` DR-03); eigenes wirksames «Live-TV» verlangt sie nach der Vorgabe (`20` E-28-42
+(b)): ohne Live-TV ist alles 404 (SM-38 ohne Ausnahme). **Nur bei Variante (a)** (benannte Ausnahme **A-12**,
+`02`, `12` 1.1) antworten `listProfileLiveRecordings`, `listLiveRecordings?profileId=`, `getLiveRecording` und
+`deleteLiveRecording` auf Aufnahmen eines Profils mit Altersgrenze auch ohne eigenes «Live-TV» wie mit Recht;
+**Abspielen** (`createLiveSession` mit `recordingId`) bliebe 404.
 
 **`createLiveRecording`:** 201 mit `LiveRecording` und `warnings`; dasselbe noch einmal (gleiche Sendung, gleiche
 manuelle Zeit, laufende Sofortaufnahme auf demselben Sender) ergibt 200 mit der bestehenden Zeile (RD-10).
@@ -1798,7 +1798,7 @@ Vorladen je Sender (`07` W-23), Kopfzeilen einer EPG-Quelle (W-27).
 | O-3 | Kopfzeilen und User-Agent für EPG-Quellen (W-27) | `09` Fassung 2 |
 | O-4 | **erledigt durch `04` 9 und 14.1:** `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s (mit `state: starting`, wenn das erste Segment noch fehlt); danach lädt der Client die Liste erst bei `live`; drei Startfristen, zusammen höchstens 90 s, danach `start_failed` (3.4). Ob die erste Liste in der Antwort mitkommt, bleibt `05` O-17 | – |
 | O-5 | Form der `programmeRef` bei Sendungen gleichen Beginns und Titels auf einem Sender (Überlappung mit gleicher Prüfsumme): zweite Unterscheidung nötig? | `09` |
-| O-6 | **erledigt durch A-12** (`12` 1.1): Liste, Belegung und Löschen ohne eigenes «Live-TV», Abspielen nicht (3.5); offen bleibt nur F-1 (b) | – |
+| O-6 | hängt an F-1 (`20` E-28-42): Vorgabe (b) ohne Ausnahme; nur bei (a) A-12 (Liste, Belegung und Löschen ohne eigenes «Live-TV», Abspielen nicht, 3.5) | – |
 | O-8 | Laufzeitzustand je Quelle über einen Neustart merken (`04` O-32): heute flüchtig, `LiveSourceRuntime` nach dem Neustart leer | `04`, `20` |
 | O-9 | Wie hls.js, Media3 und Safari auf eine Live-Liste ohne Segment reagieren, obwohl der Client sie erst bei `live` lädt (RB-15) | M-3, M-4 |
 | O-7 | **erledigt durch RD-27:** kein Filter je Client-Kennung (7.2) | – |
@@ -1817,9 +1817,8 @@ Aufnahmen bleiben und belegen das Kontingent. `03` DR-03 erlaubt dem Hauptprofil
   das Recht wieder gibt.
 
 Empfehlung: **(a)**, weil sonst Aufnahmen bleiben, die niemand mehr löschen kann (der Administrator sieht keine
-Titel und löscht nicht, `15` F-18 (A)). **Vorgabe bis zu deiner Antwort:** (a) in der Form von A-12, die der
-Koordinator nach Review 6 als benannte Ausnahme in `12` 1.1 aufgenommen hat (RT-09); sie steht in `02` und
-ADR 0046, damit sich kein Bau auf die kürzere Fassung beruft. Fassung 2 nannte hier (b).
+Titel und löscht nicht, `15` F-18 (A)). **Vorgabe bis zu deiner Antwort:** (b), wortlauttreu zu «ohne Recht
+unsichtbar» (`20` E-28-42, `02` A-12, `03` DR-03); A-12 gilt erst mit (a).
 
 ---
 
@@ -1928,3 +1927,6 @@ erweiterte bestehende; `getMyChannels` und `updateMyChannel` waren schon erweite
 | RT-09, A-12 | Hauptprofil sieht und löscht Aufnahmen seiner Profile mit Altersgrenze ohne eigenes wirksames «Live-TV»; F-1 mit Vorgabe (a) als A-12; O-6 erledigt (3.1, 3.5, 9.5) |
 | SM-56, RT-07 | `MyChannel.liveTitles`: Meldungen nach aussen ab Werk ohne Titel und Sender (3.10) |
 | SM-45, RT-19 | `LiveIngest.recordings` erst ab 2, sonst `recordingsActive`; `AdminStream` einer Aufnahme ohne Auflösung, Bildrate, Bitrate (2.12, 3.9, 3.10) |
+
+Letzte Angleichung: F-1 mit Vorgabe (b) nach `20` E-28-42; 3.1, 3.5 und O-6 entsprechend, A-12 nur als Variante (a).
+Letzte Angleichung: LS-14 ohne Zahl der geplanten Termine nach `20` E-28-43 (A) (2.4, 3.5).

@@ -54,7 +54,7 @@ Ziele** sind Adressen im Heimnetz, die der Administrator für genau eine Quelle 
    Empfang dieser Quelle von selbst** für 30 Minuten, bei Wiederholung 6, dann 24 Stunden; bei Muster B gilt
    für dieselbe Frist der Ein-Strom-Betrieb (`04` 5.3, 14.1). Das ist Laufzeitverhalten, keine Verwaltung
    eines Limits; die Diagnose zeigt es (LA-13). Ein Schalter oder eine Zahl je Quelle wären Varianten der
-   Frage `20` E-28-02/E-28-29 (Vorgabe bis zur Antwort: keines von beiden).
+   Frage `20` E-28-02 (Vorgabe bis zur Antwort: keines von beiden).
 4. **Privatsphäre:** Der Administrator sieht nie Titel fremder Aufnahmen und nie, welches Konto gerade
    welchen Sender aufnimmt (Abschnitt 4; `03` DR-17; Review 2 RD-06).
 5. **Geheimnisse gehen nie an den Browser** (`04` T-28, `07`, `08`): Jede Adresse einer Quelle und jede
@@ -800,7 +800,7 @@ Senders (Protokoll gefiltert).
 | Längste Sofortaufnahme «bis ich stoppe» | **4 Stunden** | 1–12 | `11` 1 |
 | Geplante Aufnahmen an Programmänderungen anpassen | **an** | an/aus; Satz «Laufende Aufnahmen werden verlängert, nie gekürzt.» | `11` 2.3 |
 | Termine im Voraus planen | Serien: so weit wie die Programmdaten; wiederkehrend: 14 Tage | nur Anzeige | `11` 2.1 |
-| Höchstens gleichzeitige Aufnahmen auf dem Server | **keine Grenze** | Zahl oder keine (Schutz der Hardware, nicht des Anbieters) | F-21, `11` K-3 |
+| Höchstens gleichzeitige Aufnahmen auf dem Server | **keine Grenze** | Zahl oder keine (Schutz der Hardware, nicht des Anbieters); die Einstellung gibt es nur bei Variante (B), Vorgabe (A): keine Einstellung | F-21, `11` K-3 |
 
 Sätze im Kopf: «Aufnahmen speichern das Signal in Originalqualität, ohne Neucodierung. Alle
 empfangenen Ton- und Untertitelspuren bleiben erhalten.» (LTV-020) · «Die Aufbewahrung ist nur ein
@@ -1060,7 +1060,7 @@ Meldungsflut bei grossen Listen, LTV-011; Zuschauer sehen den Ausfall ohnehin se
 **F-20 Vorgabe-Kontingent.** → `20` E-28-39; Vorgabe bis zur Antwort: (a), 100 GB. **Siehe `03` F-2** (Empfehlung dort (a): 100 GB). Richtiggestellt: 100 GB
 sind bei 8 Mbit/s etwa **27,8 Stunden** HD (3,6 GB je Stunde, `13` H-6), nicht 17 Stunden wie in Fassung 1.
 
-**F-21 Höchstzahl gleichzeitiger Aufnahmen auf dem Server.** → `20` E-28-49; Vorgabe bis zur Antwort: (B). Eine Grenze schützt die Hardware, nicht den
+**F-21 Höchstzahl gleichzeitiger Aufnahmen auf dem Server.** → `20` E-28-49; Vorgabe bis zur Antwort: (A). Eine Grenze schützt die Hardware, nicht den
 Anbieter (kein Anbieterlimit, LTV-017). (A) keine Grenze (Aufnahmen kopieren nur und sind billig);
 (B) einstellbare Grenze mit Vorgabe «keine». **Empfehlung B**; `11` K-3 rechnet damit (Konflikt «Server
 ausgelastet»). Vorrang bei Mangel: `03` F-4, `04` F-5.
@@ -1235,3 +1235,4 @@ Fassung 2 → 3 (Schlussbereinigung nach Review 4, 5, 6; 29. November 2026):
   nur über «Netz statt Adresse …» mit zweiter Bestätigung.
 - **LA-12, LA-21:** Aufnahmen bei genau einer als «Aufnahmen laufen»; Kachel «Private Aufnahme» ohne
   Quellparameter.
+- Letzte Angleichung: F-21 mit Vorgabe (A) nach `20` E-28-49 (Einstellung der Höchstzahl nur bei (B)).

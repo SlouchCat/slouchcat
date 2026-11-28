@@ -1663,7 +1663,8 @@ WHERE r.id = @recording_id
 - Was das Hauptprofil damit darf, entscheidet der Dienst nach `is_own` und liefert es als `actions` (`08` 3.5):
   sehen, löschen, abspielen; abspielen nur mit eigenem wirksamem «Live-TV» (`03` DR-03); schreibt keinen
   Fortschritt (`03` DR-21); ändern und stoppen nie.
-- **Ohne eigenes wirksames «Live-TV» (A-12, `12` 1.1):** Sehen in der Liste und Löschen der Aufnahmen seiner
+- **Ohne eigenes wirksames «Live-TV»:** Vorgabe (`20` E-28-42 (b)): nichts, SM-38 ohne Ausnahme. Nur bei Variante
+  (a) (A-12, `12` 1.1): Sehen in der Liste und Löschen der Aufnahmen seiner
   Profile mit Altersgrenze darf das Hauptprofil auch dann, wenn bei ihm «Live-TV» nicht wirkt, auch wenn das
   Konto den Schalter nicht hat; nur Abspielen verlangt ihn. Die Abfrage oben prüft darum kein Recht; der Dienst
   lässt für genau diese zwei Wege (`listProfileLiveRecordings`, `listLiveRecordings?profileId=`,
@@ -2268,7 +2269,7 @@ Hinweise für den Bau:
 | O-4 | Ob `live_stream_events` mit 50'000 Zeilen für 7 Tage reicht (Sender mit Dauerstörung) | `13`, nach Stufe 3 |
 | O-5 | `live_channel_streams.params` als JSON: braucht die Verwaltung Filter nach Codec (LA-05), wird eine Spalte nötig | Bau Stufe 3 |
 | O-6 | erledigt: Die Sicht wird nicht je Stufe neu angelegt (11.2, RD-26) | – |
-| O-7 | Ein «Konto ohne Live-TV» mit Aufnahmen: `admin` zeigt die Belegung als Zahl je Konto (5.1); das Hauptprofil darf sehen und löschen (A-12, 4.3; `08` F-1) | `15`, `08` |
+| O-7 | Ein «Konto ohne Live-TV» mit Aufnahmen: `admin` zeigt die Belegung als Zahl je Konto (5.1); das Hauptprofil darf nach der Vorgabe (`20` E-28-42 (b)) nichts, bei Variante (a) sehen und löschen (A-12, 4.3; `08` F-1) | `15`, `08` |
 | O-10 | Laufzeitzustände je Quelle über einen Neustart merken (`04` O-32): heute flüchtig (1.3); gespeichert käme eine Spalte je Quelle dazu, nahe an `04` F-3 (b) | `04`, `20` |
 | O-8 | Dauer der einen Import-Transaktion bei 11'000 Senderquellen auf SSD, HDD und Netzspeicher (M-1 dieses Dokuments); über 2 Sekunden: Zwischentabelle und kurze Übernahmetransaktion (7.3) | Bau Stufe 1a, `13` |
 | O-9 | Schematest «jede Kindspalte eines Fremdschlüssels hat einen führenden Index» (1.4) | Bau Stufe 1a |
@@ -2425,3 +2426,4 @@ Schnittstellen betrifft, steht in `08` Abschnitt 11.
 gestrichen (`ring_seconds`, `idle_check_parallel`, `dvr_max_concurrent`, `preload_enabled`), 5 neu
 (`access_retry_at`, `rules_rev`, `disabled_at`, `wide_confirmed_at`, `profiles.live_notify_titles`), `prefix` von
 `live_net_targets` in `family`, `address`, `prefix_len` zerlegt.
+- Letzte Angleichung: 4.3 und O-7: Hauptprofil ohne eigenes «Live-TV» nach `20` E-28-42 Vorgabe (b); A-12 nur bei Variante (a).

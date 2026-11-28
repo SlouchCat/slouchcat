@@ -346,7 +346,7 @@ Was die Player daraus machen, ist **Annahme**, bis die Messpunkte vorliegen:
 | Player | Erwartetes Verhalten | Messpunkt |
 |---|---|---|
 | hls.js (Web) | Das Fenster der Liste ist der spulbare Bereich; Pause und Rücksprung im Fenster ohne Neuladen; der Startpunkt kommt ausdrücklich vom Server. Mit Zeitversatz bleibt `liveMaxLatencyDurationCount` auf dem Standard (unbegrenzt): hls.js springt ab Werk nie von selbst an die Live-Kante (belegt, Nachprüfung Nr. 10). Fällt das Segment unter der Abspielstelle heraus, setzt der **Client** selbst am Fensteranfang fort; wie hls.js dort reagiert, misst `05` M-3. Ohne Zeitversatz gilt `liveMaxLatencyDurationCount` 4 (`04` 14.10). | `05` M-3 |
-| Safari, iPhone (nativ) | Zeigt bei einem ausreichend langen Live-Fenster eine Zeitleiste zum Spulen; die Startregel (drei Zieldauern vor dem Ende, belegt) betrifft nur den Start. Ungeprüft und nicht zugesagt, weil kein Gerät vorhanden ist (`04` 12.1). | `05` M-5 |
+| Safari, iPhone (nativ) | Zeigt bei einem ausreichend langen Live-Fenster eine Zeitleiste zum Spulen; die Startregel (drei Zieldauern vor dem Ende, belegt) betrifft nur den Start. Vorgesehen, aber ungeprüft, weil kein Gerät vorhanden ist (`20` E-28-12) (`04` 12.1). | `05` M-5 |
 | Media3 (Handy, TV) | Live-Fenster mit Spulen, `EXT-X-PROGRAM-DATE-TIME` als Uhrzeit. Fällt die Stelle hinter das Fenster, meldet Media3 den Fehler `ERROR_CODE_BEHIND_LIVE_WINDOW` (belegt, Nachprüfung Nr. 18); die App fängt ihn ab und setzt am **Fensteranfang** fort, nicht an der Live-Kante (`05` 5.3). | `05` M-4, M-19 |
 
 Die Matrix je Client führt `16-client-kompatibilitaet.md`.
@@ -597,3 +597,4 @@ Fassung 2 → 3 (Schlussbereinigung nach den Reviews 4, 5 und 6; Grundlage `04` 
 - Abschnitte 7 und 14.3: F-1 mit Vorgabe und Empfehlung getrennt.
 - Abschnitt 13: Zustände «Startet» (drei Fristen des Starts, RB-02) und «Quelle weg»; Zuordnung zu `08` `state`
   (RB-12); Ende durch Quelle entfernt und Tokenablauf eines deaktivierten Senders.
+- Letzte Angleichung: Safari und iPhone «vorgesehen, aber ungeprüft» (Abschnitt zu den Clients; `20` E-28-12).

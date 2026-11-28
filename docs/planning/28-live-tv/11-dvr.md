@@ -616,7 +616,7 @@ Hauptprofil kann Aufnahmen von Profilen mit Altersgrenze weiter löschen (`03` D
 | Prüfung beim Planen | Konflikt K-1 (Warnung, Speichern geht) | E-4 |
 | Prüfung beim Start | belegt + erwartete Grösse > Kontingent: **abgelehnt und gemeldet** an das Profil **und** das Hauptprofil (Abschnitt 11, ohne Titel bei Profilen ohne Altersgrenze); Zustand «fehlgeschlagen», Grund «Kontingent voll». Nichts wird deshalb gelöscht. | E-4 |
 | Zwei Starts zugleich | Starten zwei Aufnahmen desselben Kontos gleichzeitig (zwei Serien um 20:15), dürfen nicht beide «noch» hineinpassen. Prüfung und Übergang nach `recording` sind **ein** Schritt in derselben Schreibtransaktion: die Bedingung «Belegung + erwartete Grösse ≤ Kontingent» steht im bedingten `UPDATE … SET state = 'recording'`. Die eine Schreibverbindung reiht die beiden nacheinander; die zweite sieht die erste schon mitgezählt (Review 2 RD-14, `07` 8.1, 8.3). | spezifiziert |
-| Während der Aufnahme | Wächst sie über das Kontingent (höhere Bitrate, Verlängerung): **`03` F-9** (→ `20` E-28-46); Vorgabe bis zur Antwort (a): sie läuft zu Ende, danach werden neue Aufnahmen abgelehnt, bis Platz frei ist | offen `03` F-9 |
+| Während der Aufnahme | Wächst sie über das Kontingent (höhere Bitrate, Verlängerung): **`03` F-9** (→ `20` E-28-46); Vorgabe bis zur Antwort (b): sie stoppt beim Erreichen des Kontingents und gilt als unvollständig (Meldung an Profil und Hauptprofil); neue Aufnahmen werden abgelehnt, bis Platz frei ist | offen `03` F-9 |
 | Kontingent nachträglich verkleinert | nichts wird gelöscht; neue Aufnahmen werden abgelehnt, bis die Belegung darunter liegt | Empfehlung |
 
 ### 8.2 Automatisches Löschen: nur, was das Profil gewählt hat
@@ -1179,3 +1179,4 @@ Fassung 2 → 3 (Schlussbereinigung nach den Reviews 4, 5 und 6; Grundlage `04` 
 - 11: externe Meldungen ohne Titel und Sender, ausser das Profil wählt es (`12` SM-56); Hauptprofil nie mit
   Titel über externe Kanäle (SM-46).
 - 14.3: O-8 bis O-10 neu.
+- Letzte Angleichung: Kontingent während der Aufnahme nach `03` F-9 Vorgabe (b) (`20` E-28-46).

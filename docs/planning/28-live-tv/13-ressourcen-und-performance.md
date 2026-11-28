@@ -742,7 +742,7 @@ Regeln aus `04` 5.3, 8.2 und 14.1, die dazugehören:
 - **Vorsorglicher Empfang ruht von selbst**, wenn eine Quelle eine weitere Verbindung ablehnt (Muster A) oder
   die ältere trennt (Muster B; dann zusätzlich Ein-Strom-Betrieb): 30 Minuten, bei Wiederholung 6 Stunden, dann
   24 Stunden. Es gibt dafür **keine Einstellung je Quelle** (Vorgabe nach LTV-017; Frage `04` F-3 → `20`
-  E-28-02/E-28-29); wer einen Zugang mit nur einer Verbindung hat, schaltet das Vorladen global aus.
+  E-28-02); wer einen Zugang mit nur einer Verbindung hat, schaltet das Vorladen global aus.
 
 ### 8.2 Je Engpass
 
@@ -779,7 +779,7 @@ Bis zu deiner Antwort gilt bei jeder Zeile die wortlauttreue Vorgabe (Spalte «V
 |---|---|---|---|---|---|
 | P-1 | Neuer Zuschauer gegen dauerhaft oder zeitgesteuert empfangene Sender ohne Abnehmer | `04` F-4 → `20` E-28-30 | **Ein laufender Dauersender weicht nicht;** die neue Anfrage wird abgelehnt (LTV-002) | Auf «klein» belegen 5 Dauersender 5 von 8 Eingangsströmen; für Zuschauer und Aufnahmen bleiben drei. Mit der Variante (a) könnten bis zu 5 weitere Personen schauen, und so viele Dauersender fielen aus (3.1). | Stufe 3 |
 | P-2 | Beginnende Aufnahme gegen laufende Wiedergaben und laufende Dauersender bei voller Obergrenze | `04` F-5, `03` F-4 → `20` E-28-40 | Die Aufnahme verdrängt nichts; sie scheitert mit Grund und Meldung | Die Ringe im Byte-Budget können vor der Obergrenze der Ströme voll sein (3.1), bei langen Bildgruppen schon ab 12 Sendern; dann greift dieselbe Frage. | Stufe 5 |
-| P-3 | Wissen um Verbindungen des Anbieters | `04` F-3 → `20` E-28-02 (zusammengeführt mit E-28-29) | **Keine Einstellung und keine Zahl je Quelle** (LTV-017); Laufzeitregel Muster A und B mit Ruhen des vorsorglichen Empfangs; Varianten: Schalter je Quelle, Verbindungszahl je Quelle | Dauerempfang und Vorladen sind nach 3.1 und 3.6 die grössten Verbraucher von Verbindungen; ohne Einstellung merkt der Server ein Limit erst am ersten Vorfall (M-26). | Stufe 0 |
+| P-3 | Wissen um Verbindungen des Anbieters | `04` F-3 → `20` E-28-02 | **Keine Einstellung und keine Zahl je Quelle** (LTV-017); Laufzeitregel Muster A und B mit Ruhen des vorsorglichen Empfangs; Varianten: Schalter je Quelle, Verbindungszahl je Quelle | Dauerempfang und Vorladen sind nach 3.1 und 3.6 die grössten Verbraucher von Verbindungen; ohne Einstellung merkt der Server ein Limit erst am ersten Vorfall (M-26). | Stufe 0 |
 | P-4 | Timeshift für alle gegen Platte (Kopie je Sitzung) | `04` F-8 → `20` E-28-36 | eigene Kopie je Sitzung | 20 Zuschauer desselben Senders: 72 GB/h geschrieben; Variante (c) wäre die Bremse. | Stufe 4 |
 | P-5 | Was ab Werk vorsorglich empfangen wird | `04` F-9 → `20` E-28-29 | Vorladen global **an**, mit vorsichtigen Obergrenzen (LTV-010) | Vorladen und «automatisch» kosten auf «klein» bis 7 Eingangsströme und 56 Mbit/s. | Stufe 3 |
 | P-6 | Höchstzahl gleichzeitiger Aufnahmen auf dem Server | `15` F-21 → `20` E-28-49 | keine Grenze | 3.4: Ohne Grenze starten alle; die Toleranz gegen Stockungen sinkt. | Stufe 5 |
@@ -1068,3 +1068,4 @@ Die Nummern aus Fassung 1 bleiben; Erledigtes steht mit Verweis.
   iPhone, iPad «vorgesehen, ungeprüft ohne Gerät»; jede Kapazitäts- und Zielwertaussage als Rechnung.
 - **Vorrangkonflikte** mit Verweis auf `20` (E-28-02, -14, -29, -30, -33, -36, -40, -49).
 - **Abschnitt 12 (RG-18):** H-6, H-7, H-9, H-10 erledigt; offen nur M-26 als Versuch in `18` 2.2.
+- Letzte Angleichung: P-3 und Abschnitt 8 nur noch auf `20` E-28-02 (Werkszustand des globalen Vorladens ist E-28-29).

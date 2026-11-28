@@ -1022,8 +1022,8 @@ Profil hatte) entfällt: Geräte kennen kein Profil, und `03` führt sie nicht.
   bereit. Der Netzwächter sperrt das heute; A-3 und `04` T-5 erlauben Heimnetz-Ziele bisher nur für
   **Senderquellen**, und zwar als Liste fester Ziele, nicht als Schalter.
 - **(a) ja, mit festen Zielen je EPG-Quelle wie bei Senderquellen (Empfehlung).** Nur vom Administrator
-  eingetragen; beim Freigeben bestätigt er Adresse oder kleines Netz (höchstens /24 bzw. /64) und Port (höchstens
-  64 Ports; `04` 14.9); jede Verbindung der Quelle wird an der wirklich angewählten Adresse geprüft, auch nach
+  eingetragen; beim Freigeben bestätigt er eine einzelne Adresse und einen einzelnen Port; ein kleines Netz oder ein
+  Portbereich nur mit zweiter Bestätigung, höchstens /28 bzw. /124 und 16 Ports (`04` 14.9, `12` 4.5); jede Verbindung der Quelle wird an der wirklich angewählten Adresse geprüft, auch nach
   Weiterleitungen; Loopback, Link-Local, Metadaten-Adressen und die eigenen Adressen des Servers sind nie
   freigebbar (`04` T-5, 10.9; Tabelle `live_net_targets` in `07` 3.11). Der ungeprüfte Client von
   `netguard.NewClients` und `Clients.For` (`internal/netguard/netguard.go:94-110`, `:123-128`) wird nie
@@ -1108,3 +1108,4 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Quellen der Rückmeldungen: `RU
 - **Stufen** nach `18`: Lesart neu; 1a/1b ohne Programmfelder, 2 Programmzeitschrift, H EPG im Heimnetz,
   5 Aufnahme aus dem Programm und Anpassung (LTV-005.18, .26), 6 Folgenerkennung; ADR 0049 (O-12).
 - Restebereinigung nach Konsolidierung 1: Glocke verweist über `live_ref` wie `07` 3.11 (W-31); Fragen mit Verweis auf `20`.
+- Letzte Angleichung: F-4 (a) mit den festen Zielen aus `04` 14.9 und `12` 4.5 (Einzelziel, Netz höchstens /28, 16 Ports).

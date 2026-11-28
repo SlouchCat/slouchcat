@@ -1444,10 +1444,10 @@ präzisieren.
 | O-25 | Herzschlag im Browser-Tab im Hintergrund und bei Bildübertragung auf ein anderes Gerät: Regel der 60 Sekunden gilt ohne Ausnahme, bis M-3 und M-5 das Verhalten zeigen (10.3). | `16`, `17` |
 | O-26 | Zusatz zu Regel 3 in `CLAUDE.md`: Die Hülle in `internal/transcode` darf sich durch FFmpeg ersetzen (10.8). | `21` |
 | O-27 | Landlock im Go-Code: über `golang.org/x/sys/unix` (schon Abhängigkeit) oder die Bibliothek `go-landlock` (MIT, belegt). In jedem Fall hart setzen, nie «so gut es geht» (`12` O-2). | Bau |
-| O-29 | Fire TV: Läuft die Android-TV-App auf Fire OS, und was bräuchte sie (`05`, Abschnitt 4.3)? Berücksichtigt, nicht zugesagt; kein Gerät. | `16`, `20` |
+| O-29 | Fire TV: Läuft die Android-TV-App auf Fire OS, und was bräuchte sie (`05`, Abschnitt 4.3)? Berücksichtigt, nicht zugesagt; kein Gerät. | `16`, `20` E-28-60 |
 | O-30 | Prüfung der Anmeldung an der Schnittstelle einer Xtream-Quelle, um «Zugang falsch» von «Verbindung abgelehnt» zu trennen (5.3): welche Antwort als «angemeldet» gilt. Verbindungszahlen der Antwort werden nie gelesen. | Bau, `12` |
 | O-31 | Speichergrenze der Go-Laufzeit (`GOMEMLIMIT`): Wert, Zusammenspiel mit dem Radio und mit einer Grenze, die der Betreiber selbst setzt (8.1). | Bau, `13` |
-| O-32 | Die Muster A und B (5.3) stehen nur im Arbeitsspeicher; nach jedem Neustart lernt der Server sie neu. Ob sie über einen Neustart gemerkt werden sollen, hängt an F-3: Ein gespeicherter Zustand je Quelle wäre nahe an einem verwalteten Limit. | `20` |
+| O-32 | Die Muster A und B (5.3) stehen nur im Arbeitsspeicher; nach jedem Neustart lernt der Server sie neu. Ob sie über einen Neustart gemerkt werden sollen, hängt an F-3: Ein gespeicherter Zustand je Quelle wäre nahe an einem verwalteten Limit. | `20` E-28-69 |
 
 (O-14 bis O-20 und O-28 stehen in `05`, Abschnitt 10.2; die Zählung geht hier mit O-29 weiter.)
 
@@ -1957,6 +1957,8 @@ unverändert; neu sind F-15, O-29 bis O-32 und M-26.
 | RT-18 Übrige FFmpeg-Aufrufe ohne Hülle | mittel | Nicht Teil von Konzept 28; 10.8 nennt es beim Restrisiko, `12` führt die Empfehlung an den Bestand. |
 | RT-20 Bindung an die Zeile «Empfehlung» | niedrig | 10.5: festgelegt, Pflicht ab Stufe 1a. |
 | RT-13, RT-17, RT-19, RT-21 | niedrig | Betreffen `09`, `12`, `15` und `17`; in 15.3 vermerkt. |
+
+Letzte Angleichung (ohne neue Fassungsnummer): O-29 → `20` E-28-60, O-32 → `20` E-28-69.
 
 ## 14. Massgebliche Werte
 

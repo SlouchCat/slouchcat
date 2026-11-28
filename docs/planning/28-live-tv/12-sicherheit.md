@@ -938,7 +938,7 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 | Sender deaktiviert (`04` T-29) | **kein Entzug:** Neues ist sofort 404 (Einstellen, Aufnahme, Vorladen, Prüfung); laufende Wiedergaben und Aufnahmen laufen weiter | – |
 | Befehl «sofort beenden» der Verwaltung (`04` T-29) | Sitzungen des Senders enden wie bei einem Haken; Aufnahmen «unvollständig, Sender deaktiviert» | sofort |
 | Quelle entfernt oder ihre Adresse, Zugangsdaten, Kopfzeilen, Ursprünge oder festen Ziele geändert (RT-06, RB-05, SM-47) | **alle** Empfänger der Quelle enden nach Bestätigung; Wiedergaben enden, Aufnahmen bekommen eine Lücke und wechseln, wenn möglich, auf eine Ersatzquelle; entschlüsselte Werte werden freigegeben (4.2) | innert 5 s (Annahme) |
-| Sitzung ohne Segmentabruf (SM-39, RT-11, ab Stufe 3) | Herzschläge allein halten eine Sitzung nicht ewig: Holt sie länger als das Fenster ihres Zeitversatzes plus 15 Minuten (ohne Zeitversatz 15 Minuten) kein Segment, endet sie; bei Mangel weicht eine pausierte Sitzung vor dem Vorladen | nach der Frist |
+| Sitzung ohne Segmentabruf (SM-39, RT-11, ab Stufe 1a) | Herzschläge allein halten eine Sitzung nicht ewig: Holt sie länger als das Fenster ihres Zeitversatzes plus 15 Minuten (ohne Zeitversatz 15 Minuten) kein Segment, endet sie; bei Mangel weicht eine pausierte Sitzung vor dem Vorladen | nach der Frist |
 
 **Sicherheitsfolgen von T-29.** T-29 gilt **nur** für «Sender deaktivieren»; für das Entfernen oder Ändern einer
 Quelle gilt die Zeile oben (Entscheid des Koordinators zu RT-06 mit RB-05). Deaktivieren ist eine Pflegehandlung, kein Entzug eines Rechts. Wer einen Sender
@@ -1118,7 +1118,7 @@ deren Veröffentlichung Massnahme **und** Testfall vorliegen müssen; «empfohle
 | SM-36 | Widerruf über die Haken in `auth`; Sicherung je Listenanfrage **und Herzschlag** höchstens 30 s alt, bei Aufnahmen mit Zugriffsregel; Löschen einer Aufnahme beendet ihre Sitzungen; Token-Erneuerung nur bei aktivem Sender und aktiver Quelle; App im Hintergrund beendet die Sitzung; Deaktivieren eines Senders entzieht nichts, «sofort beenden» schon (T-29) | BD-43, BD-63; RS-08, RT-10, RB-05 | 1a | Nach dem Abmelden antwortet jede Adresse mit dem alten Token innert 10 s mit 404, nach Ablauf der Anmeldung ohne Haken innert 30 s; nach «Sender deaktivieren» ist Einstellen sofort 404, eine laufende Wiedergabe läuft weiter, nach «sofort beenden» endet sie innert 10 s; entfernt man einem Kind die Altersgrenze, während das Hauptprofil dessen fertige Aufnahme schaut, endet diese Wiedergabe innert 30 s; eine gelöschte Aufnahme liefert sofort kein Segment mehr. | LTV-Q-10.55, .56 |
 | SM-37 | eine Zugriffsabfrage je Objektart mit Profil und Konto; Aufnahmeregel nach A-6 und `04` F-10; ULIDs; IDOR-Matrix | BD-40, BD-41, BD-44; RS-09, SL-5 | 1a (Favoriten, Verlauf, Sitzungen), 2 (Erinnerungen), 5 (Aufnahmen, Planungen), 6 (Serienregeln) | Jede nicht erlaubte Zelle der Matrix in 9.3 antwortet 404 mit gleichem Körper, jede erlaubte liefert genau die eigenen Daten. | LTV-009, LTV-Q-10.57, .58 |
 | SM-38 | Vertragstest: jede Live-Operation und Route ohne wirksames Recht 404; `x-visibility`, `x-clients` | BD-39; RS-19 | 1a | Für jede Operation mit Live-Bezug aus `api/openapi.yaml` liefert ein Profil ohne Recht 404 mit identischem Körper, auch für Logo, Bild und Suche, und zwar auch in den Zuständen «gedrosselt», «Deckel voll» und «EPG wird neu gebaut» (SM-52). | LTV-012, LTV-Q-10.61, .62 |
-| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst; Sitzung ohne Segmentabruf endet nach dem Fenster ihres Zeitversatzes plus 15 min (ohne Zeitversatz 15 min), pausierte Sitzung weicht bei Mangel vor dem Vorladen; `deviceId` an die Anmeldung gebunden | BD-46, BD-34, BD-26, BD-64; RS-10, RT-11 | 1a (Drosselung, Deckel), 3 (Sitzung ohne Segmentabruf, `deviceId`) | Wer in 10 s durch 20 Sender schaltet, hält danach höchstens zwei Eingangsströme, und ein zweites Profil kann sofort einen anderen Sender einstellen; ein Client, der 20 Minuten nur Herzschläge mit «Pause» schickt und kein Segment holt, verliert ohne Zeitversatz nach 15 Minuten die Sitzung und den Eingang. | `04` 8.5, LTV-Q-10.60 |
+| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst; Sitzung ohne Segmentabruf endet nach dem Fenster ihres Zeitversatzes plus 15 min (ohne Zeitversatz 15 min), pausierte Sitzung weicht bei Mangel vor dem Vorladen; `deviceId` an die Anmeldung gebunden | BD-46, BD-34, BD-26, BD-64; RS-10, RT-11 | 1a (Drosselung, Deckel, Sitzung ohne Segmentabruf wie `04` 8.5 und `17`), 3 (`deviceId`) | Wer in 10 s durch 20 Sender schaltet, hält danach höchstens zwei Eingangsströme, und ein zweites Profil kann sofort einen anderen Sender einstellen; ein Client, der 20 Minuten nur Herzschläge mit «Pause» schickt und kein Segment holt, verliert ohne Zeitversatz nach 15 Minuten die Sitzung und den Eingang. | `04` 8.5, LTV-Q-10.60 |
 | SM-40 | bestehender CSRF-Schutz unverändert für jede schreibende Live-Operation (403 `csrf_header_missing`, gebaut); «404 statt 403» gilt nur für Unsichtbares; keine CORS-Freigabe | BD-45 | 1a | Ein `POST` auf «Einstellen» und ein `DELETE` auf eine Aufnahme ohne CSRF-Kopf werden mit 403 `csrf_header_missing` abgewiesen und ändern nichts, und zwar für ein Profil mit und ohne Recht mit derselben Antwort. | LTV-Q-10.59 |
 | SM-41 | Protokoll der Verwaltung für Quellen, Ziele, Ursprünge, Speicherorte, Schalter | BD-48; RS-01 P6 | 1a (Quellen, Ursprünge, Schalter), H (feste Ziele) | Nach dem Freigeben eines Ziels steht ein Eintrag mit Administrator, Zeit, Adresse und Port im Protokoll, aber kein Passwort und keine volle Adresse. | SG-8 |
 | SM-42 | Administratorsicht ohne private Titel; Meldungen bei PIN-Profilen ohne Titel | BD-47 | 1a (Wiedergaben), 5 (Aufnahmen) | Keine Antwort der Verwaltung enthält den Titel einer Testaufnahme, und eine E-Mail für ein PIN-Profil nennt keinen Sender. | LTV-009, `03` DR-05, DR-17 |
@@ -1150,7 +1150,7 @@ SM-02 bis SM-07, SM-13 (Logos), SM-14 bis SM-22, SM-24, SM-25, SM-26, SM-27, SM-
 1a entstehen), SM-44 (HLS), SM-47 (Quellen, Text beim Deaktivieren), SM-48, SM-49 (Umwandlung, Probe), SM-50,
 SM-52, SM-54. **Stufe 1b** bringt keine neue Pflicht (Logo-Upload nutzt den bestehenden Weg mit `largeBodies`).
 **Stufe 2:** SM-13 (EPG-Bilder), SM-25 (XMLTV), SM-28 bis SM-30, SM-37 (Erinnerungen), SM-53, SM-56 (Erinnerungen).
-**Stufe 3:** SM-39 (Sitzung ohne Segmentabruf, `deviceId`). **Stufe H:** SM-01 (feste Ziele), SM-06
+**Stufe 3:** SM-39 (`deviceId`; die Sitzung ohne Segmentabruf schon in 1a). **Stufe H:** SM-01 (feste Ziele), SM-06
 (Sammelhinweis), SM-10, SM-11, SM-25 (RTP), SM-41 (Ziele), SM-47 (Ziele). **Stufe 4:** SM-31 bis SM-34. **Stufe 5:**
 SM-32 bis SM-34 für Aufnahmen, SM-36 (Aufnahmen), SM-37, SM-42, SM-45, SM-46, SM-56. **Stufe 6:** SM-37
 (Serienregeln). **Stufe L:** SM-12, SM-25 (Rückrufe). **Stufe W:** SM-08, SM-09, SM-25 (MPD), SM-44 (DASH), SM-49
@@ -1305,7 +1305,7 @@ SM-46; «neu» heisst: in `17` nachzutragen (11, «Was `17` nachtragen muss»).
 | RT-02 Sperre in Go auf dem falschen Faden | mittel | SM-48 (`runtime.LockOSThread`, Selbstprüfung, Testfall 1'000 Starts) |
 | RT-03 Seccomp-Filter nicht festgelegt | mittel | SM-49 (Erlaubnisliste, Architektur, ohne `io_uring`, kein `socket()` für Umwandlung, nicht setzbar = kein Start) |
 | RT-04 Pause umgeht die Schauzeit | mittel | SM-50 (Zählung nach Beobachtung des Servers); `04` 10.3 und `08` anzupassen |
-| RT-05 Freigabe bis /24 öffnet das Heimnetz | mittel | SM-01 (Einzelziel ab Werk, Netz ≤ /28 mit zweiter Bestätigung, nie mit Gateway, Container-Netze nie); Werte strenger als `04` 14.9 |
+| RT-05 Freigabe bis /24 öffnet das Heimnetz | mittel | SM-01 (Einzelziel ab Werk, Netz ≤ /28 mit zweiter Bestätigung, nie mit Gateway, Container-Netze nie); `04` 14.9 Fassung 4 nennt dieselben Werte |
 | RT-06 Entfernte Quelle läuft weiter | mittel | SM-47 (Entfernen und Ändern beenden alle Empfänger, Fassungsnummer); T-29 nur für Sender |
 | RT-07 Hauptprofil ersetzt jede PIN | mittel | **offen, weil** bestehendes Verhalten in `auth`, das Konzept 28 nicht ändert (Entscheid des Koordinators): R-12, F-5; in Konzept 28 SM-56 (Meldungen ohne Titel) und der Wortlaut von A-6 |
 | RT-08 Weiterleiter als Allzweck-Proxy | mittel | SM-51; R-3 ergänzt |
@@ -1364,11 +1364,11 @@ Bewertung nach allen Pflichtmassnahmen und mit den Vorgaben bis zu deiner Antwor
 | O-10 | **Meldung mit Adresse im Heimnetz** in `15` LA-03 Schritt 2 nur für die selbst eingetippte Adresse; für Listeneinträge gilt der eine Zustand aus 4.5. | `15` |
 | O-11 | **WebP-Decoder** braucht `golang.org/x/image` (neue Abhängigkeit) oder WebP-Logos gehen ohne Go-Prüfung nicht an FFmpeg. | Bau |
 | O-12 | **Fuzz-Laufzeit in der CI** (Annahme 60 s je Ziel im Volllauf) gegen die Dauer des Gates `ci`. | `17`, ADR 0013 |
-| O-13 | **Empfehlung an den Bestand (RT-18):** kleine Umgebung und `RLIMIT_CORE 0` für jeden FFmpeg- und `ffprobe`-Aufruf der Bibliothek (SM-55), ohne die VOD-Nähte im Verhalten zu ändern; die Hülle mit Dateisperre für die Bibliothek als eigener Schritt nach M-25. Nicht Teil von Konzept 28; braucht deine Zustimmung (Feinschliff-Frage in `20`). | `18` Stufe 0, `20` |
+| O-13 | **Empfehlung an den Bestand (RT-18):** kleine Umgebung und `RLIMIT_CORE 0` für jeden FFmpeg- und `ffprobe`-Aufruf der Bibliothek (SM-55), ohne die VOD-Nähte im Verhalten zu ändern; die Hülle mit Dateisperre für die Bibliothek als eigener Schritt nach M-25. Nicht Teil von Konzept 28; braucht deine Zustimmung (→ `20` E-28-68). | `18` Stufe 0, `20` |
 | O-14 | **CI mit Landlock:** ein Lauf von SM-48 und SM-49 auf einem Runner, dessen Kernel Landlock und Seccomp zulässt (Annahme: Kernel der GitHub-Runner ab 6.x); sonst bleiben die Tests nur auf CT 190 (`17` AK-L-251 heute «CT, Landlock nein»). | `17`, CI |
 | O-15 | **`AF_UNIX` und Namensauflösung:** ob FFmpeg für HTTP an eine Zahlenadresse ohne `AF_UNIX` auskommt (glibc, nscd) und ob Umwandlung und Probe ganz ohne `socket()` laufen; Messung in M-10 und M-25. Zeigt sie Bedarf, wird die Erlaubnis einzeln benannt. | M-10, M-25 |
 | O-16 | **Token im Hostnamen:** Kürzen von `site` auf die registrierbare Domain, wenn ein Teil des Hostnamens über 32 Zeichen hat (SM-54); welche Liste der öffentlichen Endungen (Public Suffix List) Go dafür nutzt (`golang.org/x/net/publicsuffix`, schon Abhängigkeit über `x/net`; Annahme). | Bau |
-| O-17 | **Werte der festen Ziele:** Einzelziel ab Werk, Netz höchstens /28 bzw. /124, höchstens 16 Ports (4.5) sind strenger als `04` 14.9 (/24, /64, 64 Ports) und dort nachzuziehen; bis dahin gilt dieses Dokument. | `04` 14.9 |
+| O-17 | **erledigt:** Werte der festen Ziele (Einzelziel ab Werk, Netz höchstens /28 bzw. /124, höchstens 16 Ports, 4.5) stehen gleich in `04` 14.9 Fassung 4. | – |
 
 ### 13.3 Fragen an dich
 
@@ -1376,8 +1376,7 @@ Nur neue, echte Weichen. Aus `04` gelten weiter und werden hier nicht wiederholt
 **`04` F-10** (Aufnahmen nach nachträglicher Altersgrenze), **`04` F-11** (Multicast über «host» oder eigenes
 Netz), **`04` F-12** (Härtung der Standard-Compose-Datei), **`04` F-13** (Weg W ohne Sperre). Dazu **`09` F-4**
 (EPG im Heimnetz), **`15` F-18** (Notfall-Löschen durch den Administrator) und **`07` F-1** (zählt die Altersgrenze
-des Kontos; Folge für A-6 und R-12). F-1 bis F-4 tragen den Verweis auf ihre Nummer in `20`; F-5 ist neu und
-bekommt seine Nummer mit der Schlussbereinigung.
+des Kontos; Folge für A-6 und R-12). F-1 bis F-5 tragen den Verweis auf ihre Nummer in `20` (F-5 → E-28-63).
 
 **F-1 · Darf FFmpeg Live-TV umwandeln, wenn der Kernel keine Sperre erlaubt?** → `20` E-28-04
 Die Umwandlung je Zuschauer bekommt Fremddaten über eine Pipe. Ohne Dateisperre (Landlock) könnte eine
@@ -1435,7 +1434,7 @@ private Podcast-Adressen im Klartext (`backup.go:88-91`).
 Empfehlung: **(a)**, weil eine Sicherung oft an Orten liegt, die weniger geschützt sind als `/config`. `04` 10.5 und
 `07` 6.3 beschreiben heute (b) als Folge, ohne es zu entscheiden; nach deiner Antwort sind sie anzugleichen.
 
-**F-5 · Das Hauptprofil kann die PIN jedes Profils ersetzen: was gilt für private Aufnahmen?** (neu, RT-07)
+**F-5 · Das Hauptprofil kann die PIN jedes Profils ersetzen: was gilt für private Aufnahmen?** → `20` E-28-63 (neu, RT-07)
 LTV-009 sagt: «Andere Profile desselben Accounts dürfen diese Aufnahmen nicht sehen oder abspielen.» Über die API
 hält das (404). Das Hauptprofil kann aber heute schon die PIN jedes Profils setzen oder entfernen, ohne die alte zu
 kennen, und danach in das Profil wechseln (gebaut, `server/internal/auth/profiles.go:464-497`); das Profil merkt es
@@ -1526,3 +1525,4 @@ Review 5 RB-05 und RB-17):
 - **Abdeckung** Auftrag Abschnitt 10 mit Testfall und Stand je Zeile (12.1); Tabelle RT-01 bis RT-21 (12.5);
   Restrisiken neu bewertet (13.1); neue Bedrohungen BD-52 bis BD-66; neue offene Punkte O-13 bis O-17.
 - **Grundregel** «ohne Antwort gilt die wortlauttreue bzw. sichere Vorgabe» und Begriff «Baufreigabe» (Lesart).
+- Letzte Angleichung: SM-39 «Sitzung ohne Segmentabruf» in Stufe 1a (wie `04` 8.5, `17`); O-17 und RT-05 erledigt (`04` 14.9 Fassung 4); F-5 → `20` E-28-63, O-13 → E-28-68.

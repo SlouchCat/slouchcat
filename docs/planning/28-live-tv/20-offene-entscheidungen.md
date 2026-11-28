@@ -1164,20 +1164,20 @@ gilt `12`.
 
 ### E.1 Offen
 
-| Nr. | Stelle A | Stelle B | Massgeblich |
-|---|---|---|---|
-| U-14 | `14` LD-05 im Mockup: Vorlauf der Erinnerung 2 und 10 Minuten | `03` DR-08: 0, 5, 15, 30 Minuten | `03`; Mockup angleichen |
-| U-16 | `18` 4.12 und `16` Nr. 16: WebVTT im Browser in Stufe E | `04` 7.4: kein voller Bau von hls.js | offen, E-28-56 und OT-28-64 |
-| U-19 | `12` SM-39: Sitzung ohne Segmentabruf endet nach 15 Minuten, Stufe **3** | `04` 8.5 und 14 (Wert), `17` `AK-L-268`, `-351`: Stufe **1a** | Stufe 1a (früher ist strenger); `12` nachziehen |
-| U-20 | `08` F-1: Vorgabe (a) in der Form von A-12 | `02` A-12, `03` DR-03, `11` 7: Vorgabe (b), A-12 gilt nur nach Marcos Wahl | (b), Grundregel; `08` nachziehen |
-| U-21 | `11` (Kontingent, Verweis auf `03` F-9): «Vorgabe bis zur Antwort (a): sie läuft zu Ende» | `03` F-9: Vorgabe (b), die Aufnahme stoppt am Kontingent | `03` (b); `11` nachziehen |
-| U-22 | `15` F-21: Vorgabe (B) einstellbare Grenze | `11` 3.4 und K-3, `13` 8.3, `review-4` RG-04: (A) keine Grenze | (A); `15` nachziehen |
-| U-23 | `14` F-4 und `03` DR-02: Vorgabe «geplante Termine nur als Zahl» | `review-4` RG-04, E-3: wortlauttreu ist (A) | (A); `14`, `03` und das Mockup nachziehen |
-| U-24 | `09` F-4 (a): feste Ziele «höchstens /24 bzw. /64», «höchstens 64 Ports» | `04` 14.9, `12` 4.5, `15` LA-03: Einzelziel ab Werk, Netz höchstens /28 bzw. /124, 16 Ports | `12`; `09` nachziehen |
-| U-25 | `19` Abschnitt 6 und das Mockup: Einstellung je Quelle «Vorladen für Sender dieser Quelle», «3sat zurückgestellt» | `04` Fassung 4 (RG-02, RG-03): kein Schalter je Quelle; Dauersender weicht nicht | `04`; `19` und Mockup nachziehen |
-| U-26 | `18` 2.1: `15` F-14 als offene Frage vor Stufe 1; Tabelle nach «`03` F-6», «`04` F-12» … | Anhang A: `15` F-14 erledigt durch `03` DR-16; Nummern `E-28-nn` | `20`; `18` 2.1 auf `E-28-nn` umstellen (RG-22) |
-| U-27 | Verweise auf das alte Paar: `18` 4.5 «Vorlade-Schalter je Quelle nur bei Variante (b) von E-28-29»; `03` DR-29, `13` P-3, `18` D-13 und 4.5 «E-28-02/E-28-29» als eine Frage | `20` Fassung 2: der Schalter je Quelle ist E-28-02 (b), der Werkszustand des globalen Vorladens E-28-29 | `20`; Verweise nachziehen |
-| U-28 | `12` F-5, `02` 3.1, `18` 2.1, `04` O-29, O-32, `12` O-13, `18` O-8: «Nummer vergibt `20`» oder ohne Nummer | `20` Fassung 2: E-28-63, E-28-59 bis -62, E-28-64, -65, E-28-60, E-28-69, E-28-68 | `20`; Verweise eintragen |
+| Nr. | Stelle A | Stelle B | Massgeblich | Stand nach der letzten Angleichung |
+|---|---|---|---|---|
+| U-14 | `14` LD-05 im Mockup: Vorlauf der Erinnerung 2 und 10 Minuten | `03` DR-08: 0, 5, 15, 30 Minuten | `03`; Mockup angleichen | bleibt offen, weil nur das Mockup abweicht; `19` und die Mockups ändert ein anderer Agent |
+| U-16 | `18` 4.12 und `16` Nr. 16: WebVTT im Browser in Stufe E | `04` 7.4: kein voller Bau von hls.js | offen, E-28-56 und OT-28-64 | bleibt offen, weil es deine Frage ist (E-28-56) |
+| U-19 | `12` SM-39: Sitzung ohne Segmentabruf endet nach 15 Minuten, Stufe **3** | `04` 8.5 und 14 (Wert), `17` `AK-L-268`, `-351`: Stufe **1a** | Stufe 1a (früher ist strenger); `12` nachziehen | erledigt in `12` (SM-39, Abschnitt 9.2, Stufenliste in 11: Sitzung ohne Segmentabruf in 1a) |
+| U-20 | `08` F-1: Vorgabe (a) in der Form von A-12 | `02` A-12, `03` DR-03, `11` 7: Vorgabe (b), A-12 gilt nur nach Marcos Wahl | (b), Grundregel; `08` nachziehen | erledigt in `08` (F-1, 3.1, 3.5, O-6), `07` (4.3, O-7) und `14` (Grundsatz 1, 3.14, Abschnitt 13): Vorgabe (b), A-12 nur als Variante (a) |
+| U-21 | `11` (Kontingent, Verweis auf `03` F-9): «Vorgabe bis zur Antwort (a): sie läuft zu Ende» | `03` F-9: Vorgabe (b), die Aufnahme stoppt am Kontingent | `03` (b); `11` nachziehen | erledigt in `11` (Kontingent während der Aufnahme: Vorgabe (b)) |
+| U-22 | `15` F-21: Vorgabe (B) einstellbare Grenze | `11` 3.4 und K-3, `13` 8.3, `review-4` RG-04: (A) keine Grenze | (A); `15` nachziehen | erledigt in `15` (F-21 Vorgabe (A); die Einstellung in LA-14 nur bei (B)) |
+| U-23 | `14` F-4 und `03` DR-02: Vorgabe «geplante Termine nur als Zahl» | `review-4` RG-04, E-3: wortlauttreu ist (A) | (A); `14`, `03` und das Mockup nachziehen | erledigt in `14` (F-4, 3.14, Abschnitt 11 und 13), `03` (DR-02) und `08` (2.4, 3.5: keine Zahl, `scheduled` nur bei (B)); das Mockup bleibt offen, weil es ein anderer Agent nachzieht |
+| U-24 | `09` F-4 (a): feste Ziele «höchstens /24 bzw. /64», «höchstens 64 Ports» | `04` 14.9, `12` 4.5, `15` LA-03: Einzelziel ab Werk, Netz höchstens /28 bzw. /124, 16 Ports | `12`; `09` nachziehen | erledigt in `09` (F-4 (a): Einzelziel, Netz höchstens /28 bzw. /124, 16 Ports) |
+| U-25 | `19` Abschnitt 6 und das Mockup: Einstellung je Quelle «Vorladen für Sender dieser Quelle», «3sat zurückgestellt» | `04` Fassung 4 (RG-02, RG-03): kein Schalter je Quelle; Dauersender weicht nicht | `04`; `19` und Mockup nachziehen | bleibt offen, weil `19` und die Mockups ein anderer Agent nachzieht |
+| U-26 | `18` 2.1: `15` F-14 als offene Frage vor Stufe 1; Tabelle nach «`03` F-6», «`04` F-12» … | Anhang A: `15` F-14 erledigt durch `03` DR-16; Nummern `E-28-nn` | `20`; `18` 2.1 auf `E-28-nn` umstellen (RG-22) | erledigt in `18` (2.1 mit `E-28-nn`; `15` F-14 als erledigt durch `03` DR-16) |
+| U-27 | Verweise auf das alte Paar: `18` 4.5 «Vorlade-Schalter je Quelle nur bei Variante (b) von E-28-29»; `03` DR-29, `13` P-3, `18` D-13 und 4.5 «E-28-02/E-28-29» als eine Frage | `20` Fassung 2: der Schalter je Quelle ist E-28-02 (b), der Werkszustand des globalen Vorladens E-28-29 | `20`; Verweise nachziehen | erledigt in `03` (DR-29), `13` (8, P-3), `15` (Grundsatz 3) und `18` (2.1, D-13, 4.5) |
+| U-28 | `12` F-5, `02` 3.1, `18` 2.1, `04` O-29, O-32, `12` O-13, `18` O-8: «Nummer vergibt `20`» oder ohne Nummer | `20` Fassung 2: E-28-63, E-28-59 bis -62, E-28-64, -65, E-28-60, E-28-69, E-28-68 | `20`; Verweise eintragen | erledigt in `12` (F-5, O-13, Abschnitt 12.3), `02` (3.1), `18` (2.1, O-8) und `04` (O-29, O-32) |
 
 ### E.2 Erledigt seit Fassung 1
 
@@ -1412,6 +1412,9 @@ Fassung 1 → 2, Grundlage: `review-4-gesamt.md` (RG-01 bis RG-22), `review-5-ar
 - **Teil E:** in «offen» und «erledigt» geteilt; neu U-19 bis U-28.
 - **Zählung:** 64 `F-n` in den Papieren (Fassung 1: 62; neu `04` F-15, `12` F-5), jede mit genau einer E-28-Nummer oder
   als erledigt geführt.
+
+- Letzte Angleichung: Teil E.1 um die Spalte «Stand nach der letzten Angleichung» ergänzt (U-19 bis U-28 erledigt;
+  U-14, U-16, U-25 offen).
 
 *Ende von `20-offene-entscheidungen.md`. Nichts in diesem Dokument ist gebaut; jede Vorgabe gilt, bis du anders
 entscheidest.*
