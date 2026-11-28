@@ -1,17 +1,20 @@
 # Konzept 28 · Streaming und schnelles Umschalten
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Review 1, nicht freigegeben
 
 Dieses Dokument beschreibt den Weg eines Fernsehsenders von der Quelle bis zum Bild: wie der Server jede Art
 von Quelle empfängt, wie er den Strom intern verteilt, in welcher Form er ihn an Browser, Handy und Fernseher
 ausliefert, woraus sich die Umschaltzeit zusammensetzt und wie sie gemessen wird. Es führt die tragenden
-Entscheide T-1 bis T-26 aus `04-architektur.md` aus und ändert keinen davon.
+Entscheide T-1 bis T-28 aus `04-architektur.md` aus und ändert keinen davon. Fassung 2 arbeitet die Reviews
+ein; was sich geändert hat, steht in `04`, Abschnitt 13.
 
 Einordnung jeder Aussage: **gebaut** (mit Datei und Zeile, Stand `origin/main` 1220769b), **spezifiziert**
 (dieses Konzept), **Empfehlung**, **Annahme**, **offen** (F-n, O-n), **zu messen** (M-n). Nichts hier ist
 gebaut. **Kein Zielwert gilt als erreicht**; die vier Zielwerte des Auftrags sind Grössen, die der Benchmark
 in Abschnitt 8 prüft. Angaben aus den Recherche-Berichten, die dort nicht nachgelesen wurden, stehen hier als
-Annahme.
+Annahme. Aussagen über das Verhalten von FFmpeg stammen aus der Dokumentation der neuesten Version oder aus
+Kenntnis des Quelltexts und sind für die Fassung 7.1.4 des Images **nicht geprüft** (Widerspruch W-4 der
+Recherche); sie gelten als Annahme, bis der genannte Messpunkt vorliegt.
 
 Begriffe, einmal erklärt: **MPEG-TS** (TS) ist ein Strom aus Paketen zu 188 Byte. **PID** ist die Kennung
 eines Teilstroms darin (Bild, eine Tonspur, Untertitel). **PAT** und **PMT** sind die Tabellen, die sagen,
@@ -24,103 +27,114 @@ kurzen Stücken (Segmenten). **SSRF** heisst: Jemand bringt den Server dazu, Adr
 
 ```mermaid
 flowchart LR
-  Q["Quelle"] --> EMP["Empfänger (Weg G, W oder L)"]
+  Q["Quelle"] --> EMP["Empfänger (Weg G, später L und W)"]
   EMP --> RING["Verteiler: Ring mit GOP-Index"]
-  RING --> SP["Sitzungspuffer je Zuschauer"]
+  RING --> SP["Sitzungspuffer (nur mit Recht Timeshift)"]
   RING --> AUF["Aufnahme"]
+  RING --> SEG
   SP --> SEG["Segmentierer (Go)"]
   SP --> FF["FFmpeg je Zuschauer, nur wenn nötig"]
+  RING --> FF
   FF --> SEG
   SEG --> PL["Wiedergabeliste der Sitzung (HLS, TS-Segmente)"]
   PL --> CL["Player"]
 ```
 
-Vier Sätze genügen für das Ganze: Go empfängt jeden Sender einmal und hält die letzten Sekunden im
-Arbeitsspeicher. Wer einschaltet, bekommt seinen eigenen Puffer, der mit den letzten vollständigen
-Bildgruppen aus diesem Speicher beginnt; deshalb steht das Bild sofort. Passt der Strom zum Gerät, schneidet
-Go ihn nur in Stücke; sonst wandelt ein FFmpeg für genau diesen Zuschauer um. Aufnahmen hängen am selben
-Empfang und wissen nichts von Zuschauern.
+Vier Sätze für das Ganze: Go empfängt jeden Sender einmal und hält die letzten Sekunden bereit. Wer
+einschaltet, bekommt einen Anlauf aus der letzten vollständigen Bildgruppe; deshalb steht das Bild sofort.
+Passt der Strom zum Gerät, schneidet Go ihn nur in Stücke; sonst wandelt ein FFmpeg für genau diesen
+Zuschauer um. Wer das Recht «Timeshift» hat, bekommt dazu seinen eigenen Puffer auf dem Datenträger;
+Aufnahmen hängen am selben Empfang und wissen nichts von Zuschauern.
 
 ## 2. Empfänger je Protokoll
 
 ### 2.1 Drei Wege (T-3)
 
-| Weg | Wer liest das Netz | FFmpeg beteiligt | Für |
-|---|---|---|---|
-| **G** | Go, über den geschützten Dialer | nein | HTTP-TS, HLS mit TS-Segmenten, Xtream-Live, UDP, RTP, Multicast |
-| **W** | FFmpeg, aber jede Verbindung läuft über den Go-Weiterleiter auf `127.0.0.1` | ja, als Empfänger; Ausgabe TS auf `pipe:1` | DASH; HLS mit fMP4-Segmenten oder getrennter Tonspur |
-| **L** | Go mit einer Protokoll-Bibliothek, über den geschützten Dialer | nein | RTSP, RTMP (vorbehaltlich F-1) |
+| Weg | Wer liest das Netz | FFmpeg beteiligt | Für | Stufe |
+|---|---|---|---|---|
+| **G** | Go, über den geschützten Dialer | nein | HTTP-TS, HLS mit TS-Segmenten, Xtream-Live | 1 |
+| **G** | Go, lauschender Socket | nein | UDP, RTP, Multicast | 3 |
+| **L** | Go mit einer Protokoll-Bibliothek, über den geschützten Dialer | nein | RTSP, RTMP (vorbehaltlich F-1) | spät |
+| **W** | FFmpeg, aber nur unverschlüsseltes HTTP zum Go-Weiterleiter auf `127.0.0.1` | ja, als Empfänger; Ausgabe TS auf `pipe:1` | DASH; HLS mit fMP4-Segmenten oder getrennter Tonspur | **eigene späte Stufe, nur nach M-10** |
 
-Alle drei liefern denselben Rohstoff an den Verteiler: einen TS-Bytestrom mit genau einem Programm.
+Alle Wege liefern denselben Rohstoff an den Verteiler: einen TS-Bytestrom mit genau einem Programm.
+
+**Klar gesagt:** DASH und HLS mit fMP4 sind in den Stufen 1 bis 3 **nicht** enthalten. `03-fachkonzept.md`
+führt DASH in Stufe 3; diese Zuordnung ist zu ändern (`04`, O-24). Sie kommen erst, wenn Weg W belegbar dicht
+ist (2.6), sonst gilt F-13.
 
 ### 2.2 Übersicht je Protokoll
 
 | Protokoll | Weg | Netzschutz | Zugangsdaten und Kopfzeilen | Wiederverbindung | DRM |
 |---|---|---|---|---|---|
-| **HTTP-TS** (Dauerstrom, auch Xtream `.ts`) | G | Go-Dialer prüft jede aufgelöste Adresse, auch nach jeder Weiterleitung (höchstens 5, nur `http` und `https`) | setzt Go; nie in einer Argumentliste | Go, Leiter nach `04` Abschnitt 5.3; Stillstand nach 10 s ohne Daten | keine Kennzeichnung möglich; verschlüsselte Pakete erkennt der Verteiler am Kennzeichen im Paketkopf und meldet «verschlüsselt» |
-| **HLS, TS-Segmente** | G | wie oben, für Liste, jede Unterliste, jedes Segment und jeden Schlüssel einzeln | setzt Go; an fremde Hosts nur der User-Agent (2.4) | Go lädt die Liste nach; Segmentfehler: nächstes Segment, nach 3 Fehlern in Folge Abbruch | Go liest die Liste: Regel in 2.5; geprüft bei jedem Nachladen |
-| **HLS, fMP4 oder getrennter Ton** | W | Weiterleiter prüft jede Verbindung (2.6) | setzt der Weiterleiter für den Ursprung der Quelle | FFmpeg lädt nach; bricht der Prozess ab oder liefert er 10 s nichts, startet Go ihn neu (Leiter) | Weiterleiter liest jede durchgereichte Liste: Regel in 2.5 |
-| **DASH ohne DRM** | W | wie oben | wie oben | wie oben | Go lädt das Manifest zuerst selbst und bei jedem Nachladen über den Weiterleiter: jede `ContentProtection` führt zur Ablehnung |
-| **RTSP** | L (F-1) | Go-Dialer; nur TCP (Bild und Ton im selben Kanal); Weiterleitungen des Servers verbindet Go selbst und prüft sie | im Speicher; Anmeldung führt die Bibliothek | Go, Leiter | kein DRM in diesem Protokoll |
-| **RTMP** | L (F-1) | Go-Dialer (TCP, bei `rtmps` mit TLS) | im Speicher | Go, Leiter | kein DRM in der unterstützten Form; verschlüsselte Varianten (`rtmpe`) werden abgelehnt |
-| **UDP** (Unicast) | G | kein ausgehender Verbindungsaufbau: Der Server lauscht. Nur mit Freigabe «lokale Quelle», nur Ports ab 1024, erwartete Absenderadresse je Quelle | keine | zustandslos: 10 s ohne Paket gilt als Stillstand; der Socket bleibt offen | – |
-| **RTP** | G | wie UDP; Go entfernt den RTP-Kopf und zählt Lücken in der Paketfolge | keine | wie UDP | – |
-| **Multicast** | G | wie UDP; Beitritt zur Gruppe auf der gewählten Netzschnittstelle, auf Wunsch nur von einer Absenderadresse | keine | wie UDP; Beitritt wird beim Wiederaufbau erneuert | – |
-| **Xtream-Live** | G | Abfragen der Schnittstelle (Anmeldung, Kategorien, Sender) über den geschützten HTTP-Client; die Ströme sind HTTP-TS (bevorzugt) oder HLS | Benutzer und Passwort verschlüsselt gespeichert; die Stream-Adresse entsteht erst beim Verbinden im Speicher | wie HTTP-TS oder HLS | wie HTTP-TS oder HLS |
+| **HTTP-TS** (Dauerstrom, auch Xtream `.ts`) | G | Go-Dialer prüft jede aufgelöste Adresse, auch nach jeder Weiterleitung (höchstens 5, nur `http` und `https`) | setzt Go, nur für die festen Ursprünge der Quelle (2.4) | Go, Leiter nach `04` Abschnitt 5.3; Stillstand nach 10 s ohne Daten | keine Kennzeichnung möglich; verschlüsselte Bild- oder Tonpakete erkennt der Verteiler am Kennzeichen im Paketkopf und meldet «verschlüsselt» |
+| **HLS, TS-Segmente** | G | wie oben, für Liste, jede Unterliste, jedes Segment und jeden Schlüssel einzeln | wie oben | Go lädt die Liste nach; Segmentfehler: nächstes Segment, nach 3 Fehlern in Folge Abbruch | Go liest die Liste: Regel in 2.5; geprüft bei jedem Nachladen |
+| **Xtream-Live** | G | Abfragen der Schnittstelle über den geschützten HTTP-Client; die Ströme sind HTTP-TS (bevorzugt) oder HLS | Benutzer und Passwort verschlüsselt; die Stream-Adresse entsteht erst beim Verbinden im Speicher, **nur aus dem Host, den der Administrator eingetragen hat** | wie HTTP-TS oder HLS | wie HTTP-TS oder HLS |
+| **UDP** (Unicast) | G | kein ausgehender Verbindungsaufbau: Der Server lauscht. Regeln in 2.3 | keine | zustandslos: 10 s ohne Paket gilt als Stillstand | – |
+| **RTP** | G | wie UDP; Go entfernt den RTP-Kopf und zählt Lücken. **Der Empfänger sendet nichts**, auch keine Rückmeldungen (RTCP). | keine | wie UDP | – |
+| **Multicast** | G | wie UDP; Beitritt zur Gruppe auf der gewählten Netzschnittstelle, wo die Quelle es zulässt nur von einer bestimmten Absenderadresse | keine | wie UDP; Beitritt wird beim Wiederaufbau erneuert | – |
+| **RTSP** | L (F-1) | Go-Dialer; **nur TCP**, kein Rückfall auf UDP; Weiterleitungen des Servers verbindet Go selbst und prüft sie; nennt der Server eine andere Zieladresse für den Datenkanal, wird abgelehnt | im Speicher; Anmeldung führt die Bibliothek | Go, Leiter | kein DRM in diesem Protokoll |
+| **RTMP** | L (F-1) | Go-Dialer (TCP, bei `rtmps` mit TLS) | im Speicher | Go, Leiter | verschlüsselte Varianten (`rtmpe`) werden abgelehnt |
+| **HLS, fMP4 oder getrennter Ton** | W | Weiterleiter holt alles selbst über den geschützten Dialer (2.6) | setzt der Weiterleiter, nur für die festen Ursprünge | Go startet den Prozess neu (Leiter), wenn er abbricht oder 10 s nichts liefert | Go liest jede Liste, bevor FFmpeg sie sieht |
+| **DASH ohne DRM** | W | wie oben | wie oben | wie oben | Go liest jedes Manifest zuerst selbst: jede `ContentProtection` führt zur Ablehnung |
 
 Was nicht in der Tabelle steht, wird nicht empfangen: SRT (im Image nicht vorhanden, M1), `rtmpe`, `file`,
-`ftp`, `gopher`, `mms`, Plattform-Streams (YouTube, Twitch), alles mit DRM.
-
-Für RTP mit eigenem Aufbau der Sitzung über eine SDP-Datei, Fehlerkorrektur nach SMPTE 2022 und TS-Pakete mit
-204 Byte gilt: nicht unterstützt in der ersten Stufe (O-15).
+`ftp`, `gopher`, `mms`, Plattform-Streams (YouTube, Twitch), alles mit DRM. Für RTP mit eigener
+Sitzungsbeschreibung, Fehlerkorrektur nach SMPTE 2022 und TS-Pakete mit 204 Byte gilt: nicht unterstützt in
+der ersten Stufe mit UDP (O-15).
 
 ### 2.3 Netzschutz im Einzelnen
 
-**Grundsatz (T-5).** Jede Quelle trägt eine Regel: «nur öffentliche Adressen» (Vorgabe) oder «lokale Adressen
-erlaubt» (setzt nur der Administrator, je Quelle). Die Prüfung sitzt am Verbindungsaufbau, nach der
-Namensauflösung. So sieht sie jede Adresse, die wirklich angewählt wird, auch nach Weiterleitungen und bei
-einem Namen, der zwischen zwei Anfragen auf eine andere Adresse zeigt. Das ist gebaut:
-`server/internal/netguard/netguard.go:73-82`; abgelehnt werden Loopback, private Bereiche, Link-Local,
+**Grundsatz (T-5).** Öffentliche Adressen sind erlaubt. Eine lokale Adresse nur, wenn sie in den **festen
+Zielen der Quelle** liegt; Loopback, Link-Local, die Metadaten-Adressen und die eigenen Adressen des Servers
+nie. Die Regel und ihre Form stehen in `04`, Abschnitt 10.9. Die Prüfung sitzt am Verbindungsaufbau, nach der
+Namensauflösung, und sieht so jede Adresse, die wirklich angewählt wird, auch nach Weiterleitungen und bei
+einem Namen, der zwischen zwei Anfragen auf eine andere Adresse zeigt. Der Kern ist gebaut:
+`server/internal/netguard/netguard.go:73-82`; abgelehnt werden heute Loopback, private Bereiche, Link-Local,
 Multicast, CGNAT und die IPv6-Präfixe mit eingebetteter IPv4-Adresse (`netguard.go:34-54`). Das Radio nutzt
 denselben Schutz für Ströme, Listen und Segmente (`server/internal/radio/reader.go:53-81`).
 
-Für Live-TV kommt dazu (spezifiziert):
-
-| Punkt | Regel |
+| Punkt | Regel (spezifiziert) |
 |---|---|
-| Regel je Quelle | `netguard` bekommt eine Prüffunktion mit Regel statt der festen Ablehnung; die bestehenden Aufrufer behalten ihr Verhalten. |
-| Weiterleitungen | höchstens 5, jede neu geprüft, nur `http` und `https` (gebaut als Muster: `reader.go:31-38`, `:70-78`). |
-| Verschachtelte Listen | jede Unterliste, jedes Segment, jede Schlüsseladresse ist eine eigene Anfrage über denselben Dialer. Eine Quelle mit der Regel «öffentlich» kann den Server nicht über eine Segmentadresse ins Heimnetz schicken. |
-| Grössen und Fristen | Liste höchstens 1 MiB (gebaut: `radio/hlssrc.go:25`), Segment höchstens 64 MiB (Annahme; das Radio hat 2 MiB für Ton, `hlssrc.go:27`), Schlüssel höchstens 64 Byte, Kopf der Antwort innert 15 s, Lesestillstand 10 s. |
-| Sprünge in der Segmentfolge | Macht die Quelle einen Sprung von mehr als 10 Segmenten, beginnt der Empfänger am Ende neu, statt alles nachzuladen (gebaut als Muster: `hlssrc.go:29-31`). |
+| Jede Verbindung | Liste, Sender, Weiterleitung, Unterliste, Segment und Schlüssel sind je eine eigene Anfrage über den Dialer **dieser** Quelle. Eine Quelle kann den Server weder über eine Weiterleitung noch über eine Segmentadresse an ein Ziel schicken, das nicht öffentlich ist und nicht zu ihren festen Zielen gehört. |
+| Verbindungsvorrat | ein HTTP-Transport je Quelle und Regelstand, geschlossen bei geänderter Regel. Kein geteilter Vorrat: Sonst bekäme eine Quelle «nur öffentlich» eine offene Verbindung, die für eine freigegebene Quelle zum selben Gerät aufgebaut wurde, ohne dass die Prüfung noch einmal läuft. |
+| Weiterleitungen | höchstens 5, jede neu geprüft, nur `http` und `https` (gebaut als Muster: `reader.go:32-38`, `:70-78`). Wechselt der Ursprung, fallen die Geheimnisse weg (2.4). |
+| HLS: Takt und Ketten | Nachladen frühestens nach dem grösseren Wert aus 1 Sekunde und der halben Zieldauer; Zieldauer höchstens 60 Sekunden; höchstens 32 Varianten; Unterlisten höchstens 3 Ebenen tief, zusammen mit Weiterleitungen höchstens 5 Sprünge. Eine Liste mit Zieldauer 0 oder eine Kette im Kreis bricht mit einem stabilen Fehlercode ab. |
+| Grössen und Fristen | Wiedergabeliste höchstens 1 MiB (gebaut: `radio/hlssrc.go:25`), Segment höchstens 64 MiB (Annahme; das Radio hat 2 MiB für Ton, `hlssrc.go:27`), Schlüssel höchstens 64 Byte, Kopf der Antwort innert 15 s, Lesestillstand 10 s. |
+| Senderlisten und Xtream (Import) | M3U höchstens 200 MiB (Abruf und Hochladen; `15` nennt für das Hochladen 20 MB), Zeile höchstens 64 KiB, höchstens 200'000 Einträge, Merkmal höchstens 4 KiB, ungültige Zeichen werden ersetzt, Import höchstens 10 Minuten. Xtream-Antworten werden streamend gelesen, höchstens 200 MiB, Schachtelung höchstens 32 tief. Geschrieben wird in Stapeln von 500 Zeilen. Alle Zahlen sind Annahmen; Einzelheiten in `15` und `12`. |
+| Sprünge in der Segmentfolge | Macht die Quelle einen Sprung von mehr als 10 Segmenten, beginnt der Empfänger am Ende neu (gebaut als Muster: `hlssrc.go:29-31`). |
 | Inhalt statt Etikett | Was eine Antwort ist (TS, HLS-Liste, Senderliste, HTML-Fehlerseite), entscheidet Go am Inhalt der ersten Bytes, nie an Endung oder Typangabe (R3 Abschnitt 1.3; gebaut als Muster im Radio, `hlssrc.go:20-22`). |
-| IPv6 | Eine weltweit gültige IPv6-Adresse eines Geräts im Heimnetz ist nicht erkennbar und wird nicht abgelehnt. Diese Lücke besteht heute schon und ist dokumentiert (`netguard.go:44-47`); sie gilt hier unverändert. |
-| UDP, RTP, Multicast | Es gibt keinen Verbindungsaufbau nach aussen, also greift der Dialer nicht. Stattdessen: nur mit Freigabe «lokale Quelle»; Lausch-Adresse und Port aus der Quelle, Port ab 1024; Pakete von anderen Absendern als dem eingetragenen werden verworfen; Gruppenadresse muss im Multicast-Bereich liegen. Das Risiko ist hier nicht der Abruf fremder Adressen, sondern eingeschleuste Pakete aus dem Heimnetz (`12-sicherheit.md`). |
-| Logos und EPG-Bilder | laufen nicht über den Empfänger, sondern über den bestehenden geschützten Abruf mit Grössengrenze (Muster `radio/logo.go`, A2 Abschnitt 4.4). |
+| IPv6 und weitere Präfixe | `netguard` bekommt weitere nie öffentliche Präfixe (`04`, Abschnitt 10.9). Eine weltweit gültige IPv6-Adresse eines Geräts im Heimnetz ist nicht erkennbar und wird nicht abgelehnt; diese Lücke besteht heute schon (`netguard.go:44-47`). Im Bridge-Netz ohne IPv6 ist sie praktisch geschlossen, im Netzmodus «host» nicht. |
+| UDP, RTP, Multicast | Es gibt keinen Verbindungsaufbau nach aussen, also greift der Dialer nicht. Stattdessen: nur als festes Ziel der Quelle; der Socket bindet an die Adresse **einer gewählten Schnittstelle**, nie an alle; Port ab 1024; Gruppenadresse muss im Multicast-Bereich liegen; Beitritt wo möglich nur für eine bestimmte Absenderadresse; der Empfänger sendet nichts; Obergrenze für Pakete und Bytes je Sekunde beim Doppelten der gemessenen Bitrate, Überschuss wird verworfen und gezählt. **Ehrlich gesagt: Eine Absenderadresse lässt sich im selben Netz fälschen.** Die Prüfung des Absenders hält Irrläufer ab, keinen Angreifer im Heimnetz. Eine UDP-Quelle vertraut jedem Gerät im selben Netz; das Bild sehen auch Profile mit Altersgrenze, und es wird aufgenommen. Die Verwaltung sagt das wörtlich; empfohlen wird ein eigenes Netz für Multicast. |
+| Logos und EPG-Bilder | laufen nicht über den Empfänger, sondern über den bestehenden geschützten Abruf mit Grössengrenze (Muster `radio/logo.go`), **immer nur öffentlich**, gedrosselt und erst, wenn ein Sender aktiv ist. Ein Bild wird zuerst mit den Decodern von Go vollständig gelesen; nur was das besteht, geht zum Skalieren an FFmpeg (Empfehlung). |
 
 ### 2.4 Zugangsdaten, Kopfzeilen, User-Agent
 
-- **Speicherung:** Adresse mit Zugangsdaten, Benutzer und Passwort einer Xtream-Quelle und frei eingetragene
-  Kopfzeilen liegen verschlüsselt in der Datenbank (bestehender Schlüsselbund, A2 Abschnitt 6.1). Entschlüsselt
-  wird nur im Speicher, unmittelbar vor dem Verbinden.
-- **Argumentliste:** In Weg G und L gibt es keinen Prozess. In Weg W steht in der Argumentliste nur ein
-  Ersatzname (2.6). In keinem Fall erscheint eine Anbieter-Adresse, ein Passwort oder eine Kopfzeile in
+Die Regeln stehen als T-28 in `04`, Abschnitt 10.5. Für den Empfang heisst das:
+
+- **Im Speicher, kurz vor dem Verbinden:** Adresse, Benutzer, Passwort und Kopfzeilen werden erst dann
+  entschlüsselt. In Weg G und L gibt es keinen Prozess; in Weg W steht in der Argumentliste nur ein Ersatzname
+  (2.6). In keinem Fall erscheint eine Anbieter-Adresse, ein Passwort oder eine Kopfzeile in
   `/proc/<pid>/cmdline`.
-- **Weitergabe nur an den Ursprung:** Zugangsdaten und geheime Kopfzeilen (Authorization, Cookie und alle
-  frei eingetragenen) gehen nur an Schema, Host und Port der Quelle. Leitet die Quelle auf einen anderen Host
-  weiter oder nennt die Liste Segmente auf einem anderen Host, bekommt dieser nur den User-Agent. Die
-  Standardbibliothek von Go entfernt bei Weiterleitungen nur Authorization und Cookie; frei eingetragene
-  Kopfzeilen entfernt der Empfänger selbst.
+- **Nur an die festen Ursprünge:** Zugangsdaten und Kopfzeilen gehen nur an Schema, Host und Port, die für die
+  Quelle bestätigt sind (ab Werk der Host der eingetragenen Adresse). Nennt eine Liste einen Sender oder ein
+  Segment auf einem anderen Host, bekommt dieser nur User-Agent und `Accept`. Das gilt auch für jeden Sender
+  einer Senderliste: Seine Adresse erbt die Kopfzeilen der Quelle nur, wenn ihr Host zu den Ursprüngen gehört.
+- **Weiterleitungen:** Die Standardbibliothek von Go entfernt bei einem Wechsel des Hosts nur `Authorization`
+  und `Cookie`. Der Empfänger setzt deshalb eine eigene Prüfung: Wechselt der Ursprung, fallen alle Kopfzeilen
+  ausser User-Agent, `Accept` und `Range` weg. Führt eine Weiterleitung von `https` nach `http`, bricht der
+  Abruf einer Quelle mit Geheimnissen ab.
+- **Kopfzeilen aus der Liste:** Aus Zusatzzeilen einer Senderliste übernimmt der Import nur `User-Agent` und
+  `Referer` (je höchstens 256 Zeichen). Alles andere, auch `Authorization` und `Cookie`, wird verworfen.
 - **User-Agent:** je Quelle einstellbar (kein Geheimnis), Vorgabe `Slouchcat/<Version>`.
-- **Protokoll:** Von einer Quelle steht im Protokoll nur Schema und Host (gebaut als Hilfsfunktion:
-  `netguard.go:132-138`). Die Ergänzungen der Schwärzung stehen in `04`, Abschnitt 10.4.
-- **Antworten an Clients:** Kein Endpunkt für Profile liefert je eine Quelladresse. Die Verwaltung zeigt
-  Adressen mit geschwärzten Zugangsdaten.
+- **Protokoll und Antworten:** Von einer Quelle steht im Protokoll nur Schema und Host
+  (`netguard.go:132-138`). Kein Endpunkt liefert je eine Quelladresse oder den Wert einer Kopfzeile, auch
+  nicht an die Verwaltung.
 
 ### 2.5 DRM erkennen und ablehnen
 
 Der Server lehnt ab und versucht nichts zu umgehen. Regel für HLS, geprüft beim Anlegen, beim Start und bei
-jedem Nachladen der Liste (die Liste kann später Schutz bekommen):
+jedem Nachladen der Liste:
 
 | Befund in der Liste | Entscheid |
 |---|---|
@@ -131,82 +145,75 @@ jedem Nachladen der Liste (die Liste kann später Schutz bekommen):
 | Hinweise der Senderliste auf Lizenzdaten (`#KODIPROP` mit `license_type` oder `license_key`) | beim Import als «DRM, nicht unterstützt» markieren; Schlüssel werden nie gespeichert |
 
 Für DASH: Jedes Element `ContentProtection` bei den gewählten Darstellungen führt zur Ablehnung. Die Optionen
-von FFmpeg zum Entschlüsseln mit vorgegebenem Schlüssel (`cenc_decryption_key`, vorhanden laut Hilfetext) setzt
-der Server nie, und es gibt kein Eingabefeld dafür.
+von FFmpeg zum Entschlüsseln mit vorgegebenem Schlüssel setzt der Server nie, und es gibt kein Eingabefeld
+dafür.
 
 Die Unterscheidung stammt aus R3 Abschnitt 5; die Aussagen zur HLS-Spezifikation sind dort nicht nachgelesen
-und gelten hier als **Annahme**, bis `12-sicherheit.md` sie belegt. Der Grenzfall `SAMPLE-AES` mit `identity`
-wird vorsichtig abgelehnt (O-16).
+und gelten hier als **Annahme**, bis `12-sicherheit.md` sie belegt (Widerspruch W-11 der Recherche). Der
+Grenzfall `SAMPLE-AES` mit `identity` wird vorsichtig abgelehnt (O-16).
 
 ### 2.6 Entscheid: Gilt «FFmpeg sieht keine Adresse» weiter?
 
 **Ausgangslage (gebaut).** Heute bekommt FFmpeg nie eine Netzadresse: Jede Argumentliste nennt einen absoluten
 Pfad oder eine Pipe (A2 Abschnitt 0, Punkt 3). Für das Radio ist das als Regel festgehalten (ADR 0025,
-Punkt 2: «ffmpeg liest nur `pipe:0` und schreibt nur `pipe:1`»; `server/internal/transcode/radio.go:18-21`,
-`:79`). Darauf stützt sich auch das Sicherheitsreview der Dateiwiedergabe.
+Punkt 2; `server/internal/transcode/radio.go:18-21`, `:79`).
 
-**Entscheid (T-4).** Die Regel gilt für Live-TV fort, in dieser Fassung:
+**Entscheid (T-4).** Die Regel gilt für Live-TV fort:
 
-> FFmpeg bekommt nie eine Anbieter-Adresse, nie Zugangsdaten und nie eine Kopfzeile in die Argumentliste, und
-> es öffnet keine Verbindung, die nicht Go gewählt und geprüft hat.
+> FFmpeg bekommt nie eine Anbieter-Adresse, nie Zugangsdaten und nie eine Kopfzeile, weder in der
+> Argumentliste noch in Daten, die es liest, und es öffnet keine Verbindung, die nicht Go gewählt und geprüft
+> hat.
 
 Daraus folgt:
 
-1. **Umwandlung, Probe, Normalisierung:** nur Pipes, `-protocol_whitelist pipe`, wie beim Radio. Keine
-   Ausnahme.
+1. **Umwandlung, Probe, Normalisierung:** nur Pipes, festes Eingangsformat (`-f mpegts`),
+   `-protocol_whitelist pipe`, wie beim Radio. Keine Ausnahme.
 2. **Empfang in Weg G und L:** kein FFmpeg.
-3. **Empfang in Weg W: die eine benannte Ausnahme.** FFmpeg darf HTTP sprechen, aber nur zum
-   **Go-Weiterleiter**.
+3. **Empfang in Weg W: die eine benannte Ausnahme,** enger als in Fassung 1.
 
-**Weg W im Einzelnen (spezifiziert, vor dem Bau zu belegen mit M-10 und M-11).**
+**Weg W in Fassung 2 (spezifiziert; wird nur gebaut, wenn M-10 ihn belegt).**
 
-- Der Weiterleiter ist ein kleiner HTTP-Proxy im Serverprozess, gebunden an `127.0.0.1` auf einem zufälligen
-  Port. Er nimmt nur Anfragen mit dem Einmalkennwort des jeweiligen Empfängers an.
-- FFmpeg bekommt als Eingang einen **Ersatznamen**: `http://<zufall>.src.slouchcat.invalid/…` (die Endung
-  `.invalid` ist reserviert und nie auflösbar). Der Weiterleiter übersetzt diesen Namen auf die echte
-  Basisadresse der Quelle, holt die Antwort selbst über den geschützten Dialer, setzt die Kopfzeilen der Quelle
-  und reicht den Inhalt durch. Relative Adressen in Listen und Manifesten zeigen damit wieder auf den
-  Ersatznamen.
-- Absolute Adressen in Listen und Manifesten: Für `http` holt der Weiterleiter selbst (ohne Geheimnisse, ausser
-  es ist der Ursprung der Quelle). Für `https` baut FFmpeg über den Weiterleiter einen Tunnel auf (`CONNECT`);
-  der Weiterleiter wählt die Verbindung über den geschützten Dialer. In beiden Fällen entscheidet Go, wohin
-  eine Verbindung geht.
-- Argumentliste: Ersatzname, Adresse des Weiterleiters, `-protocol_whitelist http,https,tcp,tls,httpproxy,crypto`,
-  Auswahl der Spuren, `-c copy -f mpegts pipe:1`. Die Umgebung des Prozesses setzt `http_proxy` auf denselben
-  Weiterleiter und leert `no_proxy`, damit auch ein Codepfad, der die Option nicht weiterreicht, beim
-  Weiterleiter landet.
-- Der Weiterleiter liest jede durchgereichte Liste und jedes Manifest mit (DRM-Regel 2.5, Grössengrenzen).
-- Die Fehlerausgabe dieses FFmpeg kann Adressen aus Manifesten enthalten. Sie wird nie roh gespeichert oder
-  protokolliert (`04`, Abschnitt 10.4).
-- Ein FFmpeg-Empfänger ist ein Langläufer mit den bekannten Schwächen (R1 Abschnitt 5.5). Er wird deshalb
-  planmässig ersetzt: spätestens nach 12 Stunden (Annahme), bevorzugt in einem Augenblick ohne Zuschauer und
-  Aufnahme, und sofort, wenn sein Speicherbedarf eine Grenze überschreitet. Der Wechsel ist ein neuer
-  Zeitabschnitt wie bei einer Wiederverbindung.
+Fassung 1 liess FFmpeg für absolute `https`-Adressen einen Tunnel durch den Weiterleiter bauen. Beide Reviews
+haben gezeigt, dass der Weiterleiter dann nur verschlüsselte Bytes sieht: keine DRM-Prüfung, keine
+Grössengrenzen, keine Zertifikatsprüfung durch Go (RA-06, RS-02). Fassung 2 hat keinen Tunnel:
 
-**Was dabei nicht belegt ist (Annahmen aus Kenntnis des FFmpeg-Quelltexts, im Image 7.1.4 zu prüfen):**
-dass der HLS- und der DASH-Leser die Proxy-Angabe an jede Unteranfrage weitergeben; dass `https` über den
-Proxy getunnelt wird; dass beide Leser in Listen nur `http`, `https`, `crypto` und `data` annehmen und etwa
-`tcp://` oder `file:` ablehnen. Der Hilfetext der lokalen Version 6.1.1 nennt die Option `-http_proxy`
-(«set HTTP proxy to tunnel through»); das belegt die Option, nicht das Verhalten. **Ohne den Nachweis M-10
-wird Weg W nicht gebaut.**
+| Punkt | Festlegung |
+|---|---|
+| Was FFmpeg spricht | ausschliesslich unverschlüsseltes HTTP mit dem Go-Weiterleiter auf `127.0.0.1`. Der Weiterleiter lehnt `CONNECT` mit 403 ab. |
+| Ersatznamen | Jeder Host, der in Listen oder Manifesten vorkommt, bekommt einen eigenen Ersatznamen der Form `<zufall>.src.slouchcat.invalid` (die Endung `.invalid` ist reserviert und nie auflösbar). FFmpeg sieht keinen echten Host, auch nicht in seiner Fehlerausgabe. |
+| Umschreiben | Der Weiterleiter holt jede Liste und jedes Manifest selbst und schreibt **jede** Adresse darin auf Ersatznamen um, bevor FFmpeg sie liest. Bei HLS: die Adresszeilen und die Adress-Merkmale von Schlüssel, Kopfstück, Tonspuren und Bildlisten. Bei DASH: Basisadresse, Ortsangabe, die Vorlagen für Segmente und Kopfstück, einzelne Segmentadressen. Was er nicht sicher umschreiben kann, lehnt er ab. |
+| TLS | endet immer in Go, mit dessen Zertifikatsprüfung. FFmpeg prüft Zertifikate nach unserem Wissen ab Werk nicht (Annahme). |
+| Weiterleitungen | folgt der Weiterleiter selbst, geprüft wie in 2.3. FFmpeg bekommt nie eine Antwort «weitergeleitet». |
+| Prüfung des Inhalts | Der Weiterleiter liest jede Liste und jedes Manifest (DRM-Regel 2.5, Grössengrenzen 2.3). Ein DASH-Manifest mit Dokumenttyp- oder Entitätsangabe wird verworfen, bevor der XML-Leser von FFmpeg es sieht. Segmente mit Transportverschlüsselung entschlüsselt der Weiterleiter selbst und nimmt die Schlüsselzeile aus der Liste. |
+| Argumentliste | Ersatzname als Eingang, festes Eingangsformat (`-f hls` oder `-f dash`), `-protocol_whitelist http,tcp`, Auswahl der Spuren nur über Zahlen, `-c copy -f mpegts pipe:1`. Kein `https`, `tls`, `httpproxy`, `crypto`, `data`, `file`. |
+| Warum `tcp` in der Liste bleibt | Die Protokoll-Liste von FFmpeg gilt auch für das Transportprotokoll unter `http`; ohne `tcp` käme keine Verbindung zum Weiterleiter zustande (Annahme; M-10 prüft, ob 7.1.4 ohne auskommt, dann fällt es weg). Dass `tcp` nicht für anderes taugt, sichert die nächste Zeile. |
+| **Sperre des Prozesses** | Der FFmpeg-Empfänger läuft in einer Sperre des Kernels (Landlock): TCP-Verbindungen nur zum Port des Weiterleiters, kein Lesezugriff auf `/config`, Schreiben nirgends. Erst damit ist «öffnet keine Verbindung, die Go nicht gewählt hat» **erzwungen** und nicht nur getestet. Netzregeln brauchen Linux ab 6.7 (`04`, Abschnitt 10.8). **Ohne diese Sperre bleibt Weg W aus** (F-13). |
+| Zugang zum Weiterleiter | Der Weiterleiter nimmt nur Ersatznamen an, die er selbst vergeben hat; ein Ersatzname ist ein zufälliges Geheimnis des einen Empfängers. Ein Kennwort in der Proxy-Adresse braucht es damit nicht. |
+| Netzmodus «host» | Weg W ist dort gesperrt: `127.0.0.1` wäre das Loopback des Docker-Hosts, und Ersatznamen stünden in dessen Prozessliste. |
+| Fehlerausgabe | wird nie roh gespeichert oder protokolliert (`04`, Abschnitt 10.4); sie enthält ohnehin nur Ersatznamen. |
+| Langläufer | Ein FFmpeg-Empfänger wird sofort ersetzt, wenn sein Speicherbedarf eine Grenze überschreitet. Ob er auch planmässig ersetzt werden muss, zeigt M-12 (O-20); Fassung 1 hatte das vorweggenommen. |
 
-**Restrisiko der Ausnahme.** FFmpeg sieht zur Laufzeit Adressen, die in fremden Manifesten stehen (nicht in
-der Argumentliste), und es verarbeitet Netzdaten in C-Code. Es kann aber keine Verbindung an Go vorbei
-öffnen, sofern M-10 das bestätigt.
+**Der Beleg M-10** ist eine feindliche Testmenge: absolute `http`-, `https`-, `tcp`-, `file`- und
+`data`-Adressen, Adressen im Heimnetz als Zahlen, Weiterleitungen auf lokale Adressen, Unterlisten in drei
+Ebenen, Schlüssel und Kopfstücke auf fremden Hosts. Bestanden ist er, wenn die Mitschrift **aller**
+Verbindungsversuche des FFmpeg-Prozesses nur den Port des Weiterleiters zeigt, mit und ohne Sperre.
 
-**Alternative, falls M-10 scheitert oder du die Ausnahme nicht willst.** Go liest auch DASH und HLS mit fMP4
-selbst (eigener Leser für Manifeste und Segmentvorlagen, zwei Datenströme für Bild und Ton) und gibt FFmpeg
-die Daten über Pipes zum Umpacken nach TS. Dann gilt die Regel von ADR 0025 ohne jede Ausnahme. Preis:
-deutlich mehr eigener Protokollcode und Pflege (Schätzung: mehr als das Vierfache des Weiterleiters), für
-Quellarten, die bei IPTV selten sind. Die zweite Alternative ist, DASH und HLS mit fMP4 in einer späteren
-Stufe oder gar nicht anzubieten; das wäre ein Abstrich an LTV-003 und müsste von dir kommen.
+**Was dabei eine Annahme bleibt:** dass der HLS- und der DASH-Leser von FFmpeg 7.1.4 in Listen nur
+`http`-Adressen annehmen und anderes ablehnen; dass sie mit umgeschriebenen Listen und Manifesten (auch mit
+Vorlagen für Segmentnummern und Zeiten) zurechtkommen; dass der DASH-Leser für Live-Manifeste stabil genug ist
+(M-11).
 
-**RTSP und RTMP** sind kein Teil dieser Ausnahme. Für sie steht die Frage F-1 in `04`, Abschnitt 12.3:
-Go-Bibliotheken (Empfehlung) oder eine zweite Ausnahme mit zwei benannten Restrisiken.
+**Alternativen, falls Weg W nicht belegbar dicht ist** (F-13): (a) nur mit Sperre anbieten; (b) Go liest auch
+DASH und HLS mit fMP4 selbst und gibt FFmpeg die Daten über Pipes zum Umpacken, dann gilt ADR 0025 ohne jede
+Ausnahme, zum Preis von deutlich mehr eigenem Protokollcode; (c) gar nicht anbieten, als Abstrich an LTV-003,
+der von dir kommen müsste.
+
+**RTSP und RTMP** sind kein Teil dieser Ausnahme. Für sie steht die Frage F-1 in `04`, Abschnitt 12.3.
 
 ### 2.7 Vom Empfänger zum Verteiler
 
-Jeder Empfänger tut vor der Übergabe drei Dinge, alle in Go mit der Bibliothek `live/mpegts`:
+Jeder Empfänger tut vor der Übergabe drei Dinge, alle in Go mit der Bibliothek `live/mpegts` (Anforderungen in
+`04`, Abschnitt 3.2):
 
 1. **Paketgrenzen finden** (Synchronbyte im Abstand von 188 Byte, dreimal bestätigt) und nach einem Abbruch
    neu finden. Halbe Pakete werden verworfen.
@@ -214,8 +221,11 @@ Jeder Empfänger tut vor der Übergabe drei Dinge, alle in Go mit der Bibliothek
    Programm des Senders; die Programmtabelle wird auf dieses eine Programm neu geschrieben. Alle PIDs dieses
    Programms bleiben erhalten (Bild, alle Tonspuren, Untertitel, Teletext, Daten), damit die Aufnahme nichts
    verliert (LTV-020).
-3. **Zeitabschnitt melden.** Jede neue Verbindung, jeder Quellwechsel und jede Diskontinuität der Quelle
-   (bei HLS: `EXT-X-DISCONTINUITY`) beginnt im Verteiler einen neuen Zeitabschnitt (3.4).
+3. **Diskontinuität oder Zeitabschnitt melden** (3.4).
+
+Jede Go-Routine eines Empfängers fängt Programmfehler an ihrer Wurzel ab: Ein Paket, das den Leser zum Absturz
+brächte, beendet den Empfang dieses Senders mit dem Fehler «Quelle liefert ungültige Daten» und Quarantäne,
+nicht den Server (T-27).
 
 ## 3. Interne Verteilung
 
@@ -225,105 +235,175 @@ Je empfangenem Sender gibt es einen Verteiler (T-6). Er besteht aus:
 
 | Teil | Inhalt | Grösse |
 |---|---|---|
-| **Ring** | TS-Pakete in Ankunftsreihenfolge, als fester Byte-Bereich im Arbeitsspeicher, einmal angelegt und im Kreis beschrieben. Jede Stelle hat eine fortlaufende 64-Bit-Position, die nie zurückspringt. | Startwert 8 MiB, wächst mit der gemessenen Bitrate bis höchstens 64 MiB |
-| **GOP-Index** | je Keyframe: Position im Ring, entfaltete Zeit, Uhrzeit der Ankunft, Zeitabschnitt | so viele Einträge, wie Keyframes im Ring liegen |
-| **Tabellen-Zwischenspeicher** | letzte PAT und PMT als fertige Pakete, mit Versionsnummer | wenige hundert Byte |
+| **Ring** | TS-Pakete in Ankunftsreihenfolge in einem festen Bereich, im Kreis beschrieben. Jede Stelle hat eine fortlaufende 64-Bit-Position, die nie zurückspringt. | einmal je Zeitabschnitt angelegt: gespeicherte Bitrate × 15 s × 1,03; ohne gespeicherte Bitrate für 8 Mbit/s (rund 15,5 MB). Ein Ring wächst nie an Ort; bei einem neuen Zeitabschnitt wird neu reserviert. |
+| **GOP-Index** | je Keyframe: Position im Ring, entfaltete Zeit, Uhrzeit der Ankunft, Zeitabschnitt, Art des Einstiegspunkts | so viele Einträge, wie Keyframes im Ring liegen |
+| **Tabellen-Zwischenspeicher** | letzte PAT und PMT als fertige Pakete | wenige hundert Byte |
 | **Messwerte** | Bytes je Sekunde, Zählerfehler je PID, letzte Ankunft, Fortschritt der Zeitstempel je PID, Bildgruppen-Länge, Verschlüsselungskennzeichen | fest |
-| **Cursor** | je Abnehmer eine Position und ein Signal «neue Daten» | fest |
+| **Leser** | je Abnehmer eine Position | fest |
 
-Der Schreiber (der Empfänger) ist die einzige Routine, die in den Ring schreibt. Er wartet auf niemanden.
+**Wo der Ring liegt** (T-25, F-2): ab Werk im Arbeitsspeicher des Servers, als Bereich ausserhalb der
+Speicherverwaltung von Go (anonyme Speicherabbildung). So zählt er genau gegen das Byte-Budget, und die
+Speicherbereinigung von Go muss ihn weder durchsuchen noch mit Reserve einplanen; der Server setzt heute keine
+Speichergrenze für Go (keine Fundstelle für `GOMEMLIMIT` in `server/` und `deploy/`). Wählt der Administrator
+einen Ordner, ist der Ring eine Datei fester Grösse je Sender in diesem Ordner, mit denselben Regeln; der
+Empfänger schreibt dann über einen kleinen Zwischenspeicher und lässt den Ring aus, wenn der Ordner stockt
+(der Sender hat so lange keinen schnellen Start, der Empfang und die Abnehmer am aktuellen Rand laufen aus dem
+Zwischenspeicher weiter).
+
+Der Ring gibt es ab Stufe 1, weil ohne ihn nichts zu verteilen ist. Seine Rolle als **Startpuffer für
+vorgehaltene Sender** (dauerhaft, automatisch, vorgeladen) und der wählbare Speicherort kommen mit Stufe 3.
 
 ### 3.2 Keyframes erkennen
 
 Ein Eintrag im GOP-Index entsteht, wenn ein Bildpaket als wahlfreier Einstiegspunkt erkannt ist:
 
-1. zuerst über das Kennzeichen im Paketkopf (`random_access_indicator`), das Sender dafür setzen;
-2. fehlt es, durch einen Blick in den Anfang des Bildpakets: bei H.264 ein IDR-Bild oder ein Bild mit
-   Wiedereinstiegs-Kennzeichen, bei HEVC ein IRAP-Bild, bei MPEG-2 ein Sequenzkopf mit I-Bild;
+1. zuerst über das Kennzeichen im Paketkopf (`random_access_indicator`);
+2. fehlt es, durch Lesen des Bildpakets **bis zum ersten Bild-Element**: Davor stehen Trenner, Zusatzdaten und
+   Bildparameter, und das erste Bild-Element liegt oft mehrere TS-Pakete hinter dem Anfang; Startcodes können
+   über Paketgrenzen laufen. Gesucht wird bei H.264 ein IDR-Bild oder ein Bild mit Wiedereinstiegs-Kennzeichen,
+   bei HEVC ein IRAP-Bild, bei MPEG-2 ein Sequenzkopf mit I-Bild;
 3. ein Einstiegspunkt zählt nur, wenn die Bildparameter (bei H.264 SPS und PPS, bei HEVC zusätzlich VPS, bei
-   MPEG-2 der Sequenzkopf) im selben Bild mitkommen. Sonst könnte ein Decoder dort nicht beginnen.
+   MPEG-2 der Sequenzkopf) im selben Bild mitkommen;
+4. **offene Bildgruppen** werden gekennzeichnet: Ein Einstiegspunkt, nach dem Bilder folgen, die auf frühere
+   verweisen (HEVC-CRA, MPEG-2 ohne geschlossene Bildgruppe, H.264 mit Wiedereinstiegspunkt), ergibt am Start
+   kurz nicht dekodierbare Bilder. Geschlossene Einstiegspunkte werden für den Start vorgezogen, wenn einer im
+   Ring liegt.
 
 Quellen, die Punkt 3 selten oder nie erfüllen, bekommen keinen schnellen Start. Für sie ist der Rückfall
-«Strom normalisieren» vorgesehen (`04`, O-2): ein FFmpeg zwischen Empfänger und Verteiler, nur über Pipes,
-der die Bildparameter vor jedem Keyframe wiederholt (der Filter `dump_extra` ist im Image vorhanden, M1).
-Wie häufig solche Quellen sind, zeigt M-2.
+«Strom normalisieren» vorgesehen (`04`, O-2): ein FFmpeg zwischen Empfänger und Verteiler, nur über Pipes
+(der Filter `dump_extra` ist im Image vorhanden, M1). Wie häufig solche Quellen sind, zeigt M-2.
 
 ### 3.3 Programmtabellen
 
 Ein neuer Abnehmer bekommt immer zuerst PAT und PMT aus dem Zwischenspeicher und dann die Pakete ab seinem
-Startpunkt. Ändert sich die Version der PMT oder die Liste der PIDs, meldet der Verteiler «Parameter
-geändert»; das löst eine neue Probe und einen neuen Zeitabschnitt aus (`04`, Abschnitt 9).
+Startpunkt. Die Zähler der eingefügten Tabellenpakete werden an den Strom angepasst, sonst zählte die eigene
+Überwachung Fehler. Eine neue **Versionsnummer** der PMT allein löst nichts aus: Sie ändert sich auch, wenn nur
+Beschreibungen wechseln (Annahme, M-2). Massgeblich ist, ob sich die Menge der PIDs, ein Codec oder die
+Bildparameter geändert haben (3.4).
 
-### 3.4 Zeitbasis, Überlauf, Zeitabschnitte
+### 3.4 Zeitbasis, Überlauf, Diskontinuität, Zeitabschnitt
 
 - **Zeitstempel im TS** sind 33 Bit breit bei 90'000 Schritten je Sekunde und laufen nach rund 26,5 Stunden
-  über (Rechnung: 2³³ ÷ 90'000 s). Go **entfaltet** sie je Sender zu einer 64-Bit-Zeit (Zeitstempel plus
-  Überlaufzähler, gegen die Uhr des Servers auf Plausibilität geprüft). GOP-Index, Fenster des Zeitversatzes,
-  Schnitte von Aufnahmen und alle Dauern rechnen nur mit dieser Zeit.
+  über (Rechnung: 2³³ ÷ 90'000 s). Go **entfaltet** sie je Sender zu einer 64-Bit-Zeit. GOP-Index, Fenster des
+  Zeitversatzes, Schnitte von Aufnahmen und alle Dauern rechnen nur mit dieser Zeit.
 - **Die Pakete selbst bleiben unverändert** (Originalqualität). Im Direktweg kommt der Überlauf also beim
   Player an, in der Umwandlung bei FFmpeg. Ob hls.js, Safari und Media3 den Überlauf mitten in einem Segment
-  ohne Störung verkraften, ist zu messen (M-22). Rückfall: Der Verteiler beginnt am ersten Keyframe
-  nach dem Überlauf einen neuen Zeitabschnitt. Das wäre je Sender ein kurzer Sprung alle 26,5 Stunden.
-- **Zeitabschnitt:** ein Stück Strom mit durchgehender Zeit und gleichen Parametern. Ein neuer beginnt bei
-  neuer Verbindung, Quellwechsel, Diskontinuität der Quelle, einem Zeitsprung von mehr als 2 Sekunden gegen
-  die Erwartung (Annahme) und bei geänderter PMT. Folgen für Abnehmer: in der Wiedergabeliste
-  `EXT-X-DISCONTINUITY`, in der Aufnahme ein neuer Teil, ein laufender FFmpeg bekommt das Ende seiner Eingabe
-  und wird für den nächsten Abschnitt neu gestartet. **Kein FFmpeg-Lauf geht über eine Abschnittsgrenze.**
+  ohne Störung verkraften, ist zu messen (M-22). Rückfall: eine Diskontinuität am ersten Keyframe nach dem
+  Überlauf.
+- **Diskontinuität:** ein Sprung der Zeit bei gleichen Parametern. Sie entsteht bei einer neuen Verbindung zur
+  selben Quelle, bei einer Diskontinuität der Quelle (bei HLS: `EXT-X-DISCONTINUITY`, bei Sendern mit
+  Werbeeinblendungen mehrmals je Stunde) und bei einem Zeitsprung von mehr als 2 Sekunden gegen die Erwartung
+  (Annahme). Folgen: in der Wiedergabeliste `EXT-X-DISCONTINUITY`; die Aufnahme bleibt **im selben Teil** und
+  vermerkt den Sprung im Verzeichnis; eine laufende Umwandlung läuft weiter, wenn FFmpeg den Sprung im
+  TS-Eingang sauber übernimmt (M-9), sonst startet sie neu.
+- **Zeitabschnitt:** ein Stück Strom mit gleichen Spuren und Parametern. Ein neuer beginnt nur bei geänderter
+  Menge der PIDs, geändertem Codec, geänderten Bildparametern (Grösse, Zeilensprung) und bei einem Wechsel der
+  Quelle. Folgen: die Aufnahme beginnt einen neuen Teil; Sitzungen berechnen ihren Entscheid neu; laufende
+  Umwandlungen starten neu; der Ring wird neu reserviert; eine neue Probe läuft.
 - **Uhrzeit:** Jeder Indexeintrag trägt die Uhrzeit der Ankunft. Daraus entsteht in der Wiedergabeliste
-  `EXT-X-PROGRAM-DATE-TIME`, mit dem alle drei Player die Stelle als Uhrzeit kennen (Zeitleiste, Abgleich mit
-  dem EPG, Sprung «zurück zu Live»).
+  `EXT-X-PROGRAM-DATE-TIME`, mit dem alle drei Player die Stelle als Uhrzeit kennen.
 
-### 3.5 Cursor und langsamer Abnehmer
+### 3.5 Leser, Rückstau und der langsame Abnehmer
 
-Abnehmer des Rings sind nur Sitzungspuffer und Aufnahmen (T-8). Jeder hat eine eigene Routine, die an ihrem
-Cursor liest und auf ihren Datenträger schreibt.
+**Leseprotokoll (T-8).** Der Schreiber wartet nie und nimmt keine Sperre, die ein Leser halten könnte.
 
-- Liegt ein Cursor an der Schreibstelle, wartet die Routine auf das Signal «neue Daten».
-- Wird ein Cursor **überrundet** (der Schreiber hat seine Stelle überschrieben), bekommt der Abnehmer den
-  Fehler «überrundet» und einen neuen Startpunkt am nächsten Keyframe. Im Sitzungspuffer steht dann eine
-  Diskontinuität, in der Aufnahme eine Lücke mit Grund «Datenträger zu langsam». Ein Zähler erscheint in der
-  Verwaltung.
-- Der Schreiber weiss von alledem nichts. Andere Abnehmer sind nicht betroffen.
+1. Ein Leser kopiert den Bereich ab seiner Position in eigenen Speicher.
+2. Danach prüft er die Schreibposition: Hat der Schreiber den Bereich inzwischen überschrieben, verwirft der
+   Leser die Kopie und meldet «überrundet».
+3. Ein überrundeter Leser bekommt einen neuen Startpunkt am nächsten Keyframe; bei seinem Abnehmer steht dann
+   eine Diskontinuität oder eine Lücke.
+4. Der GOP-Index wird unter einer kurzen Lesesperre gelesen; der Schreiber hält die Sperre nur zum Eintragen
+   und Verwerfen eines Eintrags.
+5. «Neue Daten» ist ein Kanal, der geschlossen und ersetzt wird (Muster gebaut:
+   `server/internal/transcode/manager.go:95`, `:275-278`), kein Signal je Leser.
 
-Ein langsamer **Client im Netz** hängt gar nicht am Ring: Er holt Segmente per HTTP aus seinem eigenen
-Sitzungspuffer. Holt er zu langsam, fällt er aus seinem eigenen Fenster (404 für zu alte Segmente, der Player
-springt nach vorn). Das ist der Abwurf «nur dieses Clients», den der Auftrag verlangt.
+**Wer liest:**
+
+| Leser | Eigener Rückstau im Arbeitsspeicher | Wenn er nicht nachkommt |
+|---|---|---|
+| Schreiber einer Aufnahme | bis 64 MiB oder 60 Sekunden bei der gespeicherten Bitrate, das Kleinere; gezählt gegen das Byte-Budget | erst wenn der Rückstau voll ist: Lücke «Datenträger zu langsam» in der Aufnahme |
+| Schreiber eines Sitzungspuffers | bis 16 MiB | Diskontinuität im Sitzungspuffer |
+| Zuführer einer Umwandlung ohne Zeitversatz | bis 8 MiB | Sprung nach vorn; die Sitzung meldet «zu langsam» |
+| Segmentabruf einer Sitzung ohne Zeitversatz | keiner: eine Kopie je Anfrage | Segment schon überschrieben: 404, der Player nimmt das nächste |
+
+Der Rückstau gehört genau einem Abnehmer und ist nur für ihn lesbar. Er trennt zwei Dinge, die Fassung 1
+vermischt hatte: die Grenze gegen ein Archiv (15 Sekunden im Ring) und die Toleranz gegen einen Datenträger,
+der kurz stockt (eine anlaufende Platte, ein Netzspeicher, der neu verbindet).
+
+Ein langsamer **Client im Netz** kann nichts aufhalten: Er holt Segmente per HTTP, und jede Antwort ist eine
+Kopie. Holt er zu langsam, fällt er aus seinem eigenen Fenster (404 für zu alte Segmente, der Player springt
+nach vorn). Das ist der Abwurf «nur dieses Clients», den der Auftrag verlangt.
 
 ### 3.6 Grenzen
 
 | Grenze | Wert | Art |
 |---|---|---|
-| Alter der Daten im Ring | höchstens 15 s | harte Konstante |
-| Grösse eines Rings | höchstens 64 MiB | harte Konstante |
-| Inhalt | zwei vollständige Bildgruppen und die laufende; was darüber hinausgeht, wird überschrieben | Regel |
-| Summe aller Ringe | Byte-Budget, ab Werk 512 MB | einstellbar; Zulassung mit Reservierung wie beim Radio (`server/internal/radio/buffer.go:67-70`, `listen.go:245-254`) |
-| Abnehmer je Verteiler | keine eigene Grenze; begrenzt über Stream-Grenzen der Konten und die Zahl der Aufnahmen | – |
+| Alter der Daten im Ring | höchstens 15 s | **die eine** harte Konstante; nach unten einstellbar (mindestens 4 s), nie höher |
+| Grösse eines Rings | Bitrate × 15 s × 1,03, beim Start reserviert | folgt aus der Konstante; keine zweite Grenze in Byte |
+| Summe aller Ringe und Rückstaue | Byte-Budget; empfohlen ein Achtel des Arbeitsspeichers, höchstens 512 MB | einstellbar; Zulassung mit Reservierung wie beim Radio (`server/internal/radio/buffer.go:67-70`, `listen.go:245-254`) |
 | Wartezeit des Schreibers auf Abnehmer | null | Regel |
 
-Rechenbeispiel (Annahme: 2-Sekunden-Bildgruppen): Ein Sender mit 8 Mbit/s belegt für zwei vollständige
-Bildgruppen und die laufende im Mittel 5 Sekunden, also rund 5 MB; ein UHD-Sender mit 20 Mbit/s rund 12,5 MB.
-Zwanzig HD-Sender liegen bei rund 100 MB, hundert bei rund 500 MB. Die wirklichen Werte bringt M-13.
+**Lange Bildgruppen.** «Letzte vollständige Bildgruppe» setzt voraus, dass eine in 15 Sekunden passt. Regel:
 
-### 3.7 Der technische Startpuffer und seine Trennung vom Zeitversatz
+| Bildgruppe der Quelle | Was im Ring liegt | Start eines neuen Abnehmers |
+|---|---|---|
+| bis rund 7 s | mindestens eine vollständige und die laufende | an der letzten vollständigen: sofort ein ganzes Segment |
+| 7 bis 15 s | zeitweise nur die laufende | am neuesten Keyframe; das erste Segment ist erst fertig, wenn die Bildgruppe endet («kein schneller Start») |
+| über 15 s | zeitweise kein Keyframe | Warten auf den nächsten Keyframe der Quelle |
 
-Der technische Startpuffer **ist** der Ring (T-7). Sein einziger Zweck: Ein neuer Abnehmer findet sofort
-vollständige Bildgruppen vor und muss nicht auf den nächsten Keyframe der Quelle warten.
+Der Sender gilt in allen drei Fällen als «läuft»; die Verwaltung zeigt die gemessene Bildgruppen-Länge und
+«kein schneller Start».
 
-Die Trennung vom persönlichen Zeitversatz ist nicht nur eine Regel, sondern durch den Aufbau erzwungen:
+**Arbeitsspeicher (Rechnung, Annahme).** Ein Ring hält 15 Sekunden: bei 8 Mbit/s rund 15 MB, bei 20 Mbit/s
+(UHD) rund 37,5 MB.
+
+| Empfangene Sender (HD, 8 Mbit/s) | Ringe | Eingang |
+|---|---|---|
+| 5 | 75 MB | 40 Mbit/s |
+| 20 | 300 MB | 160 Mbit/s |
+| 50 | 750 MB | 400 Mbit/s |
+| 100 | 1,5 GB | 800 Mbit/s |
+
+Auf der Referenz (4 GB Arbeitsspeicher, daneben bis 564 MB für das Radio, `deploy/compose.yaml:39-40`) lässt
+ein Budget von 512 MB rund 33 HD-Sender zu, nicht 100. Wer mehr dauerhaft empfangen will, verkürzt den Ring
+(bei 6 Sekunden: 6 MB je HD-Sender) oder braucht mehr Arbeitsspeicher; bei 100 Sendern begrenzt ohnehin der
+Eingang. Die Szenarien des Auftrags rechnet `13-ressourcen-und-performance.md`; die wirklichen Werte bringt
+M-13.
+
+### 3.7 Der technische Startpuffer, der Anlauf und die Rückspulgrenze
+
+Der technische Startpuffer **ist** der Ring (T-7). Sein Zweck: Ein neuer Abnehmer findet sofort eine
+vollständige Bildgruppe vor und muss nicht auf den nächsten Keyframe der Quelle warten.
+
+**Der Anlauf.** Eine Sitzung beginnt mit der letzten vollständigen Bildgruppe und dem Anfang der laufenden.
+Das erste Bild liegt damit bis zu zwei Bildgruppen **vor** dem Tastendruck (bei 2 Sekunden je Bildgruppe bis
+4 Sekunden, hart begrenzt auf 15 Sekunden). Ohne Anlauf gäbe es kein sofortiges Bild. Fassung 1 nannte hier
+«höchstens zwei Bildgruppen» und begann doch an bis zu drei; das ist korrigiert.
+
+**Die Rückspulgrenze (Vorgabe, F-7).** Die Grenze einer Sitzung ist der **Zeitpunkt des Einschaltens**, nicht
+der Anfang des Anlaufs:
+
+1. Die Segmente des Anlaufs stehen nur so lange in der Liste, bis sie Segmente enthält, die nach dem
+   Tastendruck beginnen, höchstens 15 Sekunden.
+2. Danach beginnt das Fenster der Sitzung am ersten Segment, das nach dem Tastendruck anfängt. Die Segmente
+   des Anlaufs beantwortet der Server mit 404, für immer.
+3. Die Zeitleiste der Oberfläche beginnt beim Tastendruck.
+
+Was der Server nicht verhindern kann: In den ersten Sekunden hat der Player den Anlauf in seinem eigenen
+Speicher und kann ihn noch einmal zeigen. Der Server liefert ihn danach nicht wieder.
+
+**Die Trennung vom persönlichen Zeitversatz ist durch den Aufbau erzwungen:**
 
 | Mittel | Wirkung |
 |---|---|
-| Harte Obergrenzen (15 s, 64 MiB) als Konstanten im Code, nicht einstellbar | Der Ring kann kein Archiv werden, auch nicht durch Fehlkonfiguration. |
-| Nur im Arbeitsspeicher, nie in einer Datei | Nach Neustart und nach Ende des Empfangs ist nichts mehr da. |
-| Die Schnittstelle des Verteilers kennt genau einen Einstieg: «ab den letzten vollständigen Bildgruppen». Es gibt keine Funktion «lies ab Uhrzeit» und keine «lies ab Position» für neue Abnehmer. | Kein Codepfad kann ältere Daten anfordern. |
-| Cursor bewegen sich nur vorwärts. | Ein Abnehmer kann nicht zurückgreifen. |
-| Der Sitzungspuffer gehört einer Sitzung, beginnt mit dem Einstellen und wird beim Umschalten gelöscht. Er wird nie aus einem anderen Sitzungspuffer gefüllt. | Zwei Zuschauer desselben Senders teilen nur den Ring, nie den Zeitversatz. |
-| Der Server liefert einer Sitzung nur Segmente aus **ihrem** Puffer; die Nummer des ältesten Segments ist die Rückspulgrenze. | Auch ein direkter Aufruf mit erfundener Segmentnummer bekommt 404. |
-| Prüfung im Testplan: Kein Abnehmer erhält je ein Paket, das älter ist als «Zeitpunkt des Einstellens minus 15 Sekunden»; ein Sender, der seit einer Stunde dauerhaft empfangen wird, gibt einem neuen Zuschauer höchstens diese 15 Sekunden. | Nachweis für LTV-007 und LTV-013 (`17-test-und-abnahme.md`). |
-
-Klarstellung wie in `04`: Das erste Bild liegt um den Inhalt des Startpuffers **vor** dem Tastendruck. Das
-ist der Zweck des Startpuffers nach LTV-007 und LTV-010. Der «Einschaltpunkt» ist der Anfang des ersten
-ausgelieferten Segments.
+| Eine harte Obergrenze (15 s) als Konstante im Code | Der Ring kann kein Archiv werden, auch nicht durch Fehlkonfiguration. |
+| Flüchtig: im Arbeitsspeicher oder als Ringdatei, die im Kreis überschrieben und beim Ende des Empfangs gelöscht wird | Nach Neustart und nach Ende des Empfangs ist nichts mehr da. |
+| Die Schnittstelle des Verteilers kennt für neue Abnehmer genau einen Einstieg: «ab der letzten vollständigen Bildgruppe». Es gibt keine Funktion «lies ab Uhrzeit». | Kein Codepfad kann ältere Daten anfordern. |
+| Leser bewegen sich nur vorwärts. | Ein Abnehmer kann nicht zurückgreifen. |
+| Ein Sitzungspuffer gehört einer Sitzung, beginnt mit dem Einstellen und wird beim Umschalten gelöscht. Er wird nie aus einem anderen Sitzungspuffer gefüllt. | Zwei Zuschauer desselben Senders teilen nur den Ring, nie den Zeitversatz. |
+| Der Server liefert einer Sitzung nur Segmente aus **ihrem** Fenster; dessen untere Grenze ist die Rückspulgrenze. | Auch ein direkter Aufruf mit erfundener Segmentnummer bekommt 404. |
+| Ohne Recht «Timeshift» besteht das Fenster aus den drei neuesten Segmenten. | Kein Zurückspulen ohne Recht, im Server durchgesetzt (T-10). |
+| Prüfungen im Testplan (`17`): Kein Abnehmer erhält je ein Paket, das älter ist als «Zeitpunkt des Einstellens minus 15 Sekunden»; 20 Sekunden nach dem Einstellen liefert keine Anfrage der Sitzung mehr ein Segment, das vor dem Tastendruck beginnt; ein Sender, der seit einer Stunde dauerhaft empfangen wird, gibt einem neuen Zuschauer höchstens den Anlauf. | Nachweis für LTV-007.11, .13 und LTV-013. |
 
 ## 4. Auslieferung je Client
 
@@ -345,147 +425,178 @@ Messpunkte vorliegen.
 | Kriterium | HLS-TS | HLS-fMP4 | fortlaufender TS | LL-HLS | DASH |
 |---|---|---|---|---|---|
 | **Kompatibilität Web** (hls.js) | + (hls.js packt um; HEVC und AC-3 in TS unsicher, M-3) | ++ (gebaut und erprobt) | – (braucht eine zweite Bibliothek, `mpegts.js`; kein MPEG-2; Beleg R2) | + | – (dritte Bibliothek) |
-| **Kompatibilität Safari und iPhone** (nativ) | + (H.264; HEVC nach Annahme nur in fMP4) | ++ | – (auf dem iPhone nur über einen Umweg ab iOS 17.1, Beleg R2) | + | – (kein natives DASH) |
-| **Kompatibilität Media3** (Handy, TV) | ++ (auch MPEG-2, MP2, AC-3, DVB-Untertitel, wenn das Gerät sie dekodiert; Beleg R2 für die Formate) | ++ | ++ (Beleg R2) | + (nur Apples Form) | + (kein TS in DASH, Beleg R2) |
+| **Kompatibilität Safari und iPhone** (nativ) | + (H.264; HEVC nach Annahme nur in fMP4); **Startregel offen, 4.3** | ++; Startregel ebenso offen | – (auf dem iPhone nur über einen Umweg ab iOS 17.1, Beleg R2) | + | – (kein natives DASH) |
+| **Kompatibilität Media3** (Handy, TV) | ++ (auch MPEG-2, MP2, AC-3, wenn das Gerät sie dekodiert; Beleg R2 für die Formate) | ++ | ++ (Beleg R2) | + (nur Apples Form) | + (kein TS in DASH, Beleg R2) |
 | **Umschaltzeit** | + (kein Prozess im Direktweg) | o (Prozessstart je Zuschauer auch ohne Umwandlung) | ++ (keine Liste, keine Segmentgrenze) | + | o |
-| **Stabilität** | ++ | ++ | o (kein Wiederaufsetzen ausser neuer Anfrage; Stau im Netz wirkt bis zum Server) | o (gehaltene Anfragen, Proxys) | + |
-| **Zeitversatz im Player** | ++ | ++ | – (kein Live-Fenster, kein Spulen; Beleg R2 für Media3 und `mpegts.js`) | ++ | ++ |
-| **Sicherheit** | ++ (Token je Anfrage, kein Prozess) | + (Token je Anfrage; ein FFmpeg je Zuschauer) | o (eine lange Anfrage: Entzug wirkt nur durch Abbruch) | + | + |
-| **Aufwand im Server** | o (Segmentierer in Go, klein) | o bis – (FFmpeg je Zuschauer; MPEG-2 und MP2 passen nicht hinein, also mehr Umwandlung) | + | – (Teilstücke, gehaltene Anfragen; FFmpeg kann Apples LL-HLS nicht schreiben, Beleg R1) | – |
-| **Aufwand in den Clients** | + (eine Weiche: hls.js oder nativ, wie heute) | ++ (wie heute) | – (zwei Wege je Client) | o | – |
+| **Stabilität** | ++ | ++ | o (kein Wiederaufsetzen ausser neuer Anfrage) | o (gehaltene Anfragen, Proxys) | + |
+| **Zeitversatz im Player** | ++ | ++ | – (kein Live-Fenster, kein Spulen; Beleg R2) | ++ | ++ |
+| **Sicherheit** | ++ (Token je Anfrage, kein Prozess) | + (ein FFmpeg je Zuschauer) | o (eine lange Anfrage: Entzug wirkt nur durch Abbruch) | + | + |
+| **Aufwand im Server** | o (Segmentierer in Go) | o bis – (FFmpeg je Zuschauer; MPEG-2 und MP2 passen nicht hinein) | + | – (FFmpeg kann Apples LL-HLS nicht schreiben, Beleg R1) | – |
+| **Aufwand in den Clients** | + (eine Weiche wie heute) | ++ (wie heute) | – (zwei Wege je Client) | o | – |
 
 ### 4.3 Empfehlung je Client
 
-| Client | Empfehlung | Begründung | Alternative, falls Messungen widersprechen | Vorher zu messen |
+**Die Empfehlung gilt unter Vorbehalt.** M-2 (deine Quellen), M-3 (hls.js), M-4 (Media3) und M-5 (Safari,
+iPhone) müssen **vor der Baufreigabe der Stufe 1** vorliegen. Vorher ist T-11 nicht freigegeben.
+
+| Client | Empfehlung | Begründung | Alternative, falls Messungen widersprechen | Vor der Baufreigabe zu messen |
 |---|---|---|---|---|
-| **Web: Chrome, Edge, Firefox** (hls.js 1.7.3, heute als `hls.js/light` geladen) | **HLS mit TS-Segmenten** | Direktweg ohne Prozess; Zeitversatz im Player; eine Bibliothek, die schon da ist | HLS-fMP4 über einen FFmpeg je Sitzung, wenn hls.js TS mit den vorkommenden Codecs, Diskontinuitäten oder dem Zeitüberlauf nicht sauber spielt | M-1, M-3 |
-| **Safari auf dem Mac** | HLS mit TS-Segmenten, über hls.js wie die anderen Browser | gleiches Verhalten wie Chrome, einstellbarer Startpunkt | natives HLS | M-5 |
-| **iPhone und iPad** (natives HLS) | **HLS mit TS-Segmenten** für H.264; HEVC wird bis zur Messung umgewandelt | natives HLS spielt TS (Annahme); der Startpunkt lässt sich nur über die Liste steuern | HLS-fMP4 über FFmpeg je Sitzung für HEVC (`04`, O-3) | M-1, M-5 |
+| **Web: Chrome, Edge, Firefox** (hls.js 1.7.3, heute als `hls.js/light` geladen) | **HLS mit TS-Segmenten** | Direktweg ohne Prozess; Zeitversatz im Player; eine Bibliothek, die schon da ist | HLS-fMP4 über einen FFmpeg je Sitzung | M-1, M-3 |
+| **Safari auf dem Mac** | HLS mit TS-Segmenten, über hls.js wie die anderen Browser | einstellbarer Startpunkt | natives HLS | M-5 |
+| **iPhone und iPad** | **HLS mit TS-Segmenten** für H.264; HEVC wird bis zur Messung umgewandelt | natives HLS spielt TS (Annahme) | hls.js über die neuere Medienschnittstelle ab iOS 17.1 (R2); HLS-fMP4 für HEVC (`04`, O-3) | M-1, M-5 |
 | **Android-Handy** (Media3 1.11.1) | **HLS mit TS-Segmenten** | Media3 liest TS in HLS (Beleg R2); Zeitversatz über das Live-Fenster | fortlaufender TS nur als Schnellstart wäre ein zweiter Weg ohne Zeitversatz: nicht verfolgen, ausser M-1 zeigt einen grossen Abstand | M-1, M-4, M-7 |
-| **Android TV** (Media3 1.11.1) | **HLS mit TS-Segmenten** | wie Handy; dazu können Fernseher oft MPEG-2, MP2 und Zeilensprung selbst (Annahme), was Umwandlungen spart | wie Handy | M-1, M-4, M-6, M-7 |
+| **Android TV** (Media3 1.11.1) | **HLS mit TS-Segmenten** | wie Handy; Fernseher können oft MPEG-2, MP2 und Zeilensprung selbst (Annahme) | wie Handy | M-1, M-4, M-6, M-7 |
+
+**Benanntes Risiko: die Startregel von HLS auf Safari und iPhone.** Nach der HLS-Spezifikation soll ein Player
+bei einer Live-Liste nicht näher als drei Zieldauern am Ende beginnen, und auch ein vorgegebener Startpunkt
+soll nicht in diesen Bereich zeigen (Annahme; die Spezifikation ist nicht von allen Berichten nachgelesen,
+W-11). Eine Sitzungsliste enthält beim Einschalten nur den Anlauf, also ein bis zwei Segmente. Der native
+Player könnte deshalb warten, bis drei Segmente da sind: bei 2 Sekunden Zieldauer bis rund 6 Sekunden, bei
+10 Sekunden bis 30. **Die Zielwerte der Fälle 1 und 2 sind auf dem iPhone damit nicht nur unbelegt, sondern
+vom Aufbau her gefährdet.** M-5 misst genau das: Zeit bis zum Bild bei einer Liste mit einem, zwei und drei
+Segmenten. Vorbereitete Auswege:
+
+1. kurze Segmente in der Startphase (eine Bildgruppe je Segment und eine kleine Zieldauer, O-19);
+2. ein längerer Anlauf für diesen Client (mehr Segmente aus dem Ring; zeigt ein älteres erstes Bild, verschiebt
+   aber bei der Vorgabe F-7 (a) die Rückspulgrenze nicht);
+3. hls.js statt des nativen Players auf dem iPhone ab iOS 17.1, wo es einen einstellbaren Startpunkt hat.
 
 **Nicht verfolgt in der ersten Stufe:** LL-HLS (senkt die Verzögerung zur Sendung, nicht die Umschaltzeit auf
 einen schon empfangenen Sender; hoher Aufwand), DASH (kein Gewinn, auf dem iPhone nicht nativ), fortlaufender
 Strom (kein Zeitversatz), WebRTC (Codecs passen nicht, kein Weg in Media3; R2).
 
-Das ist **keine endgültige Festlegung**. Der Segmentierer ist die eine Stelle, an der ein zweites Format
-anschliesst; Liste, Token, Sitzung und Puffer bleiben gleich. Der Bau der ersten Stufe beginnt erst, wenn M-3,
-M-4 und M-5 die Empfehlung für die jeweiligen Clients bestätigt haben.
+Der Segmentierer ist die eine Stelle, an der ein zweites Format anschliesst; Liste, Token, Sitzung und Puffer
+bleiben gleich.
 
-Ein Hinweis zum Web: Die App lädt heute den schlanken Bau von hls.js. Die Spurwahl für Ton löst der Server
-(T-12: er lässt die anderen Tonspuren weg), also braucht Live-TV dafür keine Zusatzfunktionen des vollen
-Baus. Ob der schlanke Bau TS mit allen vorkommenden Tonformaten umpackt, gehört zu M-3.
+Zum Web: Die App lädt heute den schlanken Bau von hls.js. Die Spurwahl für Ton löst der Server (T-12), dafür
+braucht Live-TV keine Zusatzfunktionen. Untertitel im Bildstrom lässt der schlanke Bau vermutlich weg
+(Annahme); ob Live-TV den vollen Bau lädt, ist `04` O-22.
 
 ### 4.4 Die Wiedergabeliste einer Sitzung
 
-Go baut die Liste je Anfrage aus dem Verzeichnis des Sitzungspuffers (Muster gebaut:
-`server/internal/radio/playlist.go:24-66`).
+Go baut die Liste je Anfrage (Muster gebaut: `server/internal/radio/playlist.go:24-66`).
 
 | Merkmal | Festlegung |
 |---|---|
-| Fenster | vom ältesten Segment des Sitzungspuffers bis zum neuesten vollständigen. Mit Timeshift-Recht bis zur Höchstdauer der Verwaltung, ohne Recht 60 Sekunden. |
+| Fenster **mit** wirksamem Recht «Timeshift» (Stufe 4) | von der Rückspulgrenze (3.7) bis zum neuesten vollständigen Segment, aus dem Sitzungspuffer; höchstens die Höchstdauer der Verwaltung (`03` DR-07: Vorgabe 60 Minuten). |
+| Fenster **ohne** Recht | die **drei neuesten** Segmente, direkt aus dem Ring und nur soweit sie dort noch liegen (15 Sekunden; bei langen Bildgruppen sind es weniger als drei); in den ersten Sekunden dazu der Anlauf. Ältere Segmente: 404. Das ist das Mindeste, was ein Player zum Spielen braucht; ob drei auf Safari genügen, klärt M-5. Kein Sitzungspuffer, keine Datei. |
 | Segmentgrenzen, Direktweg | an Keyframes der Quelle; aufeinanderfolgende Bildgruppen werden zusammengefasst, bis ein Segment mindestens 2 Sekunden lang ist (Annahme), höchstens 10 Sekunden. |
 | Segmentgrenzen, Umwandlung | festes Raster von 2 Sekunden, verankert am Beginn des Zeitabschnitts; FFmpeg setzt an jeder Rastergrenze einen Keyframe. |
 | Jedes Segment | beginnt mit PAT und PMT und einem Keyframe. |
 | Uhrzeit | `EXT-X-PROGRAM-DATE-TIME` am ersten Segment und nach jeder Diskontinuität. |
-| Diskontinuität | `EXT-X-DISCONTINUITY` an jeder Grenze eines Zeitabschnitts und einer Ausgabe-Generation; Zählung wie beim Radio (`playlist.go:37-42`). |
-| Startpunkt | bestimmt der Server über `EXT-X-START`: beim Einstellen der Anfang der Liste; nach einem Qualitäts- oder Spurwechsel die Stelle, an der der Zuschauer war. |
-| Lange Listen | Delta-Listen wie beim Radio (`CAN-SKIP-UNTIL`), damit zwei Stunden Zeitversatz nicht bei jedem Nachladen ganz übertragen werden. Kein gehaltenes Nachladen. |
+| Diskontinuität | `EXT-X-DISCONTINUITY` an jeder Diskontinuität, jeder Grenze eines Zeitabschnitts und einer Ausgabe-Generation; Zählung wie beim Radio (`playlist.go:37-42`). |
+| Startpunkt | bestimmt der Server: beim Einstellen der Anfang des Anlaufs; nach einem Qualitäts- oder Spurwechsel die Stelle, an der der Zuschauer war. Er steht in der Liste (`EXT-X-START`) **und** in der Antwort auf «einstellen», damit hls.js ihn ausdrücklich setzen kann (5.3). |
+| Lange Listen | Delta-Listen wie beim Radio (`CAN-SKIP-UNTIL`) kommen erst mit dem Zeitversatz (Stufe 4); vorher sind die Listen drei Segmente lang. Kein gehaltenes Nachladen. |
 | Übergeordnete Liste | eine Variante mit Angabe der Codecs, Bildgrösse und Bildrate aus den gespeicherten Streamparametern, damit Media3 ohne Blick ins erste Segment vorbereiten kann (Annahme, M-4). |
 | Aufnahmen | dieselbe Bauweise; eine fertige Aufnahme bekommt eine abgeschlossene Liste, eine laufende eine wachsende. |
-| Adressen | Segment und Liste tragen das Token `lt` als Abfrageparameter, nie im Pfad (wie `rt` beim Radio). |
+| Adressen | Segment und Liste tragen das Token `lt` als Abfrageparameter, nie im Pfad (wie `rt` beim Radio). Falsches oder fremdes Token: dieselbe 404-Antwort wie ohne Recht (`04`, Abschnitt 10.3). |
 
 ### 4.5 Spulen mit Umwandlung, und der Rückfall
 
-Im Direktweg ist jedes Segment der Liste ein Ausschnitt des Sitzungspuffers; Spulen ist ein gewöhnlicher
-Sprung im Player.
+Betrifft nur Sitzungen mit Zeitversatz (Stufe 4). Im Direktweg ist jedes Segment der Liste ein Ausschnitt des
+Sitzungspuffers; Spulen ist ein gewöhnlicher Sprung im Player.
 
 Mit Umwandlung gibt es die Segmente der Vergangenheit erst, wenn sie jemand verlangt. Vorgesehen ist das
 Suchmodell der Dateiwiedergabe (ADR 0003): Die Liste nennt alle Segmente des Fensters im festen Raster. Eine
 Anfrage nach einem Segment, das nicht erzeugt ist und nicht kurz bevorsteht, beendet FFmpeg und startet es an
-dieser Rastergrenze neu, mit dem Sitzungspuffer ab dem Keyframe davor als Eingang. Damit die Segmente
-verschiedener Läufe nahtlos aneinanderpassen, behält FFmpeg die Zeitstempel der Quelle bei.
+dieser Rastergrenze neu, mit dem Sitzungspuffer ab dem Keyframe davor als Eingang; höchstens zweimal je
+Sitzung in 10 Sekunden (`04`, Abschnitt 8.5). Damit die Segmente verschiedener Läufe nahtlos passen, behält
+FFmpeg die Zeitstempel der Quelle bei.
 
 Das ist der anspruchsvollste Teil und **nicht belegt**: Bei der Dateiwiedergabe trägt das MP4-Format die
 absolute Zeit; hier wäre es TS. Zu messen (M-9): Bleiben die Zeitstempel über Neustarts gleich? Setzen alle
-Backends Keyframes genau im Raster? Verkraften die Player den Übergang ohne Diskontinuität?
+Backends Keyframes genau im Raster? Verkraften die Player den Übergang ohne Diskontinuität? Übernimmt FFmpeg
+einen Zeitsprung im Eingang ohne Neustart?
 
 **Rückfall, falls M-9 scheitert:** Jeder Neustart von FFmpeg ist eine neue Ausgabe-Generation mit
 `EXT-X-DISCONTINUITY`, wie beim Radio (gebaut: `server/internal/radio/relay.go:350-369`). Die Liste einer
 Sitzung mit Umwandlung enthält dann nur, was erzeugt ist, und ein Sprung in die Vergangenheit ist eine
 Operation der Sitzung («spiele ab Uhrzeit»), nach der der Client die Liste neu lädt. Der Zuschauer sieht beim
-Spulen eine kurze Unterbrechung statt eines nahtlosen Sprungs. Der Zeitversatz selbst (Pause, Zurück,
-Vor bis Live) bleibt vollständig; nur das Gefühl beim Spulen ist schlechter. Im Direktweg ändert sich nichts.
+Spulen eine kurze Unterbrechung statt eines nahtlosen Sprungs. Der Zeitversatz selbst bleibt vollständig. Im
+Direktweg ändert sich nichts.
 
 ## 5. Die Umschalt-Kette
 
 ### 5.1 Abschnitte
 
 Gemessen wird vom Tastendruck bis zum ersten dargestellten Bild des neuen Senders. Alle Bereiche sind
-**Annahmen**; nichts davon ist gemessen.
+**Annahmen**; nichts davon ist gemessen, und keine Summe ist eine Zusage.
 
 | Nr. | Abschnitt | Einflussgrösse | Stellschraube | Geschätzter Bereich (Annahme) | Was die Stellschraube kostet |
 |---|---|---|---|---|---|
-| 1 | Tastendruck bis Anfrage beim Server | Laufzeit im Netz; ob der Client erst stoppt und dann startet | **eine** Operation «einstellen» in der bestehenden Sitzung; offene Verbindung weiterverwenden | 5 bis 50 ms im Heimnetz, 30 bis 150 ms unterwegs | – |
-| 2 | Rechte und Grenzen prüfen | Sitzung im Speicher; Konto und Profil lädt jede Anfrage ohnehin (A3 Abschnitt 1) | Platz bei den Stream-Grenzen bleibt beim Umschalten bestehen, keine neue Reservierung | 1 bis 5 ms | – |
-| 3 | Empfang herstellen | schon empfangen, vorgeladen oder neu; Protokoll; Weiterleitungen des Anbieters | dauerhaft, automatisch, Vorladen (`04`, Abschnitt 6) | 0 (empfangen oder vorgeladen); neu: 0,1 bis 0,6 s für HTTP mit TLS, je Weiterleitung eine Laufzeit mehr; HLS zusätzlich Liste und Segment | Verbindungen zum Anbieter, Bandbreite, Arbeitsspeicher |
-| 4 | Streamparameter kennen | gespeichert oder nicht | Parameter je Sender speichern; Probe im Hintergrund; Prüfjobs füllen den Speicher vor | 0 (gespeichert); sonst Tabellen aus den ersten Paketen und eine Probe: 0,3 bis 1 s | veraltete Parameter: Korrektur durch eine neue Ausgabe-Generation |
-| 5 | Keyframe | Bildgruppen-Länge der Quelle; ob die Quelle beim Verbinden einen Schub liefert | Start an den letzten vollständigen Bildgruppen aus dem Ring | 0 (Ring vorhanden); neu: Warten auf den ersten Keyframe (0 bis 1 Bildgruppe) und bis diese Bildgruppe vollständig ist (1 Bildgruppe), ausser die Quelle liefert einen Schub (HLS-Quellen tun es mit ihren Segmenten) | Verzögerung zur Live-Kante: zwei bis drei Bildgruppen |
-| 6 | Sitzungspuffer anlegen, erste Segmente bereitstellen | Datenträger | erste Segmente aus dem Arbeitsspeicher beantworten, gleichzeitig schreiben | 5 bis 30 ms auf SSD; auf HDD und Netzspeicher mehr | – |
-| 7 | Umwandlung starten (nur wenn nötig) | Prozessstart, Eingangsanalyse, Start der Hardware, erstes Segment kodieren | feste Eingangsangabe und kleine Analysewerte dank gespeicherter Parameter; Schub aus dem Sitzungspuffer (FFmpeg kodiert die ersten Sekunden schneller als Echtzeit); kurzes erstes Segment | 0,6 bis 1,8 s. Vergleichswert, gebaut und gemessen für Dateien: erstes Segment rund 0,87 s nach dem Start (QSV, 1080p, `docs/perf/wiedergabestart.md`) | kleine Analysewerte können Tonspuren übersehen; kurze Bildgruppen kosten Qualität je Bitrate |
+| 1 | Tastendruck bis Anfrage beim Server | Laufzeit im Netz | **eine** Operation «einstellen» in der bestehenden Sitzung; offene Verbindung weiterverwenden | 5 bis 50 ms im Heimnetz, 30 bis 150 ms unterwegs | – |
+| 2 | Rechte, Grenzen, Drosselung prüfen | Sitzung im Speicher; Konto und Profil lädt jede Anfrage ohnehin (A3 Abschnitt 1) | Platz bei den Stream-Grenzen und Reservierung der Umwandlung bleiben beim Umschalten bestehen | 1 bis 5 ms | wer schneller als einmal je Sekunde schaltet, wird gebremst (`04`, Abschnitt 8.5) |
+| 3 | Empfang herstellen | schon empfangen, vorgeladen oder neu; Protokoll; Weiterleitungen; **bei derselben Quelle zuerst das Ende der alten Verbindung** (`04`, Abschnitt 5.3) | dauerhaft, automatisch, Vorladen | 0 (empfangen oder vorgeladen); neu: 0,1 bis 0,6 s für HTTP mit TLS, je Weiterleitung eine Laufzeit mehr; dazu bis 0,1 s für das Schliessen der alten Verbindung | Verbindungen zum Anbieter, Bandbreite, Arbeitsspeicher |
+| 4 | Streamparameter kennen | gespeichert oder nicht | Parameter je Sender speichern; Probe im Hintergrund | 0 (gespeichert); sonst Tabellen aus den ersten Paketen und eine Probe: 0,3 bis 1 s | veraltete Parameter: Korrektur durch eine neue Ausgabe-Generation |
+| 5 | Keyframe und erstes vollständiges Segment | Bildgruppen-Länge der Quelle; ob die Quelle beim Verbinden einen Schub liefert | Start an der letzten vollständigen Bildgruppe aus dem Ring | 0 (Ring vorhanden); neu bei HTTP-TS: Warten auf den ersten Keyframe (0 bis 1 Bildgruppe) und bis diese Bildgruppe vollständig ist (1 Bildgruppe); neu bei HLS-Quellen: Laden des neuesten Quellsegments (6 s bei 8 Mbit/s sind 6 MB: rund 1 s bei 50 Mbit/s Anbindung) | Verzögerung zur Live-Kante: ein bis zwei Bildgruppen |
+| 6 | Erste Segmente bereitstellen | Kopie aus dem Ring | ohne Zeitversatz: keine Datei; mit Zeitversatz: Antwort aus dem Arbeitsspeicher, gleichzeitig schreiben | 1 bis 10 ms | – |
+| 7 | Umwandlung starten (nur wenn nötig) | Prozessstart, Eingangsanalyse, Start der Hardware, erstes Segment kodieren | feste Eingangsangabe und kleine Analysewerte dank gespeicherter Parameter; Anlauf als Schub (FFmpeg kodiert die ersten Sekunden schneller als Echtzeit); der neue Prozess wartet nicht auf das Ende des alten | Bild: 0,6 bis 1,8 s. Vergleichswert, gebaut und gemessen für Dateien: erstes Segment rund 0,87 s nach dem Start (QSV, 1080p, `docs/perf/wiedergabestart.md`). Nur Ton: 0,2 bis 0,6 s | kleine Analysewerte können Tonspuren übersehen; kurze Bildgruppen kosten Qualität je Bitrate |
 | 8 | Liste und erstes Segment zum Client | zwei Anfragen (drei mit übergeordneter Liste); Segmentgrösse gleich Bitrate mal Dauer | erstes Segment so kurz wie eine Bildgruppe; Liste schon in der Antwort auf «einstellen» mitgeben (O-17) | 2 MB (8 Mbit/s, 2 s) brauchen 0,16 s bei 100 Mbit/s, 0,5 s bei 30 Mbit/s, 1,6 s bei 10 Mbit/s | – |
-| 9 | Puffer des Players vor dem Start | Einstellung des Players | hls.js: Start nach dem ersten Segment; Media3: Startpuffer 0,5 bis 1 s statt der Vorgabe | 0 bis 2,5 s (Vorgabe von Media3 für 1.11.1 ungeprüft) | zu klein: Stockungen kurz nach dem Start |
+| 9 | Puffer des Players vor dem Start | Einstellung des Players; auf Safari die Startregel (4.3) | hls.js: Start nach dem ersten Segment; Media3: Startpuffer 0,5 bis 1 s statt der Vorgabe | 0 bis 2,5 s (Vorgabe von Media3 für 1.11.1 ungeprüft, W-5); Safari nativ: offen, möglicherweise mehrere Zieldauern | zu klein: Stockungen kurz nach dem Start |
 | 10 | Decoder und erstes Bild | Neuanlage oder Wiederverwendung; Umpacken in hls.js | Player-Instanz behalten; gleicher Codec bleibt im Decoder | 0,05 bis 0,3 s; Vergleichswert der TV-App für Dateien: erstes Bild nach 127 bis 288 ms (`docs/perf/K26-android-tv.md`, laut R1) | – |
 
 ### 5.2 Die vier Fälle des Auftrags
 
-| Fall | Abschnitte, die zählen | Summe (Annahme, Heimnetz) | Zielwert | Hängt vor allem an |
-|---|---|---|---|---|
-| **1 · bereits empfangen und kompatibel** | 1, 2, 6, 8, 9, 10 | 0,3 bis 1,0 s | unter 1 s | Segmentgrösse und Netz des Clients (Abschnitt 8), Startpuffer des Players (9) |
-| **2 · vorgeladen** | wie Fall 1, wenn die Parameter gespeichert sind | 0,3 bis 1,0 s | unter 1 s | wie Fall 1; dazu: ob Vorladen erlaubt und eingeschaltet ist |
-| **3 · noch nicht empfangen** | zusätzlich 3, 4, 5 | 1 bis 2 s bei HLS-Quellen und Quellen mit Schub; 2 bis 5 s bei HTTP-TS ohne Schub und Bildgruppen von 2 s; mehr bei längeren Bildgruppen | unter 3 s | **Bildgruppen-Länge und Verhalten der Quelle**, nicht der Server |
-| **4 · neue Umwandlung nötig** | Fall 1 oder 3, zusätzlich 7 | 1 bis 3 s auf empfangenem Sender; 2 bis 7 s auf nicht empfangenem | unter 5 s | Backend (GPU oder CPU), Zeilensprung, Fall 3 |
+Die Summen sind aus den Zeilen von 5.1 gerechnet, nicht geschätzt. «Günstig» heisst: Netz mit Kabel, Segment
+unter 2 MB, Startpuffer des Players eingestellt auf höchstens 0,5 Sekunden. «Ungünstig» heisst: WLAN mit
+30 Mbit/s, Startpuffer des Players in der ungeprüften Vorgabe.
 
-Zwischen Fall 1 und Fall 4 liegt die **Ton-Umwandlung** (Bild wird kopiert): Sie braucht einen Prozessstart,
-aber keinen Encoder für das Bild. Annahme: Fall 1 plus 0,2 bis 0,6 s. Für Browser ist das bei Sendern mit
-MP2- oder AC-3-Ton der Normalfall und gehört deshalb als eigener Fall in den Benchmark.
+| Fall | Abschnitte | Summe günstig | Summe ungünstig | Zielwert | Hängt vor allem an |
+|---|---|---|---|---|---|
+| **1 · bereits empfangen und kompatibel** | 1, 2, 6, 8, 9, 10 | 5 + 1 + 1 + 160 + 0 + 50 ms ≈ **0,2 s** | 50 + 5 + 10 + 500 + 2500 + 300 ms ≈ **3,4 s** | unter 1 s | **Startpuffer des Players** (Abschnitt 9) und Netz des Clients (8). Der Zielwert setzt einen Startpuffer von höchstens rund 0,3 s voraus; ob die Player damit stabil laufen, zeigen M-3 bis M-5. |
+| **2 · vorgeladen** | wie Fall 1, wenn die Parameter gespeichert sind | ≈ 0,2 s | ≈ 3,4 s | unter 1 s | wie Fall 1; dazu, ob Vorladen eingeschaltet und für die Quelle erlaubt ist (F-9) |
+| **3 · noch nicht empfangen** | zusätzlich 3, 4, 5 | Fall 1 (0,2 s) plus Verbindung (0,1 bis 0,6 s), Parameter gespeichert. HTTP-TS mit Schub oder HLS-Quelle mit kurzen Segmenten: ≈ **0,3 bis 0,8 s**; HLS-Quelle mit Segmenten von 6 s: plus rund 1 s für das Quellsegment ≈ **1,3 bis 1,8 s**; HTTP-TS ohne Schub, Bildgruppe 2 s: plus 2 bis 4 s (Warten auf den Keyframe, dann eine ganze Bildgruppe) ≈ **2,3 bis 4,8 s** | Summe ungünstig aus Fall 1 plus 0,7 s Verbindung, 1 s Probe und bis zwei Bildgruppen | unter 3 s | **Bildgruppen-Länge und Verhalten der Quelle**, nicht der Server |
+| **4 · neue Umwandlung nötig** | Fall 1 oder 3, zusätzlich 7 | auf empfangenem Sender: 0,2 + 0,6 ≈ **0,8 s** | auf nicht empfangenem Sender, ungünstig: über 6 s | unter 5 s | Backend (GPU oder CPU), Zeilensprung, Fall 3 |
+
+Zwischen Fall 1 und Fall 4 liegt die **Ton-Umwandlung** (Bild wird kopiert): Fall 1 plus 0,2 bis 0,6 Sekunden
+(Annahme). Für Browser ist das bei Sendern mit MP2- oder AC-3-Ton der Normalfall (`04`, Abschnitt 7.6) und
+gehört deshalb als eigener Fall in den Benchmark.
 
 Für Fall 3 gibt es eine weitere Stellschraube, die nur eine Messung rechtfertigen kann (M-21): in den ersten
 Sekunden **Teilstücke** unter einer Bildgruppe ausliefern, damit der Player nicht auf das Ende der ersten
-Bildgruppe wartet. Solche Stücke beginnen nicht alle mit einem Keyframe; ob alle drei Player das beim
-fortlaufenden Abspielen verkraften, ist offen. Ohne Beleg wird es nicht gebaut.
+Bildgruppe wartet. Ohne Beleg wird es nicht gebaut.
 
 ### 5.3 Die Seite des Players
 
 Gemeinsam für alle: **eine** Player-Instanz und ein Bildelement über alle Umschaltungen; den Startpunkt gibt
-der Server über die Liste vor; kein automatisches Aufholen zur Live-Kante durch schnelleres Abspielen (der
-Zuschauer soll bleiben, wo er ist; «zurück zu Live» ist ein Knopf).
+der Server vor; kein automatisches Aufholen zur Live-Kante durch schnelleres Abspielen; alle 10 Sekunden ein
+Herzschlag, ohne den die Sitzung nach 60 Sekunden endet (`04`, T-21).
+
+**Startpunkt in hls.js (löst den Widerspruch W-6 der Recherche).** R1 schlug `liveSyncDurationCount` 1 vor,
+R2 den Wert 2 wie im Radio; die Dokumentation von hls.js warnt unter drei Segmenten vor Stockungen. Festlegung:
+Der Startpunkt kommt **nicht** aus diesem Wert, sondern vom Server. Die Antwort auf «einstellen» nennt die
+Startstelle, und der Client setzt sie ausdrücklich (`startPosition`); die Liste trägt denselben Wert als
+`EXT-X-START` für Player ohne eigene Einstellung. `liveSyncDurationCount` bleibt **2**, wie im Radio gebaut
+(`web/src/app/radio/engine.ts:138`); er wirkt nur noch, wenn der Player nach einer Störung selbst an die
+Live-Kante zurückfindet und beim Knopf «zurück zu Live». Der Wert 1 ist verworfen. Ob 2 bei Listen von drei
+Segmenten trägt, misst M-3.
 
 | Player | Umschalten | Einstellungen (Empfehlung, zu messen) |
 |---|---|---|
-| **hls.js** (Web) | `loadSource` mit der neuen Liste auf derselben Instanz; kein Abbau des Bildelements. Die Möglichkeit ist belegt (R1, R2); wie schnell es gegenüber einem Neuaufbau ist: M-3. | `lowLatencyMode: false` (Vorgabe ist an, Beleg R2; das Radio setzt es schon aus, `web/src/app/radio/engine.ts:139`); `startFragPrefetch: true`; `maxLiveSyncPlaybackRate: 1`; `maxBufferLength` 10 bis 15 s statt 30; `backBufferLength` 30 s (weiter zurück lädt der Player aus dem Sitzungspuffer nach); Startpunkt aus `EXT-X-START`; Arbeit im Hintergrund-Thread an (Vorgabe). |
-| **Media3** (Handy, TV) | `setMediaItem` und `prepare` auf derselben `ExoPlayer`-Instanz, Oberfläche bleibt. Ob der Decoder bei gleichem Codec weiterläuft, hängt am Gerät (M-4); die TV-App wertet das Ereignis dazu schon aus (R2). | `DefaultLoadControl` mit Startpuffer 500 bis 1000 ms und 1500 bis 2000 ms nach einem Stocken; Vorlauf 15 bis 30 s; `LiveConfiguration` mit kleinster und grösster Geschwindigkeit 1,0 (kein Aufholen; Beleg R2 für die Einstellung); Fehler «hinter dem Live-Fenster» abfangen und am Fensteranfang fortsetzen (Beleg R2 für den Fehler); Vorbereitung ohne erstes Segment über die übergeordnete Liste mit Codecs (Annahme). Heute setzt die App keine dieser Einstellungen (R2 Abschnitt 1). |
-| **Safari und iPhone** (nativ) | neue Adresse am Bildelement; die Plattform baut ihre Kette neu auf (Dauer: M-5). | nur über die Liste: Startpunkt, Segmentdauer, Zahl der Segmente. Der erste Start braucht eine Geste des Nutzers (Annahme). |
+| **hls.js** (Web) | `loadSource` mit der neuen Liste auf derselben Instanz; kein Abbau des Bildelements. Die Möglichkeit ist belegt (R1, R2); wie schnell es gegenüber einem Neuaufbau ist: M-3. | `startPosition` aus der Antwort auf «einstellen»; `liveSyncDurationCount: 2`; `lowLatencyMode: false` (Vorgabe ist an, Beleg R2; das Radio setzt es schon aus, `engine.ts:139`); `startFragPrefetch: true`; `maxLiveSyncPlaybackRate: 1`; `maxBufferLength` 10 bis 15 s statt 30; `backBufferLength` 30 s; Arbeit im Hintergrund-Thread an (Vorgabe). |
+| **Media3** (Handy, TV) | `setMediaItem` und `prepare` auf derselben `ExoPlayer`-Instanz, Oberfläche bleibt. Ob der Decoder bei gleichem Codec weiterläuft, hängt am Gerät (M-4). | `DefaultLoadControl` mit Startpuffer 500 bis 1000 ms und 1500 bis 2000 ms nach einem Stocken; Vorlauf 15 bis 30 s; `LiveConfiguration` mit kleinster und grösster Geschwindigkeit 1,0 (Beleg R2 für die Einstellung); Fehler «hinter dem Live-Fenster» abfangen und am Fensteranfang fortsetzen (Beleg R2 für den Fehler); Vorbereitung ohne erstes Segment über die übergeordnete Liste mit Codecs (Annahme). Heute setzt die App keine dieser Einstellungen (R2 Abschnitt 1). |
+| **Safari und iPhone** (nativ) | neue Adresse am Bildelement; die Plattform baut ihre Kette neu auf (Dauer: M-5). | nur über die Liste: Startpunkt, Segmentdauer, Zahl der Segmente (Risiko in 4.3). Der erste Start braucht eine Geste des Nutzers (Annahme). |
 
 Auf Android hält die App **keinen** zweiten Player für Nachbarsender bereit: Decoder sind auf Fernsehern knapp.
 Vorgeladen wird nur im Server.
 
 ## 6. Vorladen
 
-Vorladen heisst: Der Eingangsstrom eines Senders läuft in seinen Ring, ohne Sitzungspuffer und ohne
-Umwandlung (LTV-010: keine vorsorgliche Umwandlung). Ab Werk ist es **aus** (`04`, T-18) und je Quelle
-einzeln zu erlauben, weil jeder vorgeladene Sender eine weitere Verbindung zum Anbieter ist.
+Vorladen ist verbindlicher Umfang (LTV-002.07, LTV-010.05, .08) und gehört zu Stufe 3. Es heisst: Der
+Eingangsstrom eines Senders läuft in seinen Ring, ohne Sitzungspuffer und ohne Umwandlung (LTV-010.X-01).
+Es wirkt nur für Quellen, bei denen der Administrator «weitere gleichzeitige Verbindungen erlaubt» gesetzt
+hat (`04`, Abschnitt 6.1). Ob Vorladen ab Werk an ist, ist F-9.
 
-| Frage | Regel (spezifiziert; Zahlen sind Annahmen als Startwerte) |
+| Frage | Regel (spezifiziert; Zahlen sind Annahmen) |
 |---|---|
-| **Welche Sender** | 1. Die Nachbarn in der Liste, in der der Zuschauer gerade umschaltet (alle Sender, eine Gruppe oder seine Favoriten, in deren Reihenfolge); der Client nennt beim Einstellen die Liste. 2. Richtung zählt: Nach «weiter» zuerst die nächsten in dieser Richtung, dann einer zurück. 3. Der zuvor gesehene Sender («zurück»-Taste). Häufig genutzte Sender und Favoriten deckt nicht das Vorladen ab, sondern «automatisch» (`04`, Abschnitt 6.2). |
-| **Wie viele** | je Sitzung 2 (einstellbar 0 bis 4); insgesamt höchstens 4 (einstellbar 0 bis 16); immer innerhalb der Obergrenze aller Eingangsströme. |
+| **Welche Sender** | 1. Die Nachbarn in der Liste, in der der Zuschauer gerade umschaltet (alle Sender nach Kanalnummer, eine Gruppe oder seine Favoriten, in deren Reihenfolge); der Client nennt beim Einstellen die Liste, ohne Angabe gilt die Kanalnummer. 2. Richtung zählt: Nach «weiter» zuerst der nächste in dieser Richtung. 3. Der zuvor gesehene Sender («zurück»-Taste). Häufig genutzte Sender und Favoriten der aktiven Zuschauer (LTV-010.06, .07) deckt die Art «automatisch» ab (`04`, Abschnitt 6.2). |
+| **Wie viele** | je Sitzung 0, 1 oder 2 je Richtung; insgesamt höchstens 4 (einstellbar 0 bis 16); immer innerhalb der Obergrenze aller Eingangsströme. |
 | **Ab wann** | erst wenn der Zuschauer 2 Sekunden auf einem Sender geblieben ist. Wer schnell durchschaltet, löst kein Vorladen für jeden gestreiften Sender aus. |
-| **Wie lange** | Der Haltegrund «Vorladen» endet 3 Minuten nach dem letzten Umschalten dieser Sitzung. Wer eine Stunde denselben Sender schaut, hält keine Nachbarn offen. Öffnet der Zuschauer die Senderliste oder die Einblendung zum Umschalten, meldet der Client das, und das Vorladen beginnt wieder. |
-| **Wann abgebaut** | wenn der Sender kein Nachbar mehr ist (mit der normalen Karenz von 30 Sekunden), wenn die 3 Minuten um sind, wenn die Sitzung endet, bei Mangel sofort. |
-| **Für welche Clients** | für alle gleich; der Nutzen ist am Fernseher am grössten. Der Client entscheidet nichts, er meldet nur Liste und Richtung (Regel 12). |
-| **Bei Mangel** | Vorladen ist das Erste, was weicht (`04`, Abschnitt 8.2). Eine Vorlade-Anforderung, für die kein Platz ist, entfällt still; sie blockiert und verzögert nichts. |
-| **Bei Störung** | Ein vorgeladener Sender, dessen Quelle nicht antwortet, wird nicht wiederholt versucht (keine Leiter für Vorladen): ein Versuch, dann Ende. |
+| **Wie lange** | Der Haltegrund «Vorladen» endet 3 Minuten nach dem letzten Umschalten dieser Sitzung. Öffnet der Zuschauer die Senderliste oder die Einblendung zum Umschalten, meldet der Client das, und das Vorladen beginnt wieder. |
+| **Wann abgebaut** | wenn der Sender kein Nachbar mehr ist (sofort, ohne Karenz), wenn die 3 Minuten um sind, wenn die Sitzung endet, bei Mangel, und **immer, bevor derselbe Zugang eine andere Verbindung braucht** (`04`, Abschnitt 5.3). |
+| **Für welche Clients** | für alle gleich. Der Client entscheidet nichts, er meldet nur Liste und Richtung (Regel 12). |
+| **Bei Mangel** | Vorladen weicht nach den Strömen ohne Haltegrund als Erstes (`04`, Abschnitt 8.2). Eine Vorlade-Anforderung, für die kein Platz ist, entfällt still. |
+| **Bei Störung** | Ein vorgeladener Sender, dessen Quelle nicht antwortet oder ablehnt, wird nicht wiederholt versucht. Lehnt die Quelle ab oder bricht kurz danach ein gehaltener Strom derselben Quelle ab, ruht vorsorglicher Empfang für diese Quelle 30 Minuten (`04`, Abschnitt 5.3). |
 
 Was Vorladen bringt und kostet, zeigt M-17: Median der Umschaltzeit mit und ohne, gegen zusätzliche
 Verbindungen und Bandbreite.
@@ -494,29 +605,30 @@ Verbindungen und Bandbreite.
 
 | Konflikt | Zusammenhang | Haltung dieses Konzepts |
 |---|---|---|
-| **Umschaltzeit gegen Verzögerung zur Sendung** | Wer sofort ein Bild will, beginnt an einer vergangenen Bildgruppe und liegt zwei bis drei Bildgruppen hinter der Quelle (bei 2 Sekunden: 4 bis 6 Sekunden). Wer näher an die Live-Kante will, wartet länger auf das erste Bild. | Umschaltzeit geht vor. Die Quelle selbst liegt bei IPTV ohnehin Sekunden hinter der Ausstrahlung. Einstellbar: Start an nur einer vollständigen Bildgruppe (weniger Verzögerung, weniger Vorrat im Player). Kein Aufholen durch schnelleres Abspielen. |
-| **Umschaltzeit gegen Bildqualität** | Eine neue Umwandlung startet schneller mit kurzem erstem Segment und kurzen Bildgruppen; beides kostet Qualität je Bitrate. | Raster 2 Sekunden als Mittelweg; nur das erste Segment darf kürzer sein. Im Direktweg kein Konflikt: Die Qualität ist die der Quelle. |
-| **Umschaltzeit gegen Ressourcen** | Schnell ist nur, was schon empfangen wird. Dauerhaft, automatisch und Vorladen kosten Verbindungen, Bandbreite und Arbeitsspeicher, auch wenn niemand schaut. | Ab Werk sparsam («bei Bedarf»); der Administrator kauft Geschwindigkeit bewusst ein. Die Verwaltung zeigt, was es kostet. |
-| **Kurze Segmente gegen Stabilität** | Weniger als etwa drei Segmente Vorrat erhöhen die Gefahr von Stockungen (Warnung in der Dokumentation von hls.js, Beleg R1). | Der Vorrat kommt aus dem Ring: Beim Start liegen zwei vollständige Bildgruppen bereit. Ob das reicht, zeigt M-1 (Fehlerquote und Stockungen mitmessen). |
+| **Umschaltzeit gegen Verzögerung zur Sendung** | Wer sofort ein Bild will, beginnt an einer vergangenen Bildgruppe und liegt ein bis zwei Bildgruppen hinter der Quelle (bei 2 Sekunden: 2 bis 4 Sekunden). Wer näher an die Live-Kante will, wartet länger auf das erste Bild. | Umschaltzeit geht vor. Die Quelle selbst liegt bei IPTV ohnehin Sekunden hinter der Ausstrahlung. Kein Aufholen durch schnelleres Abspielen. |
+| **Umschaltzeit gegen Vorrat im Player** | Ein Anlauf aus nur einer vollständigen Bildgruppe lässt dem Player wenig Vorrat; ein längerer Anlauf zeigt ein älteres erstes Bild. Auf Safari verlangt die Startregel womöglich drei Segmente (4.3). | Vorgabe eine vollständige Bildgruppe; die Länge des Anlaufs ist je Client einstellbar und wird nach M-1 und M-5 festgelegt (Fehlerquote und Stockungen mitmessen). |
+| **Umschaltzeit gegen Bildqualität** | Eine neue Umwandlung startet schneller mit kurzem erstem Segment und kurzen Bildgruppen; beides kostet Qualität je Bitrate. | Raster 2 Sekunden als Mittelweg. Im Direktweg kein Konflikt. |
+| **Umschaltzeit gegen Ressourcen** | Schnell ist nur, was schon empfangen wird. Dauerhaft, automatisch und Vorladen kosten Verbindungen, Bandbreite und Arbeitsspeicher. | Der Administrator kauft Geschwindigkeit bewusst ein (F-9). Die Verwaltung zeigt, was es kostet. |
+| **Schnelles Umschalten gegen den Zugang beim Anbieter** | Jede Verbindung, die über das Nötige hinaus offen bleibt, kann bei knappen Zugängen eine andere verdrängen. | Keine Karenz beim Umschalten; erst freigeben, dann verbinden (`04`, Abschnitt 5.3). Kostet beim Zurückschalten einen neuen Verbindungsaufbau. |
 | **Kopieren gegen Startpunkt** | Ohne Neukodierung bestimmt die Quelle, wo ein Segment beginnen kann. | hingenommen; Sender mit langen Bildgruppen sind Kandidaten für «dauerhaft» oder «automatisch». |
-| **Persönlicher Zeitversatz gegen Datenträger** | Jeder Zuschauer schreibt seinen eigenen Puffer (LTV-007). | Preis der Vorgabe; begrenzt durch Höchstdauer und Deckel (`04`, O-6, M-14). |
-| **Netzschutz gegen Protokollbreite** | Volle Kontrolle hat nur Go; FFmpeg kann mehr Protokolle. | Go für das Übliche, FFmpeg nur hinter dem Weiterleiter (2.6), RTSP und RTMP nach F-1. |
+| **Persönlicher Zeitversatz gegen Datenträger** | Jeder Zuschauer mit Recht schreibt seinen eigenen Puffer (LTV-007). | Preis der Vorgabe; Rechnung und Varianten in F-8. |
+| **Netzschutz gegen Protokollbreite** | Volle Kontrolle hat nur Go; FFmpeg kann mehr Protokolle. | Go für das Übliche; FFmpeg nur hinter dem Weiterleiter und nur mit Sperre (2.6); RTSP und RTMP nach F-1. |
 
-**Was vom Server abhängt und was nicht.** Die vier Zielwerte des Auftrags sind zu prüfende Grössen. Dieses
-Konzept sagt klar:
+**Was vom Server abhängt und was nicht.** Die vier Zielwerte des Auftrags sind zu prüfende Grössen
+(LTV-010.32):
 
 - **Fall 1 und 2 (unter 1 Sekunde)** liegen in der Hand von Server und Client, solange das Netz des Clients
-  ein Segment in Bruchteilen einer Sekunde lädt. Über eine langsame Verbindung von unterwegs hängen sie an
-  der Bandbreite des Clients, nicht am Server.
+  ein Segment in Bruchteilen einer Sekunde lädt **und** der Player mit einem kleinen Startpuffer stabil läuft.
+  Auf Safari und dem iPhone ist das offen (4.3). Über eine langsame Verbindung von unterwegs hängen sie an der
+  Bandbreite des Clients.
 - **Fall 3 (unter 3 Sekunden)** hängt an der Quelle: an ihrer Bildgruppen-Länge, an der Zeit für den
   Verbindungsaufbau und daran, ob sie beim Verbinden einen Schub ab einem Keyframe liefert. Bei Quellen mit
   Bildgruppen von 4 Sekunden und mehr ist der Zielwert ohne Vorladen **nicht erreichbar**, gleich was der
-  Server tut. Die Länge bestimmt der Encoder des Anbieters.
-- **Fall 4 (unter 5 Sekunden)** hängt an der Hardware des Servers (GPU oder CPU, Zeilensprung) und, wenn der
-  Sender nicht empfangen wird, zusätzlich an Fall 3.
+  Server tut.
+- **Fall 4 (unter 5 Sekunden)** hängt an der Hardware des Servers und, wenn der Sender nicht empfangen wird,
+  zusätzlich an Fall 3.
 
-Die Verwaltung zeigt deshalb je Sender die gemessene Bildgruppen-Länge, damit sichtbar ist, welche Sender
-langsam umschalten **müssen**.
+Die Verwaltung zeigt deshalb je Sender die gemessene Bildgruppen-Länge.
 
 ## 8. Benchmark (LTV-010)
 
@@ -537,8 +649,8 @@ notiert.
 ### 8.2 Testquellen
 
 Nur selbst erzeugt; keine fremden Senderlisten, keine Anbieterkonten (R3 Abschnitt 8). Ein Testbild mit
-laufender Uhr und Bildzähler im Bild (FFmpeg-Quelle `testsrc2` mit eingeblendeter Zeit) und Ton, als
-Endlosstrom. Jede Quelle hat eine **festgelegte** Bildgruppen-Länge (Szenenwechsel-Erkennung aus).
+laufender Uhr und Bildzähler im Bild und Ton, als Endlosstrom. Jede Quelle hat eine **festgelegte**
+Bildgruppen-Länge (Szenenwechsel-Erkennung aus).
 
 | Kennung | Bild | Ton | Bildgruppe | Bitrate |
 |---|---|---|---|---|
@@ -553,10 +665,11 @@ Endlosstrom. Jede Quelle hat eine **festgelegte** Bildgruppen-Länge (Szenenwech
 
 Jede Quelle wird über jedes Eingangsprotokoll angeboten, das die Stufe unterstützt: HTTP-TS (kleiner
 Testserver in Go, der mehrere Abrufer bedient und wahlweise einen Schub ab Keyframe liefert oder nicht), HLS
-mit TS-Segmenten (Segmente 2 und 6 Sekunden), HLS mit fMP4, DASH, UDP, RTP, Multicast (mit Host-Netz), RTSP
-und RTMP (über einen Testserver wie MediaMTX, nur im Testaufbau, nie im Produkt). Fehlerbilder für die
-Überwachung (Abschnitt 9) erzeugt derselbe Aufbau: Quelle anhalten, Netz kappen, Liste einfrieren, Tonspur
-weglassen, Paketverlust einstreuen.
+mit TS-Segmenten (Segmente 2 und 6 Sekunden), später UDP, RTP, Multicast, RTSP und RTMP (über einen Testserver
+wie MediaMTX, nur im Testaufbau, nie im Produkt), HLS mit fMP4 und DASH. Der Testserver kennt zudem die
+Betriebsart **«nur eine Verbindung»**: Er nimmt eine Verbindung an und lehnt jede weitere mit 403 ab; damit
+laufen die Abnahmeprüfungen aus `04`, Abschnitt 8.5. Fehlerbilder für die Überwachung (Abschnitt 9) erzeugt
+derselbe Aufbau: Quelle anhalten, Netz kappen, Liste einfrieren, Tonspur weglassen, Paketverlust einstreuen.
 
 ### 8.3 Clients
 
@@ -568,7 +681,8 @@ weglassen, Paketverlust einstreuen.
 | Android-Handy-App | Pixel (das Gerät, mit dem K27 geprüft wurde) |
 | Android-TV-App | ein Fernseher oder eine Box mit Android TV; Modell notieren |
 
-Safari auf dem Mac und ein Tablet sind erwünscht, aber nicht Bedingung der Abnahme.
+Safari auf dem Mac und ein Tablet sind erwünscht, aber nicht Bedingung der Abnahme. Welche Clients in welcher
+Stufe dazukommen, ist `03` F-6.
 
 ### 8.4 Netzbedingungen
 
@@ -579,9 +693,8 @@ Safari auf dem Mac und ein Tablet sind erwünscht, aber nicht Bedingung der Abna
 | N-3 unterwegs gut | künstlich begrenzt: 20 Mbit/s, 40 ms Laufzeit, 0,1 % Verlust |
 | N-4 unterwegs knapp | künstlich begrenzt: 8 Mbit/s, 80 ms Laufzeit, 0,5 % Verlust |
 
-Die Abnahme der Zielwerte gilt für N-1 und N-2. N-3 und N-4 werden gemessen und ausgewiesen, weil dort das
-Netz des Clients die Umschaltzeit bestimmt. Jeder Lauf geht einmal direkt an den Server und einmal über den
-Reverse-Proxy, den du nutzt (M-18).
+Die Abnahme der Zielwerte gilt für N-1 und N-2. N-3 und N-4 werden gemessen und ausgewiesen. Jeder Lauf geht
+einmal direkt an den Server und einmal über den Reverse-Proxy, den du nutzt (M-18).
 
 ### 8.5 Messmethode
 
@@ -595,15 +708,14 @@ Reverse-Proxy, den du nutzt (M-18).
     der Gegenprobe unten.
 - **Gegenprobe:** Je Client und Fall wird ein Lauf mit einer Kamera mit hoher Bildrate gefilmt (Tastendruck
   und Bildschirm im selben Bild). Weicht die Kamera um mehr als 100 ms von der App-Messung ab, gilt die
-  Kamera, und die App-Messung wird korrigiert oder verworfen. Die laufende Uhr im Testbild zeigt zugleich die
-  Verzögerung zur Quelle.
-- **Zerlegung:** Der Server meldet in der Antwort auf «einstellen» seine Teilzeiten (Prüfung, Empfang,
-  Parameter, erste Segmente bereit) im Kopf `Server-Timing`; der Client notiert Liste geladen, erstes Segment
-  geladen, erstes Bild. So lässt sich jede Summe den Abschnitten aus 5.1 zuordnen.
+  Kamera. Die laufende Uhr im Testbild zeigt zugleich die Verzögerung zur Quelle und, wie weit das erste Bild
+  vor dem Tastendruck liegt.
+- **Zerlegung:** Der Server meldet in der Antwort auf «einstellen» seine Teilzeiten im Kopf `Server-Timing`;
+  der Client notiert Liste geladen, erstes Segment geladen, erstes Bild. So lässt sich jede Summe den
+  Abschnitten aus 5.1 zuordnen.
 - **Ablauf je Messreihe:** 5 Umschaltungen zum Aufwärmen (verworfen), dann **50 gewertete** Umschaltungen im
   Wechsel zwischen zwei Sendern derselben Art, dazwischen 5 Sekunden Verweilen. Für Fall 3 ist der Zielsender
-  vor jeder Umschaltung sicher nicht empfangen (Karenz abwarten oder Empfang gezielt beenden); für Fall 2 ist
-  er sicher vorgeladen.
+  vor jeder Umschaltung sicher nicht empfangen; für Fall 2 ist er sicher vorgeladen.
 - **Fälle:** 1, 2, 3, 4 und zusätzlich «Ton-Umwandlung» (5.2).
 - **Auswertung:** Median, 90. und 95. Perzentil, Höchstwert; **Fehlerquote** (kein Bild innert 10 Sekunden
   oder Fehlermeldung) und Zahl der Stockungen in den ersten 10 Sekunden nach dem Bild.
@@ -628,7 +740,7 @@ Eine Zeile je Messreihe in `docs/perf/28-live-tv.md`, Rohdaten als CSV daneben:
 | Median, p90, p95, Höchstwert | in Millisekunden |
 | Fehlerquote, Stockungen | in Prozent und Anzahl |
 | Teilzeiten | Mediane der Abschnitte: Server bis erstes Segment bereit, Liste, erstes Segment, erstes Bild |
-| Verzögerung zur Quelle | aus der Uhr im Testbild |
+| Verzögerung zur Quelle, Alter des ersten Bildes | aus der Uhr im Testbild |
 | Bemerkung | Abweichungen, Kamera-Gegenprobe |
 
 ## 9. Überwachung des Stroms (LTV-011)
@@ -642,14 +754,14 @@ Verwaltung führen `04` (Abschnitt 5 und 10.2) und `15-administration.md` aus.
 |---|---|---|---|
 | Bytefluss | Bytes je Sekunde, Zeit seit dem letzten Paket | ja | Quelle weg oder hängt |
 | Paketgrenzen | Synchronbyte geht verloren | ja | kaputter Strom, falsches Format |
-| Paketverlust | Zähler je PID springt (Continuity Counter) | ja | Verlust im Netz (vor allem UDP), kaputte Quelle |
+| Paketverlust | Zähler je PID springt (Continuity Counter). **Nicht** gezählt werden Sprünge an Segmentgrenzen einer HLS-Quelle und an eigenen Diskontinuitäten. | ja | Verlust im Netz (vor allem UDP), kaputte Quelle |
 | Fortschritt der Uhr | Referenzuhr (PCR) und Zeitstempel je PID schreiten nicht fort, obwohl Pakete kommen | ja | eingefrorener Strom: Quelle sendet Füllpakete oder dieselben Daten |
 | Bild fehlt | PMT nennt eine Bild-PID, aber es kommen dort keine Daten | ja | Störung |
 | Ton fehlt | PMT nennt eine Ton-PID, aber es kommen dort keine Daten | ja | Störung. **Nennt die PMT keine Ton-PID, ist das kein Fehler** (9.3). |
-| Keyframe-Abstand | Abstand der Einträge im GOP-Index | ja | Kennzahl für die Verwaltung; sehr lange Abstände erklären langsames Umschalten |
+| Keyframe-Abstand | Abstand der Einträge im GOP-Index | ja | Kennzahl für die Verwaltung |
 | Bitrate | Bytes gegen die Referenzuhr | ja | Kennzahl; Einbruch als Warnung |
 | Codec, Bildgrösse, Bildrate | PMT (Codec) und die gespeicherte Probe (Grösse, Rate, Zeilensprung) | Codec ja; Grösse und Rate brauchen die Probe | Änderung gegenüber dem gespeicherten Stand |
-| Verschlüsselung | Kennzeichen im Paketkopf | ja | Quelle nicht nutzbar |
+| Verschlüsselung | Kennzeichen im Paketkopf, **nur auf Bild- und Ton-PIDs und über mindestens 5 Sekunden**; eine verschlüsselte Daten-PID zählt nicht | ja | Quelle nicht nutzbar |
 | HLS: Liste rückt nicht vor | gleiche Segmentfolge über mehrere Nachladungen | ja | eingefrorene Quelle |
 | HLS und DASH: DRM erscheint | Regel 2.5 beim Nachladen | ja | Quelle wird gesperrt |
 | **Stehendes Bild in gültigem Strom** | der Encoder der Quelle sendet weiter gültige Bilder mit fortschreitender Zeit, aber immer denselben Inhalt | **nein** | nur als Verdacht erkennbar: Die Bildpakete werden über längere Zeit sehr klein. Sicher erst mit Dekodieren (9.4). |
@@ -661,15 +773,14 @@ Verwaltung führen `04` (Abschnitt 5 und 10.2) und `15-administration.md` aus.
 |---|---|---|
 | keine Daten | 10 s | Stillstand: Wiederverbindung nach `04`, Abschnitt 5.3 |
 | Uhr schreitet nicht fort | 10 s | wie Stillstand |
-| Bild- oder Ton-PID ohne Daten, obwohl angekündigt | 15 s | Warnung; nach 60 s wie Stillstand (Wechsel auf die Ersatzquelle) |
-| Zählerfehler | mehr als 1 % der Pakete über 30 s | Warnung, **kein** Wechsel von selbst (bei UDP oft ein Problem des Heimnetzes, das die Ersatzquelle genauso träfe) |
+| Bild- oder Ton-PID ohne Daten, obwohl angekündigt | 15 s | Warnung; nach 60 s wie Stillstand |
+| Zählerfehler | mehr als 1 % der Pakete über 30 s | Warnung, **kein** Wechsel von selbst (bei UDP oft ein Problem des Heimnetzes) |
 | Bitrate bricht ein | unter 20 % des gespeicherten Mittels über 30 s | Warnung |
 | Verdacht «stehendes Bild» | Bildpakete unter 5 % der üblichen Grösse über 60 s | Vermerk in der Diagnose; kein Wechsel von selbst |
 | Parameter geändert | sofort | neue Probe, neuer Zeitabschnitt |
 | Ausfall eines Senders mit dauerhaftem Haltegrund | 10 min | Meldung an den Administrator, höchstens einmal je Quelle und Stunde |
 
-Kein Schwellwert löst mehr als einen Wechsel je Quarantäne-Frist aus; damit gibt es weder Endlosschleifen noch
-Flattern zwischen zwei schlechten Quellen.
+Kein Schwellwert löst mehr als einen Wechsel je Quarantäne-Frist aus.
 
 ### 9.3 Sender ohne Ton
 
@@ -679,44 +790,50 @@ verschwindet später eine Tonspur aus der PMT, ist das eine Warnung «Sender hat
 Ausfall. Der Administrator kann je Sender «hat keinen Ton» fest eintragen, wenn eine Quelle Ton ankündigt,
 aber nie liefert.
 
-### 9.4 Stichprobe mit Dekodieren
+### 9.4 Stichprobe mit Dekodieren: eine spätere Stufe
 
-Für die zwei Zustände, die der Strom allein nicht verrät (stehendes Bild, Schwarzbild oder Stille), ist eine
-sparsame Stichprobe vorgesehen: FFmpeg dekodiert wenige Sekunden **aus dem Ring** über eine Pipe und wertet
-mit Filtern für Bildstillstand, Schwarzbild und Stille aus. Das braucht keine zweite Verbindung zum Anbieter.
+LTV-011 verlangt die «Erkennung eingefrorener Streams». Dieses Konzept teilt das in zwei Teile und sagt klar,
+wann welcher kommt:
+
+- **Stillstand der Zeit** (keine Daten, Uhr steht, Liste rückt nicht vor): erkannt am Strom, ab der Stufe mit
+  der erweiterten Überwachung (Stufe 3).
+- **Stehendes Bild, Schwarzbild oder Stille in einem sonst gültigen Strom:** nur durch Dekodieren sicher
+  erkennbar. Das kommt als **eigener, späterer Schritt** nach Stufe 3 und nur, wenn M-20 zeigt, dass die
+  Filter im Image sind und die Kosten tragbar. **Bis dahin erkennt Slouchcat diese Lage nicht sicher**; die
+  Verwaltung zeigt nur den Verdacht aus 9.2.
+
+Vorgesehen für diesen Schritt: FFmpeg dekodiert wenige Sekunden **aus dem Ring** über eine Pipe und wertet mit
+Filtern für Bildstillstand, Schwarzbild und Stille aus. Das braucht keine zweite Verbindung zum Anbieter.
 Regeln: nur für Sender, die gerade empfangen werden; nur bei Verdacht nach 9.2 oder höchstens alle 15 Minuten
 je dauerhaft empfangenem Sender; nie mehr als eine Stichprobe gleichzeitig; niedrigste Priorität; fällt bei
-Mangel als Erstes weg. Ob die nötigen Filter im Image sind und was eine Stichprobe kostet, ist zu messen
-(M-20). Bis dahin gilt: Stehendes Bild in einem gültigen Strom wird **nicht** sicher erkannt; das Konzept
-behauptet es nicht.
+Mangel früh weg.
 
 ### 9.5 Prüfungen ohne Zuschauer
 
 | Lage | Prüfung | Verbindung zum Anbieter |
 |---|---|---|
-| Sender wird gerade empfangen (dauerhaft, Zeitplan, automatisch, vorgeladen, Zuschauer, Aufnahme) | laufend aus den Messwerten des Verteilers | keine zusätzliche |
+| Sender wird gerade empfangen | laufend aus den Messwerten des Verteilers | keine zusätzliche |
 | Sender ruht | kurzer Empfang mit Haltegrund «Prüfung»: verbinden, auf Tabellen und ersten Keyframe warten, höchstens 10 Sekunden, schliessen. Füllt zugleich die gespeicherten Streamparameter. | eine, kurz |
 
 Regeln für ruhende Sender, damit Prüfungen nicht zur Last werden:
 
-1. Ab Werk nur für Sender, die es verdienen: Favoriten irgendeines Profils; Sender mit einer Aufnahme in den
-   nächsten 24 Stunden (zusätzlich 30 Minuten vor Beginn, damit bei einer Störung noch Zeit für die
-   Ersatzquelle und eine Meldung bleibt); Sender mit Zeitplan vor Beginn des Fensters. Alle übrigen nur,
-   wenn der Administrator es je Quelle einschaltet, und dann höchstens einmal je Tag und Sender in einem
-   Nachtfenster.
+1. Nur für Quellen mit dem Schalter «weitere gleichzeitige Verbindungen erlaubt», und nur für Sender, die es
+   verdienen: Favoriten irgendeines Profils; Sender mit einer Aufnahme in den nächsten 24 Stunden (zusätzlich
+   30 Minuten vor Beginn); Sender mit Zeitplan vor Beginn des Fensters. Alle übrigen nur, wenn der
+   Administrator es je Quelle einschaltet, und dann höchstens einmal je Tag und Sender in einem Nachtfenster.
 2. Nie mehr als eine Prüfung gleichzeitig, dazwischen mindestens 5 Sekunden.
 3. **Keine Prüfung bei einer Quelle, von der gerade empfangen wird.** Slouchcat kennt das Verbindungslimit
    des Anbieters nicht (LTV-017); eine Prüfverbindung könnte einem Zuschauer den Strom wegnehmen.
 4. Eine Liste mit 10'000 Sendern wird nicht reihum geprüft: Bei 10 Sekunden je Sender wären das 28 Stunden
    Dauerlast beim Anbieter.
-5. Je Quelle abschaltbar.
+5. Ein Import probiert keine Adresse aus.
 
 ### 9.6 Meldewege
 
 | Empfänger | Weg | Inhalt |
 |---|---|---|
-| Zuschauer | Herzschlag der Sitzung und die Zeichen im Strom | Zustand in Worten: «Verbindung wird wiederhergestellt», «Ersatzquelle», «Sender nicht verfügbar», mit stabilem Code |
-| Verwaltung | Abfrage wie heute | je Sender und Quelle: Zustand, seit wann, letzter Fehlercode, Zahl der Wiederverbindungen und Wechsel, Messwerte |
+| Zuschauer | Herzschlag der Sitzung und die Zeichen im Strom | Zustand in Worten: «Verbindung wird wiederhergestellt», «Ersatzquelle», «Sender nicht verfügbar», «Quelle lehnt weitere Verbindung ab», mit stabilem Code |
+| Verwaltung | Abfrage wie heute | je Sender und Quelle: Zustand, seit wann, letzter Fehlercode, Zahl der Wiederverbindungen und Wechsel, Messwerte; Hinweis «vermutlich Verbindungslimit des Anbieters» |
 | Administrator | bestehende Benachrichtigung «Fehler», entprellt | längere Ausfälle nach 9.2; Speicherorte |
 | Protokoll | `slog` über die Schwärzung | technische Fehler mit Sender-Kennung, Quelle nur als Schema und Host |
 
@@ -727,35 +844,37 @@ sie aus (LTV-011).
 
 ### 10.1 Messpunkte
 
-Die Liste gilt für `04` und `05`. «Vor Stufe» nennt, wann der Messpunkt vorliegen muss; die Stufen legt
-`18-umsetzungsplan.md` fest.
+Die Liste gilt für `04` und `05`. «Vor» nennt, wann der Messpunkt vorliegen muss. **«Baufreigabe der Stufe»
+heisst: Ohne dieses Ergebnis wird die Stufe nicht zum Bau freigegeben und der genannte Entscheid nicht als
+tragend bestätigt.** Nichts hier ist gemessen.
 
 | Nr. | Was | Womit | Vor |
 |---|---|---|---|
-| **M-1** | Umschaltzeit je Fall, Client und Netz | Benchmark Abschnitt 8 | Abnahme jeder Stufe mit Wiedergabe |
-| **M-2** | Deine wirklichen Quellen: Bildgruppen-Länge, Bitrate, Codecs, Zeilensprung, Keyframe-Kennzeichen, Bildparameter je Keyframe, Schub beim Verbinden. Nur Kennzahlen, keine Inhalte und keine Adressen ins Repo. | kleines Messwerkzeug auf Grundlage von `live/mpegts` | Bau der ersten Stufe |
-| **M-3** | hls.js 1.7.3 (schlanker Bau) mit TS-Segmenten: H.264, HEVC, AAC, MP2, AC-3; Diskontinuitäten; Zeitüberlauf; Startpunkt aus der Liste; `loadSource` gegen Neuaufbau; Startzeit mit und ohne `startFragPrefetch` | Testquellen 8.2, Chrome und Firefox | Bau der ersten Stufe |
-| **M-4** | Media3 1.11.1 mit HLS-TS: Vorgaben des Ladepuffers; Start mit und ohne übergeordnete Liste; Wiederverwendung des Decoders; Verhalten hinter dem Fenster; lange Listen | Pixel und Android-TV-Gerät | Bau der ersten Stufe |
-| **M-5** | Safari (Mac, iPhone, installierte App) mit HLS-TS: Start, Startpunkt, HEVC, AC-3, Diskontinuitäten, Pause, Dauer des Umschaltens | Testquellen 8.2 | Bau der ersten Stufe |
-| **M-6** | Zeilensprung je Client: Kammartefakte bei 1080i50 und 576i50 | Q-E, Q-F auf allen Clients | Festlegung der Vorgabe in T-15 |
+| **M-1** | Umschaltzeit je Fall, Client und Netz, mit Fehlerquote und Stockungen | Benchmark Abschnitt 8 | Abnahme jeder Stufe mit Wiedergabe |
+| **M-2** | Deine wirklichen Quellen: Anteil H.264 ohne Zeilensprung mit AAC (also Direktweg im Browser), Zeilensprung, MPEG-2, MP2, AC-3; Bildgruppen-Länge, Bitrate, Keyframe-Kennzeichen, Bildparameter je Keyframe, offene Bildgruppen, Schub beim Verbinden, Verhalten bei einer zweiten Verbindung. Nur Kennzahlen, keine Inhalte und keine Adressen ins Repo. | kleines Messwerkzeug auf Grundlage von `live/mpegts` | **Baufreigabe der Stufe 1** (T-11, T-12) |
+| **M-3** | hls.js 1.7.3 (schlanker Bau) mit TS-Segmenten: H.264, HEVC, AAC, MP2, AC-3; Diskontinuitäten; ausdrücklicher Startpunkt; Listen von drei Segmenten mit `liveSyncDurationCount` 2; `loadSource` gegen Neuaufbau; Startzeit mit und ohne `startFragPrefetch` | Testquellen 8.2, Chrome und Firefox | **Baufreigabe der Stufe 1** (T-11) |
+| **M-4** | Media3 1.11.1 mit HLS-TS: Vorgaben des Ladepuffers; Start mit und ohne übergeordnete Liste; Wiederverwendung des Decoders; Verhalten hinter dem Fenster; lange Listen | Pixel und Android-TV-Gerät | **Baufreigabe der Stufe**, in der die Android-Apps Live-TV bekommen (`03` F-6) |
+| **M-5** | Safari (Mac, iPhone, installierte App) mit HLS-TS: **Zeit bis zum Bild bei einer Liste mit einem, zwei und drei Segmenten** (Startregel, 4.3); Startpunkt aus der Liste; HEVC, AC-3, Diskontinuitäten; Dauer des Umschaltens; Herzschlag im Hintergrund und bei Bildübertragung | Testquellen 8.2 | **Baufreigabe der Stufe 1** (T-11), sofern das iPhone zur Stufe gehört |
+| **M-6** | Zeilensprung je Client: Kammartefakte bei 1080i50 und 576i50, auch im Browser | Q-E, Q-F auf allen Clients | Festlegung der Vorgabe in T-15; `04` O-23 |
 | **M-7** | Decoder je Gerät: MPEG-2, MP2, AAC-LATM, AC-3, E-AC-3, HEVC | Abfrage der Gerätefähigkeiten, Gegenprobe mit Testquellen | Festlegung der Fähigkeitsangaben (`04`, O-1) |
-| **M-8** | Live-Umwandlung: Zeit bis zum ersten Segment an der Pipe mit kleinen Analysewerten; je Backend; Filter gegen Zeilensprung je Backend und ihre Kosten | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | Bau der Stufe mit Umwandlung; Budgetwerte |
-| **M-9** | Nahtlose Segmente über mehrere FFmpeg-Läufe mit TS: gleiche Zeitstempel, Keyframes im Raster je Backend, Verhalten der Player | Testquellen, alle drei Player | Bau des Spulens mit Umwandlung; sonst Rückfall 4.5 |
-| **M-10** | Weg W: Nutzt FFmpeg 7.1.4 den Weiterleiter für **jede** Unteranfrage (Listen, Segmente, Schlüssel, Weiterleitungen, `https` als Tunnel)? Feindliche Listen mit lokalen Adressen, `file:`, `tcp:`, `data:`; ein Lauschposten im Testnetz darf keine direkte Verbindung sehen | Image 1.44.x, Testaufbau | Bau von Weg W; ohne Beleg kein Weg W |
-| **M-11** | FFmpeg-Leser für DASH mit Live-Manifest und für HLS mit fMP4 und getrenntem Ton: Stabilität, Auswahl der Darstellung, Nachladen | Testquellen | Bau von Weg W |
-| **M-12** | Langlauf: Go-Empfänger über 7 Tage (Arbeitsspeicher, Routinen, offene Dateien); FFmpeg-Empfänger über 30 Stunden mit und ohne planmässigen Ersatz | CT 190 | Abnahme der Stufe mit dauerhaftem Empfang |
-| **M-13** | Ring: Arbeitsspeicher und Rechenzeit je Sender bei 8 und 20 Mbit/s; 5, 20, 50, 100 Sender | CT 190 | Festlegung der Vorgaben in `04`, Abschnitt 6.3 |
-| **M-14** | Sitzungspuffer und Aufnahmen: Schreiblast je Zuschauer auf SSD, HDD, RAM-Disk, Netzspeicher; 5 und 20 Zuschauer; Einfluss auf eine gleichzeitige Dateiwiedergabe | CT 190 | Festlegung der Deckel; `04`, O-6 |
-| **M-15** | Schwellen der Überwachung: Fehlalarme und übersehene Störungen | Fehlerbilder aus 8.2 | Bau der Überwachung |
-| **M-16** | UDP und Multicast im Container: Bridge mit veröffentlichtem Port, Host-Netz; Paketverlust unter Last; Grösse des Empfangspuffers | CT 190 und Heimnetz | Bau der Stufe mit UDP |
-| **M-17** | Vorladen: Gewinn an Umschaltzeit gegen zusätzliche Verbindungen und Bandbreite | Benchmark mit und ohne | Vorgabe für Vorladen |
+| **M-8** | Live-Umwandlung: Zeit bis zum ersten Segment an der Pipe mit kleinen Analysewerten; je Backend; Filter gegen Zeilensprung je Backend und ihre Kosten; **Kosten der Ton-Umwandlung** (wie viele trägt die Referenz wirklich?) | CT 190 (QSV), Entwicklungsrechner (NVENC), Software | Bau der Stufe mit Umwandlung; Budgetwerte in `04`, Abschnitt 7.6 |
+| **M-9** | Nahtlose Segmente über mehrere FFmpeg-Läufe mit TS: gleiche Zeitstempel, Keyframes im Raster je Backend, Verhalten der Player; Zeitsprung im Eingang ohne Neustart | Testquellen, alle drei Player | Bau des Spulens mit Umwandlung (Stufe 4); sonst Rückfall 4.5 |
+| **M-10** | Weg W ist dicht: feindliche Testmenge (2.6), Mitschrift aller Verbindungsversuche des FFmpeg-Prozesses zeigt nur den Port des Weiterleiters; FFmpeg kommt mit umgeschriebenen Listen und Manifesten zurecht; ob `tcp` in der Protokoll-Liste entbehrlich ist | Image, Testaufbau | **Baufreigabe von Weg W**; ohne Beleg kein Weg W |
+| **M-11** | FFmpeg-Leser für DASH mit Live-Manifest und für HLS mit fMP4 und getrenntem Ton: Stabilität, Auswahl der Darstellung, Nachladen | Testquellen | Baufreigabe von Weg W |
+| **M-12** | Langlauf: Go-Empfänger über 7 Tage (Arbeitsspeicher, Routinen, offene Dateien); FFmpeg-Empfänger über 30 Stunden: Speicherwachstum und Verhalten am Zeitüberlauf, mit und ohne planmässigen Ersatz | CT 190 | Abnahme der Stufe mit dauerhaftem Empfang; Baufreigabe von Weg W |
+| **M-13** | Ring: Arbeitsspeicher und Rechenzeit je Sender bei 8 und 20 Mbit/s; 5, 20, 50, 100 Sender; Kosten des Kopierens beim Lesen | CT 190 | Festlegung der Vorgaben in `04`, Abschnitt 6.3 |
+| **M-14** | Sitzungspuffer und Aufnahmen: Schreiblast je Zuschauer auf SSD, HDD, RAM-Disk, Netzspeicher; 5 und 20 Zuschauer; Einfluss auf eine gleichzeitige Dateiwiedergabe; **Netzspeicher 30 Sekunden getrennt und anlaufende Platte: reicht der Rückstau?** | CT 190, NAS | Baufreigabe der Stufen 4 und 5; F-8 |
+| **M-15** | Schwellen der Überwachung: Fehlalarme und übersehene Störungen | Fehlerbilder aus 8.2 | Bau der erweiterten Überwachung |
+| **M-16** | UDP und Multicast im Container: Bridge mit veröffentlichtem Port, Host-Netz, eigenes Netz des Containers (`macvlan`, `ipvlan`); Paketverlust unter Last | CT 190 und Heimnetz | Bau der Stufe mit UDP; F-11 |
+| **M-17** | Vorladen: Gewinn an Umschaltzeit gegen zusätzliche Verbindungen und Bandbreite; Verhalten am Testserver «nur eine Verbindung» | Benchmark mit und ohne | Vorgabe für Vorladen; F-9 |
 | **M-18** | Verhalten hinter dem Reverse-Proxy (Nginx Proxy Manager, Caddy): Abruf der Segmente, Zwischenpufferung | dein Aufbau | Abnahme der ersten Stufe |
-| **M-19** | Lange Wiedergabelisten (zwei Stunden): Zeit zum Einlesen auf einem schwachen Fernseher; Wirkung der Delta-Listen | Android-TV-Gerät | Bau des Zeitversatzes |
+| **M-19** | Lange Wiedergabelisten (60 Minuten und mehr): Zeit zum Einlesen auf einem schwachen Fernseher; Wirkung der Delta-Listen | Android-TV-Gerät | Bau des Zeitversatzes |
 | **M-20** | Filter für Bildstillstand, Schwarzbild und Stille im Image und Kosten einer Stichprobe | Image, CT 190 | Bau der Stichprobe 9.4 |
 | **M-21** | Teilstücke unter einer Bildgruppe in der Startphase: verkraften alle drei Player Segmente ohne Keyframe am Anfang? | Q-C, Q-D | nur falls Fall 3 sonst verfehlt wird |
 | **M-22** | Zeitüberlauf nach 26,5 Stunden: Verhalten der Player im Direktweg und von FFmpeg in der Umwandlung | Testquelle mit vorgestelltem Zeitstempel | Bau der ersten Stufe |
-| **M-23** | RTSP und RTMP nach dem Entscheid zu F-1: Bibliotheken (Stabilität, Umsetzung nach TS) oder FFmpeg direkt (Verhalten bei Weiterleitungen) | Testserver | Bau der Stufe mit RTSP und RTMP |
+| **M-23** | RTSP und RTMP nach dem Entscheid zu F-1: verbindet jede Bibliothek nur über den übergebenen Dialer (Test mit einem Dialer, der alles ablehnt)? Stabilität, Umsetzung nach TS | Testserver | Baufreigabe der Stufe mit RTSP und RTMP |
 | **M-24** | Untertitel: DVB-Untertitel und Teletext in Media3 über HLS-TS; Umsetzung von Teletext nach WebVTT | Testquelle mit Untertiteln | Stufe mit Untertiteln |
+| **M-25** | Eindämmung: Lässt der Kernel von CT 190 und das Profil von Docker die Sperre (Landlock) zu, für Dateien und für das Netz? Verträgt sich eine Grenze des Adressraums mit QSV und NVENC? Läuft die ganze Prüfreihe mit `no-new-privileges`, entzogenen Fähigkeiten und Prozessgrenze? | CT 190, Entwicklungsrechner | Baufreigabe der Stufe 1 (T-27); Baufreigabe von Weg W |
 
 ### 10.2 Offene Punkte dieses Dokuments
 
@@ -764,9 +883,9 @@ Die Nummern setzen die Liste aus `04`, Abschnitt 12.2 fort.
 | Nr. | Punkt |
 |---|---|
 | O-14 | Auswahl der Variante bei HLS-Quellen mit mehreren Qualitäten: Vorgabe ist die höchste (die Aufnahme verlangt Originalqualität); eine Obergrenze je Quelle wäre eine Einstellung des Administrators. |
-| O-15 | RTP mit SDP-Datei, Fehlerkorrektur nach SMPTE 2022, Umordnen vertauschter Pakete, TS mit 204 Byte: in der ersten Stufe nicht unterstützt; Bedarf nach M-2 und M-16. |
+| O-15 | RTP mit eigener Sitzungsbeschreibung, Fehlerkorrektur nach SMPTE 2022, Umordnen vertauschter Pakete, TS mit 204 Byte: in der ersten Stufe mit UDP nicht unterstützt; Bedarf nach M-2 und M-16. |
 | O-16 | HLS mit `SAMPLE-AES` und Schlüsselformat `identity`: vorsichtig abgelehnt; rechtliche Einordnung der Grenze zwischen Transportverschlüsselung und DRM gehört in `12-sicherheit.md`. |
 | O-17 | Die erste Wiedergabeliste schon in der Antwort auf «einstellen» mitgeben, um eine Anfrage zu sparen: Nutzen nach M-1, Form in `08-api.md`. |
-| O-18 | Quellen mit geheimen Kopfzeilen **und** absoluten `https`-Adressen in Manifesten (nur Weg W): Der Weiterleiter kann in einen Tunnel keine Kopfzeilen setzen. Solche Quellen werden in Weg W nicht unterstützt, ausser die Adressen liegen relativ zum Manifest. |
-| O-19 | Mindestlänge eines Segments im Direktweg (2 Sekunden) und Verhalten, wenn eine Quelle mitten im Betrieb längere Bildgruppen sendet als die angekündigte Zieldauer der Liste. |
-| O-20 | Planmässiger Ersatz eines FFmpeg-Empfängers (Weg W): Abstand und Wahl des Augenblicks nach M-12. |
+| O-18 | entfällt: Ohne Tunnel setzt der Weiterleiter die Kopfzeilen für jeden Abruf selbst (2.6). |
+| O-19 | Mindestlänge eines Segments im Direktweg (2 Sekunden), kurze Segmente in der Startphase für Safari, und Verhalten, wenn eine Quelle mitten im Betrieb längere Bildgruppen sendet als die angekündigte Zieldauer der Liste. |
+| O-20 | Planmässiger Ersatz eines FFmpeg-Empfängers (Weg W): ob überhaupt nötig, zeigt M-12. |
