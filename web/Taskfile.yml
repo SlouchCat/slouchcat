@@ -161,6 +161,9 @@ tasks:
           gh run download "$run" -p 'e2e-blob-*' -D "$dir/$run"
         done
         node e2e/durations.mjs "$dir"/*
+        # durations.mjs writes plain JSON; prettier --check (web:lint) wants its own layout. Without
+        # this the refreshed table turns the web lint red (measured 28 November 2026).
+        pnpm -w exec prettier --write web/e2e/durations.json
         node e2e/shard-plan.mjs --shards {{.CI_E2E_SHARDS}}
 
   storybook:

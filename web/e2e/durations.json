@@ -1,907 +1,1231 @@
 {
   "about": "Seconds per e2e test and project, the mean of the inputs below; written by e2e/durations.mjs, read by e2e/shard-plan.mjs.",
-  "inputs": ["41705191279", "41707865418"],
+  "inputs": ["46128070156", "46128085568", "46148151426"],
   "projects": {
     "chromium": {
       "admin-accounts.spec.ts": {
-        "A-2: change the own e-mail and back by keyboard; a wrong password stays at its field": 4.5,
-        "A-2: the administrator and an account in one table, with the owner badge": 1.5,
-        "ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap": 4,
-        "K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Verwerfen goes": 4.7,
-        "KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete by keyboard": 5.5,
+        "A-2: change the own e-mail and back by keyboard; a wrong password stays at its field": 3.6,
+        "A-2: the administrator and an account in one table, with the owner badge": 1.6,
+        "ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap": 3.9,
+        "at desktop width › the table and an opened row fit the frame at 1280 px; on a phone the fold-out fits the screen": 3.7,
+        "concept 25: request right and limit in «Zugriff», the invitation and the Seerr user line by keyboard": 4.7,
+        "K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Verwerfen goes": 5.1,
+        "KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete by keyboard": 5.4,
         "tabs «Konten» and «Einladungen» by arrows; an unknown tab or item leaves the address": 1.5
       },
       "admin-announcements.spec.ts": {
-        "A-7: a new announcement can go out at once": 2.2,
-        "A-7: draft, change, publish and delete an announcement by keyboard": 4.6,
-        "A-7: leaving with an unsaved text asks first": 2.5
+        "A-7: a new announcement can go out at once": 2.3,
+        "A-7: draft, change, publish and delete an announcement by keyboard": 4.4,
+        "A-7: leaving with an unsaved text asks first": 2.4
       },
       "admin-backup.spec.ts": {
-        "A-4: a backup with secrets needs a passphrase of 12 characters and is encrypted": 3.3,
-        "A-4: create a backup without secrets, download it and delete it, by keyboard": 3,
-        "restore › A-4: restore from an uploaded file up to the restart panel (request intercepted)": 4.3
+        "A-4: a backup with secrets needs a passphrase of 12 characters and is encrypted": 2.9,
+        "A-4: create a backup without secrets, download it and delete it, by keyboard": 2.9,
+        "restore › A-4: restore from an uploaded file up to the restart panel (request intercepted)": 4.2
       },
       "admin-collections.spec.ts": {
-        "collections page by keyboard: create, fill, order, show on the start page, rename, delete": 6.5,
-        "collections page: tabs replace the address, browser back leaves; «Entfernen», «Verwerfen» and back with a draft by keyboard": 3.9
+        "collections page by keyboard: create, fill, order, show on the start page, rename, delete": 8.5,
+        "collections page: tabs replace the address, browser back leaves; «Entfernen», «Verwerfen» and back with a draft by keyboard": 3.8
       },
       "admin-density.spec.ts": {
         "on a phone › controls keep 44 px below 768 px": 0.5,
-        "on a tablet with touch › controls keep 44 px with a coarse pointer from 768 px": 0.6,
+        "on a tablet with touch › controls keep 44 px with a coarse pointer from 768 px": 0.5,
         "with a mouse from 768 px › /settings/profiles keeps today’s size": 0.5,
         "with a mouse from 768 px › a dialog opened from an administration page is compact": 0.7,
+        "with a mouse from 768 px › a job row says what the job does in its own column, at most two lines cut with «…» (concept 15, P-2)": 0.6,
         "with a mouse from 768 px › a table row is 40 px high (S-5)": 0.6,
         "with a mouse from 768 px › leaving /admin in the app drops the compact density; coming back restores it": 1.5,
-        "with a mouse from 768 px › running text is 14 px in the content of /admin": 0.6,
-        "with a mouse from 768 px › the content of /admin is compact; header and sidebar keep 44 px": 0.7,
-        "with a mouse from 768 px › the overview has the 24 px page title of the other pages": 0.5,
+        "with a mouse from 768 px › running text is 14 px in the content of /admin": 0.5,
+        "with a mouse from 768 px › the content of /admin is compact; header and sidebar keep 44 px": 1,
+        "with a mouse from 768 px › the overview has the 30 px page title of the admin frame": 0.5,
         "with a mouse from 768 px › the question before leaving with unsaved input is compact": 1.3
       },
       "admin-devices.spec.ts": {
-        "after a playback the device rows show owner, last contact and the reported profile": 1.2,
+        "after a playback the device rows show owner, last contact and the reported profile": 1.3,
         "an unknown tab shows «Geräte»; browser back leaves the page": 1.5,
-        "tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard": 2.6,
-        "the columns of the type sections line up in both tabs (K12-9)": 1.1
+        "tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard": 2.8,
+        "the columns of the type sections line up in both tabs (K12-9)": 1.5
       },
       "admin-folder-browser.spec.ts": {
         "a folder already in the field opens the dialog in that folder": 2.2,
-        "a folder that already belongs to a library says so": 1.4,
+        "a folder that already belongs to a library says so": 1.3,
         "a path below no browsable folder stays in the field and is explained": 1.9,
-        "Enter goes into a folder, Backspace comes back, OK writes the path field": 2,
-        "Escape closes without a change and returns the focus to the button": 2,
-        "one click enters a folder instead of marking it": 1.9,
-        "the dialog opens inside the root, walks the rows and shows a ring on each": 1.5,
-        "the path field takes a typed folder and Backspace there edits instead of going up": 2.1
+        "Enter goes into a folder, Backspace comes back, OK writes the path field": 2.1,
+        "Escape closes without a change and returns the focus to the button": 2.1,
+        "one click enters a folder instead of marking it": 1.8,
+        "the dialog opens inside the root, walks the rows and shows a ring on each": 1.7,
+        "the path field takes a typed folder and Backspace there edits instead of going up": 2
       },
       "admin-home-rows.spec.ts": {
-        "start page rows by keyboard: placing and hiding change the start page": 4.5,
-        "the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen» restores": 6.6,
-        "the Trakt line links to the spotlight page by keyboard": 2.2,
+        "«Erfüllte Wünsche»: its place, «Ausblenden» and the fold-out by keyboard": 2.3,
+        "start page rows by keyboard: placing and hiding change the start page": 5.3,
+        "the preview next to the editor shows the unsaved order; leaving asks, «Verwerfen» restores": 7.5,
+        "the preview stands next to the rows on a wide window and below them on a narrow one (HOM-021)": 0.7,
+        "the Trakt line links to the spotlight page by keyboard": 2.8,
         "ticking «Ausblenden» leaves the columns where they are (K12-9)": 1.2
       },
       "admin-home.spec.ts": {
-        "a provoked error shows in the card and the opened server log within 10 s (A-3)": 60.7,
-        "admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.5,
-        "every admin page is reached through the sidebar (A-2)": 3.8,
-        "on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns": 1.5,
-        "Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap": 2.3,
-        "the app column has one \"Verwaltung\" entry; Enter opens the overview in the admin sidebar": 1.7,
-        "the focus stays on «Übersicht» after entering the administration with Enter": 2.3,
-        "the overview: eight equal cards in two columns, the server log collapsed (A-3)": 1
+        "admin sidebar: back, the overview, five areas as a tree; one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.6,
+        "every area is reached through the sidebar (A-2)": 2.3,
+        "on a phone: «Verwaltung · Übersicht» opens every page as a sheet, Escape returns": 1.1,
+        "Tab: header, sidebar, the overview’s header, key figures; Enter follows, Back returns; no focus trap": 2,
+        "the app column has one \"Verwaltung\" entry; Enter opens the overview in the admin sidebar": 2.1,
+        "the focus stays on «Übersicht» after entering the administration with Enter": 2.4,
+        "the overview: band, four key figures, attention, active, areas, the server in short (A-3)": 0.8
       },
       "admin-integrations.spec.ts": {
-        "\"Schlüssel neu erzeugen\" asks first; Escape keeps the keys": 2.6,
+        "\"Schlüssel neu erzeugen\" asks first; Escape keeps the keys": 1.5,
         "a newer release in the manifest shows the update badge; switching the check off removes it (A-5)": 1.6,
-        "a YouTube key is saved write-only and deleted again, all by keyboard": 3.2,
-        "browser back leaves the page for the overview": 1,
-        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 0.8,
-        "the e-mail server and the Telegram bot are setting rows; the test mail by keyboard": 2.5,
-        "the public address and the update check by keyboard": 3,
-        "the six blocks start open and fold by keyboard from their band": 2.4,
-        "unsaved input survives a folded block; leaving asks first": 1.8
+        "a tile per service opens its view and leads back, all by keyboard": 1.7,
+        "a YouTube key is saved write-only and deleted again, all by keyboard": 2.6,
+        "browser back leaves the page for the overview": 1.1,
+        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 1.7,
+        "the e-mail server and the Telegram bot are setting rows; the test mail by keyboard": 1.8,
+        "the public address and the update check by keyboard": 1.9,
+        "unsaved input survives a change of view; leaving asks first": 2
+      },
+      "admin-item-delete.spec.ts": {
+        "a title is taken out of Slouchcat and back in, by keyboard": 3.2,
+        "one click on the button takes the title out with one request": 1.1,
+        "the title is deleted with its file, by keyboard, in a writable folder": 1.8
       },
       "admin-item.spec.ts": {
-        "add a manual trailer by keyboard, then delete it after confirmation": 2,
-        "an invalid YouTube link is reported at the field": 1.5,
-        "an unknown tab in the address shows «Metadaten» and leaves the address": 0.8,
-        "an unsaved rating survives the tabs; leaving asks first": 3.2,
+        "add a manual trailer by keyboard, then delete it after confirmation": 1.8,
+        "an invalid YouTube link is reported at the field": 1.4,
+        "an unknown tab in the address shows «Metadaten» and leaves the address": 0.7,
+        "an unsaved rating survives the tabs; leaving asks first": 2.9,
         "Back from the detail page returns to the tab of the address": 1.6,
-        "image choice › image choice: the grid by arrow keys, Enter chooses, Escape closes, focus returns (concept 10 7.3)": 1.3,
-        "match dialog: the search without a key shows the provider error; Escape closes": 1.3,
-        "shows kind, state, both version files and the trailer state": 1.9,
+        "image choice › image choice: the grid by arrow keys, Enter chooses, Escape closes, focus returns (concept 10 7.3)": 1.1,
+        "match dialog: the search without a key shows the provider error; Escape closes": 1.1,
+        "original language: chosen by keys, saved and locked; «Aus Metadaten» lifts the lock (concept 13 11.7)": 3.3,
+        "shows kind, state, both version files and the trailer state": 2,
         "Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap": 1.6,
-        "the detail page links here with \"Verwalten\"": 1.7
+        "the detail page links here through the pen's editor (concept 15 7.4)": 2.2
       },
       "admin-jobs.spec.ts": {
-        "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 6.2,
-        "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.3,
-        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.3
+        "background jobs by keyboard: a one-off date in the schedule as the server wall time, and removed again": 3.7,
+        "background jobs by keyboard: a time window for the keyframe index, set and removed again": 4.2,
+        "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 9.6,
+        "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 9.6,
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 3.4
       },
       "admin-libraries.spec.ts": {
-        "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 5.5,
-        "an invalid path is reported at the field; Enter submits from the field": 1.8,
-        "audio kinds by keyboard: default rating with arrows, no folder for podcasts (M6)": 2.4,
-        "browser back leaves the page to the start page": 1.1,
-        "content and metadata sources by keyboard: Space ticks, the position orders, cards come and go (ADR 0015, S-16)": 2.7,
-        "Enter on \"Erneut scannen\" queues a scan that finishes": 6.8,
-        "Tab reaches header, the add dialog and its fields in order; no focus trap": 1.8,
-        "tabs by kind with the arrow keys, counts and the tab in the address": 1.7,
-        "the audio libraries show kind and default rating; the menu opens the rating dialog": 2.1,
-        "the scanned test library is listed with its state and counts": 1.3
+        "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 2.1,
+        "«Bearbeiten» renames a library by keyboard, one request per save": 1.8,
+        "«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope, Escape and save (concept 18, 9)": 2.2,
+        "an invalid path is reported at the field; Enter submits from the field": 1.3,
+        "audio kinds by keyboard: default rating with arrows, no folder for podcasts (M6)": 2,
+        "browser back leaves the page to the start page": 0.9,
+        "content and metadata sources by keyboard: Space ticks, the position orders, cards come and go (ADR 0015, S-16)": 2.5,
+        "Enter on \"Erneut scannen\" queues a scan that finishes": 4.4,
+        "Tab reaches header, the add dialog and its fields in order; no focus trap": 1.7,
+        "tabs by kind with the arrow keys, counts and the tab in the address": 1.1,
+        "the audio libraries show kind and default rating; «Bearbeiten» holds the rating": 1.4,
+        "the keyframe index links the backfill, whose row the jobs page opens": 1.2,
+        "the scanned test library is listed with its state and counts": 0.8
+      },
+      "admin-library-delete.spec.ts": {
+        "a library is deleted from the keyboard after its name is typed": 4.7,
+        "one click on the button deletes the library with one request": 4
+      },
+      "admin-library-draft.spec.ts": {
+        "«Abbrechen» asks, the band goes on or discards, all by keyboard (13.2)": 3.6,
+        "step 0 control: «Bearbeiten» alone leaves no draft (P-11)": 1.3,
+        "step 0: a cancelled draft is what asks on leaving, and the band now shows it (P-11)": 2.8
       },
       "admin-library-folders.spec.ts": {
-        "«Ändern» edits content and sources by keyboard; a content change needs the typed path": 3.4,
-        "«Pfad ändern» picks the new place by keyboard and keeps the title (ADR 0023)": 6.4,
         "a library without a folder says so and offers no scan (E13)": 3.1,
-        "a second folder goes in, and comes out only after its path is typed": 3.6,
-        "the folders dialog opens from the keyboard and lists the folder": 2.1,
-        "two folders go in with one submit, each with its own content (F-13)": 4.7
+        "a new path by keyboard names old and new path, needs no typed path and keeps the title (ADR 0023)": 6.4,
+        "a second folder goes in with «Speichern», and comes out only after its path is typed": 6.2,
+        "content and sources of a card by keyboard; another content needs the typed path": 5.5,
+        "the form opens by keyboard, its cards fold with Enter and Space, Escape asks before discarding": 2.9,
+        "two folders go in with one save, each with its own content (F-13)": 4.7
       },
       "admin-metadata.spec.ts": {
-        "\"Jetzt anwenden\" sends what and where and reports the queued run": 1.7,
-        "«Anwenden» polls the jobs every 10 s, and pauses while changes are unsaved": 25.5,
-        "a language is added, put on its place with several arrow steps, saved and removed, all by keyboard": 9.1,
-        "a library deviates in its languages; the libraries page says so": 3.9,
-        "changes survive switching the scope; leaving the page asks first": 6.7,
-        "the default scope lists the areas and the languages, the save bar is clean, nothing is sent": 2.4,
-        "the rating country changes with the arrow keys; \"Verwerfen\" asks and drops the change unsaved": 1.9,
-        "the sticky save bar does not cover the focused element (WCAG 2.4.11)": 1.6
+        "?item= opens the named section only; «Anwenden» goes to one folder with its titles": 6.1,
+        "\"Jetzt anwenden\" sends what and where and reports the queued run": 3.7,
+        "«Anwenden» polls the jobs every 10 s, and pauses while changes are unsaved": 3.6,
+        "a language is added, put on its place with several arrow steps, saved and removed, all by keyboard": 23.5,
+        "a new rating country with titles asks before saving; Escape keeps the change unsaved": 4.2,
+        "the default shows seven closed sections with their summaries; nothing is sent": 1.3,
+        "the rating country is chosen in the list with its steps; \"Verwerfen\" asks and drops the change unsaved": 5.5,
+        "the sections open and close by keyboard, the focus stays on the header": 6.4,
+        "the sticky save bar does not cover the focused element (WCAG 2.4.11)": 2.2
+      },
+      "admin-my-media.spec.ts": {
+        "«Meine Medien» by keyboard: placing and hiding per place reach the side navigation": 2,
+        "«Meine Medien»: the preview by ←/→ shows the draft; leaving asks, «Verwerfen» restores": 4.6
       },
       "admin-phone.spec.ts": {
-        "/admin is not wider than the phone": 0.6,
+        "/admin is not wider than the phone": 0.4,
         "/admin/accounts is not wider than the phone": 0.5,
-        "/admin/accounts?item=me#meine-profile is not wider than the phone": 0.6,
-        "/admin/announcements is not wider than the phone": 0.5,
-        "/admin/backup is not wider than the phone": 0.5,
-        "/admin/collections is not wider than the phone": 0.5,
-        "/admin/devices is not wider than the phone": 0.5,
-        "/admin/home-rows is not wider than the phone": 0.5,
-        "/admin/integrations is not wider than the phone": 0.6,
+        "/admin/accounts?item=me#meine-profile is not wider than the phone": 0.5,
+        "/admin/announcements is not wider than the phone": 0.4,
+        "/admin/backup is not wider than the phone": 0.4,
+        "/admin/collections is not wider than the phone": 0.4,
+        "/admin/devices is not wider than the phone": 0.4,
+        "/admin/home-rows is not wider than the phone": 0.4,
+        "/admin/integrations is not wider than the phone": 0.5,
+        "/admin/integrations?item=email is not wider than the phone": 0.5,
+        "/admin/integrations?item=keys is not wider than the phone": 0.5,
+        "/admin/integrations?item=seerr is not wider than the phone": 0.5,
+        "/admin/integrations?item=webhooks is not wider than the phone": 0.5,
         "/admin/jobs is not wider than the phone": 0.5,
-        "/admin/libraries is not wider than the phone": 0.5,
-        "/admin/maintenance is not wider than the phone": 0.6,
+        "/admin/libraries is not wider than the phone": 0.4,
+        "/admin/maintenance is not wider than the phone": 0.5,
         "/admin/metadata is not wider than the phone": 0.6,
-        "/admin/picks is not wider than the phone": 0.5,
+        "/admin/metadata/audiobooks is not wider than the phone": 0.5,
+        "/admin/my-media is not wider than the phone": 0.4,
+        "/admin/notifications is not wider than the phone": 0.4,
+        "/admin/picks is not wider than the phone": 0.4,
         "/admin/podcasts is not wider than the phone": 0.5,
-        "/admin/spotlight is not wider than the phone": 0.6,
-        "/admin/stats is not wider than the phone": 0.6,
+        "/admin/radio is not wider than the phone": 0.4,
+        "/admin/server is not wider than the phone": 0.4,
+        "/admin/spotlight is not wider than the phone": 0.5,
+        "/admin/stats is not wider than the phone": 0.4,
         "/admin/streams is not wider than the phone": 0.4,
-        "/settings/notifications is not wider than the phone": 0.5,
+        "/admin/wishes is not wider than the phone": 0.4,
+        "/admin/wishes?tab=einstellungen is not wider than the phone": 0.5,
+        "/admin/wishes?tab=seerr-benutzer is not wider than the phone": 0.4,
+        "/settings/notifications is not wider than the phone": 0.4,
         "/settings/profiles is not wider than the phone": 0.4,
-        "title is not wider than the phone": 0.7
+        "podcast is not wider than the phone": 0.4,
+        "title is not wider than the phone": 0.6
       },
       "admin-picks.spec.ts": {
-        "a pick for one profile reaches only that profile; an 18 title never a profile rated 12": 1.7,
-        "picks page by keyboard: add with a note, place at the top, time window in the fold-out, tabs, remove": 9.4
+        "a pick reaches a child profile that may see the title, never one above its rating (E-3)": 0.6,
+        "user picks page by keyboard: retention, the list, remove after a question": 1.6
+      },
+      "admin-podcast-page.spec.ts": {
+        "podcast page and downloads by keyboard: views, «Laden», «Abbrechen», back": 3.4,
+        "podcast page of an unknown podcast: the notice leads back to the list": 0.9
       },
       "admin-podcasts.spec.ts": {
-        "podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field": 2.4,
-        "podcasts page: library tabs and rows by arrow keys; browser back leaves the page": 1.6
+        "podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field": 2.8,
+        "podcasts page: band «Neue Folgen» and the confirmation by keyboard": 2.7,
+        "podcasts page: library tabs and rows by arrow keys; browser back leaves the page": 2
+      },
+      "admin-radio.spec.ts": {
+        "«Angaben» by keyboard: the origin of each value, owner and founding date from Wikidata (concept 19 B2)": 2.7,
+        "«Angebot» by keyboard: search a country, a continent, the station list, apply (PB-10)": 4.1,
+        "«Eigene Sender» by keyboard: a local address is refused, a public one added and deleted": 2.9,
+        "«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, details, back in": 4.1,
+        "a running listener is stopped through the confirmation": 5,
+        "radio administration by keyboard: tabs in the URL, stations table, editor, settings": 3.6
+      },
+      "admin-seerr.spec.ts": {
+        "a wrong key, a bad address and a new host without the key are named": 4,
+        "another instance waits for a decision; «Zuordnung löschen» asks first": 10.1,
+        "Radarr and Sonarr: test, own address, not in Seerr; the instant notice by keyboard": 6.6,
+        "the tile opens the view; connect, test and save by keyboard": 6.7
+      },
+      "admin-server.spec.ts": {
+        "a provoked error shows in the opened server log within 10 s and on the overview (A-3)": 11.5,
+        "by keyboard: the area tab, the header, the restart dialog up to «Abbrechen», the log; no focus trap": 2.1,
+        "on a phone the server page fits the screen and reaches every card": 0.4,
+        "the server page: state, updates with the restart, both storage paths, activity, the log collapsed (A-3)": 0.8,
+        "updates (concept 15 P-8) › the manual steps without companion; the install dialog and its phases": 4.2
+      },
+      "admin-shell.spec.ts": {
+        "a long intro shows two lines; «Mehr» and «Weniger» by keyboard": 1.2,
+        "an area closes while its page is current, and the tree keeps what the viewer opened": 1.8,
+        "Ctrl+K does not open the palette while a dialog is open": 0.9,
+        "deep links of sub-pages show the tab of their page and open its area in the tree": 2,
+        "deep links with search params and a hash keep the address and mark the tree": 1.4,
+        "every one of the 22 pages by deep link opens its area in the tree, the others closed": 7.5,
+        "every one of the 22 pages through the tree by keyboard from the overview": 8.6,
+        "on a phone › below 768 px there is no column and no tree": 0.4,
+        "on a phone › the sheet reaches every page; the tabs stand above the page and wrap": 6.6,
+        "on a tablet › the column with the tree stands from 768 px; a deep link opens its area, a click folds it": 1.3,
+        "the area tabs reach every one of the 22 pages by keyboard": 5.2,
+        "the breadcrumb in the header: Verwaltung › area / page, by keyboard": 1.1,
+        "the browser’s back and forward keep the tree on the page arrived at": 2.3,
+        "the overview has no area tabs; the line over each title names area and page": 0.6,
+        "the palette: the button and Ctrl+K open it, typing filters, Enter opens, Escape returns": 1.9,
+        "the sidebar: back, the overview and five areas as a tree; one Tab stop and the arrows": 1.4,
+        "the tree by keyboard: Space toggles without leaving the page, ↑ ↓ skip closed areas and wrap, Home End": 1.9,
+        "the tree on the overview: five closed areas, back and the overview as the only links": 1,
+        "the tree’s page links carry the same counts and pills as the area tabs": 1.2
       },
       "admin-spotlight.spec.ts": {
-        "leaving with an unsaved source asks first; staying keeps it, leaving stores nothing": 3.7,
-        "spotlight by keyboard: bands, source, fetch, hide, pin and note an entry": 6.7
+        "leaving with an unsaved source asks first; staying keeps it, leaving stores nothing": 2.9,
+        "missing entries by keyboard: the band, «Anfordern» and its dialog, an unmatched entry": 7.1,
+        "spotlight by keyboard: bands, source, fetch, hide, pin and note an entry": 6.4
       },
       "admin-stats.spec.ts": {
-        "A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard": 7.4
+        "A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard": 6.7
+      },
+      "admin-streams-kinds.spec.ts": {
+        "every kind in one list with the kind filter, a failed half and «Beenden»": 18
       },
       "admin-streams.spec.ts": {
-        "two streams listed; the admin ends one, its player stops within 5 s": 7
+        "partly buffered and without the stop watch: the 401 of a segment stops the player within 5 s": 3,
+        "radio listeners as tiles in «Läuft gerade», filtered to «Radio»: arrow keys between them, «Beenden» after the confirmation": 5.2,
+        "two streams listed; the admin ends one, its player stops within 5 s": 32.3
       },
       "admin-webhooks.spec.ts": {
-        "a webhook to the address scans the reported directory and lands in the event log": 2.5,
-        "an integration is created by keyboard and its address is shown exactly once": 2.2,
-        "renewing and deleting ask first; Escape keeps everything": 4,
-        "the dashboard tile counts the reports of the last 24 hours": 0.8,
-        "the path mapping is saved by keyboard and a relative path is refused": 2.2
+        "a webhook to the address scans the reported directory and lands in the event log": 1.9,
+        "an integration is created by keyboard and its address is shown exactly once": 1.8,
+        "renewing and deleting ask first; Escape keeps everything": 2.6,
+        "the overview counts the reports of the last 24 hours in the server summary": 0.8,
+        "the path mapping is saved by keyboard and a relative path is refused": 2.5,
+        "the tile of the webhooks counts the reports of the last 24 hours": 0.7
+      },
+      "admin-wishes.spec.ts": {
+        "«Anfragen» stage 4: approve, decline behind a question, progress and tags by keyboard": 21.8,
+        "«Anfragen»: the default tab, a wish row folds out with its history, «Jetzt abgleichen» by keyboard": 8.7,
+        "a Seerr user taken meanwhile is refused at the row; ↓ and ↑ move between rows": 4.4,
+        "a Seerr user that administers Seerr is linked only after a question": 6.2,
+        "an account opened in Seerr, a waiting one tried again, the password mode and «Alle eröffnen» by keyboard": 5,
+        "profile tags, the take-over and the band of Radarr and Sonarr by keyboard": 8,
+        "tabs, a row that folds out and a Seerr user chosen and unlinked by keyboard": 3.3,
+        "the settings take effect at once by keyboard; a refused change rolls back": 4
       },
       "announcements.spec.ts": {
-        "a guest account gets it by mail on its default e-mail channel (plan 5.2)": 0.8,
-        "another profile sees it at its next start; after \"Verstanden\" not again": 2.4
+        "a guest account gets it by mail on its default e-mail channel (plan 5.2)": 0.9,
+        "another profile sees it at its next start; after \"Verstanden\" not again": 2.6
       },
       "audio-download.spec.ts": {
-        "a podcast episode in each of the three profiles, within ±10 % of its estimate (O-1)": 16.4,
-        "the audiobook in each of the three profiles, within ±10 % of its estimate (O-1)": 16.6
+        "a podcast episode in each of the three profiles, within ±10 % of its estimate (O-1)": 15.9,
+        "the audiobook in each of the three profiles, within ±10 % of its estimate (O-1)": 15.1
       },
       "audio-offline.spec.ts": {
-        "flight mode: the downloaded audiobook plays with its chapters; progress syncs later": 9.2
+        "flight mode: the downloaded audiobook plays with its chapters; progress syncs later": 9.4
+      },
+      "audio-series.spec.ts": {
+        "PD-5: the row above the grid: Tab to the tile, arrows to the grid and back, Enter, back to the tile": 1.9,
+        "PD-7, PD-14: the series page: play button, «Reihe bearbeiten», volumes, play and pen by keyboard; back to the library": 3.3
       },
       "audio-transcode.spec.ts": {
         "Slouchcat Test AC3 51: audio is converted (audio_codec) and the title plays": 1.4,
-        "Slouchcat Test DTS: audio is converted (audio_codec) and the title plays": 1.4
+        "Slouchcat Test DTS: audio is converted (audio_codec) and the title plays": 3.8
+      },
+      "audiobook-editor.spec.ts": {
+        "PD-1: author, narrator, series and volume change, save, lock and show on the detail page": 4.5,
+        "PD-2: the cover candidates are square; a chosen one is the current cover": 2.8,
+        "the pen on a book card by Tab; the four tabs by the arrow keys; Escape returns": 3.6
+      },
+      "audiobook-sources.spec.ts": {
+        "«Hörbücher: Quellen» by keyboard: library form, settings, «Jetzt alle …», the pen of «Prüfen», Back": 3.3,
+        "«Zuordnen» of an audiobook by keyboard: search, pick, untick a field, take": 2.9
       },
       "audiobook.spec.ts": {
-        "a chapter link on the detail page starts the player at that chapter (±1 s)": 0.9,
-        "audio player by keyboard: controls with a visible ring, menus, no focus trap, back": 1.5,
+        "a chapter link on the detail page starts the player at that chapter (±1 s)": 0.8,
+        "audio player by keyboard: controls with a visible ring, menus, no focus trap, back": 1.6,
         "H-3: speed 2.0 stays after a reload and on a second device, the position ±2 s": 1.9,
-        "the book’s detail page by keyboard: arrows into the chapters, Tab, Enter, back": 2.4,
-        "the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)": 1.4,
+        "the book’s detail page by keyboard: arrows into the chapters, Tab, Enter, back": 3,
+        "the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)": 1.3,
         "the M4B book: 12 chapters every 5 s, author, narrator, series and cover (H-1)": 0.7,
         "the MP3 folder is one book with a chapter per file (H-1)": 0.6,
-        "the MP3 folder plays as one HLS timeline across its files (ADR 0007)": 8.1,
-        "the start page lists a started book under \"Weiterschauen\" with a square cover": 0.6
+        "the MP3 folder plays as one HLS timeline across its files (ADR 0007)": 7.8,
+        "the start page lists a started book under \"Weiterschauen\" with a square cover": 0.6,
+        "the stop watch › concept 13: the administration ends a fully loaded book, the player stops within 5 s": 8.8
       },
       "auto-download.spec.ts": {
-        "episode n watched → the next sync downloads n+1 by itself (O-3)": 11.1
+        "episode n watched → the next sync downloads n+1 by itself (O-3)": 41.7
       },
       "chapters.spec.ts": {
-        "intro show › \"Intro überspringen\" appears during the intro and jumps to its end": 0.8,
-        "intro show › Escape cancels the countdown; N plays the next episode at once": 0.9,
-        "intro show › the countdown from the outro plays S01E02 (auto-next)": 10.8,
-        "the chapter menu jumps to the chapter start (±1 s)": 1.7
+        "chapter images: the row by keyboard and the field over the timeline (stage 3)": 3.3,
+        "intro show › \"Intro überspringen\" appears during the intro and jumps to its end": 1,
+        "intro show › «Als Nächstes» by keyboard: ↓ to the tabs, → to the tab, ↓ to the next episode, Enter": 1.3,
+        "intro show › Escape cancels the countdown; N plays the next episode at once": 1.4,
+        "intro show › the countdown from the outro plays S01E02 (auto-next)": 11.1,
+        "intro show › the next-episode card by keyboard: Tab reaches its button, Enter plays": 1.1,
+        "the chapter tab by keyboard jumps to the chapter start (±1 s); Escape closes it": 2.3
       },
       "collection.spec.ts": {
-        "a manual collection: page, start page row and detail page (E-6)": 1,
-        "collection by keyboard: arrows, Enter, back; no focus trap": 0.9
+        "a manual collection: page, start page row and detail page (E-6)": 1.5,
+        "a series in a collection carries the check once every episode is watched (contract 1.22.0)": 1.2,
+        "collection by keyboard: play button, round buttons, parts, Enter, back; no focus trap": 2.3,
+        "the page «Sammlungen» by keyboard: arrows, Enter, back; no focus trap": 1.9,
+        "the TMDB poster of a collection (concept 17 D-5) › the poster shows on the card and the head, the neutral tile without the file; keyboard": 1.7
       },
       "detail.spec.ts": {
-        "an unknown id shows the not-found message": 1.2,
-        "arrow keys land on play, move to back; facts are shown": 0.9,
+        "an unknown id shows the not-found message": 1.4,
+        "arrows: start on play, up to the back arrow, down to the round actions; facts are shown": 1.1,
         "Backspace returns to the start page": 0.6,
         "Enter on \"Zurück\" returns to where the viewer came from; browser history works": 1,
         "Escape returns to the start page": 0.6,
-        "Tab reaches play and back after the header and the side navigation; no focus trap": 1.3
+        "Tab: back arrow, pen, watchlist on the cover, play, round actions; no focus trap": 1.5,
+        "the cast row with portraits (concept 17 D-5) › a portrait shows on the card, a missing one falls back to the initial": 0.7
       },
       "downloads.spec.ts": {
-        "an episode in each of the three download profiles, within ±10 % of its estimate (O-1)": 17.7,
-        "downloads page by keyboard: rows, play, back; no focus trap": 11.4,
-        "three download profiles, each within ±10 % of its estimate (O-1)": 16.9
+        "an episode in each of the three download profiles, within ±10 % of its estimate (O-1)": 38.4,
+        "downloads page by keyboard: rows, play, back; no focus trap": 11.6,
+        "the download dialog without its options › opened with Enter, «Schliessen» has the focus at once (11.13)": 1.9,
+        "three download profiles, each within ±10 % of its estimate (O-1)": 17.1
       },
       "episode.spec.ts": {
         "\"Nächste Folge\" leads to S01E02 and then to the double episode": 0.7,
         "\"Zur Serie\" leads to the series; browser back returns": 0.6,
-        "arrows: play → back, down to the next episode": 0.7,
-        "shows code, series and the episode in the tab title": 0.9,
-        "Tab reaches play and the next episode after the header; no focus trap": 1.3
+        "arrows: play → back arrow and back, down to the next episode": 0.6,
+        "shows code, series and the episode in the tab title": 0.8,
+        "Tab reaches play and the next episode after the header; no focus trap": 1.4
       },
       "extras.spec.ts": {
-        "an extra links back to its film": 0.7,
-        "arrows reach the extras row; Enter plays an extra; back returns": 0.9,
-        "extras are no titles of their own on the start page": 0.7,
-        "the film lists its five extras with their kind": 0.8
+        "an extra links back to its film": 0.9,
+        "arrows reach the extras row; Enter plays an extra; back returns": 1.2,
+        "extras are no titles of their own on the start page": 1,
+        "the film lists its five extras with their kind": 1.1
       },
       "hdr.spec.ts": {
         "HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s": 7.2
       },
       "hls.spec.ts": {
-        "Slouchcat Test H264 MKV Long: HLS remux starts and seeks to 20/50/80 % within budget": 4.2,
-        "Slouchcat Test HEVC Long: HLS transcode starts and seeks to 20/50/80 % within budget": 7.5
+        "Slouchcat Test H264 MKV Long: HLS remux starts and seeks to 20/50/80 % within budget": 4.8,
+        "Slouchcat Test HEVC Long: HLS transcode starts and seeks to 20/50/80 % within budget": 8.4
+      },
+      "home-list.spec.ts": {
+        "«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; no focus trap": 3.2,
+        "an unknown list says so and leads to the start page": 0.7
+      },
+      "home-radio.spec.ts": {
+        "«Meine Sender» on the start page: reached by keyboard, plays, names the current title": 10.1
       },
       "home.spec.ts": {
-        "a pick with a note shows in the picks row (E-2)": 0.7,
-        "arrow keys move hero → rows → header, Enter opens, back returns": 1.3,
-        "Enter on the skip link moves focus past the header": 0.6,
-        "no stage: without the spotlight row the page starts with a poster row (3.5)": 1,
+        "\"Weiterschauen\" per series: the series card, arrow keys in the row, Enter opens the episode (concept 15 P-1, F-1)": 1.7,
+        "«Erfüllte Wünsche»: the row with a fulfilled title, by arrow keys; none without": 1.4,
+        "«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter opens the library, back returns (concept 15 P-7)": 2.7,
+        "a recommended title leads the picks row, once (E-2, concept 18 part B)": 0.7,
+        "arrow keys move hero → rows → header, Enter opens, back returns": 1.9,
+        "Enter on the skip link moves focus past the header": 0.5,
+        "no stage: without the spotlight row the page starts with a poster row (3.5)": 0.8,
         "one draw per page view: the shell start, start=K, no jump on a refetch (F-2, 6)": 1,
         "prefers-reduced-motion stops the rotation (7b)": 1.2,
         "rows on a phone: three whole covers, a swipe snaps a cover to the left edge (N-3, N-4)": 0.8,
         "rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E-9)": 0.6,
-        "spotlight on a later position: the band stands third, nothing painted ahead (3.5)": 0.8,
-        "Tab: skip link, header, side navigation, hero, then the cards; no focus trap": 1.9,
-        "the band holds on keyboard focus and the pause button, not on a click (F-3, F-9)": 1.4,
-        "the band: arrow keys move in the poster row, Enter selects, the focus stays (7b, C-4, F-5)": 1.4,
-        "the poster row stands still while the active poster is in view and scrolls it to the left edge only when it is not (N-4)": 1.3,
-        "The spotlight band comes from the mock and goes while Trakt is down (E-7, I-7)": 62.8,
-        "the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)": 1.8
+        "spotlight on a later position: the band stands third, nothing painted ahead (3.5)": 0.7,
+        "Tab: skip link, header, side navigation, hero, then the cards; no focus trap": 3.4,
+        "the band holds on keyboard focus and the pause button, not on a click (F-3, F-9)": 1.7,
+        "the band: arrow keys move in the poster row, Enter selects, the focus stays on the first poster (7b, C-4, F-5, concept 15)": 1.8,
+        "the poster row is an endless band: the active poster leads, the DOM order stays (concept 15, 6.3)": 4.6,
+        "The spotlight band comes from the mock and goes while Trakt is down (E-7, I-7)": 12.8,
+        "the spotlight posters carry the pen: Tab poster then pen, the band holds, Escape returns (concept 15 P-6)": 3.9,
+        "the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)": 2
       },
       "invitations.spec.ts": {
-        "a revoked invitation answers 410": 1.9,
-        "K-6: an account limited to one library sees only that library and none of the other titles": 2.9,
-        "K-6: the administration invites, the invited person joins, the used link answers 410": 3.8,
-        "keyboard: invitation dialog, link and revoke dialog; no focus trap": 2.6
+        "a revoked invitation answers 410": 2,
+        "K-6: an account limited to one library sees only that library and none of the other titles": 3.7,
+        "K-6: the administration invites, the invited person joins, the used link answers 410": 4.6,
+        "keyboard: invitation dialog, link and revoke dialog; no focus trap": 3
       },
       "invite.spec.ts": {
         "a used link shows \"Link nicht mehr gültig\"; the way out is reachable by keyboard": 0.6,
         "an unknown link of the right shape shows \"Link nicht gefunden\"": 0.4,
-        "Enter in the last field creates the account and opens the start page": 0.8,
-        "Tab order: e-mail, password, profile name, language, submit; no focus trap": 0.7,
+        "Enter in the last field creates the account and opens the start page": 0.7,
+        "Tab order: e-mail, password, profile name, language, submit; no focus trap": 1,
         "validation: short password and a taken e-mail address are shown at the fields": 0.8
       },
+      "languages.spec.ts": {
+        "cs › cs: login page, start page and profile form in that language": 2,
+        "da › da: login page, start page and profile form in that language": 2,
+        "de › de: login page, start page and profile form in that language": 2,
+        "de-DE › de-DE: login page, start page and profile form in that language": 2,
+        "en › en: login page, start page and profile form in that language": 2,
+        "es › es: login page, start page and profile form in that language": 2,
+        "fi › fi: login page, start page and profile form in that language": 2,
+        "fr › fr: login page, start page and profile form in that language": 2,
+        "hu › hu: login page, start page and profile form in that language": 2,
+        "it › it: login page, start page and profile form in that language": 2,
+        "ja › ja: login page, start page and profile form in that language": 2.1,
+        "ko › ko: login page, start page and profile form in that language": 2,
+        "nb › nb: login page, start page and profile form in that language": 2,
+        "nl › nl: login page, start page and profile form in that language": 2,
+        "pl › pl: login page, start page and profile form in that language": 2,
+        "pt-BR › pt-BR: login page, start page and profile form in that language": 2,
+        "pt-PT › pt-PT: login page, start page and profile form in that language": 2,
+        "ru › ru: login page, start page and profile form in that language": 2.1,
+        "sv › sv: login page, start page and profile form in that language": 2,
+        "the language button of the login page: Tab, Enter, arrows, Enter; no focus trap": 0.9,
+        "the language step of the wizard: arrows switch the interface and the formats": 0.9,
+        "tr › tr: login page, start page and profile form in that language": 2,
+        "uk › uk: login page, start page and profile form in that language": 2.1,
+        "zh-CN › zh-CN: login page, start page and profile form in that language": 2,
+        "zh-TW › zh-TW: login page, start page and profile form in that language": 2
+      },
       "library.spec.ts": {
-        "library by keyboard: Tab order, arrows into the letter bar and back, Enter, back": 1.8,
+        "a large library in the virtual grid › a failed page says so; its retry button is reached by Tab and reads it again": 3.6,
+        "a large library in the virtual grid › a letter jumps; Enter opens a card and back returns to it": 2.1,
+        "a large library in the virtual grid › ArrowDown walks all 360 rows without losing the focus": 26.1,
+        "a large library in the virtual grid › more than 10000 rows: a jump far down draws its cards in view": 1.4,
+        "a large library in the virtual grid › Tab leaves the grid after the last card; the wheel keeps the focus": 3.8,
+        "library by keyboard: Tab order, arrows into the letter bar and back, Enter, back": 2.8,
         "on a phone the letter bar runs above a grid of three columns": 0.5,
-        "sort and direction live in the URL; the letter bar filters by title": 1,
-        "the filter panel opens from \"Filter\", closes with Escape and gives the focus back": 1.5
+        "sort and direction live in the URL; the letter bar jumps by title": 1.4,
+        "square covers in the overview of audio › PC-1: 250 audiobooks scroll by without overlap": 1.9,
+        "square covers in the overview of audio › PC-1: the audiobook library shows its covers square, titles of a row on one line": 0.5,
+        "square covers in the overview of audio › PC-2: a mixed library: «Alle» keeps the 2:3 frame, «Hörbücher» is square": 2.6,
+        "square covers in the overview of audio › PC-4: the square overview by keyboard: arrows, Tab, Enter, back to the same card": 1.1,
+        "the filter panel opens from \"Filter\", closes with Escape and gives the focus back": 1.8
       },
       "login.spec.ts": {
         "Enter logs in and opens the start page; browser back does not return to the login": 0.9,
         "Tab order: e-mail, password, submit; no focus trap": 0.5,
-        "wrong password shows invalid_credentials": 0.8
+        "wrong password shows invalid_credentials": 0.7
+      },
+      "long-lists.spec.ts": {
+        "a long inbox reads its pages as ↓ goes on, without «Mehr laden»": 1.9,
+        "focus stays after removing on page 2 of the watchlist": 1.9,
+        "the station table of 40'000 draws a few rows and ↓ goes on past them": 3.7
       },
       "maintenance.spec.ts": {
-        "a library section folds away with Enter and comes back": 1.3,
-        "a title links to its administration page; Back returns to the tab": 1.5,
-        "duplicates list the H264 copy (same file hash) in a group of its own": 2.1,
-        "every issue kind has a tab with its count; arrows move between the tabs": 1.3,
-        "orphaned user data (requests intercepted) › select by keyboard, «Umhängen» asks, Esc goes back, Enter relinks the selection": 2.3,
-        "orphaned user data: the tab is reached by keyboard and lists what the server finds": 1.5,
-        "refresh (requests intercepted) › PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file ask per title": 2.1,
-        "unplayable lists the broken file; \"Entfernen\" removes it after confirmation": 1.9,
-        "unrated: select by keyboard, assign a rating, the title leaves the list": 4.2
+        "a library section starts closed, opens with Enter, folds with Space and comes back": 1.5,
+        "a title links to its administration page; Back returns to the tab": 2.1,
+        "duplicates list the H264 copy (same file hash) in a group of its own": 2.4,
+        "every issue kind has a tab with its count; arrows move between the tabs": 1.5,
+        "orphaned user data (requests intercepted) › select by keyboard, «Umhängen» asks, Esc goes back, Enter relinks the selection": 2.2,
+        "orphaned user data: the tab is reached by keyboard and lists what the server finds": 1.6,
+        "refresh (requests intercepted) › PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file ask per title": 1.8,
+        "unmatched episode (list intercepted) › «Zuordnen» says why it is off; one episode opens the search for its series": 1.2,
+        "unplayable lists the broken file; \"Entfernen\" removes it after confirmation": 2,
+        "unrated: select by keyboard, assign a rating, the title leaves the list": 4.1
+      },
+      "metadata-editor.spec.ts": {
+        "a profile other than the primary one sees no pen": 1.1,
+        "Aktualisieren: «Jetzt aktualisieren» with «Vorher alle Sperren aufheben»": 1.8,
+        "Bilder: upload an own poster, the kind is locked; back to automatic": 1.9,
+        "library grid: a saved title re-sorts the grid; the focus comes back to its pen": 3.5,
+        "library grid: Tab reaches the card, then its pen; Enter opens, Escape returns": 4.4,
+        "Metadaten: a change locks the field, «Speichern» writes it, the page shows it": 2.6,
+        "on a phone › the detail page shows the pen; a tap opens the editor": 0.9,
+        "on a phone › the grid shows the pen, the watched check and the watchlist button apart; a tap opens the editor": 1.1,
+        "on a phone › the start page shows the pen on its covers; a tap opens the editor": 1.1,
+        "start page: «Neu in …» covers carry the pen, a series card of «Weiterschauen» edits the series": 1.5,
+        "start page: a saved title shows on its card at once; the focus stays on the pen": 2.4,
+        "start page: Tab reaches a card, then its pen; Enter opens, Escape returns": 3.5,
+        "the dialog keeps its place and size on every tab": 1.6,
+        "the pen opens the dialog; Tab stays inside, Escape closes, focus back on the pen": 2.8,
+        "the pen sits on the poster, before the actions in the Tab order": 1.4,
+        "unsaved changes: Escape asks first; «Weiter bearbeiten» stays, «Verwerfen» closes": 2.7
+      },
+      "my-devices.spec.ts": {
+        "«Meine Geräte» by keyboard: list, sign out a phone with confirmation, Back": 3.4
       },
       "notification-channels.spec.ts": {
-        "another profile than the primary one sees the channels without controls": 1.7,
+        "admin: the page stays in the administration, compact, with the link to the integrations": 2.2,
+        "another profile than the primary one sees the channels without controls": 1.9,
         "E-8: a new episode of a series on the watchlist reaches the e-mail channel with the profile name": 6.1,
-        "e-mail: the test message reaches the mail server; a refused login shows the failure": 1.2,
-        "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 4.6,
-        "Telegram: the link code to the bot, \"Verknüpft\" within 10 s, the test message, unlink": 5.7,
-        "Web Push: the test message reaches the push service encrypted; an expired one goes": 1
-      },
-      "notifications.spec.ts": {
-        "a series put on the watchlist notifies its new episode in the badge and the inbox (E-8)": 30.9,
-        "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.6
-      },
-      "offline-cold-start.spec.ts": {
-        "cold start in flight mode to the offline library, three times (C-1)": 5.9,
-        "cold start in flight mode: the offline library in under 3 s, by keyboard": 5.7
-      },
-      "offline-measure.spec.ts": {
-        "download sizes against the estimate, the fetch rate and seeking from OPFS": 23.6
-      },
-      "offline-pin.spec.ts": {
-        "offline PIN: the verifier of the normal PIN, the separate offline PIN, the brake": 38.2
-      },
-      "offline-playback.spec.ts": {
-        "flight mode: the download plays with subtitles and the chosen audio; progress syncs later": 12.5,
-        "O-5: from 30 s on the server, 15 s offline; a second browser has the new position within 10 s": 22.7
-      },
-      "offline-profiles.spec.ts": {
-        "P6 does not see the download of P18, online and offline (O-7)": 5.3,
-        "the Apple hint shows on an iPhone, and the Wi-Fi option hides (O-7, AN-13)": 1.2
-      },
-      "offline-revocation.spec.ts": {
-        "a removed account’s download disappears from the device at the next contact": 6.4
-      },
-      "offline-start.spec.ts": {
-        "a server that never answers › opens the offline library within 3 s (W10, C-1)": 2.6
-      },
-      "offline-watch-limit.spec.ts": {
-        "a 1-min limit stops offline playback after a minute and is booked later": 67.7
-      },
-      "person.spec.ts": {
-        "a person without visible credits shows the not-found notice": 0.3,
-        "Backspace goes back": 0.6,
-        "Escape goes back": 0.5,
-        "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 1.1
-      },
-      "picks-page.spec.ts": {
-        "User picks by keyboard: the note, arrows, Enter, back; no focus trap": 1.6
-      },
-      "player.spec.ts": {
-        "Backspace and browser back return to the detail page": 0.9,
-        "controls hide after 3 s of playback and come back on a key press": 4.1,
-        "Enter on play starts direct play in under 2 s and reports progress": 1,
-        "player keys: Space and arrows; controls are reachable by Tab; Escape returns": 1.2
-      },
-      "podcast-auto-download.spec.ts": {
-        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 7.1
-      },
-      "podcast.spec.ts": {
-        "an episode plays through the server, not from the feed host": 3.5,
-        "episode page by keyboard: play, download, \"Zum Podcast\", back; no focus trap": 2.2,
-        "H-2: the new episode appears after \"Jetzt abrufen\"; explicit stays hidden from FSK 12": 4.7,
-        "podcast page by keyboard: episodes, play, \"Mehr laden\" absent, no focus trap": 1.7
-      },
-      "profiles.spec.ts": {
-        "picker › a deep link survives the picker": 0.6,
-        "picker › arrow keys inside the PIN dialog keep the focus in the dialog": 0.9,
-        "picker › arrow keys move between tiles, Enter picks, back returns; no focus trap": 0.9,
-        "picker › PIN dialog: focus, Escape, wrong PIN, lock with countdown, right PIN": 1.7,
-        "picker › the primary profile is marked and offers \"Profile verwalten\"": 0.7,
-        "profile management › a library restriction round-trips and the restricted profile sees none of the other titles": 1.8,
-        "profile management › a non-primary profile gets a notice instead": 0.8,
-        "profile management › create, edit every rating, PIN set and remove, delete (K-2)": 4.6,
-        "profile management › Tab order, radios with arrows, Enter submits, Escape closes; no focus trap": 2,
-        "profile management › the 11th profile is refused at the name field": 1,
-        "profile management › with a third server language the form offers \"Sprache der Beschreibungen\" by arrows (ADR 0018)": 2,
-        "switching to an English profile changes the start page without a reload and back": 1.3
-      },
-      "quality.spec.ts": {
-        "a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s": 2.7,
-        "a profile limit of 720p: automatic quality plays at most 720p": 2.1,
-        "choosing 480p by keyboard starts a new session with a 480p transcode": 1.9,
-        "one stream per profile: a second start answers 409 and the page shows the hint": 1.5
-      },
-      "resume.spec.ts": {
-        "progress is saved per profile and resumes on another device (W-5)": 6.2
-      },
-      "search.spec.ts": {
-        "every filter narrows the result and lives in the URL": 2.1,
-        "search by keyboard: \"/\", arrows, Enter, back; no focus trap": 1.6,
-        "two characters find titles; a collection by its name (E-4)": 1
-      },
-      "season-download.spec.ts": {
-        "a season of six episodes downloads in one action (O-2)": 7.8
-      },
-      "series.spec.ts": {
-        "arrows: back → seasons → episodes; Enter on a season chip shows the specials": 0.9,
-        "Enter opens an episode, play starts it; Backspace and Escape walk back": 1,
-        "seasons: Season 1 first, specials last; S01E03–E04 is one episode": 0.6,
-        "Tab: header, back, seasons, episodes; no focus trap": 1.3,
-        "the start page lists the series once and never its episodes": 1
-      },
-      "setup.spec.ts": {
-        "\"Ordner prüfen\" reports a missing folder at the field": 0.5,
-        "\"Schlüssel prüfen\" says clearly when TMDB rejects the key (A-1)": 0.9,
-        "arrow keys switch the library kind": 0.8,
-        "client validation catches a short password before anything is sent": 0.5,
-        "Enter submits; errors appear inline and the form stays usable": 0.6,
-        "GPU step: the Compose command and the sysctl command can be copied by keyboard": 0.9,
-        "Tab walks through the four steps in order with a visible focus ring": 0.7,
-        "the configured roots are suggestions the keyboard can take": 0.8,
-        "the folder is checked on leaving the field: file system and network share warning": 0.9
-      },
-      "sidecar.spec.ts": {
-        "a .de.srt placed during playback appears in the track menu within 60 s": 30.8
-      },
-      "sidenav.spec.ts": {
-        "/admin with the column hidden: the admin sidebar stands in its place, nothing jumps (concept 11)": 1.4,
-        "hide the column: the menu button opens the drawer, which shows it again": 1.4,
-        "on a phone the drawer: focus inside, no scrolling behind, Escape back to the button": 1.9,
-        "Tab: skip link, header, the column, then the content": 1.3,
-        "the column at 1280 px: its entries, arrows between them, Enter, into the content and back": 1.7,
-        "the prepaints lie on the band and on the first card, column shown and hidden (P-10, 8)": 1.3,
-        "without the libraries › the group says so, links the downloads, and the rest stands": 1.9
-      },
-      "stream-token.spec.ts": {
-        "direct play: the Range stream needs the token": 0.4,
-        "HLS playlists and segments: token only, 401 without, 401 within 1 s after stop": 0.8
-      },
-      "tracks.spec.ts": {
-        "a PGS track is burned in: transcode with reason subtitle_burn, and it plays": 2.7,
-        "an SRT track arrives as WebVTT through <track>": 1,
-        "switching the audio track to AC3 English: new session within 3 s, Stream-Info shows it": 1.7,
-        "track menu by keyboard: Tab to it, arrows, Escape closes with focus back; no trap": 0.9
-      },
-      "trailer.spec.ts": {
-        "a title without trailers has no trailer button": 0.9,
-        "arrows reach \"Trailer\"; Enter opens the YouTube frame; Escape closes": 1.7,
-        "Backspace (a remote's back key) closes the dialog, the detail page stays": 1.1,
-        "offline closes an open dialog for good; the focus moves to \"Zurück\"": 1.1,
-        "offline the trailer button disappears (W-10) and comes back online": 0.7
-      },
-      "versions.spec.ts": {
-        "choose 720p by keyboard → the player streams that file (Stream-Info)": 1.5,
-        "one title with two versions; the start page lists it once": 0.9,
-        "the version menu of the player switches to the other file": 1.4
-      },
-      "watch-limit.spec.ts": {
-        "a running player stops with the hint once the limit is reached": 10.9,
-        "one minute played: the start answers 403 with the hint; the report shows the minute": 2.1
-      },
-      "watchlist.spec.ts": {
-        "\"Entfernen\" takes a title off; the row goes with the last one (E-9)": 0.7,
-        "\"Merken\" on the detail page fills the list and the row, per profile (E-5)": 1.4,
-        "watchlist by keyboard: arrows, Enter, remove, back; no focus trap": 1.4
-      }
-    },
-    "firefox": {
-      "admin-accounts.spec.ts": {
-        "A-2: change the own e-mail and back by keyboard; a wrong password stays at its field": 4.7,
-        "A-2: the administrator and an account in one table, with the owner badge": 2.7,
-        "ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap": 4.2,
-        "K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Verwerfen goes": 6.2,
-        "KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete by keyboard": 7.1,
-        "tabs «Konten» and «Einladungen» by arrows; an unknown tab or item leaves the address": 2.2
-      },
-      "admin-announcements.spec.ts": {
-        "A-7: a new announcement can go out at once": 2.6,
-        "A-7: draft, change, publish and delete an announcement by keyboard": 5.5,
-        "A-7: leaving with an unsaved text asks first": 2.7
-      },
-      "admin-backup.spec.ts": {
-        "A-4: a backup with secrets needs a passphrase of 12 characters and is encrypted": 3.9,
-        "A-4: create a backup without secrets, download it and delete it, by keyboard": 4,
-        "restore › A-4: restore from an uploaded file up to the restart panel (request intercepted)": 5.2
-      },
-      "admin-collections.spec.ts": {
-        "collections page by keyboard: create, fill, order, show on the start page, rename, delete": 8.1,
-        "collections page: tabs replace the address, browser back leaves; «Entfernen», «Verwerfen» and back with a draft by keyboard": 4.9
-      },
-      "admin-density.spec.ts": {
-        "on a phone › controls keep 44 px below 768 px": 0.9,
-        "on a tablet with touch › controls keep 44 px with a coarse pointer from 768 px": 1,
-        "with a mouse from 768 px › /settings/profiles keeps today’s size": 1,
-        "with a mouse from 768 px › a dialog opened from an administration page is compact": 1.1,
-        "with a mouse from 768 px › a table row is 40 px high (S-5)": 1.1,
-        "with a mouse from 768 px › leaving /admin in the app drops the compact density; coming back restores it": 3.1,
-        "with a mouse from 768 px › running text is 14 px in the content of /admin": 1.1,
-        "with a mouse from 768 px › the content of /admin is compact; header and sidebar keep 44 px": 1,
-        "with a mouse from 768 px › the overview has the 24 px page title of the other pages": 1,
-        "with a mouse from 768 px › the question before leaving with unsaved input is compact": 1.7
-      },
-      "admin-devices.spec.ts": {
-        "after a playback the device rows show owner, last contact and the reported profile": 2,
-        "an unknown tab shows «Geräte»; browser back leaves the page": 2.2,
-        "tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard": 3.2,
-        "the columns of the type sections line up in both tabs (K12-9)": 2.2
-      },
-      "admin-folder-browser.spec.ts": {
-        "a folder already in the field opens the dialog in that folder": 2.8,
-        "a folder that already belongs to a library says so": 1.8,
-        "a path below no browsable folder stays in the field and is explained": 3,
-        "Enter goes into a folder, Backspace comes back, OK writes the path field": 2.6,
-        "Escape closes without a change and returns the focus to the button": 2.6,
-        "one click enters a folder instead of marking it": 2.4,
-        "the dialog opens inside the root, walks the rows and shows a ring on each": 2,
-        "the path field takes a typed folder and Backspace there edits instead of going up": 2.6
-      },
-      "admin-home-rows.spec.ts": {
-        "start page rows by keyboard: placing and hiding change the start page": 5.6,
-        "the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen» restores": 7.6,
-        "the Trakt line links to the spotlight page by keyboard": 2.7,
-        "ticking «Ausblenden» leaves the columns where they are (K12-9)": 1.6
-      },
-      "admin-home.spec.ts": {
-        "a provoked error shows in the card and the opened server log within 10 s (A-3)": 61.8,
-        "admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.9,
-        "every admin page is reached through the sidebar (A-2)": 5.1,
-        "on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns": 2,
-        "Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap": 2.8,
-        "the app column has one \"Verwaltung\" entry; Enter opens the overview in the admin sidebar": 2.2,
-        "the focus stays on «Übersicht» after entering the administration with Enter": 2.9,
-        "the overview: eight equal cards in two columns, the server log collapsed (A-3)": 1.4
-      },
-      "admin-integrations.spec.ts": {
-        "\"Schlüssel neu erzeugen\" asks first; Escape keeps the keys": 3.2,
-        "a newer release in the manifest shows the update badge; switching the check off removes it (A-5)": 2.9,
-        "a YouTube key is saved write-only and deleted again, all by keyboard": 4.3,
-        "browser back leaves the page for the overview": 1.3,
-        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 1.1,
-        "the e-mail server and the Telegram bot are setting rows; the test mail by keyboard": 3.6,
-        "the public address and the update check by keyboard": 3.7,
-        "the six blocks start open and fold by keyboard from their band": 2.8,
-        "unsaved input survives a folded block; leaving asks first": 2.3
-      },
-      "admin-item.spec.ts": {
-        "add a manual trailer by keyboard, then delete it after confirmation": 2.7,
-        "an invalid YouTube link is reported at the field": 2,
-        "an unknown tab in the address shows «Metadaten» and leaves the address": 1.3,
-        "an unsaved rating survives the tabs; leaving asks first": 5.1,
-        "Back from the detail page returns to the tab of the address": 2.3,
-        "image choice › image choice: the grid by arrow keys, Enter chooses, Escape closes, focus returns (concept 10 7.3)": 1.8,
-        "match dialog: the search without a key shows the provider error; Escape closes": 1.7,
-        "shows kind, state, both version files and the trailer state": 2.7,
-        "Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap": 2.2,
-        "the detail page links here with \"Verwalten\"": 2.3
-      },
-      "admin-jobs.spec.ts": {
-        "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 8.8,
-        "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.8,
-        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.9
-      },
-      "admin-libraries.spec.ts": {
-        "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 6,
-        "an invalid path is reported at the field; Enter submits from the field": 2.4,
-        "audio kinds by keyboard: default rating with arrows, no folder for podcasts (M6)": 3.3,
-        "browser back leaves the page to the start page": 1.8,
-        "content and metadata sources by keyboard: Space ticks, the position orders, cards come and go (ADR 0015, S-16)": 3.7,
-        "Enter on \"Erneut scannen\" queues a scan that finishes": 7.6,
-        "Tab reaches header, the add dialog and its fields in order; no focus trap": 2.2,
-        "tabs by kind with the arrow keys, counts and the tab in the address": 2.3,
-        "the audio libraries show kind and default rating; the menu opens the rating dialog": 2.6,
-        "the scanned test library is listed with its state and counts": 1.8
-      },
-      "admin-library-folders.spec.ts": {
-        "«Ändern» edits content and sources by keyboard; a content change needs the typed path": 4.2,
-        "«Pfad ändern» picks the new place by keyboard and keeps the title (ADR 0023)": 8.2,
-        "a library without a folder says so and offers no scan (E13)": 4,
-        "a second folder goes in, and comes out only after its path is typed": 4.5,
-        "the folders dialog opens from the keyboard and lists the folder": 2.8,
-        "two folders go in with one submit, each with its own content (F-13)": 6
-      },
-      "admin-metadata.spec.ts": {
-        "\"Jetzt anwenden\" sends what and where and reports the queued run": 2.3,
-        "«Anwenden» polls the jobs every 10 s, and pauses while changes are unsaved": 26,
-        "a language is added, put on its place with several arrow steps, saved and removed, all by keyboard": 10.9,
-        "a library deviates in its languages; the libraries page says so": 5.1,
-        "changes survive switching the scope; leaving the page asks first": 7.9,
-        "the default scope lists the areas and the languages, the save bar is clean, nothing is sent": 3.3,
-        "the rating country changes with the arrow keys; \"Verwerfen\" asks and drops the change unsaved": 2.4,
-        "the sticky save bar does not cover the focused element (WCAG 2.4.11)": 2.1
-      },
-      "admin-phone.spec.ts": {
-        "/admin is not wider than the phone": 0.8,
-        "/admin/accounts is not wider than the phone": 0.9,
-        "/admin/accounts?item=me#meine-profile is not wider than the phone": 1.1,
-        "/admin/announcements is not wider than the phone": 0.9,
-        "/admin/backup is not wider than the phone": 0.9,
-        "/admin/collections is not wider than the phone": 2.1,
-        "/admin/devices is not wider than the phone": 0.9,
-        "/admin/home-rows is not wider than the phone": 1,
-        "/admin/integrations is not wider than the phone": 1.1,
-        "/admin/jobs is not wider than the phone": 1,
-        "/admin/libraries is not wider than the phone": 1.6,
-        "/admin/maintenance is not wider than the phone": 1.1,
-        "/admin/metadata is not wider than the phone": 1.1,
-        "/admin/picks is not wider than the phone": 0.9,
-        "/admin/podcasts is not wider than the phone": 1,
-        "/admin/spotlight is not wider than the phone": 1.1,
-        "/admin/stats is not wider than the phone": 1,
-        "/admin/streams is not wider than the phone": 1,
-        "/settings/notifications is not wider than the phone": 1,
-        "/settings/profiles is not wider than the phone": 0.9,
-        "title is not wider than the phone": 1.4
-      },
-      "admin-picks.spec.ts": {
-        "a pick for one profile reaches only that profile; an 18 title never a profile rated 12": 2,
-        "picks page by keyboard: add with a note, place at the top, time window in the fold-out, tabs, remove": 14.1
-      },
-      "admin-podcasts.spec.ts": {
-        "podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field": 3,
-        "podcasts page: library tabs and rows by arrow keys; browser back leaves the page": 2.1
-      },
-      "admin-spotlight.spec.ts": {
-        "leaving with an unsaved source asks first; staying keeps it, leaving stores nothing": 3.5,
-        "spotlight by keyboard: bands, source, fetch, hide, pin and note an entry": 8.3
-      },
-      "admin-stats.spec.ts": {
-        "A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard": 7.5
-      },
-      "admin-streams.spec.ts": {
-        "two streams listed; the admin ends one, its player stops within 5 s": 9.7
-      },
-      "admin-webhooks.spec.ts": {
-        "a webhook to the address scans the reported directory and lands in the event log": 3.2,
-        "an integration is created by keyboard and its address is shown exactly once": 2.9,
-        "renewing and deleting ask first; Escape keeps everything": 4.4,
-        "the dashboard tile counts the reports of the last 24 hours": 1.2,
-        "the path mapping is saved by keyboard and a relative path is refused": 2.9
-      },
-      "announcements.spec.ts": {
-        "a guest account gets it by mail on its default e-mail channel (plan 5.2)": 1.3,
-        "another profile sees it at its next start; after \"Verstanden\" not again": 3.3
-      },
-      "audio-download.spec.ts": {
-        "a podcast episode in each of the three profiles, within ±10 % of its estimate (O-1)": 17.8,
-        "the audiobook in each of the three profiles, within ±10 % of its estimate (O-1)": 17.9
-      },
-      "audio-offline.spec.ts": {
-        "flight mode: the downloaded audiobook plays with its chapters; progress syncs later": 10.9
-      },
-      "audio-transcode.spec.ts": {
-        "Slouchcat Test AC3 51: audio is converted (audio_codec) and the title plays": 2.6,
-        "Slouchcat Test DTS: audio is converted (audio_codec) and the title plays": 3.3
-      },
-      "audiobook.spec.ts": {
-        "a chapter link on the detail page starts the player at that chapter (±1 s)": 1.3,
-        "audio player by keyboard: controls with a visible ring, menus, no focus trap, back": 2,
-        "H-3: speed 2.0 stays after a reload and on a second device, the position ±2 s": 3.4,
-        "the book’s detail page by keyboard: arrows into the chapters, Tab, Enter, back": 3.3,
-        "the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)": 1.8,
-        "the M4B book: 12 chapters every 5 s, author, narrator, series and cover (H-1)": 0.9,
-        "the MP3 folder is one book with a chapter per file (H-1)": 0.9,
-        "the MP3 folder plays as one HLS timeline across its files (ADR 0007)": 8.6,
-        "the start page lists a started book under \"Weiterschauen\" with a square cover": 0.8
-      },
-      "auto-download.spec.ts": {
-        "episode n watched → the next sync downloads n+1 by itself (O-3)": 12
-      },
-      "chapters.spec.ts": {
-        "intro show › \"Intro überspringen\" appears during the intro and jumps to its end": 1.2,
-        "intro show › Escape cancels the countdown; N plays the next episode at once": 1.3,
-        "intro show › the countdown from the outro plays S01E02 (auto-next)": 11.5,
-        "the chapter menu jumps to the chapter start (±1 s)": 2
-      },
-      "collection.spec.ts": {
-        "a manual collection: page, start page row and detail page (E-6)": 1.9,
-        "collection by keyboard: arrows, Enter, back; no focus trap": 1.2
-      },
-      "detail.spec.ts": {
-        "an unknown id shows the not-found message": 2,
-        "arrow keys land on play, move to back; facts are shown": 2.1,
-        "Backspace returns to the start page": 1,
-        "Enter on \"Zurück\" returns to where the viewer came from; browser history works": 1.8,
-        "Escape returns to the start page": 0.9,
-        "Tab reaches play and back after the header and the side navigation; no focus trap": 1.8
-      },
-      "downloads.spec.ts": {
-        "an episode in each of the three download profiles, within ±10 % of its estimate (O-1)": 20.1,
-        "downloads page by keyboard: rows, play, back; no focus trap": 12,
-        "three download profiles, each within ±10 % of its estimate (O-1)": 19.7
-      },
-      "episode.spec.ts": {
-        "\"Nächste Folge\" leads to S01E02 and then to the double episode": 1.9,
-        "\"Zur Serie\" leads to the series; browser back returns": 1.2,
-        "arrows: play → back, down to the next episode": 1.2,
-        "shows code, series and the episode in the tab title": 1.6,
-        "Tab reaches play and the next episode after the header; no focus trap": 1.9
-      },
-      "extras.spec.ts": {
-        "an extra links back to its film": 1.5,
-        "arrows reach the extras row; Enter plays an extra; back returns": 1.6,
-        "extras are no titles of their own on the start page": 1.3,
-        "the film lists its five extras with their kind": 1.4
-      },
-      "hdr.spec.ts": {
-        "HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s": 8.5
-      },
-      "hls.spec.ts": {
-        "Slouchcat Test H264 MKV Long: HLS remux starts and seeks to 20/50/80 % within budget": 4.7,
-        "Slouchcat Test HEVC Long: HLS transcode starts and seeks to 20/50/80 % within budget": 8.2
-      },
-      "home.spec.ts": {
-        "a pick with a note shows in the picks row (E-2)": 1.2,
-        "arrow keys move hero → rows → header, Enter opens, back returns": 1.7,
-        "Enter on the skip link moves focus past the header": 0.8,
-        "no stage: without the spotlight row the page starts with a poster row (3.5)": 1.5,
-        "one draw per page view: the shell start, start=K, no jump on a refetch (F-2, 6)": 1.4,
-        "prefers-reduced-motion stops the rotation (7b)": 1.7,
-        "rows on a phone: three whole covers, a swipe snaps a cover to the left edge (N-3, N-4)": 1.3,
-        "rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E-9)": 0.8,
-        "spotlight on a later position: the band stands third, nothing painted ahead (3.5)": 1.2,
-        "Tab: skip link, header, side navigation, hero, then the cards; no focus trap": 2.4,
-        "the band holds on keyboard focus and the pause button, not on a click (F-3, F-9)": 2.6,
-        "the band: arrow keys move in the poster row, Enter selects, the focus stays (7b, C-4, F-5)": 1.8,
-        "the poster row stands still while the active poster is in view and scrolls it to the left edge only when it is not (N-4)": 1.9,
-        "The spotlight band comes from the mock and goes while Trakt is down (E-7, I-7)": 63.5,
-        "the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)": 2.2
-      },
-      "invitations.spec.ts": {
-        "a revoked invitation answers 410": 2.4,
-        "K-6: an account limited to one library sees only that library and none of the other titles": 3.9,
-        "K-6: the administration invites, the invited person joins, the used link answers 410": 6.8,
-        "keyboard: invitation dialog, link and revoke dialog; no focus trap": 3.6
-      },
-      "invite.spec.ts": {
-        "a used link shows \"Link nicht mehr gültig\"; the way out is reachable by keyboard": 1,
-        "an unknown link of the right shape shows \"Link nicht gefunden\"": 1.8,
-        "Enter in the last field creates the account and opens the start page": 1.2,
-        "Tab order: e-mail, password, profile name, language, submit; no focus trap": 0.9,
-        "validation: short password and a taken e-mail address are shown at the fields": 1.1
-      },
-      "library.spec.ts": {
-        "library by keyboard: Tab order, arrows into the letter bar and back, Enter, back": 2.6,
-        "on a phone the letter bar runs above a grid of three columns": 0.8,
-        "sort and direction live in the URL; the letter bar filters by title": 1.4,
-        "the filter panel opens from \"Filter\", closes with Escape and gives the focus back": 2
-      },
-      "login.spec.ts": {
-        "Enter logs in and opens the start page; browser back does not return to the login": 1.3,
-        "Tab order: e-mail, password, submit; no focus trap": 0.7,
-        "wrong password shows invalid_credentials": 1.2
-      },
-      "maintenance.spec.ts": {
-        "a library section folds away with Enter and comes back": 1.9,
-        "a title links to its administration page; Back returns to the tab": 2.3,
-        "duplicates list the H264 copy (same file hash) in a group of its own": 3,
-        "every issue kind has a tab with its count; arrows move between the tabs": 3,
-        "orphaned user data (requests intercepted) › select by keyboard, «Umhängen» asks, Esc goes back, Enter relinks the selection": 3.2,
-        "orphaned user data: the tab is reached by keyboard and lists what the server finds": 2.1,
-        "refresh (requests intercepted) › PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file ask per title": 3.4,
-        "unplayable lists the broken file; \"Entfernen\" removes it after confirmation": 2.8,
-        "unrated: select by keyboard, assign a rating, the title leaves the list": 5.4
-      },
-      "notification-channels.spec.ts": {
-        "another profile than the primary one sees the channels without controls": 1.7,
-        "E-8: a new episode of a series on the watchlist reaches the e-mail channel with the profile name": 6.2,
-        "e-mail: the test message reaches the mail server; a refused login shows the failure": 1.9,
-        "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 4.9,
-        "Telegram: the link code to the bot, \"Verknüpft\" within 10 s, the test message, unlink": 7.5,
-        "Web Push: the test message reaches the push service encrypted; an expired one goes": 1.3
+        "e-mail: the test message reaches the mail server; a refused login shows the failure": 1.1,
+        "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 4,
+        "Telegram: the link code to the bot, \"Verknüpft\" within 10 s, the test message, unlink": 6.8,
+        "Web Push: the test message reaches the push service encrypted; an expired one goes": 1.2
       },
       "notifications.spec.ts": {
         "a series put on the watchlist notifies its new episode in the badge and the inbox (E-8)": 31.2,
-        "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.9
+        "an entry about a wish: its context, the title when the profile sees it, else «Meine Wünsche»": 0.4,
+        "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.6
+      },
+      "offline-chapters.spec.ts": {
+        "offline chapters (high): ↓ to the tab «Kapitel», Enter, the arrows pick, Enter jumps": 34.8,
+        "offline chapters (low): ↓ to the tab «Kapitel», Enter, the arrows pick, Enter jumps": 5.9
+      },
+      "offline-cold-start.spec.ts": {
+        "cold start in flight mode to the offline library, three times (C-1)": 6.5,
+        "cold start in flight mode: the offline library in under 3 s, by keyboard": 6.1
       },
       "offline-measure.spec.ts": {
-        "download sizes against the estimate, the fetch rate and seeking from OPFS": 24.4
+        "download sizes against the estimate, the fetch rate and seeking from OPFS": 51.6
       },
       "offline-pin.spec.ts": {
-        "offline PIN: the verifier of the normal PIN, the separate offline PIN, the brake": 39.7
+        "offline PIN: the verifier of the normal PIN, the separate offline PIN, the brake": 38.1
       },
       "offline-playback.spec.ts": {
-        "flight mode: the download plays with subtitles and the chosen audio; progress syncs later": 14.2,
-        "O-5: from 30 s on the server, 15 s offline; a second browser has the new position within 10 s": 23.9
+        "flight mode: the download plays with subtitles and the chosen audio; progress syncs later": 13.8,
+        "O-5: from 30 s on the server, 15 s offline; a second browser has the new position within 10 s": 53.1,
+        "without MediaSource the blob fallback shows the stored subtitles on the source timeline": 6.3
       },
       "offline-profiles.spec.ts": {
         "P6 does not see the download of P18, online and offline (O-7)": 6,
-        "the Apple hint shows on an iPhone, and the Wi-Fi option hides (O-7, AN-13)": 1.6
+        "the Apple hint shows on an iPhone, and the Wi-Fi option hides (O-7, AN-13)": 1.3
       },
       "offline-revocation.spec.ts": {
         "a removed account’s download disappears from the device at the next contact": 7.4
       },
       "offline-start.spec.ts": {
-        "a server that never answers › opens the offline library within 3 s (W10, C-1)": 2.9
+        "a server that never answers › opens the offline library within 3 s (W10, C-1)": 2.6
       },
       "offline-watch-limit.spec.ts": {
-        "a 1-min limit stops offline playback after a minute and is booked later": 69.2
+        "a 1-min limit stops offline playback after a minute and is booked later": 98.3
       },
       "person.spec.ts": {
-        "a person without visible credits shows the not-found notice": 0.6,
-        "Backspace goes back": 1.1,
-        "Escape goes back": 1,
-        "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 2.2
+        "a person with a portrait › portrait left of the name, facts, biography; arrows, Tab, Enter and back by keyboard": 1.2,
+        "a person without visible credits shows the not-found notice": 0.5,
+        "Backspace goes back": 0.9,
+        "Escape goes back": 0.9,
+        "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 1.7
       },
       "picks-page.spec.ts": {
-        "User picks by keyboard: the note, arrows, Enter, back; no focus trap": 2.6
+        "a guest account sees the user picks without the star": 1,
+        "User picks by keyboard: the star, arrows, Enter, back; no focus trap": 3.9
+      },
+      "playback-settings.spec.ts": {
+        "«Einstellungen» by keyboard: languages, subtitle rule, save, series reset, Back": 8.3,
+        "«Einstellungen» by keyboard: removing the last audio language": 2.1
       },
       "player.spec.ts": {
-        "Backspace and browser back return to the detail page": 1.5,
-        "controls hide after 3 s of playback and come back on a key press": 4.6,
-        "Enter on play starts direct play in under 2 s and reports progress": 1.6,
-        "player keys: Space and arrows; controls are reachable by Tab; Escape returns": 2
+        "←/→ on the timeline show the preview tile of the new position for a moment (concept 18, 9)": 3,
+        "a slow connection suggests the rung below by keyboard and switches only on Enter": 3.8,
+        "a volume above 100 % and night mode keep the video playing (Web Audio)": 2.6,
+        "Backspace and browser back return to the detail page": 1.2,
+        "controls hide after 3 s of playback and come back on a key press": 8.3,
+        "Enter on play starts direct play in under 2 s and reports progress": 1.3,
+        "episode buttons and the countdown card (concept 23) › «Intro überspringen» and the countdown card stand 12 px over the time line; an open tab closes (P-4)": 1.5,
+        "episode buttons and the countdown card (concept 23) › the episode buttons by keyboard: greyed in place with a hint, the card on focus, Enter and P": 2.4,
+        "in a narrow window with a mouse › a click on the picture pauses, a double click does not seek": 1.1,
+        "on a phone › an episode: both episode buttons beside −10 s, play and +10 s; the countdown card over the time line (concept 23)": 1.2,
+        "on a phone › the phone layout by keyboard: options at the top, transport in the middle; two taps seek": 2,
+        "on a phone › the sheet has a grab handle instead of the X; a tap on the picture above it closes it (concept 23 P-2)": 1.3,
+        "panels and the gear by keyboard: open, arrows, a page and back, Escape; no trap": 2.1,
+        "player keys: Space, the zones of the bar (11.2), Tab and Escape": 2,
+        "the panels are menus above their button: a click beside closes them, the video plays on (concept 23 P-2)": 2.1,
+        "the subtitle panel and its style page by the arrows alone: a remote has no Tab": 1.7,
+        "the tab «Besetzung» › ↓ to the tabs, Enter, ↓, Enter opens the person; back returns to the player (review step 5)": 6.2,
+        "the tab «Besetzung» › Escape right after Enter on the person, while its page loads, stays with the player": 1,
+        "the tab «Info» and the pause view by keyboard: ↓ to the tabs, Enter, ↓ into the text": 12.1
       },
       "podcast-auto-download.spec.ts": {
-        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 6.7
+        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 6.2
       },
       "podcast.spec.ts": {
         "an episode plays through the server, not from the feed host": 3.9,
-        "episode page by keyboard: play, download, \"Zum Podcast\", back; no focus trap": 2.7,
-        "H-2: the new episode appears after \"Jetzt abrufen\"; explicit stays hidden from FSK 12": 6.3,
-        "podcast page by keyboard: episodes, play, \"Mehr laden\" absent, no focus trap": 2.2
+        "episode page by keyboard: play, download, \"Zum Podcast\", back; no focus trap": 2.3,
+        "H-2: the new episode appears after \"Jetzt abrufen\"; explicit stays hidden from FSK 12": 5.2,
+        "podcast page by keyboard: episodes, play, \"Mehr laden\" absent, no focus trap": 1.9
       },
       "profiles.spec.ts": {
-        "picker › a deep link survives the picker": 1,
-        "picker › arrow keys inside the PIN dialog keep the focus in the dialog": 1.2,
-        "picker › arrow keys move between tiles, Enter picks, back returns; no focus trap": 1.2,
-        "picker › PIN dialog: focus, Escape, wrong PIN, lock with countdown, right PIN": 2.3,
-        "picker › the primary profile is marked and offers \"Profile verwalten\"": 1.2,
-        "profile management › a library restriction round-trips and the restricted profile sees none of the other titles": 2.6,
-        "profile management › a non-primary profile gets a notice instead": 1.1,
-        "profile management › create, edit every rating, PIN set and remove, delete (K-2)": 6.6,
+        "picker › a deep link survives the picker": 0.6,
+        "picker › arrow keys inside the PIN dialog keep the focus in the dialog": 0.8,
+        "picker › arrow keys move between tiles, Enter picks, back returns; no focus trap": 0.9,
+        "picker › PIN dialog: focus, Escape, wrong PIN, lock with countdown, right PIN": 1.8,
+        "picker › the primary profile is marked and offers \"Profile verwalten\"": 0.8,
+        "profile management › «Darf Titel anfordern» in the dialog while wishes are on, by keyboard (M-11)": 2.4,
+        "profile management › a library restriction round-trips and the restricted profile sees none of the other titles": 2.1,
+        "profile management › a non-primary profile gets a notice instead": 0.7,
+        "profile management › create, edit every rating, PIN set and remove, delete (K-2)": 5,
         "profile management › Tab order, radios with arrows, Enter submits, Escape closes; no focus trap": 2.7,
-        "profile management › the 11th profile is refused at the name field": 1.6,
-        "profile management › with a third server language the form offers \"Sprache der Beschreibungen\" by arrows (ADR 0018)": 2.9,
-        "switching to an English profile changes the start page without a reload and back": 1.9
+        "profile management › the 11th profile is refused at the name field": 1.1,
+        "profile management › with a third server language the form offers \"Sprache der Beschreibungen\" by arrows (ADR 0018)": 2.3,
+        "switching to an English profile changes the start page without a reload and back": 1.4
       },
       "quality.spec.ts": {
-        "a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s": 2.9,
-        "a profile limit of 720p: automatic quality plays at most 720p": 2.3,
-        "choosing 480p by keyboard starts a new session with a 480p transcode": 2.4,
-        "one stream per profile: a second start answers 409 and the page shows the hint": 2.7
+        "a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s": 3.1,
+        "a profile limit of 720p: automatic quality plays at most 720p": 2,
+        "a quality chosen by keyboard is remembered as a cap and reset by keyboard": 3.1,
+        "choosing 480p by keyboard starts a new session with a 480p transcode": 2.5,
+        "one stream per profile: a second start answers 409 and the page shows the hint": 1.9
+      },
+      "radio-player.spec.ts": {
+        "«Jetzt läuft» by keyboard: the slider goes behind live, «Zuvor gespielt», «Live» returns": 2.8,
+        "a second page that starts radio pauses the first": 4.5,
+        "AAC in copy mode plays; mini player and «Jetzt läuft» by keyboard; navigation keeps it, /play stops it": 17.9,
+        "the transcoded MP3 station shows the title of its stream": 8.2
+      },
+      "radio.spec.ts": {
+        "a favourite survives a reload; a station outside the offer is never listed": 1.1,
+        "on a phone a facet opens as a sheet that Escape closes": 1.6,
+        "radio page by keyboard: search and filters in the URL, Back restores them, Enter plays": 3.2
       },
       "resume.spec.ts": {
-        "progress is saved per profile and resumes on another device (W-5)": 8.1
+        "progress is saved per profile and resumes on another device (W-5)": 7
       },
       "search.spec.ts": {
-        "every filter narrows the result and lives in the URL": 3.8,
-        "search by keyboard: \"/\", arrows, Enter, back; no focus trap": 2.1,
-        "two characters find titles; a collection by its name (E-4)": 1.5
+        "every filter narrows the result and lives in the URL": 3,
+        "search by keyboard: \"/\", arrows, Enter, back; no focus trap": 2.6,
+        "the people of a search as round portrait cards (concept 17 D-5) › portrait or initial; arrows, Enter and back by keyboard": 0.8,
+        "the section «Noch nicht in der Bibliothek»: cards to the preview, the plus by keyboard, the kind filter maps": 5.5,
+        "two characters find titles; a collection by its name (E-4)": 1.2
       },
       "season-download.spec.ts": {
-        "a season of six episodes downloads in one action (O-2)": 9
+        "a season of six episodes downloads in one action (O-2)": 38.7
+      },
+      "series-catalog.spec.ts": {
+        "missing seasons: the line, the marked covers, arrows reach them, Enter requests the pressed one, Escape returns": 5.3
       },
       "series.spec.ts": {
-        "arrows: back → seasons → episodes; Enter on a season chip shows the specials": 1.5,
-        "Enter opens an episode, play starts it; Backspace and Escape walk back": 2.4,
-        "seasons: Season 1 first, specials last; S01E03–E04 is one episode": 1.1,
-        "Tab: header, back, seasons, episodes; no focus trap": 2,
-        "the start page lists the series once and never its episodes": 1.6
+        "a started episode asks first: resume has the focus, ↑ ↓ and Tab move, Escape gives the focus back, Ctrl-click opens a tab (concept 20 P-4)": 2.4,
+        "a wall of many seasons: two rows, «Alle N Staffeln anzeigen», ↓ over the button into the episodes; the pen with the focus (concept 21 P-6, O-11)": 1.8,
+        "arrows: Enter on a season of the wall shows the specials, ← back to Season 1": 0.9,
+        "Details in the open row opens the episode page; Backspace and Escape walk back (concept 21 P-6)": 1.3,
+        "O-11: ↓ from the wall into the episodes, Enter opens a line, a second Enter plays (concept 21)": 2,
+        "season page by keyboard: the series link, play, the episodes; no focus trap": 2.7,
+        "seasons: a wall with Season 1 first, specials last; episodes as lines; S01E03–E04 is one episode (concept 21 P-6)": 0.7,
+        "Tab: header, back, actions, the chosen season, the lines and their checks; no focus trap": 1.9,
+        "the check of a season: set without a question, removal asks, Escape gives the focus back (concept 20 P-5)": 2.1,
+        "the check of an episode: Tab reaches it, Space sets it, Enter removes it without a question (concept 20 P-5)": 1.3,
+        "the nextUp episode is open as the page opens, marked «Als Nächstes» (concept 21 P-6)": 1.1,
+        "the pen on a season cover opens its editor on «Bilder»; Escape returns to the pen (concept 20 P-3)": 2.1,
+        "the start page lists the series once and never its episodes": 1.1
       },
       "setup.spec.ts": {
-        "\"Ordner prüfen\" reports a missing folder at the field": 0.8,
-        "\"Schlüssel prüfen\" says clearly when TMDB rejects the key (A-1)": 1.4,
-        "arrow keys switch the library kind": 1.1,
-        "client validation catches a short password before anything is sent": 0.7,
-        "Enter submits; errors appear inline and the form stays usable": 0.9,
-        "GPU step: the Compose command and the sysctl command can be copied by keyboard": 2.1,
-        "Tab walks through the four steps in order with a visible focus ring": 1.1,
-        "the configured roots are suggestions the keyboard can take": 1.2,
-        "the folder is checked on leaving the field: file system and network share warning": 1.4
+        "F-11 with two profiles: the picker first, the wizard only for the primary profile": 2.3,
+        "F-11: a new sign-in before the end leads to the first open step": 1.2,
+        "step 1, language: list, language button, search, the languages, then «Weiter»": 0.7,
+        "step 2, account: the fields in order, Enter creates the owner": 1,
+        "step 3, region: country, rating country with its steps, languages, radio": 0.8,
+        "step 4, services: the cards with their links, «Überspringen» goes on": 0.5,
+        "step 5, playback: the backends by arrows, the trickplay default": 0.4,
+        "step 6, libraries: none is refused, the dialog adds one": 0.5,
+        "step 7, household: the own profile, «Profil hinzufügen» with the French steps adds one": 0.7,
+        "step 8, access: the address of this browser as the suggestion, the update check": 0.3,
+        "step 9, summary: «Ändern» per step, finish, the first scan, the start page": 0.4
+      },
+      "sidecar.spec.ts": {
+        "a .de.srt placed during playback appears in the track menu within 60 s": 30.8
+      },
+      "sidenav.spec.ts": {
+        "/admin with the column hidden: the admin sidebar stands in its place, nothing jumps (concept 11)": 2,
+        "hide the column: the menu button opens the drawer, which shows it again": 1.9,
+        "on a phone the drawer: focus inside, no scrolling behind, Escape back to the button": 2.7,
+        "Tab: skip link, header, the column, then the content": 2.1,
+        "the column at 1280 px: its entries, arrows between them, Enter, into the content and back": 2.9,
+        "the prepaint of «Meine Medien» lies on the first tiles, column shown and hidden (concept 15 P-7)": 1.3,
+        "the prepaints lie on the band and on the first card, column shown and hidden (P-10, 8)": 1.9,
+        "without the libraries › the group says so, links the downloads, and the rest stands": 2
+      },
+      "stream-token.spec.ts": {
+        "direct play: the Range stream needs the token": 0.4,
+        "HLS playlists and segments: token only, 401 without, 401 within 1 s after stop": 0.7
+      },
+      "title-join.spec.ts": {
+        "«Benachrichtige mich»: the state of the other wish, Tab reaches the button, Enter joins, the focus stays on the state": 5.9,
+        "«Nur Zustand zeigen»: the state of the other wish without a button": 4.8
+      },
+      "title-preview.spec.ts": {
+        "a film: Tab order, the dialog by keyboard, Escape and «Abbrechen» return, the request turns the button into its state": 5.1,
+        "a series: the seasons with their states, a refused limit and a request of the seasons that fit": 6.3,
+        "an unknown title says «nicht gefunden»": 3.5
+      },
+      "tracks.spec.ts": {
+        "«Als Standard für dieses Profil» by keyboard: the playing language becomes the profile’s first": 2,
+        "«Für diese Serie merken» by keyboard: a subtitle chosen with it on comes back on the next start": 1.4,
+        "a PGS track is burned in: transcode with reason subtitle_burn, and it plays": 3.1,
+        "an SRT track arrives as WebVTT through <track>": 2.3,
+        "every switch names both tracks: «Aus» is subtitleOff and stays off after an audio switch": 1.3,
+        "sound panel by keyboard: → along the row, arrows, Escape closes with focus back; no trap": 1.2,
+        "switching the audio track to AC3 English: new session within 3 s, Stream-Info shows it": 1.8,
+        "the subtitle style by keyboard: size and colour on the layer, the offset shows a cue later": 2.7
+      },
+      "trailer.spec.ts": {
+        "a title without trailers has no trailer button": 0.9,
+        "arrows reach \"Trailer\"; Enter opens the YouTube frame; Escape closes": 1.9,
+        "Backspace (a remote's back key) closes the dialog, the detail page stays": 1.2,
+        "offline closes an open dialog for good; the focus moves to the big button": 1.2,
+        "offline the trailer button disappears (W-10) and comes back online": 0.7
+      },
+      "versions.spec.ts": {
+        "choose 720p by keyboard → the player streams that file (Stream-Info)": 1.8,
+        "one title with two versions; the start page lists it once": 1,
+        "the version page of the gear switches to the other file": 1.5
+      },
+      "volume.spec.ts": {
+        "on a touch screen at 375 px › PE-2: the slider stays in the row, covers nothing, no sideways scrolling": 1.1,
+        "PE-1: the volume opens over its neighbours at 900 to 1100 px and closes 300 ms after": 6.3,
+        "PE-3: one volume for radio and audiobook, kept after a reload; the video player keeps its own": 5.6,
+        "PE-5: the audio player’s volume by keyboard: Tab opens it, arrows, M, Escape closes only it": 1.1,
+        "PE-5: the radio’s volume by keyboard in the mini player and «Jetzt läuft»": 2.6
+      },
+      "watch-limit.spec.ts": {
+        "a running player stops with the hint once the limit is reached": 11,
+        "one minute played: the start answers 403 with the hint; the report shows the minute": 1.5
+      },
+      "watched.spec.ts": {
+        "a series marked whole stands with a full check and opens the series page": 0.7,
+        "kind and order stay on the way back from a title": 0.8,
+        "the page by keyboard: empty text, filter and sort chips, cards, the check takes a film off, the half check asks": 3,
+        "with a mouse the empty check shows on hover and focus, the set one always (O-1)": 1.3
+      },
+      "watchlist.spec.ts": {
+        "\"Entfernen\" takes a title off; the row goes with the last one (E-9)": 0.7,
+        "\"Merken\" on the detail page fills the list and the row, per profile (E-5)": 1.5,
+        "marks a title from its cover in the search; list, row and cover follow (D-9)": 1.5,
+        "series and podcasts go on the watchlist; there is no favourite any more (concept 20 P-2)": 1.1,
+        "the cover button by keyboard: Tab after the card, arrows pass it, focus to the neighbour": 1,
+        "watchlist by keyboard: arrows, Enter, remove, back; no focus trap": 1.8
+      },
+      "wish-progress.spec.ts": {
+        "«Meine Wünsche»: the four stages under «In Beschaffung», nothing without progress; no focus stop": 3.8,
+        "the preview page: the wish card with its progress": 5.1
+      },
+      "wishes-discover.spec.ts": {
+        "«Entdecken» by keyboard: the entry leads here, seven rows, arrows, plus, Enter, back": 7.4,
+        "the answers of the server changed on their way › Seerr out of reach: a row of the last state shows the band, nothing kept shows the error": 4,
+        "without the right: with wishes the entry leads to «Meine Wünsche» and «Entdecken» says so; without any it is not found": 5.9
+      },
+      "wishes-search.spec.ts": {
+        "«Suche» by keyboard: focus in the field, too short, hits, ids, arrows, Enter, back, nothing found": 5.7,
+        "the library search leads to «Suche» with the same text": 4.9
+      },
+      "wishes-titles.spec.ts": {
+        "«Filme» by keyboard: from the row title, the closed band, genre by arrows, Escape, the grid, Enter, back": 8.3,
+        "links of «Entdecken» preselect the view; «Serien» requests with seasons; an empty choice says so": 5.5
+      },
+      "wishes.spec.ts": {
+        "a profile with an age limit has no right to request and none can be given (ADR 0045)": 3.5,
+        "a profile without the request right and without wishes has no entry; its page says it is empty": 2,
+        "the page by keyboard: the entry with its count, rows, history, withdraw asks, the chips filter, empty": 11.7
+      }
+    },
+    "firefox": {
+      "admin-accounts.spec.ts": {
+        "ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap": 4.6,
+        "concept 25: request right and limit in «Zugriff», the invitation and the Seerr user line by keyboard": 5
+      },
+      "admin-announcements.spec.ts": {
+        "A-7: a new announcement can go out at once": 2.3,
+        "A-7: draft, change, publish and delete an announcement by keyboard": 5.8
+      },
+      "admin-backup.spec.ts": {
+        "A-4: create a backup without secrets, download it and delete it, by keyboard": 3.9
+      },
+      "admin-collections.spec.ts": {
+        "collections page by keyboard: create, fill, order, show on the start page, rename, delete": 13.7
+      },
+      "admin-devices.spec.ts": {
+        "tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard": 3.1
+      },
+      "admin-folder-browser.spec.ts": {
+        "Enter goes into a folder, Backspace comes back, OK writes the path field": 2.4
+      },
+      "admin-home-rows.spec.ts": {
+        "«Erfüllte Wünsche»: its place, «Ausblenden» and the fold-out by keyboard": 2.9,
+        "start page rows by keyboard: placing and hiding change the start page": 7.3
+      },
+      "admin-home.spec.ts": {
+        "Tab: header, sidebar, the overview’s header, key figures; Enter follows, Back returns; no focus trap": 2.4
+      },
+      "admin-integrations.spec.ts": {
+        "a tile per service opens its view and leads back, all by keyboard": 2.5,
+        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 2.5
+      },
+      "admin-item-delete.spec.ts": {
+        "a title is taken out of Slouchcat and back in, by keyboard": 3.8,
+        "the title is deleted with its file, by keyboard, in a writable folder": 2.4
+      },
+      "admin-item.spec.ts": {
+        "original language: chosen by keys, saved and locked; «Aus Metadaten» lifts the lock (concept 13 11.7)": 4,
+        "Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap": 2.9
+      },
+      "admin-jobs.spec.ts": {
+        "background jobs by keyboard: a one-off date in the schedule as the server wall time, and removed again": 3.2,
+        "background jobs by keyboard: a time window for the keyframe index, set and removed again": 3.9,
+        "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 9.6,
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 3.6
+      },
+      "admin-libraries.spec.ts": {
+        "«Bearbeiten» renames a library by keyboard, one request per save": 2.5,
+        "«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope, Escape and save (concept 18, 9)": 3.1,
+        "Tab reaches header, the add dialog and its fields in order; no focus trap": 2.1
+      },
+      "admin-library-delete.spec.ts": {
+        "a library is deleted from the keyboard after its name is typed": 4.7
+      },
+      "admin-library-draft.spec.ts": {
+        "«Abbrechen» asks, the band goes on or discards, all by keyboard (13.2)": 4.4
+      },
+      "admin-library-folders.spec.ts": {
+        "a second folder goes in with «Speichern», and comes out only after its path is typed": 8.6,
+        "content and sources of a card by keyboard; another content needs the typed path": 6.5,
+        "the form opens by keyboard, its cards fold with Enter and Space, Escape asks before discarding": 3.7
+      },
+      "admin-metadata.spec.ts": {
+        "a language is added, put on its place with several arrow steps, saved and removed, all by keyboard": 22.7,
+        "a new rating country with titles asks before saving; Escape keeps the change unsaved": 4.1,
+        "the sections open and close by keyboard, the focus stays on the header": 6.3
+      },
+      "admin-my-media.spec.ts": {
+        "«Meine Medien» by keyboard: placing and hiding per place reach the side navigation": 3
+      },
+      "admin-picks.spec.ts": {
+        "user picks page by keyboard: retention, the list, remove after a question": 1.9
+      },
+      "admin-podcast-page.spec.ts": {
+        "podcast page and downloads by keyboard: views, «Laden», «Abbrechen», back": 4.2
+      },
+      "admin-podcasts.spec.ts": {
+        "podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field": 3.2,
+        "podcasts page: band «Neue Folgen» and the confirmation by keyboard": 3.2
+      },
+      "admin-radio.spec.ts": {
+        "«Angaben» by keyboard: the origin of each value, owner and founding date from Wikidata (concept 19 B2)": 2.3,
+        "«Angebot» by keyboard: search a country, a continent, the station list, apply (PB-10)": 4,
+        "«Eigene Sender» by keyboard: a local address is refused, a public one added and deleted": 2.8,
+        "«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, details, back in": 4,
+        "radio administration by keyboard: tabs in the URL, stations table, editor, settings": 3.4
+      },
+      "admin-seerr.spec.ts": {
+        "Radarr and Sonarr: test, own address, not in Seerr; the instant notice by keyboard": 8.2,
+        "the tile opens the view; connect, test and save by keyboard": 7.5
+      },
+      "admin-server.spec.ts": {
+        "by keyboard: the area tab, the header, the restart dialog up to «Abbrechen», the log; no focus trap": 3.6,
+        "updates (concept 15 P-8) › the manual steps without companion; the install dialog and its phases": 5.6
+      },
+      "admin-shell.spec.ts": {
+        "every one of the 22 pages through the tree by keyboard from the overview": 13.1,
+        "the tree by keyboard: Space toggles without leaving the page, ↑ ↓ skip closed areas and wrap, Home End": 2
+      },
+      "admin-spotlight.spec.ts": {
+        "missing entries by keyboard: the band, «Anfordern» and its dialog, an unmatched entry": 8.1,
+        "spotlight by keyboard: bands, source, fetch, hide, pin and note an entry": 7.4
+      },
+      "admin-stats.spec.ts": {
+        "A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard": 3.5
+      },
+      "admin-streams-kinds.spec.ts": {
+        "every kind in one list with the kind filter, a failed half and «Beenden»": 19.1
+      },
+      "admin-streams.spec.ts": {
+        "partly buffered and without the stop watch: the 401 of a segment stops the player within 5 s": 3.6,
+        "radio listeners as tiles in «Läuft gerade», filtered to «Radio»: arrow keys between them, «Beenden» after the confirmation": 8.3,
+        "two streams listed; the admin ends one, its player stops within 5 s": 23.2
+      },
+      "admin-webhooks.spec.ts": {
+        "an integration is created by keyboard and its address is shown exactly once": 2.1
+      },
+      "admin-wishes.spec.ts": {
+        "«Anfragen» stage 4: approve, decline behind a question, progress and tags by keyboard": 22.5,
+        "«Anfragen»: the default tab, a wish row folds out with its history, «Jetzt abgleichen» by keyboard": 8.5,
+        "a Seerr user that administers Seerr is linked only after a question": 6.1,
+        "an account opened in Seerr, a waiting one tried again, the password mode and «Alle eröffnen» by keyboard": 5.7,
+        "profile tags, the take-over and the band of Radarr and Sonarr by keyboard": 8.3,
+        "tabs, a row that folds out and a Seerr user chosen and unlinked by keyboard": 3.5,
+        "the settings take effect at once by keyboard; a refused change rolls back": 4.7
+      },
+      "announcements.spec.ts": {
+        "another profile sees it at its next start; after \"Verstanden\" not again": 2.8
+      },
+      "audio-download.spec.ts": {
+        "a podcast episode in each of the three profiles, within ±10 % of its estimate (O-1)": 18.3,
+        "the audiobook in each of the three profiles, within ±10 % of its estimate (O-1)": 18
+      },
+      "audio-offline.spec.ts": {
+        "flight mode: the downloaded audiobook plays with its chapters; progress syncs later": 10.7
+      },
+      "audio-series.spec.ts": {
+        "PD-5: the row above the grid: Tab to the tile, arrows to the grid and back, Enter, back to the tile": 2.1,
+        "PD-7, PD-14: the series page: play button, «Reihe bearbeiten», volumes, play and pen by keyboard; back to the library": 4.3
+      },
+      "audio-transcode.spec.ts": {
+        "Slouchcat Test AC3 51: audio is converted (audio_codec) and the title plays": 3.2,
+        "Slouchcat Test DTS: audio is converted (audio_codec) and the title plays": 4.2
+      },
+      "audiobook-editor.spec.ts": {
+        "the pen on a book card by Tab; the four tabs by the arrow keys; Escape returns": 3.1
+      },
+      "audiobook-sources.spec.ts": {
+        "«Hörbücher: Quellen» by keyboard: library form, settings, «Jetzt alle …», the pen of «Prüfen», Back": 4.4,
+        "«Zuordnen» of an audiobook by keyboard: search, pick, untick a field, take": 3.3
+      },
+      "audiobook.spec.ts": {
+        "a chapter link on the detail page starts the player at that chapter (±1 s)": 1.1,
+        "audio player by keyboard: controls with a visible ring, menus, no focus trap, back": 2.3,
+        "H-3: speed 2.0 stays after a reload and on a second device, the position ±2 s": 2.5,
+        "the book’s detail page by keyboard: arrows into the chapters, Tab, Enter, back": 5.2,
+        "the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)": 1.6,
+        "the M4B book: 12 chapters every 5 s, author, narrator, series and cover (H-1)": 0.8,
+        "the MP3 folder is one book with a chapter per file (H-1)": 0.8,
+        "the MP3 folder plays as one HLS timeline across its files (ADR 0007)": 8.7,
+        "the start page lists a started book under \"Weiterschauen\" with a square cover": 0.9,
+        "the stop watch › concept 13: the administration ends a fully loaded book, the player stops within 5 s": 9.2
+      },
+      "auto-download.spec.ts": {
+        "episode n watched → the next sync downloads n+1 by itself (O-3)": 52.5
+      },
+      "chapters.spec.ts": {
+        "chapter images: the row by keyboard and the field over the timeline (stage 3)": 3.1,
+        "intro show › \"Intro überspringen\" appears during the intro and jumps to its end": 1.4,
+        "intro show › «Als Nächstes» by keyboard: ↓ to the tabs, → to the tab, ↓ to the next episode, Enter": 1.8,
+        "intro show › Escape cancels the countdown; N plays the next episode at once": 1.5,
+        "intro show › the countdown from the outro plays S01E02 (auto-next)": 11.7,
+        "intro show › the next-episode card by keyboard: Tab reaches its button, Enter plays": 1.6,
+        "the chapter tab by keyboard jumps to the chapter start (±1 s); Escape closes it": 2.4
+      },
+      "collection.spec.ts": {
+        "collection by keyboard: play button, round buttons, parts, Enter, back; no focus trap": 2.3,
+        "the page «Sammlungen» by keyboard: arrows, Enter, back; no focus trap": 1.7,
+        "the TMDB poster of a collection (concept 17 D-5) › the poster shows on the card and the head, the neutral tile without the file; keyboard": 1.9
+      },
+      "detail.spec.ts": {
+        "Tab: back arrow, pen, watchlist on the cover, play, round actions; no focus trap": 2.7
+      },
+      "downloads.spec.ts": {
+        "an episode in each of the three download profiles, within ±10 % of its estimate (O-1)": 29.1,
+        "downloads page by keyboard: rows, play, back; no focus trap": 21.8,
+        "the download dialog without its options › opened with Enter, «Schliessen» has the focus at once (11.13)": 2.1,
+        "three download profiles, each within ±10 % of its estimate (O-1)": 18.5
+      },
+      "episode.spec.ts": {
+        "Tab reaches play and the next episode after the header; no focus trap": 3
+      },
+      "extras.spec.ts": {
+        "arrows reach the extras row; Enter plays an extra; back returns": 1.8
+      },
+      "hdr.spec.ts": {
+        "HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s": 5.4
+      },
+      "hls.spec.ts": {
+        "Slouchcat Test H264 MKV Long: HLS remux starts and seeks to 20/50/80 % within budget": 3.7,
+        "Slouchcat Test HEVC Long: HLS transcode starts and seeks to 20/50/80 % within budget": 6.8
+      },
+      "home-list.spec.ts": {
+        "«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; no focus trap": 4.3
+      },
+      "home-radio.spec.ts": {
+        "«Meine Sender» on the start page: reached by keyboard, plays, names the current title": 9.4
+      },
+      "home.spec.ts": {
+        "\"Weiterschauen\" per series: the series card, arrow keys in the row, Enter opens the episode (concept 15 P-1, F-1)": 3,
+        "«Erfüllte Wünsche»: the row with a fulfilled title, by arrow keys; none without": 2.6,
+        "«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter opens the library, back returns (concept 15 P-7)": 5.5,
+        "Tab: skip link, header, side navigation, hero, then the cards; no focus trap": 5.9,
+        "the spotlight posters carry the pen: Tab poster then pen, the band holds, Escape returns (concept 15 P-6)": 7
+      },
+      "invitations.spec.ts": {
+        "keyboard: invitation dialog, link and revoke dialog; no focus trap": 3.1
+      },
+      "invite.spec.ts": {
+        "a used link shows \"Link nicht mehr gültig\"; the way out is reachable by keyboard": 0.9,
+        "an unknown link of the right shape shows \"Link nicht gefunden\"": 0.7,
+        "Enter in the last field creates the account and opens the start page": 1.2,
+        "Tab order: e-mail, password, profile name, language, submit; no focus trap": 1,
+        "validation: short password and a taken e-mail address are shown at the fields": 1.7
+      },
+      "languages.spec.ts": {
+        "the language button of the login page: Tab, Enter, arrows, Enter; no focus trap": 1.4,
+        "the language step of the wizard: arrows switch the interface and the formats": 1.4
+      },
+      "library.spec.ts": {
+        "a large library in the virtual grid › a failed page says so; its retry button is reached by Tab and reads it again": 4.1,
+        "a large library in the virtual grid › a letter jumps; Enter opens a card and back returns to it": 2.4,
+        "a large library in the virtual grid › ArrowDown walks all 360 rows without losing the focus": 30.8,
+        "a large library in the virtual grid › more than 10000 rows: a jump far down draws its cards in view": 1.7,
+        "a large library in the virtual grid › Tab leaves the grid after the last card; the wheel keeps the focus": 4.3,
+        "library by keyboard: Tab order, arrows into the letter bar and back, Enter, back": 4.3,
+        "square covers in the overview of audio › PC-4: the square overview by keyboard: arrows, Tab, Enter, back to the same card": 1.6,
+        "the filter panel opens from \"Filter\", closes with Escape and gives the focus back": 2.3
+      },
+      "login.spec.ts": {
+        "Enter logs in and opens the start page; browser back does not return to the login": 2.1,
+        "Tab order: e-mail, password, submit; no focus trap": 0.6,
+        "wrong password shows invalid_credentials": 0.9
+      },
+      "long-lists.spec.ts": {
+        "a long inbox reads its pages as ↓ goes on, without «Mehr laden»": 3.2,
+        "focus stays after removing on page 2 of the watchlist": 3.1,
+        "the station table of 40'000 draws a few rows and ↓ goes on past them": 6.1
+      },
+      "maintenance.spec.ts": {
+        "unrated: select by keyboard, assign a rating, the title leaves the list": 5.2
+      },
+      "metadata-editor.spec.ts": {
+        "library grid: a saved title re-sorts the grid; the focus comes back to its pen": 5.2,
+        "library grid: Tab reaches the card, then its pen; Enter opens, Escape returns": 6,
+        "start page: «Neu in …» covers carry the pen, a series card of «Weiterschauen» edits the series": 2.2,
+        "start page: a saved title shows on its card at once; the focus stays on the pen": 3.7,
+        "start page: Tab reaches a card, then its pen; Enter opens, Escape returns": 4.5,
+        "the pen opens the dialog; Tab stays inside, Escape closes, focus back on the pen": 3.7,
+        "the pen sits on the poster, before the actions in the Tab order": 2.2,
+        "unsaved changes: Escape asks first; «Weiter bearbeiten» stays, «Verwerfen» closes": 4
+      },
+      "my-devices.spec.ts": {
+        "«Meine Geräte» by keyboard: list, sign out a phone with confirmation, Back": 3.6
+      },
+      "notification-channels.spec.ts": {
+        "admin: the page stays in the administration, compact, with the link to the integrations": 3,
+        "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 6.4
+      },
+      "notifications.spec.ts": {
+        "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.6
+      },
+      "offline-measure.spec.ts": {
+        "download sizes against the estimate, the fetch rate and seeking from OPFS": 22.4
+      },
+      "offline-pin.spec.ts": {
+        "offline PIN: the verifier of the normal PIN, the separate offline PIN, the brake": 38.2
+      },
+      "offline-playback.spec.ts": {
+        "flight mode: the download plays with subtitles and the chosen audio; progress syncs later": 18.4,
+        "O-5: from 30 s on the server, 15 s offline; a second browser has the new position within 10 s": 23.4,
+        "without MediaSource the blob fallback shows the stored subtitles on the source timeline": 7.9
+      },
+      "offline-profiles.spec.ts": {
+        "P6 does not see the download of P18, online and offline (O-7)": 7.3,
+        "the Apple hint shows on an iPhone, and the Wi-Fi option hides (O-7, AN-13)": 1.6
+      },
+      "offline-revocation.spec.ts": {
+        "a removed account’s download disappears from the device at the next contact": 7.1
+      },
+      "offline-start.spec.ts": {
+        "a server that never answers › opens the offline library within 3 s (W10, C-1)": 2.8
+      },
+      "offline-watch-limit.spec.ts": {
+        "a 1-min limit stops offline playback after a minute and is booked later": 69.4
+      },
+      "person.spec.ts": {
+        "a person with a portrait › portrait left of the name, facts, biography; arrows, Tab, Enter and back by keyboard": 1.4,
+        "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 1.7
+      },
+      "picks-page.spec.ts": {
+        "User picks by keyboard: the star, arrows, Enter, back; no focus trap": 6
+      },
+      "playback-settings.spec.ts": {
+        "«Einstellungen» by keyboard: languages, subtitle rule, save, series reset, Back": 13.9,
+        "«Einstellungen» by keyboard: removing the last audio language": 3.4
+      },
+      "player.spec.ts": {
+        "←/→ on the timeline show the preview tile of the new position for a moment (concept 18, 9)": 3.3,
+        "a slow connection suggests the rung below by keyboard and switches only on Enter": 4.1,
+        "a volume above 100 % and night mode keep the video playing (Web Audio)": 4,
+        "Backspace and browser back return to the detail page": 1.4,
+        "controls hide after 3 s of playback and come back on a key press": 8.7,
+        "Enter on play starts direct play in under 2 s and reports progress": 1.6,
+        "episode buttons and the countdown card (concept 23) › «Intro überspringen» and the countdown card stand 12 px over the time line; an open tab closes (P-4)": 2.1,
+        "episode buttons and the countdown card (concept 23) › the episode buttons by keyboard: greyed in place with a hint, the card on focus, Enter and P": 3.1,
+        "in a narrow window with a mouse › a click on the picture pauses, a double click does not seek": 1.6,
+        "on a phone › an episode: both episode buttons beside −10 s, play and +10 s; the countdown card over the time line (concept 23)": 2.5,
+        "on a phone › the phone layout by keyboard: options at the top, transport in the middle; two taps seek": 2.2,
+        "on a phone › the sheet has a grab handle instead of the X; a tap on the picture above it closes it (concept 23 P-2)": 1.7,
+        "panels and the gear by keyboard: open, arrows, a page and back, Escape; no trap": 2.4,
+        "player keys: Space, the zones of the bar (11.2), Tab and Escape": 2.4,
+        "the panels are menus above their button: a click beside closes them, the video plays on (concept 23 P-2)": 2.6,
+        "the subtitle panel and its style page by the arrows alone: a remote has no Tab": 1.9,
+        "the tab «Besetzung» › ↓ to the tabs, Enter, ↓, Enter opens the person; back returns to the player (review step 5)": 7.8,
+        "the tab «Besetzung» › Escape right after Enter on the person, while its page loads, stays with the player": 1.4,
+        "the tab «Info» and the pause view by keyboard: ↓ to the tabs, Enter, ↓ into the text": 12.9
+      },
+      "podcast-auto-download.spec.ts": {
+        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 7.6
+      },
+      "podcast.spec.ts": {
+        "an episode plays through the server, not from the feed host": 4.3,
+        "episode page by keyboard: play, download, \"Zum Podcast\", back; no focus trap": 2.9,
+        "H-2: the new episode appears after \"Jetzt abrufen\"; explicit stays hidden from FSK 12": 5.9,
+        "podcast page by keyboard: episodes, play, \"Mehr laden\" absent, no focus trap": 2.3
+      },
+      "profiles.spec.ts": {
+        "picker › arrow keys move between tiles, Enter picks, back returns; no focus trap": 1.7,
+        "profile management › «Darf Titel anfordern» in the dialog while wishes are on, by keyboard (M-11)": 3,
+        "profile management › Tab order, radios with arrows, Enter submits, Escape closes; no focus trap": 3.7
+      },
+      "quality.spec.ts": {
+        "a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s": 3,
+        "a profile limit of 720p: automatic quality plays at most 720p": 2,
+        "a quality chosen by keyboard is remembered as a cap and reset by keyboard": 3.9,
+        "choosing 480p by keyboard starts a new session with a 480p transcode": 2.5,
+        "one stream per profile: a second start answers 409 and the page shows the hint": 1.8
+      },
+      "radio-player.spec.ts": {
+        "«Jetzt läuft» by keyboard: the slider goes behind live, «Zuvor gespielt», «Live» returns": 5.3,
+        "a second page that starts radio pauses the first": 5.4,
+        "AAC in copy mode plays; mini player and «Jetzt läuft» by keyboard; navigation keeps it, /play stops it": 7.3,
+        "the transcoded MP3 station shows the title of its stream": 4.7
+      },
+      "radio.spec.ts": {
+        "on a phone a facet opens as a sheet that Escape closes": 2,
+        "radio page by keyboard: search and filters in the URL, Back restores them, Enter plays": 4
+      },
+      "resume.spec.ts": {
+        "progress is saved per profile and resumes on another device (W-5)": 7.7
+      },
+      "search.spec.ts": {
+        "search by keyboard: \"/\", arrows, Enter, back; no focus trap": 2.4,
+        "the people of a search as round portrait cards (concept 17 D-5) › portrait or initial; arrows, Enter and back by keyboard": 0.9
+      },
+      "season-download.spec.ts": {
+        "a season of six episodes downloads in one action (O-2)": 39.4
+      },
+      "series-catalog.spec.ts": {
+        "missing seasons: the line, the marked covers, arrows reach them, Enter requests the pressed one, Escape returns": 4.7
+      },
+      "series.spec.ts": {
+        "a started episode asks first: resume has the focus, ↑ ↓ and Tab move, Escape gives the focus back, Ctrl-click opens a tab (concept 20 P-4)": 3.2,
+        "a wall of many seasons: two rows, «Alle N Staffeln anzeigen», ↓ over the button into the episodes; the pen with the focus (concept 21 P-6, O-11)": 2.5,
+        "arrows: Enter on a season of the wall shows the specials, ← back to Season 1": 1.4,
+        "Details in the open row opens the episode page; Backspace and Escape walk back (concept 21 P-6)": 1.8,
+        "O-11: ↓ from the wall into the episodes, Enter opens a line, a second Enter plays (concept 21)": 2.9,
+        "season page by keyboard: the series link, play, the episodes; no focus trap": 3.5,
+        "Tab: header, back, actions, the chosen season, the lines and their checks; no focus trap": 3,
+        "the check of a season: set without a question, removal asks, Escape gives the focus back (concept 20 P-5)": 2.8,
+        "the check of an episode: Tab reaches it, Space sets it, Enter removes it without a question (concept 20 P-5)": 2,
+        "the pen on a season cover opens its editor on «Bilder»; Escape returns to the pen (concept 20 P-3)": 2.6
+      },
+      "setup.spec.ts": {
+        "F-11 with two profiles: the picker first, the wizard only for the primary profile": 2.9,
+        "F-11: a new sign-in before the end leads to the first open step": 1.4,
+        "step 1, language: list, language button, search, the languages, then «Weiter»": 0.7,
+        "step 2, account: the fields in order, Enter creates the owner": 0.9,
+        "step 3, region: country, rating country with its steps, languages, radio": 0.7,
+        "step 4, services: the cards with their links, «Überspringen» goes on": 0.6,
+        "step 5, playback: the backends by arrows, the trickplay default": 0.4,
+        "step 6, libraries: none is refused, the dialog adds one": 0.6,
+        "step 7, household: the own profile, «Profil hinzufügen» with the French steps adds one": 0.7,
+        "step 8, access: the address of this browser as the suggestion, the update check": 0.4,
+        "step 9, summary: «Ändern» per step, finish, the first scan, the start page": 0.6
       },
       "sidecar.spec.ts": {
         "a .de.srt placed during playback appears in the track menu within 60 s": 31.5
       },
       "sidenav.spec.ts": {
-        "/admin with the column hidden: the admin sidebar stands in its place, nothing jumps (concept 11)": 2.4,
-        "hide the column: the menu button opens the drawer, which shows it again": 1.9,
-        "on a phone the drawer: focus inside, no scrolling behind, Escape back to the button": 2.7,
-        "Tab: skip link, header, the column, then the content": 1.7,
-        "the column at 1280 px: its entries, arrows between them, Enter, into the content and back": 2.3,
-        "the prepaints lie on the band and on the first card, column shown and hidden (P-10, 8)": 2.1,
-        "without the libraries › the group says so, links the downloads, and the rest stands": 1.9
+        "the column at 1280 px: its entries, arrows between them, Enter, into the content and back": 2.7
       },
       "stream-token.spec.ts": {
-        "direct play: the Range stream needs the token": 1.6,
+        "direct play: the Range stream needs the token": 0.8,
         "HLS playlists and segments: token only, 401 without, 401 within 1 s after stop": 0.9
       },
+      "title-join.spec.ts": {
+        "«Benachrichtige mich»: the state of the other wish, Tab reaches the button, Enter joins, the focus stays on the state": 5.4
+      },
+      "title-preview.spec.ts": {
+        "a film: Tab order, the dialog by keyboard, Escape and «Abbrechen» return, the request turns the button into its state": 4.7
+      },
       "tracks.spec.ts": {
-        "a PGS track is burned in: transcode with reason subtitle_burn, and it plays": 3.5,
-        "an SRT track arrives as WebVTT through <track>": 1.6,
-        "switching the audio track to AC3 English: new session within 3 s, Stream-Info shows it": 2.3,
-        "track menu by keyboard: Tab to it, arrows, Escape closes with focus back; no trap": 1.4
+        "«Als Standard für dieses Profil» by keyboard: the playing language becomes the profile’s first": 2.4,
+        "«Für diese Serie merken» by keyboard: a subtitle chosen with it on comes back on the next start": 3.2,
+        "a PGS track is burned in: transcode with reason subtitle_burn, and it plays": 2.9,
+        "an SRT track arrives as WebVTT through <track>": 3.3,
+        "every switch names both tracks: «Aus» is subtitleOff and stays off after an audio switch": 2,
+        "sound panel by keyboard: → along the row, arrows, Escape closes with focus back; no trap": 1.4,
+        "switching the audio track to AC3 English: new session within 3 s, Stream-Info shows it": 1.7,
+        "the subtitle style by keyboard: size and colour on the layer, the offset shows a cue later": 4.3
       },
       "trailer.spec.ts": {
-        "a title without trailers has no trailer button": 1.6,
-        "arrows reach \"Trailer\"; Enter opens the YouTube frame; Escape closes": 2.5,
-        "Backspace (a remote's back key) closes the dialog, the detail page stays": 1.4,
-        "offline closes an open dialog for good; the focus moves to \"Zurück\"": 1.5,
-        "offline the trailer button disappears (W-10) and comes back online": 1
+        "arrows reach \"Trailer\"; Enter opens the YouTube frame; Escape closes": 3.1
       },
       "versions.spec.ts": {
-        "choose 720p by keyboard → the player streams that file (Stream-Info)": 2.4,
-        "one title with two versions; the start page lists it once": 2.5,
-        "the version menu of the player switches to the other file": 1.8
+        "choose 720p by keyboard → the player streams that file (Stream-Info)": 2.3,
+        "one title with two versions; the start page lists it once": 1.6,
+        "the version page of the gear switches to the other file": 2.7
+      },
+      "volume.spec.ts": {
+        "PE-5: the audio player’s volume by keyboard: Tab opens it, arrows, M, Escape closes only it": 1.3,
+        "PE-5: the radio’s volume by keyboard in the mini player and «Jetzt läuft»": 6.1
       },
       "watch-limit.spec.ts": {
-        "a running player stops with the hint once the limit is reached": 11.1,
-        "one minute played: the start answers 403 with the hint; the report shows the minute": 2.7
+        "a running player stops with the hint once the limit is reached": 11.3,
+        "one minute played: the start answers 403 with the hint; the report shows the minute": 2.8
+      },
+      "watched.spec.ts": {
+        "the page by keyboard: empty text, filter and sort chips, cards, the check takes a film off, the half check asks": 3.5
       },
       "watchlist.spec.ts": {
-        "\"Entfernen\" takes a title off; the row goes with the last one (E-9)": 1.1,
-        "\"Merken\" on the detail page fills the list and the row, per profile (E-5)": 2.1,
-        "watchlist by keyboard: arrows, Enter, remove, back; no focus trap": 2.1
+        "the cover button by keyboard: Tab after the card, arrows pass it, focus to the neighbour": 1.2,
+        "watchlist by keyboard: arrows, Enter, remove, back; no focus trap": 2.3
+      },
+      "wish-progress.spec.ts": {
+        "«Meine Wünsche»: the four stages under «In Beschaffung», nothing without progress; no focus stop": 4,
+        "the preview page: the wish card with its progress": 4.9
+      },
+      "wishes-discover.spec.ts": {
+        "«Entdecken» by keyboard: the entry leads here, seven rows, arrows, plus, Enter, back": 8.3
+      },
+      "wishes-search.spec.ts": {
+        "«Suche» by keyboard: focus in the field, too short, hits, ids, arrows, Enter, back, nothing found": 5.5
+      },
+      "wishes-titles.spec.ts": {
+        "«Filme» by keyboard: from the row title, the closed band, genre by arrows, Escape, the grid, Enter, back": 8.3
+      },
+      "wishes.spec.ts": {
+        "the page by keyboard: the entry with its count, rows, history, withdraw asks, the chips filter, empty": 9.9
       }
     }
   }
