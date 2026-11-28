@@ -50,7 +50,8 @@ names() { printf '%s\n' "$SOURCES" | awk -F'|' 'NF==6 {print $6}'; }
 # Sets or removes "off" for our skills in the user's skillOverrides; other settings stay as they are.
 settings() { # add | remove
   [ -f "$SETTINGS" ] || echo '{}' >"$SETTINGS"
-  cp -p "$SETTINGS" "$SETTINGS.bak-design-skills"
+  # Keeps the first backup: the state before this script ever ran.
+  cp -pn "$SETTINGS" "$SETTINGS.bak-design-skills"
   names | python3 -c '
 import json, os, sys
 path, mode = sys.argv[1], sys.argv[2]
@@ -73,9 +74,24 @@ with open(tmp, "w") as out:
 os.replace(tmp, path)' "$SETTINGS" "$1"
 }
 
+MARK='installed-by: scripts/install-design-skills.sh'
+ours() { grep -qx "$MARK (Slouchcat)" "$1/.source" 2>/dev/null; }
+
+# Refuses content that Claude Code would run or widen on its own: hooks or tool grants in the
+# frontmatter, `!`-command injection in Markdown, symbolic links. None of the reviewed commits has
+# any; a later commit that adds one must be read again first.
+unsafe() { # skill folder
+  local front
+  front="$(awk 'NR==1 && /^---/ {f=1; next} f && /^---/ {exit} f' "$1/SKILL.md")"
+  if printf '%s\n' "$front" | grep -qE '^(hooks|allowed-tools):'; then echo "hooks or allowed-tools"; return 0; fi
+  if grep -rqE '(^|[^`])!`' "$1" --include='*.md'; then echo "!-command in Markdown"; return 0; fi
+  if [ -n "$(find "$1" -type l)" ]; then echo "symbolic link"; return 0; fi
+  return 1
+}
+
 if [ "${1:-}" = "--uninstall" ]; then
   for name in $(names); do
-    if [ -f "$SKILLS_DIR/$name/.source" ]; then rm -rf "${SKILLS_DIR:?}/$name"; fi
+    if ours "$SKILLS_DIR/$name"; then rm -rf "${SKILLS_DIR:?}/${name:?}"; fi
   done
   settings remove
   echo "removed: design skills in $SKILLS_DIR and their skillOverrides entries"
@@ -85,6 +101,8 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$SKILLS_DIR"
+# Switched off for other projects before the first copy, so a failed run never leaves them on.
+settings add
 
 printf '%s\n' "$SOURCES" | while IFS='|' read -r repo commit licence licence_file path name; do
   [ -n "$name" ] || continue
@@ -98,8 +116,8 @@ printf '%s\n' "$SOURCES" | while IFS='|' read -r repo commit licence licence_fil
   fi
   [ -f "$clone/$path/SKILL.md" ] || { echo "$repo: no SKILL.md in $path" >&2; exit 1; }
 
-  target="$SKILLS_DIR/$name"
-  if [ -e "$target" ] && [ ! -f "$target/.source" ]; then
+  target="$SKILLS_DIR/${name:?}"
+  if { [ -e "$target" ] || [ -L "$target" ]; } && ! ours "$target"; then
     echo "kept existing $target (not installed by this script)" >&2
     continue
   fi
@@ -114,17 +132,21 @@ printf '%s\n' "$SOURCES" | while IFS='|' read -r repo commit licence licence_fil
     cp "$clone/$licence_file" "$target.new/"
   fi
   if [ "$name" = "impeccable" ]; then cp "$clone/NOTICE.md" "$target.new/"; fi
+  if reason="$(unsafe "$target.new")"; then
+    rm -rf "$target.new"
+    echo "$repo $path: refused ($reason); read the new commit first" >&2
+    exit 1
+  fi
   cat >"$target.new/.source" <<EOF
 repository: https://github.com/$repo
 commit: $commit
 path: $path
 licence: $licence
-installed-by: scripts/install-design-skills.sh (Slouchcat)
+$MARK (Slouchcat)
 EOF
   rm -rf "$target"
   mv "$target.new" "$target"
   echo "installed $name ($repo@${commit:0:10})"
 done
 
-settings add
 echo "skills ready in $SKILLS_DIR; new Slouchcat sessions list them by name (.claude/settings.json)"

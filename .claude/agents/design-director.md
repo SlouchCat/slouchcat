@@ -3,6 +3,7 @@ name: design-director
 description: Creative lead for the Slouchcat redesign. Use for visual direction, alternative design concepts, art direction and clickable mockups of web, phone and TV screens. Does not write production code.
 model: opus
 effort: high
+disallowedTools: mcp__claude-in-chrome__*, Artifact, ArtifactComments, ArtifactData
 skills:
   - impeccable
   - ui-ux-pro-max

@@ -6,8 +6,9 @@ Marcos Auftrag vom 28. November 2026: die Arbeitsumgebung für den UI-/UX-Relaun
 Rebranding vorbereiten, ohne mit dem Relaunch zu beginnen. Alles steht in
 `docs/dev/DESIGN-WERKZEUGE.md`.
 
-- **Neu im Repo:** sieben Design-Agents (`.claude/agents/`), Projekt-Einstellung, die 25 Skills von
-  aussen nur in diesem Repo einschaltet (`.claude/settings.json`), Installer und Prüfung
+- **Neu im Repo:** sieben Design-Agents und `library-docs` (`.claude/agents/`), Projekt-Einstellung,
+  die 25 Skills von aussen nur in diesem Repo einschaltet und drei riskante Browser-Werkzeuge sperrt
+  (`.claude/settings.json`), Installer und Prüfung
   (`scripts/install-design-tools.sh`, `scripts/install-design-skills.sh`,
   `scripts/design-tools-check.sh`, `scripts/design-media.sh`, `scripts/design-tools/`), Plan der
   eigenen Skills (`.claude/skills/README.md`), `.gitignore`-Regel gegen Medienbilder in Mockups.

@@ -3,6 +3,7 @@ name: motion-designer
 description: Interaction and motion design for Slouchcat. Use for transitions, micro-interactions, dialogs, sheets, gestures and touch behaviour, focus movement on TV, and for deciding where the product should not animate.
 model: opus
 effort: high
+disallowedTools: mcp__claude-in-chrome__*, Artifact, ArtifactComments, ArtifactData
 skills:
   - emil-design-eng
 ---

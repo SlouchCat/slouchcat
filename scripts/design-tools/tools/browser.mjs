@@ -16,7 +16,8 @@ export function chromePath() {
 }
 
 export async function launch() {
-  return chromium.launch({ executablePath: chromePath(), headless: true });
+  // playwright-core turns Chrome's sandbox off unless asked; pages under test may hold outside content.
+  return chromium.launch({ executablePath: chromePath(), headless: true, chromiumSandbox: true });
 }
 
 // "390x844" -> { width: 390, height: 844 }

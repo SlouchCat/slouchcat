@@ -139,6 +139,11 @@ python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
 server=$!
 base="http://127.0.0.1:$port"
 for _ in 1 2 3 4 5 6 7 8 9 10; do curl -fs "$base/clean.html" >/dev/null 2>&1 && break; sleep 0.3; done
+# The port was free a moment ago; if another process took it, stop rather than test a foreign page.
+if ! kill -0 "$server" 2>/dev/null || ! curl -fs "$base/defect.html" | grep -q 'Werkzeugprobe'; then
+  echo "FAIL  test page server on 127.0.0.1:$port did not start"
+  exit 1
+fi
 
 check "sc-shot: clean page, phone and desktop, no findings" sc-shot "$base/clean.html" --out shots --name clean --viewports 390x844,1440x900
 check "sc-shot: phone screenshot is 390x844" is_size shots/clean-390x844.png 390x844

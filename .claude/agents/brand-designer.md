@@ -3,6 +3,7 @@ name: brand-designer
 description: Brand, logo, icon and graphic assets for Slouchcat. Use for logo concepts, the icon set, favicons, PWA, Android and Android TV icons, banners, splash screens, store graphics and web fonts, produced as real files with the local toolbox.
 model: opus
 effort: high
+disallowedTools: mcp__claude-in-chrome__*, Artifact, ArtifactComments, ArtifactData
 skills:
   - canvas-design
   - icon-generator

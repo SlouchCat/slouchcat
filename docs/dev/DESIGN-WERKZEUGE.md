@@ -12,7 +12,7 @@ Ratschläge: Wo sie Tailwind, shadcn, Next.js, Hex-Farben im Code oder eigene Da
 
 | Was | Wo | Einrichtung |
 |---|---|---|
-| Design-Agents (7) | `.claude/agents/*.md` (im Repo) | Agent-Dateien, Abschnitt «Agents» |
+| Design-Agents (7) und Doku-Agent (1) | `.claude/agents/*.md` (im Repo) | Agent-Dateien, Abschnitt «Agents» |
 | Skills von aussen (25) | `~/.claude/skills/<name>/` | `scripts/install-design-skills.sh` |
 | Skills ein- und ausblenden | `.claude/settings.json` (Repo: an), `~/.claude/settings.json` (sonst: aus) | dasselbe Skript |
 | Werkzeugkiste (Grafik, Prüfung, Browser-MCP) | `~/.local/share/slouchcat-design/` | `scripts/install-design-tools.sh` |
@@ -47,7 +47,7 @@ Prüfdatum für alles: 28. November 2026. Die Begriffe sind die aus dem Auftrag.
 | `impeccable` ohne Engine | 4.11.1 | Installiert und erfolgreich getestet |
 | `impeccable`-Engine (Binary, Hooks) | engine 0.1.31 | Benötigt meine Zustimmung |
 | `taste-skill` | 2.5.1 | Nicht kompatibel |
-| 7 Design-Agents | im Repo | Installiert, aber noch nicht vollständig getestet (neue Sitzung nötig) |
+| 7 Design-Agents und `library-docs` | im Repo | Installiert, aber noch nicht vollständig getestet (neue Sitzung nötig) |
 | Playwright MCP | 0.0.86 | Installiert und erfolgreich getestet |
 | Chrome DevTools MCP | 1.14.0 | Installiert und erfolgreich getestet |
 | Context7 MCP (entfernt, ohne Schlüssel) | Dienst | Installiert und erfolgreich getestet |
@@ -101,9 +101,11 @@ Antwort; Grenzen aus `CLAUDE.md` (höchstens drei Executor, schwere Läufe über
 
 ## Agents
 
-Sieben Projekt-Agents in `.claude/agents/`, jeder mit festem Modell, Aufwand, vorgeladenen Skills
+Acht Projekt-Agents in `.claude/agents/`, jeder mit festem Modell, Aufwand, vorgeladenen Skills
 und, wo nötig, eigenen MCP-Servern. Weitere Skills holt ein Agent bei Bedarf selbst; seine Datei
-sagt welche. So lädt kein Agent alles, und die Vorgaben widersprechen sich nicht.
+sagt welche. So lädt kein Agent alles, und die Vorgaben widersprechen sich nicht. Allen gesperrt
+(`disallowedTools`): Claude in Chrome (das echte Chrome mit Marcos Anmeldungen) und das
+Veröffentlichen von Artefakten.
 
 | Agent | Modell, Aufwand | Vorgeladen | Auf Abruf | MCP | Rolle |
 |---|---|---|---|---|---|
@@ -111,7 +113,8 @@ sagt welche. So lädt kein Agent alles, und die Vorgaben widersprechen sich nich
 | `ux-architect` | Opus, high | `ui-ux-pro-max` | `design-accessibility`, `adaptive`, `leanback-to-compose-tv-migration`, `impeccable` | – | Navigation, Struktur, Abläufe, Funktionsinventar |
 | `brand-designer` | Opus, high | `canvas-design`, `icon-generator` | `theme-generator` | – | Logo, Icons, Favicons, App-Icons, Banner, Schriften |
 | `motion-designer` | Opus, high | `emil-design-eng` | `animate`, `gestures`, `mobile-native`, `animation-performance`, `break-ui`, `impeccable` | – | Bewegung, Übergänge, Gesten, TV-Fokusbewegung |
-| `ui-engineer` | Opus, Sitzung | `vercel-react-best-practices`, `vercel-composition-patterns`, `web-design-guidelines` | `jetpack-compose-performance`, `adaptive`, `edge-to-edge`, `leanback-to-compose-tv-migration`, `emil-design-eng` | `context7` | Freigegebenes Design als Code (Web, Compose) |
+| `ui-engineer` | Opus, Sitzung | `vercel-react-best-practices`, `vercel-composition-patterns`, `web-design-guidelines` | `jetpack-compose-performance`, `adaptive`, `edge-to-edge`, `leanback-to-compose-tv-migration`, `emil-design-eng` | – | Freigegebenes Design als Code (Web, Compose) |
+| `library-docs` | Sonnet, low | – | – | `context7` | Aktuelle Bibliotheksdoku je Version; nur Read und Context7 |
 | `design-reviewer` | Opus, high | `impeccable`, `web-design-guidelines` | `ui-ux-pro-max`, `design-accessibility`, `emil-design-eng` | `playwright`, `chrome-devtools` | Unabhängige Kritik; Write und Edit gesperrt |
 | `design-qa` | Sonnet, medium | `visual-qa`, `a11y-debugging` | `break-ui`, `responsive-audit`, `ui-edge-case-audit`, `design-accessibility`, `debug-optimize-lcp` | `playwright`, `chrome-devtools` | Messen: Screenshots, axe, Lighthouse, Pixelvergleich, Emulator |
 
@@ -122,17 +125,25 @@ Server-Code, Planung und Code-Reviews bleiben die OMC-Agents zuständig (`execut
 `critic`, `code-reviewer`, `security-reviewer`, `verifier`); `oh-my-claudecode:designer` wird für
 den Relaunch nicht gebraucht.
 
-`design-reviewer` hat kein Write und Edit, aber wie die OMC-Prüfer Bash; seine Datei verbietet
-Änderungen. Die MCP-Server der Agents starten nur, solange der Agent läuft (je rund 120 bis 150 MB,
-dazu Chrome bei Gebrauch). Die Hauptsitzung in der Desktop-App hat dafür ihr eingebautes
-Browser-Fenster; im Terminal bringt `--mcp-config scripts/design-tools/mcp.json` dieselben drei
-Server in eine Sitzung.
+`design-reviewer` hat kein Write und Edit, aber wie die OMC-Prüfer Bash (für die `sc-*`-Werkzeuge);
+seine Datei verbietet Änderungen und Installationen. Die MCP-Server der Agents starten nur, solange
+der Agent läuft (je rund 120 bis 150 MB, dazu Chrome bei Gebrauch). Die Hauptsitzung in der
+Desktop-App hat dafür ihr eingebautes Browser-Fenster; im Terminal bringt
+`--mcp-config scripts/design-tools/mcp.json` die zwei Browser-Server in eine Sitzung.
+
+Die Agents sperren fremde Werkzeuge per Verbotsliste, nicht per Erlaubnisliste: Eine Erlaubnisliste
+mit MCP-Werkzeugen lässt sich in dieser Sitzung nicht prüfen und könnte das Nachladen der Werkzeuge
+(ToolSearch) abschneiden. Nur `library-docs` hat eine Erlaubnisliste (`Read`, `ToolSearch`,
+`mcp__context7__*`). Nach der Probe in einer neuen Sitzung (Abschnitt «Offen») lassen sich die
+übrigen ebenso eng fassen.
 
 ## Skills
 
-Kopiert aus dem jeweiligen Repository am geprüften Commit, nichts davon ausgeführt. Keine Hooks,
-keine Befehle, keine MCP-Einträge aus diesen Quellen. Jeder Ordner hat eine Datei `.source` mit
-Repository, Commit und Lizenz. In `~/.claude/settings.json` stehen alle 25 auf `off` (andere
+Kopiert aus dem jeweiligen Repository am geprüften Commit. Keine Hooks, keine Befehle, keine
+MCP-Einträge aus diesen Quellen; der Installer bricht ab, wenn eine Kopie `hooks:` oder
+`allowed-tools:` im Kopf, `!`-Befehle im Markdown oder Links enthält. Ausgeführt wird einzig
+`ui-ux-pro-max/scripts/search.py` (gelesen: nur Python-Standardbibliothek, offline, liest CSV).
+Jeder Ordner hat eine Datei `.source` mit Repository, Commit und Lizenz. In `~/.claude/settings.json` stehen alle 25 auf `off` (andere
 Projekte sehen sie nicht), in `.claude/settings.json` des Repos auf `name-only` (gelistet ohne
 Beschreibung, geladen bei Bedarf). Dass die Projekt-Einstellung gewinnt, ist geprüft (siehe
 «Funktionsprüfung»).
@@ -182,7 +193,10 @@ Chrome der Werkzeugkiste.
 --viewport-size 1440x900 --output-dir ~/.local/share/slouchcat-design/out/playwright-mcp`).
 25 Werkzeuge: öffnen, klicken, tippen, Formulare, Dialoge, Tasten, Grösse ändern, Screenshot,
 Konsole, Netzwerk, `browser_evaluate`. Kaputte Bilder: über `browser_evaluate` oder die
-Netzwerkliste. Weitere Argumente gehen durch, z. B. `--device "Pixel 9"`. Netz: nur was die
+Netzwerkliste. Gesperrt (in den Agents und in `.claude/settings.json` unter `permissions.deny`):
+`browser_run_code_unsafe` (führt Code im Node-Prozess des Servers aus, also mit Marcos Rechten) und
+`browser_file_upload` (könnte Dateien wie `deploy/.env` in eine Seite laden). Weitere Argumente
+gehen durch, z. B. `--device "Pixel 9"`. Netz: nur was die
 geöffnete Seite lädt, keine Telemetrie gefunden.
 
 **Chrome DevTools MCP** (`chrome-devtools-mcp` 1.14.0, Apache-2.0, Google). Start über
@@ -190,18 +204,19 @@ geöffnete Seite lädt, keine Telemetrie gefunden.
 `CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1`: keine Nutzungsdaten, keine Seitenadressen an Google, keine
 Update-Abfrage. 33 Werkzeuge, dazu, was Playwright nicht kann: Leistungs-Trace mit Auswertung (LCP,
 CLS), Lighthouse für Barrierefreiheit, SEO und Best Practices, CPU- und Netzdrosselung, CSS-Werte,
-Heap. Dateizugriff nur im Temp-Ordner. Aufteilung: Playwright bedient, DevTools misst; beide mit
+Heap. Mit `--no-file-navigations` öffnet er keine `file:`-Adressen; `upload_file` ist gesperrt wie
+oben. Aufteilung: Playwright bedient, DevTools misst; beide mit
 eigenem Browser, nie dasselbe Profil.
 
-**Context7** (Dienst `https://mcp.context7.com/mcp`, MIT, Upstash), nur beim `ui-engineer`. Ohne
+**Context7** (Dienst `https://mcp.context7.com/mcp`, MIT, Upstash), nur beim Agent `library-docs`,
+der nur lesen kann; der `ui-engineer` meldet Doku-Fragen, statt den Dienst selbst zu fragen. Ohne
 Schlüssel und ohne Konto, also ohne Kosten. Pro Aufruf gehen Bibliotheksname und Frage an Upstash,
 keine Dateien; die Agent-Datei verbietet Projektcode, Namen, Adressen und Schlüssel in Fragen.
 Grenzen ohne Schlüssel sind nicht veröffentlicht; mit kostenlosem Konto 1000 Aufrufe im Monat.
 Entfernen: den Eintrag `mcpServers` in `.claude/agents/ui-engineer.md` löschen.
 
-**GitHub:** `gh` 2.45.0, angemeldet als `MarcoBrechbuhl` (Schlüsselbund) mit `repo`, `workflow`,
-`read:org`, `gist`; Rolle ADMIN auf `SlouchCat/slouchcat`. Lesen, Zweige, Commits, Diffs, PRs,
-Reviews und Issues gehen darüber. Bekannte Falle: `gh pr edit` ändert den PR-Text nicht, dafür
+**GitHub:** `gh` 2.45.0, angemeldet über den Schlüsselbund mit Schreibrechten auf
+`SlouchCat/slouchcat`. Lesen, Zweige, Commits, Diffs, PRs, Reviews und Issues gehen darüber. Bekannte Falle: `gh pr edit` ändert den PR-Text nicht, dafür
 `gh api -X PATCH repos/SlouchCat/slouchcat/pulls/<nr> -F body=@datei`. Kein zweiter Zugang.
 
 **Schon vorhanden:** `t` aus oh-my-claudecode (50 Werkzeuge: LSP, ast-grep, Notizblock, Wiki).
@@ -209,8 +224,11 @@ Reviews und Issues gehen darüber. Bekannte Falle: `gh pr edit` ändert den PR-T
 ## Werkzeugkiste
 
 Alles unter `~/.local/share/slouchcat-design` (rund 870 MB), Links in `~/.local/bin`, ohne sudo.
-npm-Pakete exakt nach `package-lock.json` mit `npm ci --ignore-scripts`; keines braucht ein
-Installationsskript. AppImages nur mit passender SHA-256 der Projektseite.
+npm-Pakete exakt nach `package-lock.json` mit `npm ci --ignore-scripts` (jedes mit `sha512`,
+`npm audit` 0 Funde); keines braucht ein Installationsskript. AppImages nur mit passender SHA-256
+der Projektseite, Chrome nur mit der im Installer festgehaltenen SHA-256, fonttools samt Brotli und
+Zopfli mit festen Versionen und nur als fertige Wheels. Ein Merker `.slouchcat-design-toolbox`
+schützt beim Entfernen: Ohne ihn, oder wenn der Ordner `$HOME` wäre, löscht `--uninstall` nichts.
 
 | Werkzeug | Version | Lizenz | Befehl | Wofür |
 |---|---|---|---|---|
@@ -284,7 +302,7 @@ Mockups: Bilder nur über die Helfer `poster(i)`, `backdrop(i)`, `pic()`).
   6 Sammlungen, 2 Senderlogos) aus dem Bildcache der Testinstanz CT 190.
 - **Werkzeug:** `scripts/design-media.sh status`, `seed <ordner> <satz>` (Satz aus vorhandenen
   Bildern), `link <mockup-ordner> [<satz>]` (verlinkt als `img`).
-- **Nie in Git:** Neue Regel `docs/planning/mockups/*/img` in `.gitignore`. Die bisherigen Regeln
+- **Nie in Git:** Neue Regel `docs/planning/mockups/**/img` in `.gitignore`. Die bisherigen Regeln
   `img/` in den Mockup-Ordnern fassen nur Ordner, keinen Link mit diesem Namen, und
   `26-android-tv/` hatte gar keine.
 - **Neue Bilder:** aus dem Cache des eigenen Servers (`/opt/slouchcat/deploy/cache/images/<id>/…` auf
@@ -331,7 +349,7 @@ Sobald eine Galerie für mehrere Geräte im Heimnetz gebraucht wird:
 | Chrome DevTools MCP | über MCP: 33 Werkzeuge, Seite öffnen, Snapshot, Konsole und Netz, 390×844, Screenshot, Leistungs-Trace mit LCP, Lighthouse |
 | Context7 | über MCP: `resolve-library-id` für react-aria-components, `query-docs` liefert 5909 Zeichen Doku |
 | GitHub | PRs, Issues, Zweige, Dateien eines PR, `git ls-remote` |
-| Claude Code | frische Sitzung im Repo: 7 Projekt-Agents und 25 von 25 Skills geladen, keine Plugin-Fehler; ausserhalb des Repos 0 von 25 |
+| Claude Code | frische Sitzung im Repo: 8 Projekt-Agents und 25 von 25 Skills geladen, keine Plugin-Fehler; ausserhalb des Repos 0 von 25 |
 | Android TV | `sc_tv` startet in 12 s; Slouchcat-TV-App gestartet; Screenshot 1920×1080; `uiautomator dump` zeigt den Fokus; DPAD_LEFT wechselt in die Seitenleiste, DPAD_DOWN zum nächsten Eintrag |
 | Skills | `ui-ux-pro-max` Suche läuft offline; Sperre ausserhalb des Projekts greift im Skill-Werkzeug |
 
@@ -348,17 +366,24 @@ Sobald eine Galerie für mehrere Geräte im Heimnetz gebraucht wird:
 
 ## Sicherheit
 
-- Aus fremden Repositories wurde nichts ausgeführt; alle ausgewählten Skills sind gelesen und nach
-  Mustern durchsucht (Befehle aus dem Netz, versteckte Anweisungen, Geheimnisse). Fund: keine
-  verdeckten Anweisungen; `canvas-design` enthält einen erfundenen Nutzersatz zur Qualität (harmlos).
-- Keine Hooks von aussen. Keine neuen Rechte in `permissions`. Keine Geheimnisse im Repo; Context7
-  ohne Schlüssel.
+- Geprüft von zwei Security-Reviews (vor der Installation die Quellen, danach Skripte und Agents;
+  1 hoher, 4 mittlere und 9 tiefe Befunde, alle behoben ausser den unten genannten Restrisiken).
+- Aus fremden Repositories läuft nur `search.py` von `ui-ux-pro-max`; alle ausgewählten Skills sind
+  gelesen und nach Mustern durchsucht (Befehle aus dem Netz, versteckte Anweisungen, Geheimnisse).
+  Fund: keine verdeckten Anweisungen; `canvas-design` enthält einen erfundenen Nutzersatz zur
+  Qualität (harmlos).
+- Keine Hooks von aussen. `permissions` nur enger (drei gesperrte Werkzeuge), keine Freigaben.
+  Keine Geheimnisse im Repo; Context7 ohne Schlüssel.
 - Ausgehender Verkehr: Chrome DevTools MCP ohne Statistik, CrUX und Update-Abfrage; Lighthouse ohne
-  Fehlerberichte; Context7 nur Bibliotheksfragen; Browser nur zu den geöffneten Seiten.
+  Fehlerberichte; Context7 nur Bibliotheksfragen; Browser nur zu den geöffneten Seiten. Die
+  `sc-*`-Werkzeuge starten Chrome mit Sandbox.
 - Restrisiken: Skills sind Text, den ein Agent als Anweisung liest; ein Update bringt neuen Text,
   darum nur gepinnte Commits nach dem Lesen. `@playwright/mcp` hängt an einer Alpha von Playwright.
-  `evaluate_script` und `browser_evaluate` führen beliebiges JavaScript in der Seite aus; die Agents
-  öffnen nur lokale oder Test-Seiten.
+  `evaluate_script` und `browser_evaluate` führen JavaScript in der Seite aus (nicht im Rechner); die
+  Agents öffnen nur lokale oder Test-Seiten. Context7 ist ein entfernter Dienst, dessen Antworten
+  sich ändern können; darum liegt er bei einem Agent, der nur lesen kann. Die Browser-Server haben
+  keine Adress-Erlaubnisliste (`--allowed-origins` ist laut Playwright keine Sicherheitsgrenze und
+  die Testadressen wechseln die Ports).
 
 ## Rückweg
 

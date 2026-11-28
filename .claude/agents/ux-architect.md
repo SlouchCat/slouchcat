@@ -3,6 +3,7 @@ name: ux-architect
 description: UX and information architecture for Slouchcat. Use for navigation models, page structure, user journeys, feature inventories across web, phone and TV, and accessibility concepts, before visual design or code.
 model: opus
 effort: high
+disallowedTools: mcp__claude-in-chrome__*, Artifact, ArtifactComments, ArtifactData
 skills:
   - ui-ux-pro-max
 ---

@@ -15,6 +15,10 @@ usage() {
   sed -n '6,8s/^# *//p' "$0" >&2
   exit 2
 }
+# A set name is one plain folder name below $MEDIA.
+check_name() {
+  case "$1" in "" | . | .. | *[!A-Za-z0-9._-]*) echo "invalid set name: $1" >&2; exit 2 ;; esac
+}
 
 case "${1:-}" in
   status)
@@ -29,6 +33,7 @@ case "${1:-}" in
     ;;
   seed)
     [ $# -eq 3 ] || usage
+    check_name "$3"
     from="$2"
     set="$MEDIA/$3"
     [ -d "$from" ] || { echo "no such folder: $from" >&2; exit 1; }
@@ -49,6 +54,7 @@ EOF
     mockup="$2"
     [ -d "$mockup" ] || { echo "no such mockup folder: $mockup" >&2; exit 1; }
     if [ $# -ge 3 ]; then
+      check_name "$3"
       set="$MEDIA/$3"
     else
       set="$(find "$MEDIA" -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"

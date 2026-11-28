@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "deny": [
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_file_upload",
+      "mcp__chrome-devtools__upload_file"
+    ]
+  },
   "skillOverrides": {
     "ui-ux-pro-max": "name-only",
     "impeccable": "name-only",

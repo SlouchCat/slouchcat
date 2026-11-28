@@ -24,7 +24,12 @@ MAGICK_VERSION="7.1.2-36"
 MAGICK_URL="https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-36/ImageMagick-7.1.2-36-x86_64.AppImage"
 MAGICK_SHA256="68cca0053a8f82206e72400014f32f4b654e9807f45928a2325a1d14d695fb3a"
 CHROME_VERSION="158.0.8127.88"
+# SHA-256 of chrome-linux64/chrome as unpacked on 28 November 2026; @puppeteer/browsers checks only TLS.
+CHROME_SHA256="1ce7865c612bd8a55b4a07b2df89350e408d603a52763b5902b48143b8033903"
 FONTTOOLS_VERSION="4.69.1"
+BROTLI_VERSION="1.2.1"
+ZOPFLI_VERSION="0.4.3"
+MARKER=".slouchcat-design-toolbox"
 
 # Commands linked into ~/.local/bin: name and target below $ROOT.
 LINKED=(
@@ -48,6 +53,9 @@ LINKED=(
 is_ours() { [ -L "$1" ] && case "$(readlink "$1")" in "$ROOT"/*) true ;; *) false ;; esac; }
 
 if [ "${1:-}" = "--uninstall" ]; then
+  # Deletes only a folder this script created (marker file), never $HOME or /.
+  case "$ROOT" in "" | / | "$HOME" | "$HOME/") echo "refusing to remove $ROOT" >&2; exit 1 ;; esac
+  [ -f "$ROOT/$MARKER" ] || { echo "no toolbox marker in $ROOT; nothing removed" >&2; exit 1; }
   for entry in "${LINKED[@]}"; do
     name="${entry%% *}"
     if is_ours "$LINKS/$name"; then rm -f "$LINKS/$name"; fi
@@ -61,7 +69,9 @@ fi
 
 command -v node >/dev/null 2>&1 || { echo "node is missing (docs/dev/SETUP.md)" >&2; exit 1; }
 node_bin="$(command -v node)"
+case "$ROOT" in "" | / | "$HOME" | "$HOME/") echo "SLOUCHCAT_DESIGN_HOME must be its own folder" >&2; exit 1 ;; esac
 mkdir -p "$ROOT/node" "$ROOT/bin" "$ROOT/browsers" "$ROOT/media" "$LINKS"
+touch "$ROOT/$MARKER"
 
 # 1. npm packages, exactly as locked. No install scripts run; none of the packages needs one.
 lock_sum="$(sha256sum "$here/design-tools/package-lock.json" | cut -d' ' -f1)"
@@ -78,6 +88,11 @@ chmod +x "$ROOT/node/tools"/sc-*.mjs
 chrome="$ROOT/browsers/chrome/linux-$CHROME_VERSION/chrome-linux64/chrome"
 if [ ! -x "$chrome" ]; then
   "$ROOT/node/node_modules/.bin/browsers" install "chrome@$CHROME_VERSION" --path "$ROOT/browsers"
+fi
+if ! echo "$CHROME_SHA256  $chrome" | sha256sum -c --quiet -; then
+  rm -rf "$ROOT/browsers/chrome/linux-$CHROME_VERSION"
+  echo "Chrome binary does not match the pinned SHA-256; removed" >&2
+  exit 1
 fi
 ln -sfn "$chrome" "$ROOT/bin/chrome"
 
@@ -132,14 +147,18 @@ write_script "$ROOT/bin/sc-mcp-chrome-devtools" <<EOF
 #!/bin/sh
 export CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1
 exec "$node_bin" "$ROOT/node/node_modules/.bin/chrome-devtools-mcp" --headless --isolated \\
-  --executablePath "$ROOT/bin/chrome" --viewport 1440x900 \\
+  --executablePath "$ROOT/bin/chrome" --viewport 1440x900 --no-file-navigations \\
   --no-usage-statistics --no-performance-crux "\$@"
 EOF
 
-# 4. fonttools with Brotli (WOFF2) through pipx.
+# 4. fonttools with Brotli and Zopfli (WOFF2) through pipx, all three pinned, wheels only.
 if command -v pipx >/dev/null 2>&1; then
   if ! pipx list --short 2>/dev/null | grep -qx "fonttools $FONTTOOLS_VERSION"; then
-    pipx install --force "fonttools[woff]==$FONTTOOLS_VERSION"
+    pins="$(mktemp)"
+    printf 'brotli==%s\nzopfli==%s\n' "$BROTLI_VERSION" "$ZOPFLI_VERSION" >"$pins"
+    pipx install --force --pip-args="--only-binary=:all: --constraint $pins" \
+      "fonttools[woff]==$FONTTOOLS_VERSION"
+    rm -f "$pins"
   fi
 else
   echo "pipx is missing: fonttools not installed (sudo apt install pipx, then run again)" >&2
@@ -149,7 +168,7 @@ fi
 for entry in "${LINKED[@]}"; do
   name="${entry%% *}"
   target="$ROOT/${entry#* }"
-  if [ -e "$LINKS/$name" ] && ! is_ours "$LINKS/$name"; then
+  if { [ -e "$LINKS/$name" ] || [ -L "$LINKS/$name" ]; } && ! is_ours "$LINKS/$name"; then
     echo "kept existing $LINKS/$name (not from this toolbox); use $target directly" >&2
     continue
   fi
