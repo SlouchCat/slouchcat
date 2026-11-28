@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "deny": [
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_file_upload",
+      "mcp__chrome-devtools__upload_file"
+    ]
+  },
+  "skillOverrides": {
+    "ui-ux-pro-max": "name-only",
+    "impeccable": "name-only",
+    "emil-design-eng": "name-only",
+    "animate": "name-only",
+    "animation-performance": "name-only",
+    "gestures": "name-only",
+    "mobile-native": "name-only",
+    "break-ui": "name-only",
+    "design-accessibility": "name-only",
+    "token-audit": "name-only",
+    "responsive-audit": "name-only",
+    "ui-edge-case-audit": "name-only",
+    "visual-qa": "name-only",
+    "icon-generator": "name-only",
+    "theme-generator": "name-only",
+    "canvas-design": "name-only",
+    "web-design-guidelines": "name-only",
+    "vercel-react-best-practices": "name-only",
+    "vercel-composition-patterns": "name-only",
+    "jetpack-compose-performance": "name-only",
+    "adaptive": "name-only",
+    "edge-to-edge": "name-only",
+    "leanback-to-compose-tv-migration": "name-only",
+    "a11y-debugging": "name-only",
+    "debug-optimize-lcp": "name-only"
+  }
+}

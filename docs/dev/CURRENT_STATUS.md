@@ -1,5 +1,27 @@
 # Aktueller Stand
 
+## Design-Werkzeuge für den Relaunch eingerichtet (28. November 2026)
+
+Marcos Auftrag vom 28. November 2026: die Arbeitsumgebung für den UI-/UX-Relaunch und das
+Rebranding vorbereiten, ohne mit dem Relaunch zu beginnen. Alles steht in
+`docs/dev/DESIGN-WERKZEUGE.md`.
+
+- **Neu im Repo:** sieben Design-Agents und `library-docs` (`.claude/agents/`), Projekt-Einstellung,
+  die 25 Skills von aussen nur in diesem Repo einschaltet und drei riskante Browser-Werkzeuge sperrt
+  (`.claude/settings.json`), Installer und Prüfung
+  (`scripts/install-design-tools.sh`, `scripts/install-design-skills.sh`,
+  `scripts/design-tools-check.sh`, `scripts/design-media.sh`, `scripts/design-tools/`), Plan der
+  eigenen Skills (`.claude/skills/README.md`), `.gitignore`-Regel gegen Medienbilder in Mockups.
+- **Auf dem Rechner:** Werkzeugkiste unter `~/.local/share/slouchcat-design` (Chrome for Testing,
+  Inkscape, ImageMagick, svgo, sharp, resvg, fonttools, Lighthouse, axe-core, Playwright MCP,
+  Chrome DevTools MCP), 25 Skills an gepinnten Commits in `~/.claude/skills`.
+- **Geprüft:** `scripts/design-tools-check.sh` 45 von 45 grün; beide Browser-MCP-Server über das
+  MCP-Protokoll bedient; Context7 und GitHub abgefragt; TV-Emulator mit Fokus per D-Pad. Nach dem
+  Merge (PR #238, `aecb04f6`) in einer neuen Sitzung: `design-qa` bedient eine Probeseite mit
+  Playwright und Chrome DevTools, die drei gesperrten Browser-Werkzeuge fehlen ihm.
+- **Stand:** oh-my-claudecode bleibt bei 5.8.4. Kein Code von Server, Web-App oder Apps geändert.
+  Offen: nichts.
+
 ## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026, PR #235)
 
 PR #235, gemergt am 28. November 2026 (`a1556fce`). Veröffentlicht am selben Tag: Server **1.44.1** (Tag
