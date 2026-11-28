@@ -43,24 +43,46 @@ on:
   push:
     tags: ["v*.*.*"]
 
-permissions:
-  contents: write
-  packages: write
-  # For the build provenance below: the attestation is signed with a short-lived OIDC token, so
-  # whoever pulls the image can check that it came out of this workflow and this commit.
-  id-token: write
-  attestations: write
+# Nothing at the workflow level; the one job names what it needs (H2 of
+# docs/perf/ci-optimierungsplan.md, 28 November 2026).
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: write
+      # For the build provenance below: the attestation is signed with a short-lived OIDC token, so
+      # whoever pulls the image can check that it came out of this workflow and this commit.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The annotated tag's message becomes the release notes; a shallow checkout has no tag
           # object to read it from.
           fetch-depth: 0
+          # No token left in .git/config: nothing here pushes with git, the repository is public
+          # for the fetch below, and gh gets its token through GH_TOKEN.
+          persist-credentials: false
+
+      # A tag on a commit outside main (or a release branch for a backport) is a mistake or worse;
+      # it fails here, before anything is built. The tag ruleset is the protection against a
+      # tag that should not exist; this check catches the slip (as release-android.yml does).
+      - name: Check that the tagged commit is in main or a release branch
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release/*:refs/remotes/origin/release/*'
+          for branch in $(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release/*'); do
+            if git merge-base --is-ancestor "${GITHUB_SHA}" "$branch"; then
+              echo "${GITHUB_REF_NAME} (${GITHUB_SHA}) is in ${branch#refs/remotes/origin/}"
+              exit 0
+            fi
+          done
+          echo "::error::${GITHUB_REF_NAME} (${GITHUB_SHA}) is not a commit of main or of a release/* branch" >&2
+          exit 1
 
       # The image name has to be lower case: a Docker repository name may not carry a capital, and
       # github.repository keeps the spelling of the owner ("SlouchCat/slouchcat"). The first run of
@@ -122,8 +144,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.image) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
@@ -143,8 +167,8 @@ jobs:
           create-storage-record: false
 
       # The updater companion (ADR 0024) is released with the server, from the same commit, but
-      # it is a separate image: only it gets the Docker socket. Its own cache scope keeps the two
-      # builds from overwriting each other's cache.
+      # it is a separate image: only it gets the Docker socket. Built without cache, like the server
+      # image above.
       - name: Build and push the updater image for linux/amd64 and linux/arm64
         id: build-updater
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -157,8 +181,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.updater_image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.updater_image) || '' }}
-          cache-from: type=gha,scope=updater
-          cache-to: type=gha,mode=max,scope=updater
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
@@ -180,6 +206,13 @@ jobs:
       # lightweight ref with the real tag object. `git for-each-ref` is used rather than `git tag
       # -l` because it fails loudly on a ref that is not there.
       - name: Write the release manifest and the notes
+        # Values of earlier steps reach the script through the environment, not pasted into it.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE: ${{ steps.version.outputs.image }}
+          UPDATER_IMAGE: ${{ steps.version.outputs.updater_image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          UPDATER_DIGEST: ${{ steps.build-updater.outputs.digest }}
         run: |
           set -euo pipefail
           git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
@@ -190,7 +223,7 @@ jobs:
           notes="$(git for-each-ref --format='%(contents:body)' "$ref" | sed -e 's/[[:space:]]*$//')"
           subject="$(git for-each-ref --format='%(contents:subject)' "$ref")"
           [ -n "$notes" ] || notes="$subject"
-          [ -n "$notes" ] || notes="Slouchcat ${{ steps.version.outputs.version }}"
+          [ -n "$notes" ] || notes="Slouchcat $VERSION"
           printf '%s\n' "$notes" > release-notes.md
           # Base name -> lowercase sha256 of every compose file; the updater replaces a file of the
           # running project when its hash differs (base names are unique across deploy/).
@@ -210,12 +243,12 @@ jobs:
           jq -n \
             --argjson deploy "$deploy" \
             --argjson deployKnown "$known" \
-            --arg version "${{ steps.version.outputs.version }}" \
-            --arg url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
+            --arg version "$VERSION" \
+            --arg url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}" \
             --arg notes "$notes" \
             --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg image "${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}" \
-            --arg updaterImage "${{ steps.version.outputs.updater_image }}@${{ steps.build-updater.outputs.digest }}" \
+            --arg image "$IMAGE@$DIGEST" \
+            --arg updaterImage "$UPDATER_IMAGE@$UPDATER_DIGEST" \
             '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image, updaterImage: $updaterImage, deploy: $deploy, deployKnown: $deployKnown}' > manifest.json
           # The updater accepts only this form (server/cmd/updater, digestRef).
           jq -e '.image | test("^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$")' manifest.json
@@ -231,13 +264,16 @@ jobs:
       - name: Create the release with the manifest, the compose files and the ffmpeg notice
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST: ${{ steps.kind.outputs.latest }}
+          PRERELEASE: ${{ steps.kind.outputs.prerelease }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           flags=(--latest=false)
-          if [ "${{ steps.kind.outputs.latest }}" = true ]; then flags=(--latest); fi
-          if [ "${{ steps.kind.outputs.prerelease }}" = true ]; then flags+=(--prerelease); fi
+          if [ "$LATEST" = true ]; then flags=(--latest); fi
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
           gh release create "${GITHUB_REF_NAME}" \
-            --title "Slouchcat ${{ steps.version.outputs.version }}" \
+            --title "Slouchcat $VERSION" \
             --notes-file release-notes.md \
             "${flags[@]}" \
             manifest.json \
