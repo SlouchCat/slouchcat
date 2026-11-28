@@ -379,12 +379,20 @@ M3, M7). Messwerte: `docs/perf/ci.md`, Abschnitt 9.
   Ein Lauf desselben PR-Kopfs gegen einen anderen Zielzweig prüfte einen anderen Merge und zählt
   nicht mehr (Sicherheitsprüfung vom 28. November 2026). Das Feld `pull_requests` eines Laufs taugt
   dafür nicht: GitHub nennt dort nur **offene** PRs, und in allen 505 Läufen war es leer.
+- **Neue Bedingung 6:** Ändert der Merge etwas unter `.github/`, läuft `main` voll. Der PR-Lauf prüfte
+  mit seinem eigenen Workflow, seinen Skripten und seiner Jobliste; eine Änderung dort ist eine
+  Änderung der Prüfung selbst (Sicherheitsprüfung vom 28. November 2026, solange `main` keinen
+  Pflicht-Check und kein CODEOWNERS hat). Auch der Merge, der diese Bedingung einführt, läuft deshalb
+  voll.
 - PR-Läufe von vor dieser Änderung haben keine Annotation; ihre Merges laufen auf `main` voll.
 - **Fremdtext:** Dateinamen, Jobnamen und Annotationen stammen aus dem PR. Der Job `changes` schaltet
   beim Auflisten der Dateien die Workflow-Befehle ab (`::stop-commands::`), und das Skript gibt
   Fremdtext nur einzeilig und bereinigt aus. Sonst könnte eine Datei mit dem Namen eines
   Workflow-Befehls diesen im Job ausführen.
-- Selbsttest: `.github/scripts/already-tested.test.sh` (12 Fälle, gefälschtes `gh`).
+- Mehrdeutiges gilt nicht als Beleg: zwei Jobs namens `changes (docs only?)`, zwei Annotationen
+  `tested-tree`, ein Job ohne Ergebnis. Auch die alte Befehlsform `##[`, die überall in einer Zeile
+  wirkt, wird in ausgegebenem Fremdtext aufgebrochen.
+- Selbsttest: `.github/scripts/already-tested.test.sh` (15 Fälle, gefälschtes `gh`).
 
 ### apt mit Zeitgrenze (M2)
 
@@ -398,8 +406,12 @@ der Meldung «apt hang (infrastructure)». Kein Test wird wiederholt.
 `scripts/ci-failures.sh` (`task ci:failures RUN=<id>`) gibt je rotem Job den roten Schritt, eine
 Einordnung, einen Hinweis auf denselben Job grün auf demselben Commit und die Fehlerzeilen des
 Schritts aus, höchstens 80 Zeilen. Das ganze Log bleibt auf der Platte. An den zehn Referenzläufen
-der Messung: Ursache 10 von 10, zusammen rund 8 900 statt 3,05 Millionen Tokens. Das Gate schreibt
-seine Ergebnistabelle zusätzlich auf die Übersichtsseite des Laufs.
+der Messung: Ursache 10 von 10, zusammen rund 9 200 statt 3,05 Millionen Tokens. «Ohne Codeänderung
+gescheitert» meldet es nur, wenn derselbe Job in einem anderen Versuch **desselben** Laufs grün war:
+Jeder Versuch prüft denselben Commit, ein anderer Lauf desselben Kopfs vielleicht einen anderen Merge.
+Steuerzeichen aus Logs erreichen das Terminal nicht, und die Ausgabe sagt, dass ihr Text Daten sind
+(auch aus Fork-PRs). Das Gate schreibt seine Ergebnistabelle zusätzlich auf die Übersichtsseite des
+Laufs.
 
 ### Die Workflows prüfen sich selbst (M7)
 

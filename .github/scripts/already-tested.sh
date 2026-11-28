@@ -22,6 +22,9 @@
 #     now on main: a run of the same P2 against another base branch checked another merge and does
 #     not count. The run's `pull_requests` field cannot do this, because GitHub lists only open pull
 #     requests there and the pull request is already merged when this runs.
+#  6. The merge does not change .github/. The pull-request run checked with the pull request's own
+#     workflow, scripts and job list; a change there is a change of the check itself, and main
+#     then checks it in full with what is now merged (security review of 28 November 2026).
 #
 # Needs: a checkout with both parents (fetch-depth 2), `gh` with GH_TOKEN (actions: read,
 # checks: read), GITHUB_REPOSITORY and GITHUB_SERVER_URL. Any API error prints `false`: what cannot
@@ -31,9 +34,10 @@ set -euo pipefail
 
 say() { echo "already-tested: $*" >&2; }
 # Job names and annotation texts come from the pull request (its ci.yml, its steps). Printed into
-# this log, a line starting with `::` would be a workflow command of this job; only printable
-# characters of a single line pass, and nothing printed here starts a line.
-clean() { printf '%s' "$1" | tr -d '\r\n' | tr -cd '[:print:]'; }
+# this log, a line starting with `::` would be a workflow command of this job, and the old form
+# `##[` works anywhere in a line; only printable characters of a single line pass, nothing printed
+# here starts a line, and `##[` is broken up.
+clean() { printf '%s' "$1" | tr -d '\r\n' | tr -cd '[:print:]' | sed 's/##\[/# #[/g'; }
 answer() {
   echo "$1"
   exit 0
@@ -69,6 +73,11 @@ if [ "$head_tree" != "$(git rev-parse "$p2^{tree}")" ]; then
   answer false
 fi
 
+if ! git diff --quiet "$p1" HEAD -- .github; then
+  say "the merge changes .github/: main checks it in full"
+  answer false
+fi
+
 # The list is not filtered with status=success: that filter missed a finished run once (the merge
 # of #178 on 16 November 2026: the run was complete and green, and status=success did not list
 # it, not even twenty minutes later; apparently GitHub answers the filter from an index). The
@@ -82,7 +91,7 @@ for run in $runs; do
   # Every job of the run's latest attempt: id, conclusion and name, one line each (@tsv escapes a
   # tab or line break inside a name, so a name is always one field).
   jobs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
-    --jq '.jobs[] | [.id, .conclusion, .name] | @tsv' 2>/dev/null) || continue
+    --jq '.jobs[] | [.id, (.conclusion // "null"), .name] | @tsv' 2>/dev/null) || continue
   [ -n "$jobs" ] || continue
   bad=
   note=
@@ -92,18 +101,21 @@ for run in $runs; do
       note="${note:+$note; }$(clean "$name"): $(clean "$conclusion")"
       continue
     fi
-    [ "$name" = "changes (docs only?)" ] && changes_job=$id
+    if [ "$name" = "changes (docs only?)" ]; then
+      # Two jobs of that name would leave the choice to the order; that is no proof.
+      [ -z "$changes_job" ] && changes_job=$id || changes_job=ambiguous
+    fi
     [ "$conclusion" = success ] || bad="${bad:+$bad, }$(clean "$name"): $(clean "$conclusion")"
   done <<<"$jobs"
   if [ -n "$bad" ]; then
     say "run $run of $p2 has jobs that did not succeed: $bad"
     continue
   fi
-  if [ -z "$changes_job" ]; then
-    say "run $run of $p2 has no job \"changes (docs only?)\""
+  if [ -z "$changes_job" ] || [ "$changes_job" = ambiguous ]; then
+    say "run $run of $p2 has no single job \"changes (docs only?)\""
     continue
   fi
-  tested=$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$changes_job/annotations" \
+  tested=$(gh api --paginate "repos/$GITHUB_REPOSITORY/check-runs/$changes_job/annotations" \
     --jq '.[] | select(.title == "tested-tree") | .message' 2>/dev/null) || {
     say "reading the annotations of run $run failed"
     continue

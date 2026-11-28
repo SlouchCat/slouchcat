@@ -130,8 +130,11 @@ tasks:
     sources:
       - .github/**/*
       - .tool-versions
+      - Taskfile.yml
       - scripts/ci-failures*.sh
       - server/tools/ciworkflows/**/*
+      - server/go.mod
+      - server/go.sum
     cmds:
       - task: ci:workflows
 
@@ -272,7 +275,8 @@ tasks:
           echo "actionlint is not installed: go install github.com/rhysd/actionlint/cmd/actionlint@v$want" >&2
           exit 1
         fi
-        have=$(actionlint -version | head -1)
+        have=$(actionlint -version | awk 'NR == 1')
+        have=${have#v}
         [ "$have" = "$want" ] || echo "note: actionlint $have, .tool-versions pins $want" >&2
         command -v shellcheck >/dev/null || echo "note: shellcheck is not installed, run: blocks are not checked" >&2
         actionlint

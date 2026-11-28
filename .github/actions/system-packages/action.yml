@@ -37,8 +37,10 @@ runs:
         GROUP: ${{ inputs.group }}
       run: |
         set -euo pipefail
+        # A package name only: a line like `--allow-unauthenticated` must not become an apt option.
         list=$(awk -v group="$GROUP" \
-          '$1 == group { print $2 }' .github/ci-packages.txt | sort -u | tr '\n' ' ')
+          '$1 == group && $2 ~ /^[a-z0-9][a-z0-9+.:-]*$/ { print $2 } $1 == group && $2 !~ /^[a-z0-9][a-z0-9+.:-]*$/ { print "bad package name: " $2 > "/dev/stderr"; exit 1 }' \
+          .github/ci-packages.txt | sort -u | tr '\n' ' ')
         if [ -z "${list// /}" ]; then
           echo "::error file=.github/ci-packages.txt::no package for group '$GROUP'" >&2
           exit 1
@@ -117,8 +119,8 @@ runs:
         set -euo pipefail
         limited() {
           local status=0
-          sudo timeout "$APT_LIMIT" "$@" || status=$?
-          if [ "$status" = 124 ]; then
+          sudo timeout --kill-after=30 "$APT_LIMIT" "$@" || status=$?
+          if [ "$status" = 124 ] || [ "$status" = 137 ]; then
             echo "::error title=apt hang (infrastructure)::'$*' did not finish within $APT_LIMIT s; the mirror is not answering. Rerun the failed jobs." >&2
           fi
           return "$status"
@@ -138,8 +140,8 @@ runs:
         set -euo pipefail
         status=0
         # shellcheck disable=SC2086 -- one word per browser is the point.
-        timeout "$APT_LIMIT" pnpm --filter @slouchcat/web exec playwright install-deps $BROWSERS || status=$?
-        if [ "$status" = 124 ]; then
+        timeout --kill-after=30 "$APT_LIMIT" pnpm --filter @slouchcat/web exec playwright install-deps $BROWSERS || status=$?
+        if [ "$status" = 124 ] || [ "$status" = 137 ]; then
           echo "::error title=apt hang (infrastructure)::playwright install-deps did not finish within $APT_LIMIT s; the mirror is not answering. Rerun the failed jobs." >&2
         fi
         exit "$status"

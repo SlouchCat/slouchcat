@@ -93,21 +93,9 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      - name: Check the Gradle wrapper
-        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
-
-      - name: JDK 21 and the Android SDK packages
-        run: |
-          set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          log=$(mktemp)
-          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
-          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
-            cat "$log"
-            exit 1
-          fi
+      # The Gradle wrapper's hash, JDK 21 and the SDK packages, the same as in ci.yml
+      # (.github/actions/android-sdk): a Gradle or SDK update then changes one place.
+      - uses: ./.github/actions/android-sdk
 
       # Nothing is published from a commit whose Android checks are red.
       - run: task android:check

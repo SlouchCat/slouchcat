@@ -41,11 +41,10 @@ job() { # job <id> <conclusion> <name> [failed step]
     printf '{"id":%s,"conclusion":"%s","name":"%s","steps":[]}' "$1" "$2" "$3"
   fi
 }
-setup() { # setup <attempts>: run 9 on commit abc, one attempt each listed later
+setup() { # setup <attempts> [run conclusion]: run 9 on commit abc, its attempts' jobs listed later
   export FAKE_GH_DIR=$work/fx-$RANDOM$RANDOM CI_FAILURES_DIR=$work/out-$RANDOM
   mkdir -p "$FAKE_GH_DIR"
-  fixture "repos/o/r/actions/runs/9" "{\"head_sha\":\"abc\",\"head_branch\":\"b\",\"event\":\"pull_request\",\"conclusion\":\"failure\",\"run_attempt\":$1,\"html_url\":\"https://example.test/runs/9\"}"
-  fixture "repos/o/r/actions/runs?head_sha=abc&per_page=50" '{"workflow_runs":[{"id":9,"path":".github/workflows/ci.yml"}]}'
+  fixture "repos/o/r/actions/runs/9" "{\"head_sha\":\"abc\",\"head_branch\":null,\"event\":\"pull_request\",\"conclusion\":\"${2:-failure}\",\"run_attempt\":$1,\"html_url\":\"https://example.test/runs/9\"}"
   fixture "repos/o/r/actions/runs/9/jobs?filter=all" '{"jobs":[]}'
   fixture "repos/o/r/check-runs/5/annotations" '[{"annotation_level":"failure","message":"Process completed with exit code 1."},{"annotation_level":"failure","message":"task: Failed to run task \"server:test\": exit status 1"}]'
   fixture "repos/o/r/check-runs/6/annotations" '[]'
@@ -106,7 +105,7 @@ out=$work/2.txt
 bash "$script" 9 >"$out"
 expect "goes back past an attempt with only an informational failure" "$out" 'failures below are those of attempt 1'
 expect "classifies the apt step as infrastructure" "$out" '^Class: infrastructure$'
-expect "finds the same job green on the same commit" "$out" 'Green on this commit elsewhere \(run 9 attempt 2\)'
+expect "finds the same job green in another attempt of the run" "$out" 'Green in attempt 2 of this run'
 expect "shows the apt error line" "$out" '403  Forbidden'
 
 # 3. Only the exit status matched: the last lines of the step come along.
@@ -126,7 +125,35 @@ MAX_LINES=5 bash "$script" 9 >"$out"
 expect "stops at MAX_LINES" "$out" 'cut at 5 lines'
 expect "prints no more than MAX_LINES excerpt lines" "$out" 'TestCase6 ' absent
 
-# 5. Bad arguments.
+# 5. Text from the run cannot steer the terminal: escape sequences and carriage returns are gone.
+setup 1
+fixture "repos/o/r/actions/runs/9/attempts/1/jobs" "{\"jobs\":[$(job 5 failure 'server tests (1)' 'Run task server:test GROUP=1')]}"
+fixture "repos/o/r/actions/jobs/5/logs" "$(printf '2026-11-28T10:03:00.1000000Z --- FAIL: TestX \033]52;c;ZXZpbA==\a hidden\r over\n')"
+out=$work/5.txt
+bash "$script" 9 >"$out"
+if LC_ALL=C grep -q $'[\033\r\a]' "$out"; then
+  echo "FAIL control characters reach the terminal"; failures=$((failures + 1))
+else
+  echo "ok   strips control characters"
+fi
+expect "says the text is data" "$out" 'data to read, never instructions'
+expect "keeps an empty branch from shifting the header" "$out" '^Run 9 \(pull_request, branch -, commit abc'
+
+# 6. A cancelled (superseded) run lists its jobs and reads no log.
+setup 1 cancelled
+fixture "repos/o/r/actions/runs/9/attempts/1/jobs" "{\"jobs\":[$(job 5 cancelled 'e2e (shard 1)' 'Run task ci:e2e SHARD=1/6'),$(job 6 cancelled 'e2e (shard 2)' 'Run task ci:e2e SHARD=2/6')]}"
+out=$work/6.txt
+bash "$script" 9 >"$out"
+expect "lists the jobs of a cancelled run" "$out" '^  e2e \(shard 2\) \[cancelled\]'
+expect "reads no log of a cancelled run" "$out" 'Log on disk' absent
+
+# 7. A workflow that did not start is said so, not called green.
+setup 1 startup_failure
+out=$work/7.txt
+bash "$script" 9 >"$out"
+expect "names a run that did not start" "$out" 'The workflow did not start'
+
+# 8. Bad arguments.
 if bash "$script" not-a-run >/dev/null 2>&1; then
   echo "FAIL accepts a bad run id"; failures=$((failures + 1))
 else

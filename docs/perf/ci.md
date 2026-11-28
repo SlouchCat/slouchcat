@@ -355,9 +355,9 @@ Die Auswerteskripte liegen lokal in `.omc/research/ci-optimierung/skripte/` (nic
 
 | Massnahme | Erwartung | Nachmessen nach dem Merge |
 |---|---|---|
-| M1 Übernahme ohne informative Jobs, an den Baum gebunden | Merges eines Zweigs auf aktuellem main mit grünem PR-Lauf werden übernommen, auch bei rotem Emulator-Job; main-Ergebnis nach rund 5,5 statt 13,9 min | Anteil Übernahmen unter diesen Merges (Ziel 10 von 10) |
+| M1 Übernahme ohne informative Jobs, an den Baum gebunden | Merges eines Zweigs auf aktuellem main mit grünem PR-Lauf werden übernommen, auch bei rotem Emulator-Job; main-Ergebnis nach rund 5,5 statt 13,9 min | Anteil Übernahmen unter diesen Merges, ohne Merges mit Änderungen unter `.github/` (Bedingung 6; der Merge dieser Änderung selbst läuft voll), Ziel 10 von 10 |
 | M2 apt-Zeitgrenzen | Hänger rot nach höchstens rund 10 min statt 30–47; Normalfall unverändert | Median von `system-packages` (heute 26–33 s, ±5 s), Jobs am Jobzeitlimit (Ziel 0 in 30 Tagen) |
-| M3 Fehlerauszug | ≤ 3000 Tokens je Lauf, Ursache enthalten | an den zehn Referenzläufen gemessen: 335 bis 2294 Tokens, Ursache 10 von 10 |
+| M3 Fehlerauszug | ≤ 3000 Tokens je Lauf, Ursache enthalten | an den zehn Referenzläufen gemessen: 332 bis 2340 Tokens (zusammen 9204), Ursache 10 von 10 |
 | M7 Workflow-Selbstprüfung | keine Laufzeitwirkung (Sekunden in `server-lint`) | Dauer von `server-lint` (heute Median 3,5 min) |
 
 Welle 1 ändert keinen langen Pol; die Wartezeit eines PR bleibt bei rund 15 Minuten. Die Wartezeit

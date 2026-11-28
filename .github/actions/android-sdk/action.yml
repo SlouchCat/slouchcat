@@ -1,7 +1,7 @@
-# The Android set-up the jobs android, android-contract and android-emulator share: the check of
-# the Gradle wrapper, JDK 21 (the runner's own) and the SDK packages the build needs. It used to be
-# the same two steps three times in ci.yml, with the wrapper's hash three times
-# (docs/perf/ci-optimierungsplan.md, M7). No third-party action.
+# The Android set-up the jobs android, android-contract and android-emulator of ci.yml and the
+# build job of release-android.yml share: the check of the Gradle wrapper, JDK 21 (the runner's
+# own) and the SDK packages the build needs. It used to be the same two steps four times, with the
+# wrapper's hash four times (docs/perf/ci-optimierungsplan.md, M7). No third-party action.
 name: Set up JDK 21 and the Android SDK
 description: Checks the Gradle wrapper, selects JDK 21 and installs the SDK packages of the build
 
@@ -18,7 +18,7 @@ runs:
   steps:
     # The wrapper jar is a binary in the repository: it must be the one Gradle publishes for the
     # version in gradle-wrapper.properties (sha256 of gradle-9.9.2-wrapper.jar). A Gradle update
-    # changes both, the properties and this line.
+    # changes the properties, the jar and this line; nothing else in .github carries the hash.
     - name: Check the Gradle wrapper
       shell: bash
       run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -

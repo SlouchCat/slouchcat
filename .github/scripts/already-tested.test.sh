@@ -132,9 +132,31 @@ fixture "repos/o/r/actions/runs/11/jobs" '{"jobs":[{"id":2,"conclusion":"success
 expect "a run without the job changes blocks" false
 
 setup
+fixture "repos/o/r/actions/runs/11/jobs" "$(green_jobs success '{"id":5,"conclusion":"success","name":"changes (docs only?)"}')"
+expect "two jobs named changes block" false
+
+setup
+fixture "repos/o/r/actions/runs/11/jobs" "$(green_jobs success '{"id":4,"conclusion":null,"name":"e2e (shard 1)"}')"
+expect "a job without a conclusion blocks" false
+grep -q 'e2e (shard 1): null' "$FAKE_GH_DIR/stderr" || { echo "FAIL null conclusion not named"; failures=$((failures + 1)); }
+
+setup
 git checkout -q --detach "$p2"
 expect "a commit with one parent blocks" false
 git checkout -q main
+
+# A merge that changes .github/ is checked in full on main, whatever the pull-request run said.
+git checkout -q -b workflow feature
+mkdir -p .github && echo x >.github/x && git add .github/x && git commit -q -m W
+git checkout -q main
+git merge -q --no-ff workflow -m M2
+p1=$(git rev-parse HEAD^1)
+p2=$(git rev-parse HEAD^2)
+tree=$(git rev-parse 'HEAD^{tree}')
+runs_endpoint="repos/o/r/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$p2&per_page=100"
+setup
+expect "a merge that changes .github blocks" false
+grep -q 'changes .github/' "$FAKE_GH_DIR/stderr" || { echo "FAIL reason for .github not given"; failures=$((failures + 1)); }
 
 if [ "$failures" -gt 0 ]; then
   echo "already-tested.test.sh: $failures case(s) failed" >&2
