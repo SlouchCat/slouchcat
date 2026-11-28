@@ -1,10 +1,12 @@
 # Konzept 28 · API
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
-Fassung 2 arbeitet Review 2 (`anhang/reviews/review-2-datenmodell-api.md`), `04` Fassung 3 (T-29, Abschnitt 14) und
-die Stufen aus `18-umsetzungsplan.md` ein (1a, 1b, 2, 3, H, 4, 5, 6, L, W, E, Apps); was sich geändert hat, steht
-in Abschnitt 10.
+Fassung 2 arbeitete Review 2 (`anhang/reviews/review-2-datenmodell-api.md`), `04` Fassung 3 und die Stufen aus
+`18-umsetzungsplan.md` ein (Abschnitt 10). Fassung 3 folgt `04` Fassung 4 (Abschnitt 14, Folgeänderungen 15.3),
+`12-sicherheit.md` Fassung 3 (wo strenger) und den Schlussreviews 4, 5 und 6 (Abschnitt 11). **Ohne deine Antwort
+gilt die wortlauttreue Vorgabe**, bei Sicherheitsfragen die sichere; ein Feld, das erst eine andere Variante
+bräuchte, steht nur als Hinweis «käme mit …», nie im Schema.
 
 Dieses Dokument ist die **einzige Quelle** für die Schnittstellen von Live-TV: welche Operationen es gibt, wer sie
 aufrufen darf, was sie annehmen und liefern, welche Fehler sie melden und wie die Ströme ausgeliefert werden. Die
@@ -124,7 +126,7 @@ bekommen, regelt `18` Abschnitt 5 (Stufe «Apps»); der Vertrag ist ihnen voraus
 |---|---|---|---|---|---|---|
 | POST | `/live/sessions` | `createLiveSession` | Sitzung anlegen und einen Sender einstellen oder eine Aufnahme abspielen | L (Aufnahme: L + A oder H) | LS-07, LS-10 | 1a (Aufnahme 5) |
 | POST | `/live/sessions/{sessionId}/tune` | `tuneLiveSession` | umschalten in derselben Sitzung | L | LS-07, LD-10 | 1a |
-| POST | `/live/sessions/{sessionId}/heartbeat` | `heartbeatLiveSession` | am Leben halten, «spielt/Pause» melden, Zustand holen | L | LS-07, LS-10 | 1a |
+| POST | `/live/sessions/{sessionId}/heartbeat` | `heartbeatLiveSession` | am Leben halten, Pause zur Anzeige melden, Zustand holen | L | LS-07, LS-10 | 1a |
 | PUT | `/live/sessions/{sessionId}/output` | `setLiveSessionOutput` | Qualität, Tonspur, Untertitel | L | LS-07, LS-10 | 1a |
 | POST | `/live/sessions/{sessionId}/seek` | `seekLiveSession` | «spiele ab Uhrzeit» (Rückfall aus `05` 4.5) | L + T (Aufnahme: A oder H) | LS-07, LS-10 | 4 |
 | DELETE | `/live/sessions/{sessionId}` | `endLiveSession` | Sitzung beenden (idempotent) | – (eigene Sitzung) | LS-07, LS-10 | 1a |
@@ -274,8 +276,8 @@ Die Rolle `startbuffer` gibt es in den Speicher-Operationen nur bei `04` F-2 (a)
 | `listInvitations`, `createInvitation` | dieselben Schalter und `liveQuotaBytes` | LA-22 | 1a, 4, 5 |
 | `listMyMedia`, `getMyMedia`, `setMyMedia` | `MyMediaKey` bekommt `livetv`; `listMyMedia` liefert den Eintrag nur mit Recht | LS-20, LA-26 | 1a |
 | `listNotifications` | neue `NotificationKind`-Werte `live_*` und ein Block `live` (Ziel, Titel, Sender, Zeiten; beim Hauptprofil für erwachsene Profile ohne Titel) | LS-23 | 2 (Aufnahmearten 5) |
-| `getMyChannels`, `updateMyChannel` | neue Ereignisse `live_reminder`, `live_recording_done`, `live_recording_failed` (W-21 in `07`) | LS-22 | 2, 5 |
-| `listStreams`, `stopStream` | `AdminStream.kind` `live` und `live_recording`; für Aufnahmen ohne Titel und Sender (`15` 4) | LA-21 | 1a (Aufnahme 5) |
+| `getMyChannels`, `updateMyChannel` | neue Ereignisse `live_reminder`, `live_recording_done`, `live_recording_failed` (W-21 in `07`); Feld `liveTitles` des aktiven Profils (SM-56, 3.10) | LS-22 | 2, 5 |
+| `listStreams`, `stopStream` | `AdminStream.kind` `live` und `live_recording`; für Aufnahmen ohne Titel und Sender und nur mit grober Technik (ohne Auflösung, Bildrate und Bitrate der Quelle; `12` SM-45, RT-19) | LA-21 | 1a (Aufnahme 5) |
 | `getDashboard` | Block `live` (Zustand, Zuschauer, laufende Aufnahmen, gestörte Sender) | LA-20 | 1a |
 | `listJobRuns` | neue Jobarten `livetv.*` in einer neuen Gruppe | LA-23 | 1b, 2, 5, 6 |
 | `getWatchReport` | zählt Live-TV-Schauzeit mit, ohne Sender | – | 1a |
@@ -321,15 +323,16 @@ sind die tragenden Modelle; Antworten ohne eigenen Körper sind `204`.
 | 409 | `stream_limit_reached` | Grenze gleichzeitiger Ströme von Profil oder Konto (mit `extensions.maxStreams`, `activeStreams`) | gebaut (`api/openapi.yaml:2233-2240`), jetzt auch für Live |
 | 403 | `watch_limit_reached` | tägliche Schauzeit aufgebraucht (`extensions.limitMinutes`, `usedMinutes`) | gebaut (Radio, `api/openapi.yaml:11801-11806`) |
 | 409 | `live_conflict` | Zustand passt nicht (laufende Aufnahme löschen, Sitzung einer anderen Art umschalten, Zeitplan ist Vorgabe) mit `extensions.reason` | neu |
+| 409 | `live_superseded` | ein neueres Einstellen derselben Sitzung hat diese wartende Antwort überholt; Haltegrund und Reservierung sind zurückgegeben, der Client verwirft die Antwort (`04` 9, RB-15) | neu |
 | 409 | `live_import_running` | Import der Quelle läuft schon | neu |
 | 409 | `live_recordings_running` | Update ohne Bestätigung bei laufenden oder in 15 Minuten beginnenden Aufnahmen | neu |
 | 200 statt 201 | – | gleiches Anlegen noch einmal (Aufnahme, Regel, Erinnerung): Antwort ist die bestehende Zeile (RD-10, `07` 3.9) | neu |
-| 410 | `live_session_gone` | Sitzung endete (Neustart, Entzug, Ablauf, Sender weg): der Client legt eine neue an | neu (Muster Radio 410, `api/openapi.yaml:11873-11878`) |
+| 410 | `live_session_gone` | **eigene** Sitzung endete (Neustart, Entzug, Ablauf, Sender oder Quelle weg, 15 Minuten ohne Segmentabruf): der Client legt eine neue an. Eine fremde oder unbekannte Sitzung ist 404 (RT-12) | neu (Muster Radio 410, `api/openapi.yaml:11873-11878`) |
 | 422 | `validation_failed` | Feldfehler mit `errors[]` (Feld und Code) | gebaut |
 | 422 | `live_programme_past` | Sendung ist vorbei (Erinnerung, Einzelaufnahme) | neu |
 | 422 | `live_no_epg` | Aktion braucht Programmdaten (Einzel-, Serienaufnahme, Erinnerung bei Sender ohne EPG, `03` DR-09) | neu |
 | 429 | `live_too_fast` | Drosselung (Abschnitt 8) mit Kopf `Retry-After` | neu (Muster `too_many_attempts`, `api/openapi.yaml:271-276`) |
-| 502 | `live_source_unreachable` | keine Senderquelle lieferte beim Einstellen (Test: Abschnitt 3.7) | neu (Muster `radio_unreachable`) |
+| – | `live_source_unreachable`, `live_source_no_picture`, `live_start_timeout`, `live_source_rejected` | Startversuch gescheitert: kein Fehlerstatus der Anfrage, sondern `state: start_failed` mit `startError.code` in Antwort oder Herzschlag; die Sitzung bleibt (3.4, `04` 9) | neu |
 | 503 | `transcode_busy` | Umwandlungsbudget nach 10 s erschöpft | gebaut (`api/openapi.yaml:2252-2258`) |
 | 503 | `live_capacity` | Serverdeckel: Eingangsströme, Sitzungen oder Byte-Budget voll (`04` 8.5), mit `extensions.limit` | neu (W-25) |
 | 503 | `live_storage_unavailable` | Speicherort fehlt oder nicht beschreibbar | neu |
@@ -339,6 +342,15 @@ sind die tragenden Modelle; Antworten ohne eigenen Körper sind `204`.
 
 `type` bleibt `about:blank` wie im Bestand; der stabile Bezeichner ist `code` (gebaut: `api/openapi.yaml:13433-13457`).
 Neue Codes sind für bestehende Operationen kein Bruch, weil sie nur an neuen Operationen hängen.
+
+**Reihenfolge der Prüfungen (RT-12, `04` 10.3, `12` 9.3, SM-52):** Jede Live-Operation und jede Live-Route prüft
+fest in dieser Reihenfolge und antwortet mit dem ersten Fehler: (1) Anmeldung (401 wie heute; an `lt`-Routen 404),
+(2) CSRF-Kopf (403 `csrf_header_missing` wie heute), (3) wirksames Recht (404), (4) Objekt sichtbar und eigenes
+(404), **erst dann** (5) Drosselung, Serverdeckel und Zustände (429, 503, 409, 403 `watch_limit_reached`, 410). Ein
+Profil ohne Recht bekommt so immer 404, auch wenn gedrosselt wird, der Deckel voll ist oder `epg.db` neu gebaut
+wird. Sammelantworten (`deleteLiveRecordings.skipped`) nennen fremde und unbekannte Kennungen mit demselben Grund
+`not_found`. Einzige benannte Ausnahme von (3) ist A-12 (3.5): Das Hauptprofil sieht und löscht Aufnahmen seiner
+Profile mit Altersgrenze auch ohne eigenes wirksames «Live-TV».
 
 ### 3.2 Sender und Favoriten
 
@@ -524,7 +536,7 @@ LiveSessionRequest:
   properties:
     channelId: {type: integer, format: int64}
     recordingId: {type: string, minLength: 26, maxLength: 26}
-    deviceId: {type: string, maxLength: 64}
+    # no deviceId: the server takes the device from the login (app bearer device, browser login cookie; RT-11)
     capabilities: {$ref: "#/components/schemas/PlaybackCapabilities"}   # additively extended (2.12)
     output: {$ref: "#/components/schemas/LiveOutputRequest"}
     zapList:
@@ -563,8 +575,16 @@ LiveSession:
     heartbeatSeconds: {type: integer, enum: [10]}     # 04 14.4
     state:
       type: string
-      enum: [starting, live, shifted, paused, reconnecting, recording_live, recording_done]
-      description: Same list in LiveSession and LiveHeartbeat; a source switch is a notice, not a state (RD-26).
+      enum: [starting, start_failed, live, shifted, paused, reconnecting, recording_live, recording_done]
+      description: |
+        Same list in LiveSession and LiveHeartbeat; a source switch is a notice, not a state (RD-26).
+        reconnecting only for a running playback whose source breaks; a start that does not succeed ends in
+        start_failed with startError, and the session stays (04 9).
+    startingReason:
+      type: string
+      enum: [connecting, waiting_picture, waiting_transcode, first_segment, retrying]
+      description: With state starting (04 5.3, three deadlines); retrying = one immediate attempt on a waiting or disturbed stream.
+    startError: {$ref: "#/components/schemas/LiveStartError"}
     channel: {$ref: "#/components/schemas/LiveChannel"}
     recording: {$ref: "#/components/schemas/LiveRecordingBrief"}
     decision:
@@ -595,15 +615,27 @@ LiveSession:
         pause: {type: boolean}
         record: {type: boolean}
     nowNext: {type: object, properties: {now: {$ref: "#/components/schemas/LiveProgrammeBrief"}, next: {$ref: "#/components/schemas/LiveProgrammeBrief"}}}
+LiveStartError:
+  type: object
+  required: [code]
+  description: The start attempt ended; hold and reservation are released, the session may tune again (04 9).
+  properties:
+    code:
+      type: string
+      enum: [live_source_unreachable, live_source_no_picture, live_start_timeout, live_source_rejected, transcode_busy, live_capacity]
+      description: |
+        live_source_unreachable: no first byte within deadline 1 (15 s) on every source. live_source_no_picture:
+        no tables and keyframe within deadline 2. live_start_timeout: no first segment within deadline 3 or 90 s in
+        total. live_source_rejected: «Quelle lehnt eine weitere Verbindung ab» (04 5.3, pattern A or single stream).
 LiveHeartbeatRequest:
   type: object
-  required: [playing]
   properties:
     playing:
       type: boolean
       description: |
-        «spielt» or «Pause» (04 13.4 on 06 O-11). Watch time counts the duration of delivered segments while the
-        last heartbeat said true; paused time does not count (03 DR-12).
+        Reported pause, for display and for throttling a transcode only (04 10.3, 12 9.2, RT-04). Watch time
+        counts every delivered, distinct segment regardless of this flag. Without a session buffer a reported
+        pause ends the session after 60 s. Absent = playing.
     positionDateTime: {type: integer, format: int64, description: Program date-time of the playback position.}
     positionMs: {type: integer, format: int64, description: Recording sessions only: position for the progress.}
     zapUiOpen: {type: boolean, description: The channel list or zap overlay is open (05 6, preload restarts).}
@@ -611,7 +643,9 @@ LiveHeartbeat:
   type: object
   required: [state, expiresInSeconds]
   properties:
-    state: {type: string, enum: [starting, live, shifted, paused, reconnecting, recording_live, recording_done]}
+    state: {type: string, enum: [starting, start_failed, live, shifted, paused, reconnecting, recording_live, recording_done]}
+    startingReason: {type: string, enum: [connecting, waiting_picture, waiting_transcode, first_segment, retrying]}
+    startError: {$ref: "#/components/schemas/LiveStartError"}
     expiresInSeconds: {type: integer, description: 60 without a further heartbeat (T-21, 04 14.4).}
     liveEdge: {type: integer, format: int64}
     windowStart: {type: integer, format: int64, description: Moves when the buffer is capped or full (10 3.3).}
@@ -620,33 +654,59 @@ LiveHeartbeat:
       items: {type: string, enum: [timeshift_shortened, timeshift_unavailable, transcode_too_slow, source_switched, retry_in]}
     retryInSeconds: {type: integer, description: With state reconnecting (14 4.12 «Nächster Versuch in 20 s»).}
     remainingWatchMinutes: {type: integer}
-    playlistUrl: {type: string, description: New token after 11 hours (T-21: 12 hours per tune); the client swaps it.}
+    playlistUrl: {type: string, description: New token after 11 hours (T-21, 12 hours per tune), only while channel and source are active (T-29); the client swaps it.}
     nowNext: {type: object, description: Present when the programme changed since the last heartbeat.}
 ```
 
 **Ablauf:** `createLiveSession` legt die Sitzung an und stellt ein; `tuneLiveSession` stellt in derselben Sitzung
 um (neue `tune`, neue `playlistUrl`, keine neue Sitzung, T-9); Reservierung bei den Stream-Grenzen und beim
 Umwandlungsbudget bleibt beim Umschalten (T-13, T-26). **Die Antwort wartet bis zu 3 Sekunden auf das erste
-Segment** (`04` 9, 14.1; `05` 4.4): liegt es vor, ist `state: live`, sonst `state: starting`, und der Client holt
-die Liste, sobald der Herzschlag `live` meldet oder nach 1 Sekunde erneut. Kommt nach 15 Sekunden kein Segment,
-endet der Startversuch; der nächste Herzschlag meldet `reconnecting` mit `retryInSeconds` oder die Sitzung 410.
-Ob die erste Liste in der Antwort mitkommt, ist `05` O-17 (Feld bis dahin nicht im Vertrag).
+Segment** (`04` 9, 14.1; `05` 4.4): liegt es vor, ist `state: live`, sonst `state: starting` mit `startingReason`
+und derselben Listenadresse. Ein schon empfangener Sender antwortet sofort. Der Client lädt die Liste **nur** im
+Zustand `live`, also wenn Antwort oder Herzschlag ihn melden (RB-15).
+
+**Drei Startfristen** (`04` 5.3, 14.1): (1) bis zum ersten Byte je Verbindungsversuch 15 Sekunden; (2) vom ersten
+Byte bis «läuft» (Tabellen und erster Keyframe) die gespeicherte Bildgruppe plus 5 Sekunden, mindestens 15,
+höchstens 45, ohne gespeicherte Bildgruppe 30; (3) von «läuft» und Zulassung bis zum ersten Segment der Sitzung im
+Direktweg die gespeicherte Segmentdauer plus 5, mindestens 10 Sekunden, mit Umwandlung die Wartezeit auf Einheiten
+(bis 10) plus 10. Zusammen höchstens 90 Sekunden. Läuft eine Frist ab, meldet der Herzschlag `state:
+start_failed` mit `startError.code`; Haltegrund und Reservierung sind zurückgegeben, die Sitzung bleibt und kann
+neu einstellen (RB-07). `reconnecting` mit `retryInSeconds` gibt es nur für eine **laufende** Wiedergabe, deren
+Quelle abbricht. Auf einem wartenden oder gestörten Strom löst ein neuer Zuschauer **einen** sofortigen Versuch
+aus (höchstens einer je Minute und Sender; `startingReason: retrying`); scheitert er, folgt `start_failed`.
+
+**Überholtes Einstellen (RB-15):** Kommt ein neues `tuneLiveSession` derselben Sitzung, während die Antwort auf das
+vorige noch wartet, endet die ältere sofort mit `409 live_superseded`; es gibt je Sitzung nie zwei wartende
+Einstellvorgänge. Ob die erste Liste in der Antwort mitkommt, ist `05` O-17 (Feld bis dahin nicht im Vertrag).
 `setLiveSessionOutput` erzeugt eine neue Ausgabe-Generation (`04` 7.5); die Antwort ist die neue `LiveSession`.
-**Ein Gerät, eine Sitzung (RD-10):** Kommt `createLiveSession` mit demselben Profil und derselben `deviceId`, endet
-eine offene ältere Sitzung dieses Geräts, bevor die Stream-Grenze zählt.
+
+**Ein Gerät, eine Sitzung (RD-10, RT-11):** Das Gerät nimmt der Server aus der Anmeldung (Gerät des App-Bearers,
+im Browser eine Kennung im Cookie der Anmeldung), nie aus der Anfrage. Legt dasselbe Profil auf demselben Gerät
+eine neue Sitzung an, endet eine offene ältere, bevor die Stream-Grenze zählt.
+
+**Wann eine Sitzung endet** (`04` 10.3, 14.4): 60 Sekunden ohne Herzschlag; ohne Sitzungspuffer 60 Sekunden
+nach gemeldeter Pause; **15 Minuten ohne Segmentabruf**, mit Sitzungspuffer nach der Höchstdauer des Zeitversatzes
+plus 15 Minuten (RT-11); Handy- und TV-App beenden die Sitzung selbst 30 Sekunden nach dem Wechsel in den
+Hintergrund. Die Angabe `playing` entscheidet nichts ausser der Frist «Pause ohne Sitzungspuffer» und der
+Drosselung einer Umwandlung; die **Schauzeit** zählt jedes ausgelieferte, verschiedene Segment (RT-04, SM-50).
 
 **Recht je Operation:** `createLiveSession` und `tuneLiveSession` prüfen «Live-TV» und die Sichtbarkeit des Senders;
-eine Aufnahme braucht die Zugriffsregel aus `07` 4.3 und für das Hauptprofil eigenes «Live-TV» (`03` DR-03);
+eine Aufnahme braucht die Zugriffsregel aus `07` 4.3 und für das Hauptprofil eigenes «Live-TV» (`03` DR-03). Der
+**Herzschlag** prüft höchstens 30 Sekunden alt Recht, Anmeldung und bei einer Aufnahme ihre Zugriffsregel, weil der
+Player die abgeschlossene Liste einer fertigen Aufnahme nur einmal lädt (RT-10); scheitert die Prüfung, antwortet
+er 410. Löschen einer Aufnahme beendet Sitzungen auf ihr sofort;
 `seekLiveSession` in einer Live-Sitzung braucht «Timeshift». Ohne «Timeshift» liefert `timeshift.enabled: false`
 mit `reason: no_right`, und `actions.pause` ist falsch; die Oberfläche blendet Pause und Spulen aus (Regel 12).
 
 **Fehler:** 404 (Recht, Sender, Aufnahme, fremde Sitzung), 409 `stream_limit_reached`, 403 `watch_limit_reached`,
 409 `live_conflict` (`tune` einer Aufnahme-Sitzung), 410 `live_session_gone`, 422 (`channelId` und `recordingId`
-zugleich oder keines; Spur gehört nicht zur Sitzung), 429 `live_too_fast`, 502 `live_source_unreachable` (nach der
-Leiter ohne Erfolg, nur wenn der Strom noch nie lief), 503 `transcode_busy`, 503 `live_capacity`. Ein gestörter
-Sender liefert beim Einstellen 201 mit `state: reconnecting` (die Wiederverbindung läuft, `14` 4.12). Ein
-deaktivierter Sender ist für das Einstellen 404, eine laufende Wiedergabe auf ihm läuft weiter (T-29), bis der
-Zuschauer geht oder der Administrator «sofort beenden» wählt (dann 410 beim nächsten Herzschlag).
+zugleich oder keines; Spur gehört nicht zur Sitzung), 409 `live_superseded`, 429 `live_too_fast`, 503
+`transcode_busy`, 503 `live_capacity` (Deckel schon bei der Annahme voll). Was erst während des Starts scheitert,
+kommt als `start_failed` mit `startError` (oben), nicht als Fehlerstatus. Ein deaktivierter Sender ist für das
+Einstellen 404; eine laufende Wiedergabe auf ihm läuft weiter (T-29), bis der Zuschauer geht, der Administrator
+«sofort beenden» wählt oder das Token abläuft (höchstens 12 Stunden, kein neues Token für einen deaktivierten
+Sender); dann 410 beim nächsten Herzschlag. Wird die **Quelle** entfernt oder geändert, endet die Wiedergabe innert
+5 Sekunden oder zieht auf eine andere Quelle um (`07` 10.3).
 
 ### 3.5 Aufnahmen
 
@@ -809,7 +869,11 @@ keine Termine des Kinds (bis `14` F-4 nur die Zahl).
 Altersgrenze (heute, `07` 4.4) hat; sonst 404. Antwort in der üblichen Form `{items: [{profileId, name, avatar,
 count, bytes, scheduled}], total, offset}` (RD-28); die Aufnahmen eines Profils holt der Client mit
 `listLiveRecordings?profileId=`. Die Operation verlangt **kein** eigenes Recht «Aufnahmen» des Hauptprofils, damit
-es Platz frei machen kann (`03` DR-03); ob sie auch wirkt, wenn das Konto «Live-TV» nicht mehr hat, ist F-1.
+es Platz frei machen kann (`03` DR-03), und nach der benannten Ausnahme **A-12** (`12` 1.1) auch kein eigenes
+wirksames «Live-TV», auch wenn das Konto den Schalter nicht hat: `listProfileLiveRecordings`,
+`listLiveRecordings?profileId=`, `getLiveRecording` und `deleteLiveRecording` auf Aufnahmen eines Profils mit
+Altersgrenze antworten dann wie mit Recht; **Abspielen** (`createLiveSession` mit `recordingId`) bleibt 404. Jede
+andere Live-Operation ohne Recht bleibt 404 (SM-38). Variante (b) von F-1 nähme die Ausnahme zurück.
 
 **`createLiveRecording`:** 201 mit `LiveRecording` und `warnings`; dasselbe noch einmal (gleiche Sendung, gleiche
 manuelle Zeit, laufende Sofortaufnahme auf demselben Sender) ergibt 200 mit der bestehenden Zeile (RD-10).
@@ -924,7 +988,7 @@ LiveSource:
     hasCustomUserAgent: {type: boolean, description: The value is encrypted and never returned (RD-19).}
     origins: {type: array, items: {type: string}}
     localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTarget"}}   # stage H
-    preloadEnabled: {type: boolean, description: "'Preload channels of this source' (04 T-18): a preload setting (LTV-002, LTV-010), not connection management; no per-source connection count (LTV-017, open question 04 F-3)."}   # stage 3, T-18
+    # no preload or connection setting per source (04 14.2, F-3; LTV-017): a switch would only come with F-3 (b)
     listenInterface: {type: string}                                                      # stage H
     refresh: {type: object, properties: {everyMinutes: {type: integer}, atMinute: {type: integer}, next: {type: integer, format: int64}}}
     newChannelsEnabled: {type: boolean}
@@ -936,11 +1000,37 @@ LiveSource:
     lastImportAt: {type: integer, format: int64}
     progress: {type: object, properties: {done: {type: integer}, total: {type: integer}}, description: While running (job progress).}
     accessState: {type: string, enum: [ok, check]}
+    accessRetryAt: {type: integer, format: int64, description: «Zugang prüfen» is a quarantine; next attempt (04 5.3).}
     hostMismatch: {type: boolean}
+    running:
+      type: object
+      description: |
+        Numbers for the confirmation before removing or changing the source (rules, address, credentials,
+        headers, origins, targets): all receivers of the source end within 5 s (04 5.3, 07 10.3, SM-47).
+      properties: {viewers: {type: integer}, recordings: {type: integer}}
+    runtime: {$ref: "#/components/schemas/LiveSourceRuntime"}
     counts:
       type: object
       description: orphans = channels without another source (numbers for the removal question of LA-02, S-6).
       properties: {channels: {type: integer}, active: {type: integer}, missing: {type: integer}, groups: {type: integer}, orphans: {type: integer}, orphanFavorites: {type: integer}, orphanScheduled: {type: integer}}
+LiveSourceRuntime:
+  type: object
+  readOnly: true
+  description: |
+    Runtime state of the source from memory, not a setting and not stored (07 1.3, 04 5.3, 14.1); empty after a
+    restart. Shown in the diagnosis of the source (LA-13) and in LA-02.
+  properties:
+    precautionResting:
+      type: object
+      description: «Vorsorglicher Empfang ruht»: no preload, no automatic, no checks beside a running stream.
+      properties:
+        since: {type: integer, format: int64}
+        until: {type: integer, format: int64, description: 30 min, on repetition 6 h, then 24 h (04 14.1).}
+        pattern: {type: string, enum: [rejection, displacement], description: A = rejection, B = displacement.}
+    singleStream:
+      type: object
+      description: «Ein-Strom-Betrieb» after pattern B; the server opens no second connection to this source.
+      properties: {since: {type: integer, format: int64}, until: {type: integer, format: int64}}
 LiveSourceWrite:
   type: object
   description: |
@@ -960,7 +1050,6 @@ LiveSourceWrite:
     single: {type: object, description: single, step 4 of LA-03, properties: {newChannel: {type: object, properties: {name: {type: string}, number: {type: integer}, groupId: {type: integer}}}, addToChannelId: {type: integer, format: int64}}}
     origins: {type: array, items: {type: string}}
     localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTargetWrite"}}
-    preloadEnabled: {type: boolean}
     listenInterface: {type: string}
     refreshEveryMinutes: {type: integer, minimum: 60, maximum: 10080, nullable: true}
     refreshAtMinute: {type: integer, minimum: 0, maximum: 1439, nullable: true}
@@ -969,14 +1058,32 @@ LiveSourceWrite:
     takeNumbers: {type: boolean}
     guardIncomplete: {type: boolean}
     enabled: {type: boolean}
+LiveNetTarget:
+  type: object
+  required: [id, address, prefixLength, portFrom, portTo]
+  properties:
+    id: {type: integer, format: int64}
+    address: {type: string, description: Normalised network address.}
+    prefixLength: {type: integer, description: "32 or 128 = one address; at least 28 (IPv4) or 124 (IPv6)."}
+    portFrom: {type: integer}
+    portTo: {type: integer, description: Equal to portFrom by default; at most 16 ports.}
+    wide: {type: boolean, description: Network or port range, given with a second confirmation (RT-05).}
+    hostname: {type: string}
 LiveNetTargetWrite:
   type: object
-  required: [prefix, portFrom, portTo, confirmToken]
+  description: |
+    Default: one address and one port (04 10.9, 12 4.5). A network (at most /28 or /124) or a port range (at
+    most 16) needs wideConfirm with the counts shown; never with the default gateway of the home or container
+    network. At most 16 entries per source. Any change raises the rule version of the source and ends its
+    receivers (07 10.3).
+  required: [address, portFrom, confirmToken]
   properties:
-    prefix: {type: string}
-    portFrom: {type: integer}
-    portTo: {type: integer}
+    address: {type: string}
+    prefixLength: {type: integer, minimum: 28, maximum: 128, description: Absent = single address.}
+    portFrom: {type: integer, minimum: 1, maximum: 65535}
+    portTo: {type: integer, minimum: 1, maximum: 65535, description: Absent = portFrom.}
     confirmToken: {type: string, description: From resolveLiveNetTarget; binds the confirmed resolution (T-5).}
+    wideConfirm: {type: string, description: "Second confirmation for a network or range: «<addresses>,<ports>» as shown."}
 LiveSourceTestRequest:
   description: A new source (fields of LiveSourceWrite) or an existing one (sourceId; fields given override).
   allOf:
@@ -1035,7 +1142,14 @@ LiveImportItem:
   und 1 GiB für XMLTV (`09` 12), eigene Grenze in `largeBodies` (gebaut: `server/internal/api/limits.go:33-44`).
   Antwort `{uploadId, bytes, sha256}`; die Datei bleibt 1 Stunde, bis eine Quelle sie übernimmt (`07` 9).
 - **`deleteLiveSource`:** `orphans=keep` (Vorgabe) oder `delete` (`07` 10.3); Antwort 204. 409 `live_import_running`
-  während eines Imports. Die Zahlen für die Rückfrage stehen in `LiveSource.counts` (S-6).
+  während eines Imports. Die Zahlen für die Rückfrage stehen in `LiveSource.counts` (S-6) und `LiveSource.running`.
+- **Entfernen oder Ändern beendet die Empfänger (RB-05, RT-06, SM-47):** `deleteLiveSource` und jedes
+  `updateLiveSource`, das Adresse, Zugangsdaten, Kopfzeilen, Ursprünge oder feste Ziele ändert, verlangt
+  `?confirm=<viewers>,<recordings>` aus `LiveSource.running`; fehlt es oder stimmt die Zahl nicht mehr, 409
+  `live_conflict` (`reason: confirm_running`, mit den aktuellen Zahlen). Nach dem Speichern enden alle Empfänger
+  der Quelle innert 5 Sekunden; Zuschauer ohne Ersatzquelle bekommen 410 beim nächsten Herzschlag, Aufnahmen eine
+  Lücke `source_removed` (`07` 10.3). Name, Aktualisierung und Schalter für neue Sender ändern keinen Regelstand
+  und brauchen keine Bestätigung. T-29 gilt hier nicht (`12` 4.2).
 - **`refreshLiveSource`:** 202 `{jobId}` (Job-Fortschritt in `LiveSource.progress`); 409 `live_import_running`.
 - **`applyHeldLiveSourceImport`:** nur für `outcome: held`, sonst 409 `live_conflict`.
 - **`listLiveSources`:** ohne Seiten (wenige Quellen); `listLiveSourceImports`: die letzten 10.
@@ -1047,7 +1161,8 @@ LiveImportItem:
 
 **Fehler der Gruppe:** 404 (unbekannt), 409 (`live_import_running`, `live_conflict`), 413 `body_too_large`
 (gebaut als Muster der Upload-Grenze), 422 (`validation_failed`: Schema nicht erlaubt, Ursprung ausserhalb von
-`http(s)`, verbotene Kopfzeile, Netz zu gross, fehlender `confirmToken`), 429 `live_too_fast` (Test).
+`http(s)`, verbotene Kopfzeile, Netz grösser als /28 bzw. /124 oder mehr als 16 Ports, Netz mit Gateway, mehr als
+16 Ziele, fehlender `confirmToken` oder `wideConfirm`), 429 `live_too_fast` (Test).
 
 ### 3.8 Verwaltung: Sender, Gruppen, Duplikate
 
@@ -1087,6 +1202,11 @@ AdminLiveChannel:
           description: What «sofort beenden» would end (T-29); numbers only.
           properties: {viewers: {type: integer}, recordings: {type: integer}}
         enabled: {type: boolean}
+        disabledAt: {type: integer, format: int64, description: «deaktiviert seit»; playback on it ends at the latest 12 h later (T-29).}
+        playability:
+          type: array
+          items: {type: string, enum: [transcode_only, long_gop]}
+          description: «nur mit Umwandlung abspielbar» (segments over 10 s without session buffer), «lange Bildgruppen» (04 10.8, 05 3.6).
         status: {type: string, enum: [available, disturbed, missing, no_source, inactive, new]}
         missingSince: {type: integer, format: int64}
         disturbedSince: {type: integer, format: int64}
@@ -1167,6 +1287,9 @@ LiveMergeRequest:
   Wert), `sort` (`number` Vorgabe, `name`, `status`), `offset`, `limit` (1 bis 500, Vorgabe 100). Antwort
   `{items: [AdminLiveChannelRow], total, offset, counts: {active, total, byStatus}}`; eine Zeile kostet keine
   Teilabfrage auf Ereignisse oder Favoriten (RD-28). 10'000 Zeilen über die virtuelle Tabelle von LA-05.
+- **Deaktivieren (`updateLiveChannel` mit `enabled: false`, T-29):** ist kein Sicherheitsmittel: Laufende
+  Wiedergaben laufen bis zu 12 Stunden weiter (kein neues Token), Aufnahmen bis zu ihrem geplanten Ende. Die
+  Antwort nennt `running`, damit die Verwaltung den Hinweis und «sofort beenden» anbietet (`15`).
 - **`endLiveChannelNow` (T-29):** nur für einen deaktivierten oder verschwundenen Sender, sonst 409 `live_conflict`
   (`reason: active`). Verlangt `?confirm=<viewers>,<recordings>` aus `AdminLiveChannel.running`; stimmt die Zahl
   nicht mehr, 409 (`reason: changed`). Wiedergaben enden (`ended_by = 'channel'`, Zuschauer «Sender nicht
@@ -1200,7 +1323,8 @@ LiveConfig:
   type: object
   description: |
     One object with a section per page; updateLiveConfig takes any subset (PATCH). Values outside the
-    ranges of 07 3.1 answer 422. Sections of a later stage are absent before it.
+    ranges of 07 3.1 answer 422. Sections of a later stage are absent before it. Not settings (constants of
+    04 14): ring length (T-7), parallel checks; no maximum of concurrent recordings (would come with 20 E-28-49 (B)).
   properties:
     reception:
       type: object
@@ -1213,7 +1337,6 @@ LiveConfig:
         automaticFavorites: {type: boolean}
         graceSeconds: {type: integer, minimum: 15, maximum: 300, description: Only after a viewer leaves (04 14.1).}
         maxIngests: {type: integer, minimum: 1, maximum: 200}
-        ringSeconds: {type: integer, minimum: 4, maximum: 15}
         ringBudgetMb: {type: integer, minimum: 64, maximum: 8192, nullable: true}
         maxSessions: {type: integer, minimum: 1, maximum: 200}
         transcodeSharePct: {type: integer, minimum: 0, maximum: 100}
@@ -1222,7 +1345,6 @@ LiveConfig:
       type: object
       properties:
         idleCheckHours: {type: integer, enum: [6, 24], nullable: true}
-        idleCheckParallel: {type: integer, minimum: 1, maximum: 4}
         alertAfterMinutes: {type: integer, enum: [5, 10, 15, 30, 60]}
         alertUsedOnly: {type: boolean}
     epg: {type: object, properties: {days: {type: integer, minimum: 1, maximum: 14}, lookbackHours: {type: integer, minimum: 6, maximum: 72}, images: {type: boolean}}}
@@ -1236,7 +1358,6 @@ LiveConfig:
         instantMaxHours: {type: integer, minimum: 1, maximum: 12}
         followEpg: {type: boolean}
         warmupSeconds: {type: integer, minimum: 10, maximum: 120}
-        maxConcurrent: {type: integer, minimum: 1, maximum: 100, nullable: true}
         defaultQuotaBytes: {type: integer, format: int64, minimum: 0}
         serverTimeZone: {type: string, readOnly: true}
 LiveIngest:
@@ -1247,13 +1368,22 @@ LiveIngest:
     channelName: {type: string}
     number: {type: integer}
     source: {type: object, properties: {sourceName: {type: string}, rank: {type: integer}, site: {type: string}}}
-    state: {type: string, enum: [connecting, running, reconnecting, disturbed, grace, deferred], description: deferred = «zurückgestellt» (04 5.1).}
+    state: {type: string, enum: [connecting, running, reconnecting, disturbed, grace, deferred], description: deferred = «zurückgestellt», only a permanent or scheduled channel that cannot start (04 5.3, RG-02).}
+    deferred:
+      type: object
+      description: With state deferred.
+      properties:
+        cause: {type: string, enum: [capacity, source_rejected, memory]}
+        since: {type: integer, format: int64}
+        attempts: {type: integer}
+        nextAttempt: {type: integer, format: int64}
     attempt: {type: object, properties: {n: {type: integer}, of: {type: integer}}}
     reasons: {type: array, items: {type: string, enum: [viewer, recording, permanent, scheduled, automatic, preload, check]}}
     scheduleName: {type: string}
     since: {type: integer, format: int64}
     viewers: {type: integer}
-    recordings: {type: integer}
+    recordings: {type: integer, description: Present only from 2 on (SM-45); with one recording only recordingsActive.}
+    recordingsActive: {type: boolean}
     bitrateKbps: {type: integer}
     video: {type: object}
     audio: {type: array, items: {type: object}}
@@ -1298,12 +1428,22 @@ LiveStorage:
   permanente Sender startet der Server danach neu (`15` LA-12). Laufendes endgültig beenden heisst Sender
   deaktivieren und `endLiveChannelNow` (T-29).
 - **Diagnose:** `getLiveDiagnostics` → `{now: [{channelId, name, kind: unreachable|frozen|no_audio|reconnecting,
-  since, nextAttempt}], days7: {outages, reconnects, switches, heat: [[n × 24] × 7]}, perChannel: [...]}`;
+  since, nextAttempt}], deferred: [{channelId, name, cause, since, attempts, nextAttempt}], sources: [{sourceId,
+  name, accessState, accessRetryAt, runtime: LiveSourceRuntime}], days7: {outages, reconnects, switches, heat:
+  [[n × 24] × 7]}, perChannel: [...]}`. `sources` zeigt je Quelle «vorsorglicher Empfang ruht» und
+  «Ein-Strom-Betrieb» mit seit und bis (`04` 5.3); nach einem Neustart ist der Block leer, die Ereignisse
+  (`precaution_resting`, `single_stream`) bleiben in `listLiveEvents`. Dazu der Hinweis «Zugang mit nur einer
+  Verbindung: Vorladen für alle Quellen ausschalten» als Code `hint: single_connection` (`15`);
   `listLiveEvents` mit `channelId`, `kind` (mehrere), `from`, `to`, `offset`, `limit` (1 bis 500); Texte ohne
   Zugangsdaten, Adressen nur als Host.
 - **Übersicht:** `getLiveOverview` liefert alles von LA-01 in einer Anfrage (Muster gebaut:
   `server/internal/admin/dashboard.go:18-21`), auch `setup: {hasSource, hasChannels, hasEpg, accountsEnabled}`
-  und `resources: {cpuPct, gpuPct, ramBytes}`; nicht lesbare Werte fehlen (Client zeigt «–», `15` F-22). Der Block
+  und `resources: {cpuPct, gpuPct, ramBytes}`; nicht lesbare Werte fehlen (Client zeigt «–», `15` F-22). Neu
+  `containment: {state: available|unavailable, reason, consequence: original_only}` (RT-01, `04` 10.8, T-27): Ohne
+  wirksame Sperre läuft keine Live-Umwandlung, nur der Direktweg; die Verwaltung zeigt «Eindämmung nicht
+  verfügbar» mit der Folge «Live-TV nur im Original; Sender, die eine Umwandlung brauchen, sind nicht abspielbar».
+  «Trotzdem erlauben» käme nur mit Variante (c) von `12` F-1 (dann A-13). Dazu `deferredPermanent: {count,
+  overHalf}` (Warnung, wenn Dauersender mehr als die Hälfte der Eingangsströme belegen, `04` 8.2). Der Block
   `updateImpact: {running, startingWithin15Min}` (Stufe 5) ersetzt die frühere Operation `getLiveUpdateImpact`
   (S-7, W-28; Warnfenster 15 Minuten, `04` 14.8); LA-27 fragt ihn vor dem Update ab.
 
@@ -1363,11 +1503,19 @@ Notification:
         at: {type: integer, format: int64}
         reason: {type: string}
         profileName: {type: string}
+MyChannel:
+  properties:
+    liveTitles:
+      type: boolean
+      description: |
+        Active profile only (stage 2, SM-56): external messages about recordings and reminders name title and
+        channel. Default false; never effective for a profile with a PIN (03 DR-05). Not offered in the TV app.
 AdminStream:
   properties:
     kind: {type: string, enum: [video, audiobook, podcast, radio, live, live_recording]}
     liveChannel: {type: object, description: kind live only; absent for live_recording (15 section 4).}
     shiftedMs: {type: integer, format: int64}
+    # kind live_recording: no resolution, frame rate or source bitrate (SM-45, RT-19)
 ```
 
 - `updateProfile` und `createProfile` nehmen die drei Felder an; das Hauptprofil darf setzen, was über den Deckel
@@ -1377,6 +1525,9 @@ AdminStream:
   die Antwort trägt `live.overQuota: true`, und die Oberfläche zeigt den Hinweis aus `15` LA-22 (nichts wird
   gelöscht).
 - `stopStream` beendet auch Live-Sitzungen (Kennung ULID wie bei Titeln); Antwort unverändert.
+- **Meldungen nach aussen (SM-56):** E-Mail, Push und Telegram zu Aufnahmen und Erinnerungen nennen ab Werk keinen
+  Titel und keinen Sender, nur Art und Profilname; erst `liveTitles` des Profils schaltet sie ein, für Profile mit
+  PIN nie. Die Glocke (`Notification.live`) ist davon nicht betroffen.
 
 ---
 
@@ -1408,8 +1559,9 @@ und `EXT-X-PROGRAM-DATE-TIME` an jedem Segment (`05` 4.4).
 | Inhalt | `base64url( sessionId (16 Byte ULID) ‖ tune (uint32) ‖ issuedAt (uint32 Sekunden) ‖ mac (16 Byte) )`, mac = HMAC-SHA256 mit `secrets.Keyring.Derive("live-token")` über alle vorderen Felder und das Kennzeichen `live-v1`, auf 128 Bit gekürzt (Muster Radio: `server/internal/radio/token.go:10-30`) |
 | Bindung | an Live-Sitzung und Einstell-Nummer; Pfad und Token müssen übereinstimmen. Ein Token einer früheren Einstellung gilt für die neue nicht. |
 | Prüfung je Anfrage | zuerst der HMAC (ohne Datenbank), dann Sitzung im Arbeitsspeicher; je **Listenanfrage** höchstens 30 Sekunden alt: Recht «Live-TV» (Aufnahme: Zugriffsregel), Gültigkeit der Anmeldung (Abmelden, Passwortwechsel, Rolle, Ablauf). Segmente prüfen Token und Sitzung, nicht die Anmeldung. |
-| Laufzeit | höchstens 12 Stunden je Einstellen; ab 11 Stunden liefert der Herzschlag `playlistUrl` mit neuem Token (`04` 14.4) |
-| Was die Sitzung hält | nur der Herzschlag (alle 10 s); Segmentabrufe verlängern nichts; 60 s ohne Herzschlag = Ende (`04` 14.4) |
+| Laufzeit | höchstens 12 Stunden je Einstellen; ab 11 Stunden liefert der Herzschlag `playlistUrl` mit neuem Token, **nur solange Sender und Quelle aktiv sind** (`04` 14.4, T-29, `12` 9.1); auf einem deaktivierten Sender endet die Wiedergabe spätestens mit dem Ablauf |
+| Prüfung je Herzschlag | höchstens 30 Sekunden alt: Recht, Anmeldung und bei einer Aufnahme ihre Zugriffsregel (RT-10); scheitert sie: 410 an den Herzschlag, 404 an Liste und Segmente |
+| Was die Sitzung hält | nur der Herzschlag (alle 10 s); Segmentabrufe verlängern nichts; 60 s ohne Herzschlag = Ende; ohne Segmentabruf endet sie nach 15 Minuten, mit Sitzungspuffer nach der Höchstdauer des Zeitversatzes plus 15 Minuten (`04` 14.4, RT-11) |
 | Fehler | ungültig, fremd, abgelaufen, widerrufen, Sitzung beendet: **404** mit demselben Körper wie «kein Recht» (bewusste Abweichung von den gebauten Token-Routen, die 401 antworten: `server/internal/api/stream_token.go:24-30`, Radio `api/openapi.yaml:12006-12007`; bestätigt `04` 13.4). Ein Segment ausserhalb von Ring oder Fenster ist ebenfalls **404** |
 | Client-Regel (RD-16) | An `lt`-Routen wertet der Client einen Fehler **nie** selbst als «Sitzung weg»: Ein 404 an einem Segment heisst «zu spät, weiter mit dem nächsten» (hls.js und Media3 springen nach vorn, Wiederholungsgrenzen nach `16`), ein 404 an der Liste löst sofort einen Herzschlag aus; nur dessen **410** heisst «neu anlegen». So braucht keine HLS-Route einen JSON-Körper, den die Player nicht lesen |
 | Protokoll | `lt` kommt in die Schwärzung der Abfrageparameter (gebaut: `server/internal/logging/logging.go:75`), nicht in die Schlüsselnamen (`04` 10.4 Punkt 2) |
@@ -1595,7 +1747,7 @@ Die Serverdeckel (Eingänge, Sitzungen, Byte-Budget) sind keine Rate-Limits; sie
 | LS-25 Ton-Vorrang | – (Client) | – |
 | LD-01 bis LD-11 | `previewLiveRecording`, `previewLiveRecordingRule` | `createLiveRecording`, `createLiveRecordingRule`, `updateLiveRecording`, `updateLiveRecordingRule`, `deleteLiveRecording`, `deleteLiveRecordingRule`, `createLiveReminder`, `updateLiveReminder`, `deleteLiveReminder`, `tuneLiveSession` (LD-10) |
 | LA-01 Übersicht | `getLiveOverview`, `listLiveIngests` | – (Links) |
-| LA-02 Quellen | `listLiveSources` (`counts.orphans` für die Löschfrage), `listLiveSourceImports` | `refreshLiveSource`, `testLiveSource`, `deleteLiveSource` |
+| LA-02 Quellen | `listLiveSources` (`counts.orphans` und `running` für die Lösch- und Änderungsfrage, `runtime`), `listLiveSourceImports` | `refreshLiveSource`, `testLiveSource`, `deleteLiveSource` |
 | LA-03 Quelle anlegen/ändern | `getLiveSource` | `uploadLiveFile`, `testLiveSource` (ohne und mit `sourceId`, auch Stichprobe), `resolveLiveNetTarget`, `createLiveSource`, `updateLiveSource`, `createLiveEpgSource` (Angebot) |
 | LA-04 Import | `getLiveSourceImport`, `listLiveSourceImportItems` (auch Vorschau: Import mit `outcome=preview`) | `applyHeldLiveSourceImport`, `createLiveSource` (`previewImportId`, `excludeEntries`), `bulkUpdateLiveChannels` (Abschalten), `mergeLiveChannels`, `dismissLiveDuplicate` |
 | LA-05 Sender | `listAdminLiveChannels`, Senderlogo über die Bildroute (4.1) | `updateLiveChannel` (aktiv), `bulkUpdateLiveChannels`, `mergeLiveChannels` |
@@ -1606,7 +1758,7 @@ Die Serverdeckel (Eingänge, Sitzungen, Byte-Budget) sind keine Rate-Limits; sie
 | LA-10 EPG-Quellen | `listLiveEpgSources`, `listLiveEpgImports`, `getLiveConfig` | `uploadLiveFile`, `testLiveEpgSource`, `createLiveEpgSource`, `updateLiveEpgSource`, `deleteLiveEpgSource`, `refreshLiveEpgSource`, `acceptHeldLiveEpgImport`, `setLiveEpgSourceOrder`, `updateLiveConfig` |
 | LA-11 EPG-Zuordnungen | `listLiveEpgMappings`, `searchLiveEpgChannels` | `setLiveEpgMapping`, `removeLiveEpgMapping`, `acceptLiveEpgSuggestions`, `runLiveEpgAutoMapping` |
 | LA-12 Aktive Streams | `listLiveIngests` | `reconnectLiveIngest`, `switchLiveIngestSource`, `stopLiveIngest` |
-| LA-13 Diagnose | `getLiveDiagnostics`, `listLiveEvents`, `getLiveConfig` | `testLiveChannelStream`, `updateLiveConfig` |
+| LA-13 Diagnose | `getLiveDiagnostics` (auch `sources` mit «ruht» und «Ein-Strom-Betrieb», `deferred`), `listLiveEvents`, `getLiveConfig` | `testLiveChannelStream`, `updateLiveConfig` |
 | LA-14 Aufnahmen (DVR) | `getLiveConfig` | `updateLiveConfig` |
 | LA-15 Timeshift | `getLiveConfig` | `updateLiveConfig` |
 | LA-16 Speicher | `getLiveStorage`, `listLiveStorageCandidates` | `validateLiveStorageLocation`, `setLiveStorageLocation`, `checkLiveStorageLocation`, `cleanupLiveStorage`, `deleteLiveOrphanRecordingFiles`, `updateLiveConfig`, `updateAccountAccess` (Kontingent) |
@@ -1644,9 +1796,11 @@ Vorladen je Sender (`07` W-23), Kopfzeilen einer EPG-Quelle (W-27).
 | O-1 | Unbekannte Aufzählungswerte in den Apps (`MyMediaKey`, `NotificationKind`, `AdminStream.kind`): Ausweichwert in den erzeugten Kotlin-Clients durch einen Schema-Test belegen (7.2); kein Filter nach App-Fassung (RD-27) | Bau Stufe 1a, `16` |
 | O-2 | ETag und `If-None-Match` für `getLiveGuide` und `listLiveChannels`, falls die Messungen `09` M-4, M-5 es verlangen | nach Stufe 2 |
 | O-3 | Kopfzeilen und User-Agent für EPG-Quellen (W-27) | `09` Fassung 2 |
-| O-4 | **erledigt durch `04` 14.4:** `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s (mit `state: starting`, wenn das erste Segment noch fehlt); danach holt der Client die Liste, sobald der Herzschlag `live` meldet; Abbruch nach 15 s (3.4). Ob die erste Liste in der Antwort mitkommt, bleibt `05` O-17 | – |
+| O-4 | **erledigt durch `04` 9 und 14.1:** `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s (mit `state: starting`, wenn das erste Segment noch fehlt); danach lädt der Client die Liste erst bei `live`; drei Startfristen, zusammen höchstens 90 s, danach `start_failed` (3.4). Ob die erste Liste in der Antwort mitkommt, bleibt `05` O-17 | – |
 | O-5 | Form der `programmeRef` bei Sendungen gleichen Beginns und Titels auf einem Sender (Überlappung mit gleicher Prüfsumme): zweite Unterscheidung nötig? | `09` |
-| O-6 | `listProfileLiveRecordings` und `getLiveRecordingUsage` für ein Hauptprofil, dessen Konto Live-TV nicht mehr hat (F-1) | `03` |
+| O-6 | **erledigt durch A-12** (`12` 1.1): Liste, Belegung und Löschen ohne eigenes «Live-TV», Abspielen nicht (3.5); offen bleibt nur F-1 (b) | – |
+| O-8 | Laufzeitzustand je Quelle über einen Neustart merken (`04` O-32): heute flüchtig, `LiveSourceRuntime` nach dem Neustart leer | `04`, `20` |
+| O-9 | Wie hls.js, Media3 und Safari auf eine Live-Liste ohne Segment reagieren, obwohl der Client sie erst bei `live` lädt (RB-15) | M-3, M-4 |
 | O-7 | **erledigt durch RD-27:** kein Filter je Client-Kennung (7.2) | – |
 
 ### 9.5 Fragen an dich (nur neue)
@@ -1656,12 +1810,16 @@ Schaltet der Administrator Live-TV für ein Konto aus, ist der ganze Bereich fü
 Aufnahmen bleiben und belegen das Kontingent. `03` DR-03 erlaubt dem Hauptprofil das Löschen auch ohne Recht
 «Aufnahmen», sagt aber nichts zu «Live-TV».
 
-- **(a) Ja:** LS-14 und das Löschen eigener Aufnahmen bleiben für das Hauptprofil erreichbar (nur Liste und
-  Löschen, kein Abspielen), damit der Platz frei werden kann.
-- **(b) Nein:** Ohne Live-TV ist alles 404; freigeben kann nur der Administrator, indem er das Recht wieder gibt.
+- **(a) Ja, als benannte Ausnahme A-12:** LS-14 und das Löschen der Aufnahmen seiner Profile mit Altersgrenze
+  bleiben für das Hauptprofil erreichbar (nur Liste, Belegung und Löschen, kein Abspielen), damit der Platz frei
+  werden kann. SM-38 («ohne Recht jede Live-Operation 404») gilt mit dieser einen Ausnahme.
+- **(b) Nein:** Ohne Live-TV ist alles 404, SM-38 ohne Ausnahme; freigeben kann nur der Administrator, indem er
+  das Recht wieder gibt.
 
 Empfehlung: **(a)**, weil sonst Aufnahmen bleiben, die niemand mehr löschen kann (der Administrator sieht keine
-Titel und löscht nicht, `15` F-18 (A)). Bis zu deiner Antwort gilt (b), weil es dem Wortlaut «unsichtbar» folgt.
+Titel und löscht nicht, `15` F-18 (A)). **Vorgabe bis zu deiner Antwort:** (a) in der Form von A-12, die der
+Koordinator nach Review 6 als benannte Ausnahme in `12` 1.1 aufgenommen hat (RT-09); sie steht in `02` und
+ADR 0046, damit sich kein Bau auf die kürzere Fassung beruft. Fassung 2 nannte hier (b).
 
 ---
 
@@ -1721,10 +1879,12 @@ S-8 bis S-10 und S-12 betreffen nur das Schema (`07` 13.2).
 ### 10.3 Aus `04` Fassung 3, `11` Fassung 2 und `18`
 
 - Neue Operation `endLiveChannelNow` für «sofort beenden» (T-29); `AdminLiveChannel.running` nennt nur Zahlen.
-- `LiveIngest.state` kennt `deferred` («zurückgestellt»).
-- Herzschlag mit `playing` (spielt/Pause); Token-Erneuerung ab 11 Stunden, Ende nach 60 s ohne Herzschlag (4.2).
-- `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s, Abbruch nach 15 s (3.4); O-4 erledigt.
-- Grenzen aus `04` 14 im Vertrag: Ring 4 bis 15 s, Anteil der Umwandlung 0 bis 100 %, Upload M3U 200 MiB (3.9, 4.1).
+- `LiveIngest.state` kennt `deferred` (in Fassung 3 nur noch für einen Dauersender, der nicht starten kann).
+- Herzschlag mit Pausenangabe; Token-Erneuerung ab 11 Stunden, Ende nach 60 s ohne Herzschlag (4.2; in Fassung 3
+  zählt die Schauzeit ohne Rücksicht auf die Pausenangabe).
+- `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s (3.4; in Fassung 3 drei Startfristen).
+- Grenzen aus `04` 14 im Vertrag: Anteil der Umwandlung 0 bis 100 %, Upload M3U 200 MiB (3.9, 4.1; die Ringlänge
+  ist seit Fassung 3 keine Einstellung).
 - Stufen 1a, 1b, 2, 3, H, 4, 5, 6 je Operation (Abschnitt 2); `resolveLiveNetTarget` erst Stufe H (D-4).
 - Felder aus `14` LD-02/LD-03 nicht im Vertrag, offen über `11` O-6 (3.6, 9.2).
 
@@ -1736,4 +1896,35 @@ zusammengelegt: 8 (S-1 bis S-7, `getLiveImportPreview` und `listLiveImportPrevie
 
 Restebereinigung nach Konsolidierung 1: Frage F-1 mit Verweis auf `20` E-28-42.
 
-Restebereinigung nach Konsolidierung 1: `allowMoreConnections` heisst `preloadEnabled` (`20` U-17).
+Restebereinigung nach Konsolidierung 1: Der Schalter je Quelle bekam einen neuen Namen; in Fassung 3 ist er gestrichen (Abschnitt 11).
+
+---
+
+## 11. Änderungen gegenüber Fassung 2
+
+Grundlage wie `07` Abschnitt 14 (Schlussreviews 4, 5 und 6; `04` Fassung 4 Abschnitt 15.3; `12` Fassung 3;
+Entscheide des Koordinators). Keine neue und keine gestrichene Operation: weiterhin 115 neue (7 binär) und 20
+erweiterte bestehende; `getMyChannels` und `updateMyChannel` waren schon erweitert und bekommen nur das Feld
+`liveTitles`.
+
+| Anlass | Änderung im Vertrag |
+|---|---|
+| Grundregel (RG-01) | Kopf: ohne Antwort gilt die wortlauttreue Vorgabe; Felder anderer Varianten nur als Hinweis |
+| RG-03, SC-1, `04` 15.3 | `preloadEnabled` aus `LiveSource` und `LiveSourceWrite` gestrichen; käme nur mit `04` F-3 (b) (3.7) |
+| RG-03, `04` 5.3 | `LiveSourceRuntime` (vorsorglicher Empfang ruht, Ein-Strom-Betrieb, je mit seit und bis) in `LiveSource` und `getLiveDiagnostics.sources`; flüchtig (`07` 1.3); Hinweis `single_connection` (3.7, 3.9) |
+| RG-02, `04` 5.3 | `deferred` nur für einen Dauersender, der nicht starten kann; `LiveIngest.deferred` mit Ursache, Zahl der Versuche und nächstem Versuch; `getLiveOverview.deferredPermanent` (3.9) |
+| T-7, RB-01 | `ringSeconds` und `idleCheckParallel` aus `LiveConfig` gestrichen (Konstanten aus `04` 14) |
+| SC-2 | `maxConcurrent` gestrichen; käme mit `20` E-28-49 (B) |
+| RB-02, RB-07, `04` 9 | drei Startfristen; `state: start_failed` mit `LiveStartError`; Haltegrund und Reservierung zurück, Sitzung bleibt; `reconnecting` nur für eine laufende Wiedergabe; ein sofortiger Versuch auf wartendem oder gestörtem Strom (`startingReason: retrying`); der 502 beim Einstellen entfällt (3.1, 3.4) |
+| RB-15 | `409 live_superseded`; Liste nur im Zustand `live` (3.1, 3.4); Verhalten der Player bei leerer Liste als O-9 |
+| RT-04, SM-50 | `playing` nur Anzeige und Drosselung; Schauzeit nach ausgelieferten Segmenten; Feld nicht mehr Pflicht (3.4) |
+| RT-11 | Sitzungsende nach 15 Minuten ohne Segmentabruf (mit Sitzungspuffer Höchstdauer plus 15 Minuten), ohne Puffer 60 Sekunden nach Pause; `deviceId` aus der Anfrage gestrichen, Gerät aus der Anmeldung (3.4, 4.2) |
+| RT-10 | Herzschlag prüft Recht, Anmeldung und Zugriffsregel einer Aufnahme; Löschen beendet Sitzungen (3.4, 4.2) |
+| RT-12, SM-52 | feste Reihenfolge der Prüfungen; 410 nur für eigene Sitzungen; `skipped` mit `not_found` (3.1) |
+| T-29, RB-05 | Token-Erneuerung nur bei aktivem Sender und aktiver Quelle; `AdminLiveChannel.disabledAt`; Hinweis beim Deaktivieren (3.4, 3.8, 4.2) |
+| RB-05, RT-06, SM-47 | Entfernen oder Ändern einer Quelle verlangt `confirm` mit `LiveSource.running` und beendet ihre Empfänger innert 5 Sekunden (3.7) |
+| RT-05, `04` 10.9, `12` 4.5 | `LiveNetTarget` und `LiveNetTargetWrite`: Einzeladresse mit Port, Netz höchstens /28 bzw. /124 und 16 Ports nur mit `wideConfirm`, nie mit Gateway, höchstens 16 Ziele (3.7) |
+| RT-01, `04` 10.8 | `getLiveOverview.containment` («Eindämmung nicht verfügbar», Folge «nur im Original»); `AdminLiveChannel.playability` (`transcode_only`, `long_gop`) (3.8, 3.9) |
+| RT-09, A-12 | Hauptprofil sieht und löscht Aufnahmen seiner Profile mit Altersgrenze ohne eigenes wirksames «Live-TV»; F-1 mit Vorgabe (a) als A-12; O-6 erledigt (3.1, 3.5, 9.5) |
+| SM-56, RT-07 | `MyChannel.liveTitles`: Meldungen nach aussen ab Werk ohne Titel und Sender (3.10) |
+| SM-45, RT-19 | `LiveIngest.recordings` erst ab 2, sonst `recordingsActive`; `AdminStream` einer Aufnahme ohne Auflösung, Bildrate, Bitrate (2.12, 3.9, 3.10) |
