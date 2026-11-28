@@ -16,10 +16,11 @@ Rebranding vorbereiten, ohne mit dem Relaunch zu beginnen. Alles steht in
   Inkscape, ImageMagick, svgo, sharp, resvg, fonttools, Lighthouse, axe-core, Playwright MCP,
   Chrome DevTools MCP), 25 Skills an gepinnten Commits in `~/.claude/skills`.
 - **Geprüft:** `scripts/design-tools-check.sh` 45 von 45 grün; beide Browser-MCP-Server über das
-  MCP-Protokoll bedient; Context7 und GitHub abgefragt; TV-Emulator mit Fokus per D-Pad.
-- **Offen:** Agents, Skills und Einstellungen greifen nach dem Merge in einer neuen Sitzung; dort
-  einmal `design-qa` mit beiden Browser-Servern laufen lassen. oh-my-claudecode bleibt bei 5.8.4.
-  Kein Code von Server, Web-App oder Apps geändert.
+  MCP-Protokoll bedient; Context7 und GitHub abgefragt; TV-Emulator mit Fokus per D-Pad. Nach dem
+  Merge (PR #238, `aecb04f6`) in einer neuen Sitzung: `design-qa` bedient eine Probeseite mit
+  Playwright und Chrome DevTools, die drei gesperrten Browser-Werkzeuge fehlen ihm.
+- **Stand:** oh-my-claudecode bleibt bei 5.8.4. Kein Code von Server, Web-App oder Apps geändert.
+  Offen: nichts.
 
 ## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026, PR #235)
 
