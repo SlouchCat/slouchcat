@@ -10,6 +10,7 @@ import com.slouchcat.app.tv.testing.Pages
 import com.slouchcat.app.tv.testing.TV
 import com.slouchcat.app.tv.testing.TestAudio
 import com.slouchcat.app.tv.testing.withoutAudio
+import com.slouchcat.core.browse.testing.FakeHome
 import com.slouchcat.core.browse.testing.FakeRadio
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
@@ -41,7 +42,9 @@ class RadioScreenTest {
 
     @Test
     fun theFocusedFavoriteTileCarriesTheStar() {
-        pages.show({ it.copy(radio = radio) }, features = withoutAudio + audio.feature)
+        // A start page of its own: the real one asked media.example.test over the network, and when
+        // its «Try again» came only while the remote walked the rail, it took the focus from there.
+        pages.show({ it.copy(home = FakeHome(), radio = radio) }, features = withoutAudio + audio.feature)
         pages.openRail(s(R.string.app_radio_title))
         pages.waitFor("Radio 2")
         // «Meine Sender» first: its first station has the focus and shows its star.
