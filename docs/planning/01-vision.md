@@ -86,6 +86,6 @@ Entscheidungsprotokoll: Live-Webradio ohne Aufnahmen (seit 6. November 2026, Fra
 Android-Handy-App und die Android-TV-App (seit 21. November 2026, Fragen 34 und 35, mit den zwei kleinen Diensten
 im Internet für das Einrichten des Fernsehers und die Push-Meldungen) und Live-TV aus IPTV-Quellen mit
 Programmzeitschrift, persönlichem Timeshift und Aufnahmen von Fernsehsendern (seit 28. November 2026, Frage 37,
-Konzept 28). Live-TV ist konzipiert, nicht gebaut; gebaut wird je Stufe erst nach Marcos ausdrücklicher
-Baufreigabe. Die übrigen Nicht-Ziele oben gelten weiter; die geltende Fassung samt Ausnahmen steht in der Spec
+Konzept 28). Live-TV ist konzipiert; «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei getrennte
+Schritte, beide stehen aus, und bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel. Die übrigen Nicht-Ziele oben gelten weiter; die geltende Fassung samt Ausnahmen steht in der Spec
 («Non-Goals») und in `CLAUDE.md` Regel 11.
