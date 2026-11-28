@@ -90,6 +90,67 @@ func TestBrokenRules(t *testing.T) {
 	}
 }
 
+// grouped is valid with the change detection (M9): web runs only for its group.
+const grouped = `
+jobs:
+  changes:
+    name: changes (docs only?)
+    outputs:
+      run_web: ${{ steps.affected.outputs.run_web }}
+      run_e2e: ${{ steps.affected.outputs.run_e2e }}
+  web:
+    name: web
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.run_web == 'true'
+  lint:
+    name: lint
+    needs: changes
+  ci:
+    name: ci
+    if: always()
+    needs: [changes, web, lint]
+    steps:
+      - name: Every job of this workflow must be green
+        env:
+          RUN_WEB: ${{ needs.changes.outputs.run_web }}
+          RUN_E2E: ${{ needs.changes.outputs.run_e2e }}
+        run: |
+          check web  '${{ needs.web.result }}' "$RUN_WEB"
+          check lint '${{ needs.lint.result }}'
+`
+
+func TestGroupRules(t *testing.T) {
+	if p := check(t, grouped, []string{}...); len(p) != 0 {
+		t.Fatalf("want no problems, got %q", p)
+	}
+	cases := []struct{ name, from, to, want string }{
+		{"gate line names another group", `"$RUN_WEB"`, `"$RUN_E2E"`, `job "web" runs only when run_web: its gate line must end in "$RUN_WEB" (found "RUN_E2E")`},
+		{"gate line without the flag", `'${{ needs.web.result }}' "$RUN_WEB"`, `'${{ needs.web.result }}'`, `its gate line must end in "$RUN_WEB" (found "")`},
+		{"flag on a job without a group", `check lint '${{ needs.lint.result }}'`, `check lint '${{ needs.lint.result }}' "$RUN_WEB"`, `job "lint" has no group condition`},
+		{"two groups in one condition", `needs.changes.outputs.run_web == 'true'`, `needs.changes.outputs.run_web == 'true' && needs.changes.outputs.run_e2e == 'true'`, "the gate can accept its skip for one group only"},
+		{"flag the gate step does not set", "          RUN_WEB: ${{ needs.changes.outputs.run_web }}\n", "", "names $RUN_WEB, which the gate step does not set"},
+		{"flag read from another output", "RUN_WEB: ${{ needs.changes.outputs.run_web }}", "RUN_WEB: ${{ needs.changes.outputs.run_e2e }}", "RUN_WEB must be ${{ needs.changes.outputs.run_web }}"},
+		{"group the changes job does not output", "      run_web: ${{ steps.affected.outputs.run_web }}\n", "", `which the job "changes" does not output`},
+		{"output from another group's answer", "run_web: ${{ steps.affected.outputs.run_web }}", "run_web: ${{ steps.affected.outputs.run_e2e }}", "the output run_web of the job \"changes\" must be"},
+		{"third argument that is no flag", `check lint '${{ needs.lint.result }}'`, `check lint '${{ needs.lint.result }}' false`, "has the third argument false"},
+		{"flag without quotes", `'${{ needs.web.result }}' "$RUN_WEB"`, `'${{ needs.web.result }}' $RUN_WEB`, "has the third argument $RUN_WEB"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if !strings.Contains(grouped, c.from) {
+				t.Fatalf("fixture lacks %q", c.from)
+			}
+			problems, err := Check([]byte(strings.Replace(grouped, c.from, c.to, 1)), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(strings.Join(problems, "\n"), c.want) {
+				t.Fatalf("want a problem containing %q, got %q", c.want, problems)
+			}
+		})
+	}
+}
+
 func TestParseInformational(t *testing.T) {
 	got := ParseInformational([]byte("# comment\n\nandroid-emulator (flow, informational)\n  \n# end\n"))
 	if len(got) != 1 || got[0] != "android-emulator (flow, informational)" {

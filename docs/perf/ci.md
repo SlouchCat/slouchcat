@@ -454,3 +454,32 @@ Untersucht die fünf häufigsten und jüngsten Kandidaten aus der Auswertung all
 
 Offen als Frage an Marco: Lädt die Startseite der TV-App spät, nimmt sie auch auf einem echten
 Fernseher den Fokus aus der Seitenleiste.
+
+## 12. Nachtrag vom 28. November 2026: Change Detection je Jobgruppe (M9)
+
+Die Karte (`.github/scripts/affected-jobs.sh`) auf die letzten 30 gemergten Code-PRs angewandt
+(#206 bis #244, ohne die 25 reinen Doku-PRs dazwischen; je Merge `git diff --name-only --no-renames`
+gegen den ersten Elternteil, wie der Job `changes`):
+
+| Gruppen, die laufen | PRs | Beispiele | Was ausfällt |
+|---|---|---|---|
+| alle | 13 | #232 (`api/openapi.yaml`), #240/#241/#244 (`.github/`), #208 (`android/Taskfile.yml`), #211 (`scripts/store-screenshots.sh`, unbekannt) | nichts |
+| `android`, `android_server` | 11 | #217 bis #230 (nur Android-Code) | server, relay, web, storybook, build, e2e, image |
+| `android`, `android_server`, `web`, `e2e`, `image` | 4 | #210 (nur `web/src/locales`), #215, #227, #234 (Android und Texte) | server, relay |
+| `server`, `android`, `android_server`, `image` | 1 | #235 (Version der Handy-App, Deploy-Dateien) | relay, web, e2e |
+| `server`, `android_server`, `e2e`, `image` | 1 | #212 (Server-Code, Deploy-Dateien) | relay, android, web |
+
+Alle 13 Voll-Läufe kamen von Pfaden, die die Karte absichtlich als «alles» führt (Workflows,
+Taskfiles, Vertrag, unbekannte Skripte). **Geschätzt** aus den Pol-Enden der Ära E3 (Abschnitt 9):
+Ein reiner Android-PR wartet auf `android` (Median 8,0 min, P95 10,7) statt auf den e2e-Pfad
+(13,7 min im ersten Lauf nach Welle 2), rund 5 min weniger; er spart die Runner-Minuten von server,
+web, storybook, build, sieben e2e-Shards und image. Die übrigen gefilterten PRs warten weiter auf
+den e2e-Pfad. **Nachmessen:** an den nächsten zehn reinen Android-PRs (Gate-Zeit und Runner-Minuten
+je Lauf). Der Merge eines gefilterten PR läuft auf `main` voll (`already-tested.sh` übernimmt keinen
+übersprungenen Job); Akzeptanz nach vier Wochen: kein Bruch auf `main` durch eine fehlende Kante.
+
+Der Kartentest im Job `changes` braucht lokal rund 5 s (164 Lesezugriffe, 42 Tabellenfälle).
+
+M10 (`server tests (1)` teilen) bleibt zurückgestellt: Im ersten Lauf nach Welle 2 (PR #241) endete
+`server tests (1)` nach 11,6 min, der e2e-Pfad nach 13,1 min. server-test ist damit nicht der Pol;
+die Bedingung des Plans («erst wenn Pol») ist nicht erfüllt.

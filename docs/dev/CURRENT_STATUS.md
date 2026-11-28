@@ -1,5 +1,40 @@
 # Aktueller Stand
 
+## CI-Optimierung M9: Pull Requests prüfen nur, was ihre Änderung erreichen kann (28. November 2026, PR #245)
+
+PR #245, Zweig `claude/ci-change-detection`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
+umzusetzen (`docs/perf/ci-optimierungsplan.md`, M9; ADR 0013, Nachtrag M9; Messung `docs/perf/ci.md`,
+Abschnitt 12).
+
+- **Change Detection:** Der Job `changes` ordnet die Pfade eines PR mit `.github/scripts/affected-jobs.sh`
+  sieben Jobgruppen zu (`server`, `relay`, `android`, `android_server`, `web`, `e2e`, `image`). Das
+  Gate zählt «skipped» nur dann als grün, wenn `changes` erfolgreich war und die Gruppe nicht betroffen
+  ist. Unbekannte Pfade, Workflows, Taskfiles, Vertrag, Werkzeugversionen und Lock-Dateien lösen alles
+  aus; main, der Wochenlauf und Läufe von Hand prüfen immer alles, und der Merge eines gefilterten PR
+  läuft auf main voll.
+- **Kartentest:** `affected-jobs.test.sh` läuft auf jedem PR im Job `changes`: 42 Tabellenfälle und
+  164 Lesezugriffe über Modulgrenzen (Go, Kotlin, Gradle, TypeScript, JavaScript, Shell, Taskfiles,
+  `COPY` der Dockerfiles), je mit den Jobgruppen der lesenden Datei, über eine Stufe vererbt, bei
+  gelesenen Ordnern auch gegen jede engere Zeile der Karte; zehn Anker halten die Suche selbst.
+  Mutationen belegen, dass er fehlende Kanten, zu enge Zeilen und eine ausgefallene Suchform meldet.
+  `ciworkflows` prüft zusätzlich, dass Bedingung, Ausgabe von `changes` und Gate-Flag jedes Jobs
+  dieselbe Gruppe nennen.
+- **docs-only enger:** Markdown in `server/`, `relay/`, `android/`, `testdata/`, `scripts/` und `api/`
+  sowie `docs/store/grafiken/` gelten nicht mehr als Doku.
+- **An 30 echten PRs (#206 bis #244):** 13 hätten alles geprüft, 11 nur Android (rund 5 min früher
+  fertig, **geschätzt**), 6 einen Teil. Nachmessen an den nächsten zehn reinen Android-PRs.
+- **M10** bleibt zurückgestellt: `server tests (1)` endete im ersten Lauf nach Welle 2 nach 11,6 min,
+  der e2e-Pfad nach 13,1 min; server-test ist nicht der Pol.
+- **Geprüft:** `task ci` grün auf dem Stand vor den Reviewkorrekturen (server 1133 s, relay 4 s,
+  android 72 s, web 167 s, storybook 128 s, e2e 806 von 806 in 1419 s); danach `task ci:workflows`,
+  `go test ./tools/ciworkflows`, golangci-lint (0 Befunde) und zizmor (dieselben 76 Befunde wie main).
+  Review: drei Blocker (fehlende Kanten Launcher-Icons → web, Mock-Server → android_server,
+  Store-Grafiken → web), drei Warnungen und acht kleine Punkte behoben; die zweite Prüfung gab frei
+  und fand sechs Lücken in der Wache des Kartentests und in `ciworkflows`, alle behoben.
+- **Beobachtung:** Im main-Lauf 46170173276 nach dem Merge von #244 war der informative Job
+  `android-emulator` rot (ein Instrumentierungstest in `connectedPlayDebugAndroidTest`, Name nur im
+  Artefakt `android-emulator-reports`); im PR-Lauf war er grün, das Gate blieb grün.
+
 ## CI-Optimierung Welle 3: Cache-Haushalt, Release-Härtung, zwei Flakes (28. November 2026, PR #244)
 
 PR #244, Zweig `claude/ci-welle3`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig

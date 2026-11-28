@@ -27,9 +27,10 @@ Jede Regel hat einen Grund; wer gegen eine verstossen will, fragt Marco.
    bleibt lokal die Summe aller CI-Jobs. Grund: ADR 0013.
 3. **Ein neuer Job steht in `needs:` des Gates `ci` und in dessen Prüfliste**, oder er ist
    informativ: `continue-on-error: true` und sein Name in `.github/ci-informational-jobs.txt`.
-   `task ci:workflows` prüft das. «skipped» ist nur grün, wenn der Job `changes` das begründet
-   (heute: nur Doku, schon geprüft; mit M9 zusätzlich `run_<job> = false`). Grund: ein vergessener
-   Job bliebe unbeobachtet.
+   `task ci:workflows` prüft das. Er gehört zu einer Jobgruppe (`if: … run_<gruppe> == 'true'`, in
+   der Prüfliste des Gates mit `"$RUN_<GRUPPE>"`). «skipped» ist nur grün, wenn der Job `changes` das
+   begründet: nur Doku, schon geprüft, oder Gruppe nicht betroffen. Grund: ein vergessener Job bliebe
+   unbeobachtet.
 4. **Caches speichert nur main** (`actions/cache/save` mit Bedingung auf main), PR-Läufe lesen.
    Kein neuer Cache ohne Zeile im Cache-Budget (`docs/perf/ci.md`, Abschnitt 11, Ziel ≤ 9 GiB von 10)
    und kein Schlüssel, der je Push einen neuen Eintrag anlegt, ohne Grund (Lauf-ID nur, wo ein
@@ -107,8 +108,10 @@ Beim Ändern:
   offline) ohne neue Funde gegenüber dem Stand vom 28.11.2026 (91 Funde; die `github-env`-Meldungen
   der Composite-Actions sind bewertete Fehlalarme: Werte vom Runner, kein Fremdtext).
 - Gate-Liste und `needs` gleich halten (Regel 3). Neuer Cache: Budgetzeile (Regel 4).
-- Was ein Job liest, bestimmt, wann er laufen muss. Mit M9: die Karte Pfad → Jobs im selben PR
-  ergänzen und den Kartentest laufen lassen.
+- Was ein Job liest, bestimmt, wann er laufen muss: Liest ein Test oder Build eine Datei über
+  Modulgrenzen (etwa ein Go-Test `../../../web/...`, ein Gradle-Build `../testdata/...`), im selben PR
+  `.github/scripts/affected-jobs.sh` ergänzen. `.github/scripts/affected-jobs.test.sh` (in `task
+  ci:workflows` und im Job `changes`) findet fehlende Kanten, die eine Suche sehen kann.
 - Neue e2e-Dauertabelle: `task web:e2e:durations RUNS="<id> <id> <id>"` mit drei grünen PR-Läufen
   der aktuellen Konfiguration; die Zahl der Shards steht zweimal (Matrix in `ci.yml`,
   `CI_E2E_SHARDS` in `web/Taskfile.yml`) und wird nur nach einer Messung wie in `docs/perf/ci.md`

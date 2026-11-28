@@ -6,7 +6,12 @@
 //     .github/ci-informational-jobs.txt with continue-on-error, never both;
 //   - a job the gate needs has no continue-on-error: its result must be able to turn the gate red;
 //   - the gate runs always (`if: always()`) and keeps its name `ci`, the status check a merge needs;
-//   - the job `changes` keeps the name .github/scripts/already-tested.sh looks for.
+//   - the job `changes` keeps the name .github/scripts/already-tested.sh looks for;
+//   - a job that runs only for its group of the change detection (M9,
+//     `needs.changes.outputs.run_<group> == 'true'` in its `if:`) names that same group in its gate
+//     line (`check <job> '...' "$RUN_<GROUP>"`), the gate step reads RUN_<GROUP> from that output
+//     of `changes`, and a job without such a condition has no flag: the gate accepts a skip as
+//     green only for the group whose answer made the job skip.
 //
 // A job missing from the gate would run without anyone looking at its result; that is the price
 // ADR 0013 accepted for naming every job, and this check pays it.
@@ -37,19 +42,28 @@ type workflow struct {
 }
 
 type job struct {
-	Name            string    `yaml:"name"`
-	Needs           yaml.Node `yaml:"needs"`
-	If              string    `yaml:"if"`
-	ContinueOnError yaml.Node `yaml:"continue-on-error"`
-	Steps           []step    `yaml:"steps"`
+	Name            string            `yaml:"name"`
+	Needs           yaml.Node         `yaml:"needs"`
+	If              string            `yaml:"if"`
+	ContinueOnError yaml.Node         `yaml:"continue-on-error"`
+	Outputs         map[string]string `yaml:"outputs"`
+	Steps           []step            `yaml:"steps"`
 }
 
 type step struct {
-	Name string `yaml:"name"`
-	Run  string `yaml:"run"`
+	Name string            `yaml:"name"`
+	Env  map[string]string `yaml:"env"`
+	Run  string            `yaml:"run"`
 }
 
-var checkLine = regexp.MustCompile(`(?m)^\s*check\s+(\S+)\s+'\$\{\{\s*needs\.([A-Za-z0-9_-]+)\.result\s*\}\}'`)
+var (
+	// check <job> '${{ needs.<job>.result }}' [<third argument>, only ever "$RUN_<GROUP>"]
+	checkLine = regexp.MustCompile(`(?m)^\s*check\s+(\S+)\s+'\$\{\{\s*needs\.([A-Za-z0-9_-]+)\.result\s*\}\}'(?:[ \t]+([^ \t\n#]+))?`)
+	runFlag   = regexp.MustCompile(`^"\$(RUN_[A-Z0-9_]+)"$`)
+	groupIf   = regexp.MustCompile(`needs\.` + ChangesJob + `\.outputs\.(run_[a-z0-9_]+)`)
+	runEnv    = regexp.MustCompile(`^\$\{\{\s*needs\.` + ChangesJob + `\.outputs\.(run_[a-z0-9_]+)\s*\}\}$`)
+	runOutput = regexp.MustCompile(`^\$\{\{\s*steps\.[A-Za-z0-9_-]+\.outputs\.(run_[a-z0-9_]+)\s*\}\}$`)
+)
 
 // ParseInformational reads the job names of .github/ci-informational-jobs.txt.
 func ParseInformational(data []byte) []string {
@@ -90,15 +104,46 @@ func Check(data []byte, informational []string) ([]string, error) {
 
 	needs := strings_(gate.Needs)
 	checked := map[string]int{}
+	flag := map[string]string{}   // job -> the RUN_<GROUP> its gate line names, "" for none
+	flagOf := map[string]string{} // RUN_<GROUP> -> the output of `changes` the gate step reads
 	for _, s := range gate.Steps {
 		if s.Name != gateStep {
 			continue
+		}
+		for name, value := range s.Env {
+			if !strings.HasPrefix(name, "RUN_") {
+				continue
+			}
+			m := runEnv.FindStringSubmatch(strings.TrimSpace(value))
+			if m == nil || strings.ToUpper(m[1]) != name {
+				add("the gate step's %s must be ${{ needs.%s.outputs.%s }} (found %q)", name, ChangesJob, strings.ToLower(name), value)
+				continue
+			}
+			flagOf[name] = m[1]
 		}
 		for _, m := range checkLine.FindAllStringSubmatch(s.Run, -1) {
 			if m[1] != m[2] {
 				add("the gate's line `check %s` reads needs.%s.result: label and job differ", m[1], m[2])
 			}
 			checked[m[2]]++
+			switch f := runFlag.FindStringSubmatch(m[3]); {
+			case m[3] == "":
+				flag[m[2]] = ""
+			case f == nil:
+				add("the gate's line `check %s` has the third argument %s; only \"$RUN_<GROUP>\" may decide a skip", m[1], m[3])
+				flag[m[2]] = m[3]
+			default:
+				flag[m[2]] = f[1]
+			}
+		}
+	}
+	changesOutputs := wf.Jobs[ChangesJob].Outputs
+	for name, value := range changesOutputs {
+		if !strings.HasPrefix(name, "run_") {
+			continue
+		}
+		if m := runOutput.FindStringSubmatch(strings.TrimSpace(value)); m == nil || m[1] != name {
+			add("the output %s of the job %q must be ${{ steps.<id>.outputs.%s }} (found %q)", name, ChangesJob, name, value)
 		}
 	}
 
@@ -143,6 +188,31 @@ func Check(data []byte, informational []string) ([]string, error) {
 			add("job %q is in the gate's needs and has continue-on-error: its failure could not turn the gate red", id)
 		case inNeeds && id != ChangesJob && checked[id] != 1:
 			add("job %q needs exactly one line `check %s '${{ needs.%s.result }}'` in the gate step %q (found %d)", id, id, id, gateStep, checked[id])
+		}
+		if !inNeeds || id == ChangesJob {
+			continue
+		}
+		var groups []string
+		for _, m := range groupIf.FindAllStringSubmatch(wf.Jobs[id].If, -1) {
+			if !slices.Contains(groups, m[1]) {
+				groups = append(groups, m[1])
+			}
+		}
+		switch {
+		case len(groups) > 1:
+			add("job %q runs only for the groups %s; the gate can accept its skip for one group only", id, strings.Join(groups, ", "))
+		case len(groups) == 1:
+			want := strings.ToUpper(groups[0])
+			if _, ok := changesOutputs[groups[0]]; !ok {
+				add("job %q runs only when needs.%s.outputs.%s, which the job %q does not output", id, ChangesJob, groups[0], ChangesJob)
+			}
+			if flag[id] != want {
+				add("job %q runs only when %s: its gate line must end in \"$%s\" (found %q)", id, groups[0], want, flag[id])
+			} else if _, ok := flagOf[want]; !ok {
+				add("the gate line of job %q names $%s, which the gate step does not set", id, want)
+			}
+		case flag[id] != "":
+			add("job %q has no group condition, but its gate line accepts a skip by $%s", id, flag[id])
 		}
 	}
 	for id := range checked {
