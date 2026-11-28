@@ -1049,6 +1049,7 @@
       "password_too_short": "Alespoň 10 znaků.",
       "password_mismatch": "Hesla se neshodují.",
       "above_account_limit": "Vyšší než strop tohoto účtu.",
+      "age_restricted": "S věkovým omezením není oprávnění žádat o tituly.",
       "unknown_library": "Tato knihovna neexistuje.",
       "too_many_profiles": "Účet může mít nejvýše 10 profilů.",
       "already_exists": "Tato e-mailová adresa je už obsazená.",
@@ -5611,7 +5612,8 @@
           "detail": "Platí do / přijato",
           "actions": "Akce"
         },
-        "seerrHint": "Při přijetí Slouchcat založí účet i v Seerr: stejný e-mail, stejné heslo."
+        "seerrHint": "Při přijetí Slouchcat založí účet i v Seerr: stejný e-mail, stejné heslo.",
+        "canRequestRestricted": "Pozvánka s věkovým omezením nedává oprávnění žádat o tituly."
       },
       "discard": "Zahodit",
       "status": {
@@ -5650,6 +5652,8 @@
         "of": "Přání účtu {{email}}",
         "canRequest": "Smí žádat o tituly",
         "canRequestHelp": "Platí jako horní hranice pro všechny profily. Které profily smějí žádat, určuje hlavní profil účtu.",
+        "canRequestRestricted": "Účty s věkovým omezením nesmějí žádat o tituly. Bez věkového omezení se oprávnění vrátí.",
+        "canRequestReturns": "Bez věkového omezení smí účet znovu žádat. Oprávnění lze vypnout po uložení.",
         "notSetUp": "–",
         "state": {
           "allowed": "Povoleno",
@@ -6985,7 +6989,7 @@
           "deny": "Nepovolit"
         },
         "newAccountsCanRequest": "Nové účty smějí žádat o tituly",
-        "newAccountsCanRequestHelp": "Výchozí poloha přepínače v dialogu „Pozvat účet“. Stávající účty se nemění.",
+        "newAccountsCanRequestHelp": "Výchozí poloha přepínače v dialogu „Pozvat účet“, ve výchozím stavu zapnuto. Pozvánka s věkovým omezením oprávnění nikdy nedává. Stávající účty se nemění.",
         "allowWithdraw": "Povolit vzetí zpět",
         "allowWithdrawHelp": "Dokud není přání schváleno. Tlačítko „Vzít zpět“ v části „Moje přání“.",
         "pinExternalHideTitle": "Externí zprávy u profilů s PIN bez názvu titulu",
@@ -7016,7 +7020,7 @@
         "toUsers": "Na uživatele Seerr",
         "links": "Odkazy",
         "who": "Kdo smí žádat o tituly",
-        "whoHelp": "Kdo smí žádat o tituly, nastavíte pro každý účet v části Účty, u profilů rozhoduje hlavní profil.",
+        "whoHelp": "Ve výchozím stavu smějí žádat všechny účty a profily bez věkového omezení, ty s omezením ne. Účet můžete vyloučit v části Účty, u profilů rozhoduje hlavní profil.",
         "connection": "Připojení k Seerr",
         "connectionHelp": "Adresa, klíč, test a protokol.",
         "users": "Uživatelé Seerr",
@@ -7528,7 +7532,9 @@
         "wishes": "Přání",
         "canRequest": "Smí žádat o tituly",
         "canRequestHelp": "Profil smí přes Seerr žádat o chybějící tituly.",
-        "canRequestCapped": "Tento účet nesmí žádat o tituly. Oprávnění nastaví správce v části Účty."
+        "canRequestCapped": "Tento účet nesmí žádat o tituly. Oprávnění nastaví správce v části Účty.",
+        "canRequestRestricted": "Profily s věkovým omezením nesmějí žádat o tituly. Bez věkového omezení se oprávnění vrátí.",
+        "canRequestReturns": "Bez věkového omezení smí profil znovu žádat. Oprávnění lze vypnout po uložení."
       },
       "report": {
         "show": "Zobrazit dobu sledování",
@@ -8569,6 +8575,7 @@
       "disabled": "Přání jsou vypnutá.",
       "account_not_allowed": "Tento účet nesmí žádat o tituly.",
       "profile_not_allowed": "Tento profil nesmí žádat o tituly. Hlavní profil to může povolit v části „Profily“.",
+      "age_restricted": "Profily s věkovým omezením nesmějí žádat o tituly.",
       "no_mapping": "S tímto účtem zatím není propojen žádný uživatel Seerr. Nastaví to správce.",
       "seerr_user_gone": "Propojený uživatel Seerr už neexistuje. Opraví to správce.",
       "movies_not_allowed": "O filmy teď nelze žádat.",

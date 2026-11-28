@@ -950,6 +950,7 @@
       "password_too_short": "至少 10 个字符。",
       "password_mismatch": "两次输入的密码不一致。",
       "above_account_limit": "超出此账户的上限。",
+      "age_restricted": "有年龄限制时，没有请求作品的权限。",
       "unknown_library": "此媒体库不存在。",
       "too_many_profiles": "每个账户最多 10 个个人资料。",
       "already_exists": "此电子邮件地址已被使用。",
@@ -5023,7 +5024,8 @@
           "detail": "有效期至 / 已接受",
           "actions": "操作"
         },
-        "seerrHint": "接受邀请时，Slouchcat 也会在 Seerr 中创建该账户：电子邮件地址和密码相同。"
+        "seerrHint": "接受邀请时，Slouchcat 也会在 Seerr 中创建该账户：电子邮件地址和密码相同。",
+        "canRequestRestricted": "带年龄限制的邀请不会授予请求作品的权限。"
       },
       "discard": "放弃",
       "status": {
@@ -5053,6 +5055,8 @@
         "of": "{{email}} 的心愿",
         "canRequest": "可以请求作品",
         "canRequestHelp": "这是所有个人资料的上限。哪些个人资料可以请求，由账户的主个人资料决定。",
+        "canRequestRestricted": "有年龄限制的账户不能请求作品。取消年龄限制后，权限会恢复。",
+        "canRequestReturns": "取消年龄限制后，该账户可以再次请求。保存后可以关闭此权限。",
         "notSetUp": "–",
         "state": {
           "allowed": "允许",
@@ -6262,7 +6266,7 @@
           "deny": "不允许"
         },
         "newAccountsCanRequest": "新账户可以请求",
-        "newAccountsCanRequestHelp": "“邀请账户”对话框中开关的默认值。不会更改现有账户。",
+        "newAccountsCanRequestHelp": "“邀请账户”对话框中开关的默认值，默认开启。带年龄限制的邀请永远不会授予此权限。不会更改现有账户。",
         "allowWithdraw": "允许撤回",
         "allowWithdrawHelp": "仅在心愿尚未获批准时。“我的心愿”中的“撤回”按钮。",
         "pinExternalHideTitle": "PIN 码个人资料的外部消息不含作品标题",
@@ -6293,7 +6297,7 @@
         "toUsers": "前往 Seerr 用户",
         "links": "相关链接",
         "who": "谁可以请求",
-        "whoHelp": "谁可以请求，你在“账户”中按账户设置；每个个人资料则由主个人资料决定。",
+        "whoHelp": "默认情况下，所有没有年龄限制的账户和个人资料都可以请求，有年龄限制的则不能。你可以在“账户”中排除某个账户；每个个人资料则由主个人资料决定。",
         "connection": "Seerr 连接",
         "connectionHelp": "地址、密钥、测试和日志。",
         "users": "Seerr 用户",
@@ -6772,7 +6776,9 @@
         "wishes": "心愿",
         "canRequest": "可以请求作品",
         "canRequestHelp": "此个人资料可以通过 Seerr 请求缺失的作品。",
-        "canRequestCapped": "此账户不能请求作品。请由管理员在“账户”中授予权限。"
+        "canRequestCapped": "此账户不能请求作品。请由管理员在“账户”中授予权限。",
+        "canRequestRestricted": "有年龄限制的个人资料不能请求作品。取消年龄限制后，权限会恢复。",
+        "canRequestReturns": "取消年龄限制后，该个人资料可以再次请求。保存后可以关闭此权限。"
       },
       "report": {
         "show": "显示观看时长",
@@ -7714,6 +7720,7 @@
       "disabled": "心愿功能已关闭。",
       "account_not_allowed": "此账户不能请求作品。",
       "profile_not_allowed": "此个人资料不能请求作品。主个人资料可在“个人资料”中允许。",
+      "age_restricted": "有年龄限制的个人资料不能请求作品。",
       "no_mapping": "此账户尚未关联 Seerr 用户。这由管理员设置。",
       "seerr_user_gone": "所关联的 Seerr 用户已不存在。这由管理员处理。",
       "movies_not_allowed": "目前无法请求电影。",

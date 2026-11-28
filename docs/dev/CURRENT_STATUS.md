@@ -29,8 +29,13 @@ Hauptprofile mit dem Recht). Betrifft Server, Web-App und Handy-App.
   `canRequest` wird dann nicht beachtet.
 - **Web-App:** Im Profilformular, im Zugriff eines Kontos und bei Einladungen steht der Schalter bei
   einer Altersgrenze aus und gesperrt, mit dem Grund daneben; neue Profile ohne Altersgrenze starten mit
-  dem Recht. Sieben neue Texte in `de`, `en`, `de-DE`; die 20 anderen Sprachen fallen dafür auf Englisch
-  zurück und tragen bei den Hilfetexten zum Recht noch den alten Stand.
+  dem Recht. Sieben neue Texte in `de`, `en`, `de-DE`. Die 20 anderen Sprachen kamen am 27. November 2026
+  nach (Zweig `claude/wunschrecht-uebersetzungen`): die sieben neuen Texte und die zwei geänderten
+  Hilfetexte «Neue Konten dürfen anfordern» und «Wer anfordern darf», 180 Texte. `node
+  scripts/i18n/check.ts --all --strict`: 22 Dateien, 0 Fehler, nichts fehlt. Zweitlesung durch zwei
+  Reviewer (je zehn Sprachen): acht Befunde in `uk`, `zh-CN`, `zh-TW`, `fi`, `fr` eingearbeitet, die
+  anderen 15 Sprachen ohne Befund. Bis zu einem Release mit diesen Dateien zeigt 1.44.0 die sieben Texte
+  dort auf Englisch.
 - **Handy-App 1.0.4** (`versionCode` 5): legt neue Profile mit dem Recht an, sperrt den Schalter bei
   einer Altersgrenze und nennt den Grund. 1.0.3 legt neue Profile weiter ohne Recht an und zeigt für
   `age_restricted` eine allgemeine Meldung; der Server entscheidet in beiden Fällen (Regel 12). Die
@@ -65,7 +70,7 @@ Hauptprofile mit dem Recht). Betrifft Server, Web-App und Handy-App.
   Wiederholung des Jobs war grün. Der Lauf auf `main` (45877547755) scheiterte zuerst in
   `server tests (5)` an der Paketinstallation (`packages.microsoft.com`, 403), bevor ein Test lief; die
   Wiederholung war grün.
-- **Offen:** Die 20 anderen Sprachen übersetzen. CT 190 hebt Marco selbst auf 1.44.0.
+- **Offen:** CT 190 hebt Marco selbst auf 1.44.0.
 
 ## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, PR #231)
 

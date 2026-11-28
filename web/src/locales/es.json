@@ -1016,6 +1016,7 @@
       "password_too_short": "Mínimo 10 caracteres.",
       "password_mismatch": "Las contraseñas no coinciden.",
       "above_account_limit": "Supera el límite máximo de esta cuenta.",
+      "age_restricted": "Con un límite de edad no hay permiso para solicitar títulos.",
       "unknown_library": "Esta biblioteca no existe.",
       "too_many_profiles": "Una cuenta puede tener 10 perfiles como máximo.",
       "already_exists": "Este correo electrónico ya está en uso.",
@@ -5415,7 +5416,8 @@
           "detail": "Válida hasta / aceptada",
           "actions": "Acciones"
         },
-        "seerrHint": "Al aceptarla, Slouchcat crea la cuenta también en Seerr: mismo correo electrónico, misma contraseña."
+        "seerrHint": "Al aceptarla, Slouchcat crea la cuenta también en Seerr: mismo correo electrónico, misma contraseña.",
+        "canRequestRestricted": "Una invitación con límite de edad no da permiso para solicitar títulos."
       },
       "discard": "Descartar",
       "status": {
@@ -5451,6 +5453,8 @@
         "of": "Peticiones de {{email}}",
         "canRequest": "Puede solicitar títulos",
         "canRequestHelp": "Es el tope para todos los perfiles. El perfil principal de la cuenta elige qué perfiles solicitan.",
+        "canRequestRestricted": "Las cuentas con límite de edad no pueden solicitar títulos. Sin límite de edad, el permiso vuelve.",
+        "canRequestReturns": "Sin límite de edad, la cuenta puede volver a solicitar. El permiso se puede desactivar después de guardar.",
         "notSetUp": "–",
         "state": {
           "allowed": "Permitido",
@@ -6744,7 +6748,7 @@
           "deny": "No permitir"
         },
         "newAccountsCanRequest": "Las cuentas nuevas pueden solicitar",
-        "newAccountsCanRequestHelp": "Valor inicial del interruptor en el cuadro «Invitar a una cuenta». No cambia las cuentas existentes.",
+        "newAccountsCanRequestHelp": "Valor inicial del interruptor en el cuadro «Invitar a una cuenta», activado de forma predeterminada. Una invitación con límite de edad nunca da el permiso. No cambia las cuentas existentes.",
         "allowWithdraw": "Permitir retirar",
         "allowWithdrawHelp": "Mientras una petición no esté aprobada. Botón «Retirar» en «Mis peticiones».",
         "pinExternalHideTitle": "Mensajes externos de perfiles con PIN sin el título",
@@ -6775,7 +6779,7 @@
         "toUsers": "A los usuarios de Seerr",
         "links": "Enlaces",
         "who": "Quién puede solicitar",
-        "whoHelp": "Quién puede solicitar se establece por cuenta en Cuentas; por perfil decide el perfil principal.",
+        "whoHelp": "De forma predeterminada pueden solicitar todas las cuentas y perfiles sin límite de edad; los que lo tienen, no. Una cuenta se puede excluir en Cuentas; por perfil decide el perfil principal.",
         "connection": "Conexión con Seerr",
         "connectionHelp": "Dirección, clave, prueba y registro.",
         "users": "Usuarios de Seerr",
@@ -7276,7 +7280,9 @@
         "wishes": "Peticiones",
         "canRequest": "Puede solicitar títulos",
         "canRequestHelp": "El perfil puede solicitar a través de Seerr los títulos que faltan.",
-        "canRequestCapped": "Esta cuenta no puede solicitar títulos. Un administrador asigna el permiso en Cuentas."
+        "canRequestCapped": "Esta cuenta no puede solicitar títulos. Un administrador asigna el permiso en Cuentas.",
+        "canRequestRestricted": "Los perfiles con límite de edad no pueden solicitar títulos. Sin límite de edad, el permiso vuelve.",
+        "canRequestReturns": "Sin límite de edad, el perfil puede volver a solicitar. El permiso se puede desactivar después de guardar."
       },
       "report": {
         "show": "Mostrar tiempo de visualización",
@@ -8284,6 +8290,7 @@
       "disabled": "Las peticiones están desactivadas.",
       "account_not_allowed": "Esta cuenta no puede solicitar títulos.",
       "profile_not_allowed": "Este perfil no puede solicitar títulos. El perfil principal puede permitirlo en «Perfiles».",
+      "age_restricted": "Los perfiles con límite de edad no pueden solicitar títulos.",
       "no_mapping": "Esta cuenta todavía no tiene ningún usuario de Seerr vinculado. Lo configura el administrador.",
       "seerr_user_gone": "El usuario de Seerr vinculado ya no existe. Lo resuelve el administrador.",
       "movies_not_allowed": "Ahora mismo no se pueden solicitar películas.",

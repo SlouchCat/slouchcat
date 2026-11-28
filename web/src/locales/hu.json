@@ -983,6 +983,7 @@
       "password_too_short": "Legalább 10 karakter.",
       "password_mismatch": "A jelszavak nem egyeznek.",
       "above_account_limit": "Magasabb a fiók felső határánál.",
+      "age_restricted": "Korhatárral nincs jog címeket kérni.",
       "unknown_library": "Ez a könyvtár nem létezik.",
       "too_many_profiles": "Egy fióknak legfeljebb 10 profilja lehet.",
       "already_exists": "Ez az e-mail-cím már foglalt.",
@@ -5219,7 +5220,8 @@
           "detail": "Érvényes eddig / elfogadva",
           "actions": "Műveletek"
         },
-        "seerrHint": "Elfogadáskor a Slouchcat a fiókot a Seerrben is létrehozza: ugyanaz az e-mail-cím, ugyanaz a jelszó."
+        "seerrHint": "Elfogadáskor a Slouchcat a fiókot a Seerrben is létrehozza: ugyanaz az e-mail-cím, ugyanaz a jelszó.",
+        "canRequestRestricted": "A korhatáros meghívó nem ad jogot címek kérésére."
       },
       "discard": "Elvetés",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "{{email}} kívánságai",
         "canRequest": "Kérhet címeket",
         "canRequestHelp": "Minden profilra érvényes felső határ. Hogy mely profilok kérhetnek, azt a fiók főprofilja választja.",
+        "canRequestRestricted": "A korhatáros fiókok nem kérhetnek címeket. Korhatár nélkül a jog visszatér.",
+        "canRequestReturns": "Korhatár nélkül a fiók újra kérhet. A jog mentés után kapcsolható ki.",
         "notSetUp": "–",
         "state": {
           "allowed": "Engedélyezett",
@@ -6503,7 +6507,7 @@
           "deny": "Nem engedélyezett"
         },
         "newAccountsCanRequest": "Az új fiókok kérhetnek",
-        "newAccountsCanRequestHelp": "A „Fiók meghívása” párbeszédablak kapcsolójának alapértéke. A meglévő fiókokat nem módosítja.",
+        "newAccountsCanRequestHelp": "A „Fiók meghívása” párbeszédablak kapcsolójának alapértéke, alapból bekapcsolva. Korhatáros meghívó soha nem adja meg a jogot. A meglévő fiókokat nem módosítja.",
         "allowWithdraw": "Visszavonás engedélyezése",
         "allowWithdrawHelp": "Amíg egy kívánság nincs jóváhagyva. A „Visszavonás” gomb a „Kívánságaim” oldalon.",
         "pinExternalHideTitle": "PIN-kódos profilok külső üzenetei cím nélkül",
@@ -6534,7 +6538,7 @@
         "toUsers": "A Seerr-felhasználókhoz",
         "links": "Hivatkozások",
         "who": "Ki kérhet",
-        "whoHelp": "Hogy ki kérhet, azt fiókonként a Fiókok oldalon állíthatja be; profilonként a főprofil dönt.",
+        "whoHelp": "Alapértelmezés szerint minden korhatár nélküli fiók és profil kérhet, a korhatárosak nem. Egy fiókot a Fiókok oldalon zárhat ki; profilonként a főprofil dönt.",
         "connection": "Kapcsolat a Seerr-rel",
         "connectionHelp": "Cím, kulcs, teszt és napló.",
         "users": "Seerr-felhasználók",
@@ -7024,7 +7028,9 @@
         "wishes": "Kívánságok",
         "canRequest": "Kérhet címeket",
         "canRequestHelp": "A profil kérheti a hiányzó címeket a Seerren keresztül.",
-        "canRequestCapped": "Ez a fiók nem kérhet címeket. A jogot a rendszergazda állítja be a Fiókok oldalon."
+        "canRequestCapped": "Ez a fiók nem kérhet címeket. A jogot a rendszergazda állítja be a Fiókok oldalon.",
+        "canRequestRestricted": "A korhatáros profilok nem kérhetnek címeket. Korhatár nélkül a jog visszatér.",
+        "canRequestReturns": "Korhatár nélkül a profil újra kérhet. A jog mentés után kapcsolható ki."
       },
       "report": {
         "show": "Nézési idő megjelenítése",
@@ -7999,6 +8005,7 @@
       "disabled": "A kívánságok ki vannak kapcsolva.",
       "account_not_allowed": "Ez a fiók nem kérhet címeket.",
       "profile_not_allowed": "Ez a profil nem kérhet címeket. A főprofil engedélyezheti a „Profilok” oldalon.",
+      "age_restricted": "A korhatáros profilok nem kérhetnek címeket.",
       "no_mapping": "Ehhez a fiókhoz még nincs Seerr-felhasználó összekapcsolva. Ezt a rendszergazda állítja be.",
       "seerr_user_gone": "Az összekapcsolt Seerr-felhasználó már nem létezik. Ezt a rendszergazda hárítja el.",
       "movies_not_allowed": "Filmeket jelenleg nem lehet kérni.",

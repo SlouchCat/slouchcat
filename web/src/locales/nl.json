@@ -983,6 +983,7 @@
       "password_too_short": "Minimaal 10 tekens.",
       "password_mismatch": "De wachtwoorden komen niet overeen.",
       "above_account_limit": "Hoger dan het maximum van dit account.",
+      "age_restricted": "Met een leeftijdsgrens is er geen recht om titels aan te vragen.",
       "unknown_library": "Deze bibliotheek bestaat niet.",
       "too_many_profiles": "Een account kan maximaal 10 profielen hebben.",
       "already_exists": "Dit e-mailadres is al in gebruik.",
@@ -5219,7 +5220,8 @@
           "detail": "Geldig tot / geaccepteerd",
           "actions": "Acties"
         },
-        "seerrHint": "Bij het accepteren maakt Slouchcat het account ook aan in Seerr: hetzelfde e-mailadres, hetzelfde wachtwoord."
+        "seerrHint": "Bij het accepteren maakt Slouchcat het account ook aan in Seerr: hetzelfde e-mailadres, hetzelfde wachtwoord.",
+        "canRequestRestricted": "Een uitnodiging met een leeftijdsgrens geeft geen recht om titels aan te vragen."
       },
       "discard": "Verwerpen",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Wensen van {{email}}",
         "canRequest": "Mag titels aanvragen",
         "canRequestHelp": "Geldt als bovengrens voor alle profielen. Welke profielen aanvragen, bepaalt het hoofdprofiel van het account.",
+        "canRequestRestricted": "Accounts met een leeftijdsgrens mogen geen titels aanvragen. Zonder leeftijdsgrens komt het recht terug.",
+        "canRequestReturns": "Zonder leeftijdsgrens mag het account weer aanvragen. Het recht kan na het opslaan worden uitgeschakeld.",
         "notSetUp": "–",
         "state": {
           "allowed": "Toegestaan",
@@ -6503,7 +6507,7 @@
           "deny": "Niet toestaan"
         },
         "newAccountsCanRequest": "Nieuwe accounts mogen aanvragen",
-        "newAccountsCanRequestHelp": "Standaardstand van de schakelaar in het venster “Een account uitnodigen”. Wijzigt bestaande accounts niet.",
+        "newAccountsCanRequestHelp": "Standaardstand van de schakelaar in het venster “Een account uitnodigen”, standaard aan. Een uitnodiging met een leeftijdsgrens geeft het recht nooit. Wijzigt bestaande accounts niet.",
         "allowWithdraw": "Intrekken toestaan",
         "allowWithdrawHelp": "Zolang een wens niet is goedgekeurd. Knop “Intrekken” onder “Mijn wensen”.",
         "pinExternalHideTitle": "Externe berichten bij profielen met pincode zonder titel",
@@ -6534,7 +6538,7 @@
         "toUsers": "Naar de Seerr-gebruikers",
         "links": "Snelkoppelingen",
         "who": "Wie mag aanvragen",
-        "whoHelp": "Wie mag aanvragen stel je per account in onder Accounts; per profiel beslist het hoofdprofiel.",
+        "whoHelp": "Standaard mogen alle accounts en profielen zonder leeftijdsgrens aanvragen, die met een leeftijdsgrens niet. Je kunt een account uitsluiten onder Accounts; per profiel beslist het hoofdprofiel.",
         "connection": "Verbinding met Seerr",
         "connectionHelp": "Adres, sleutel, test en logboek.",
         "users": "Seerr-gebruikers",
@@ -7024,7 +7028,9 @@
         "wishes": "Wensen",
         "canRequest": "Mag titels aanvragen",
         "canRequestHelp": "Het profiel mag ontbrekende titels aanvragen via Seerr.",
-        "canRequestCapped": "Dit account mag geen titels aanvragen. Een beheerder stelt dit recht in onder Accounts."
+        "canRequestCapped": "Dit account mag geen titels aanvragen. Een beheerder stelt dit recht in onder Accounts.",
+        "canRequestRestricted": "Profielen met een leeftijdsgrens mogen geen titels aanvragen. Zonder leeftijdsgrens komt het recht terug.",
+        "canRequestReturns": "Zonder leeftijdsgrens mag het profiel weer aanvragen. Het recht kan na het opslaan worden uitgeschakeld."
       },
       "report": {
         "show": "Kijktijd tonen",
@@ -7999,6 +8005,7 @@
       "disabled": "Wensen staan uit.",
       "account_not_allowed": "Dit account mag geen titels aanvragen.",
       "profile_not_allowed": "Dit profiel mag geen titels aanvragen. Het hoofdprofiel kan dit toestaan onder “Profielen”.",
+      "age_restricted": "Profielen met een leeftijdsgrens mogen geen titels aanvragen.",
       "no_mapping": "Aan dit account is nog geen Seerr-gebruiker gekoppeld. De beheerder stelt dat in.",
       "seerr_user_gone": "De gekoppelde Seerr-gebruiker bestaat niet meer. De beheerder lost dit op.",
       "movies_not_allowed": "Films kunnen op dit moment niet worden aangevraagd.",

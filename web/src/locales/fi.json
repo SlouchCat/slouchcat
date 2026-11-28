@@ -983,6 +983,7 @@
       "password_too_short": "Vähintään 10 merkkiä.",
       "password_mismatch": "Salasanat eivät täsmää.",
       "above_account_limit": "Korkeampi kuin tilin yläraja.",
+      "age_restricted": "Kun ikäraja on asetettu, oikeutta pyytää nimikkeitä ei ole.",
       "unknown_library": "Tätä kirjastoa ei ole.",
       "too_many_profiles": "Tilillä voi olla enintään 10 profiilia.",
       "already_exists": "Tämä sähköpostiosoite on jo käytössä.",
@@ -5219,7 +5220,8 @@
           "detail": "Voimassa asti / hyväksytty",
           "actions": "Toiminnot"
         },
-        "seerrHint": "Hyväksyttäessä Slouchcat luo tilin myös Seerriin: sama sähköpostiosoite, sama salasana."
+        "seerrHint": "Hyväksyttäessä Slouchcat luo tilin myös Seerriin: sama sähköpostiosoite, sama salasana.",
+        "canRequestRestricted": "Kutsu, jossa on ikäraja, ei anna oikeutta pyytää nimikkeitä."
       },
       "discard": "Hylkää",
       "status": {
@@ -5252,6 +5254,8 @@
         "of": "Toiveet: {{email}}",
         "canRequest": "Saa pyytää nimikkeitä",
         "canRequestHelp": "Yläraja kaikille profiileille. Pyytävät profiilit valitaan tilin pääprofiilissa.",
+        "canRequestRestricted": "Tilit, joilla on ikäraja, eivät saa pyytää nimikkeitä. Ilman ikärajaa oikeus palaa.",
+        "canRequestReturns": "Ilman ikärajaa tili saa taas pyytää. Oikeuden voi poistaa käytöstä tallennuksen jälkeen.",
         "notSetUp": "–",
         "state": {
           "allowed": "Sallittu",
@@ -6503,7 +6507,7 @@
           "deny": "Älä salli"
         },
         "newAccountsCanRequest": "Uudet tilit saavat pyytää",
-        "newAccountsCanRequestHelp": "Kytkimen oletusarvo valintaikkunassa ”Kutsu tili”. Ei muuta olemassa olevia tilejä.",
+        "newAccountsCanRequestHelp": "Kytkimen oletusarvo valintaikkunassa ”Kutsu tili”, oletuksena päällä. Kutsu, jossa on ikäraja, ei koskaan anna oikeutta. Ei muuta olemassa olevia tilejä.",
         "allowWithdraw": "Salli peruminen",
         "allowWithdrawHelp": "Kun toivetta ei ole hyväksytty. Painike ”Peru” kohdassa ”Omat toiveet”.",
         "pinExternalHideTitle": "PIN-profiilien ulkoiset viestit ilman nimikettä",
@@ -6534,7 +6538,7 @@
         "toUsers": "Seerr-käyttäjiin",
         "links": "Linkit",
         "who": "Kuka saa pyytää",
-        "whoHelp": "Kuka saa pyytää, asetetaan tilikohtaisesti kohdassa Tilit; profiilikohtaisesti päättää pääprofiili.",
+        "whoHelp": "Oletuksena kaikki tilit ja profiilit, joilla ei ole ikärajaa, saavat pyytää; ne, joilla on ikäraja, eivät saa. Tilin voi sulkea pois kohdassa Tilit; profiilikohtaisesti päättää pääprofiili.",
         "connection": "Seerr-yhteys",
         "connectionHelp": "Osoite, avain, testi ja loki.",
         "users": "Seerr-käyttäjät",
@@ -7024,7 +7028,9 @@
         "wishes": "Toiveet",
         "canRequest": "Saa pyytää nimikkeitä",
         "canRequestHelp": "Profiili saa pyytää puuttuvia nimikkeitä Seerrin kautta.",
-        "canRequestCapped": "Tämä tili ei saa pyytää nimikkeitä. Ylläpitäjä asettaa oikeuden kohdassa Tilit."
+        "canRequestCapped": "Tämä tili ei saa pyytää nimikkeitä. Ylläpitäjä asettaa oikeuden kohdassa Tilit.",
+        "canRequestRestricted": "Profiilit, joilla on ikäraja, eivät saa pyytää nimikkeitä. Ilman ikärajaa oikeus palaa.",
+        "canRequestReturns": "Ilman ikärajaa profiili saa taas pyytää. Oikeuden voi poistaa käytöstä tallennuksen jälkeen."
       },
       "report": {
         "show": "Näytä katseluaika",
@@ -7999,6 +8005,7 @@
       "disabled": "Toiveet ovat pois päältä.",
       "account_not_allowed": "Tämä tili ei saa pyytää nimikkeitä.",
       "profile_not_allowed": "Tämä profiili ei saa pyytää nimikkeitä. Pääprofiili voi sallia sen kohdassa ”Profiilit”.",
+      "age_restricted": "Profiilit, joilla on ikäraja, eivät saa pyytää nimikkeitä.",
       "no_mapping": "Tälle tilille ei ole vielä linkitetty Seerr-käyttäjää. Ylläpitäjä määrittää sen.",
       "seerr_user_gone": "Linkitettyä Seerr-käyttäjää ei ole enää olemassa. Ylläpitäjä korjaa asian.",
       "movies_not_allowed": "Elokuvia ei voi tällä hetkellä pyytää.",
