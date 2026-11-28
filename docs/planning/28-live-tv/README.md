@@ -72,7 +72,7 @@ je Stufe den Bau erlauben («Baufreigabe»). Bis dahin entsteht kein Code, keine
 | [`23-agent-einsatz-und-reviews.md`](23-agent-einsatz-und-reviews.md) | Welche Agents mit welchem Modell, was geprüft wurde, was gefunden und behoben |
 | [`24-recherche-und-quellen.md`](24-recherche-und-quellen.md) | Recherche, Vergleichssysteme, Bibliotheken, Quellen und ihre Verlässlichkeit |
 | `anhang/auftrag-2026-11-28.md` | Der Auftrag im Wortlaut |
-| `anhang/reviews/` | Die sechs unabhängigen Reviews im Wortlaut |
+| `anhang/reviews/` | Die sieben unabhängigen Reviews im Wortlaut |
 | `anhang/nachpruefung-quellen.md` | Nachprüfung der Rechercheaussagen an Primärquellen |
 
 Ausserhalb dieses Ordners: Frage 37 in `docs/planning/04-entscheidungen.md`, ADR 0046 (vorgeschlagen) in

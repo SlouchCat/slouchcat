@@ -1,6 +1,6 @@
 # Konzept 28 · Agent-Einsatz und unabhängige Reviews
 
-Stand: 29. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 29. November 2026 · Fassung 2 · Status: Entwurf, nicht freigegeben
 
 Dieses Dokument hält fest, wie das Konzept entstanden ist: welche Agents mit welchem Modell welche Aufgabe
 hatten, was unabhängig geprüft wurde, was die Prüfer fanden und wie es behoben wurde. Geschrieben hat es der
@@ -93,6 +93,7 @@ Kein Prüfer hat an dem Dokument mitgeschrieben, das er prüfte.
 | 4 | Gesamtreview aller Dokumente | `critic`, Aufwand hoch | Opus (Definition) | `anhang/reviews/review-4-gesamt.md` |
 | 5 | Architektur, Zweitprüfung nach den Korrekturen | `architect`, Aufwand hoch (anderer Lauf) | Opus (Definition) | `anhang/reviews/review-5-architektur-zweitpruefung.md` |
 | 6 | Sicherheit, Zweitprüfung nach den Korrekturen | `security-reviewer`, Aufwand hoch (anderer Lauf) | Opus (Definition) | `anhang/reviews/review-6-sicherheit-zweitpruefung.md` |
+| 7 | Schlussprüfung: sind die kritischen und hohen Befunde der Reviews 4 bis 6 geschlossen? | `verifier` | Sonnet | `anhang/reviews/review-7-schlusspruefung.md` |
 | Q | Rechercheaussagen an Primärquellen | `document-specialist` (anderer Lauf) | Sonnet (Definition) | `anhang/nachpruefung-quellen.md` |
 
 Der Koordinator hat zusätzlich die Mockups selbst im Browser angesehen (Web, Verwaltung, TV, Handy) und den
@@ -111,16 +112,19 @@ Wortlaut von Regel 11 gegengelesen.
 | 4 Gesamtreview | übergabereif nach Korrekturen | 22: 3 kritisch, 5 hoch | «ohne Antwort gilt die Empfehlung» stand in zwei Dokumenten; Dauersender wich neuen Zuschauern (LTV-002); Schalter je Quelle war ein Verbindungskontingent (LTV-017); Auslegungen des Koordinators standen als Entscheide des Auftraggebers | Entscheide des Koordinators, `04`/`05` Fassung 4, Schlussbereinigung aller Dokumente und Mockups |
 | 5 Architektur, Zweitprüfung | zur Vorlage geeignet nach Korrekturen | 21: 0 kritisch, 6 hoch; RA-01 bis RA-10: 7 behoben, 3 teilweise | Ring zu knapp für lange Bildgruppen; Startfrist widersprach sich; Anbieter, die die ältere Verbindung trennen; deaktivierter Sender lief unbegrenzt weiter | `04`/`05` Fassung 4 |
 | 6 Sicherheit, Zweitprüfung | Risiko mittel (vorher hoch) | 21: 0 kritisch, 1 hoch; RS-01 bis RS-24: 20 geschlossen, 4 teilweise | ohne Landlock hätte FFmpeg Live-Daten ungeschützt umgewandelt; Schauzeit hing an der Angabe des Clients | `12` Fassung 3, `04`/`05` Fassung 4 |
+| 7 Schlussprüfung | 15 kritische und hohe Befunde geprüft: 9 geschlossen, 6 teilweise, 0 offen | 14 Reststellen, keine kritisch | DVB-Untertitel im Browser an zwei Stellen noch als wählbar; «gilt die Empfehlung» im EPG-Konzept; «Ring höchstens 15 s» an acht Stellen; zwei abweichende Zählungen | alle 14 behoben (Commit nach Review 7) |
 
 Dazu fanden die Autoren beim Ausarbeiten selbst Lücken in der Architektur (12 beim Zeichnen der Abläufe, 6 in
 der Ressourcenrechnung, 8 im Sicherheitskonzept, 14 Widersprüche beim Datenmodell). Sie sind in der Architektur
 Fassung 3 und in zwei Konsolidierungsrunden bereinigt worden.
 
-**Nach den Schlussreviews wurde nicht ein drittes Mal geprüft.** Die Fassung 4 der Architektur, die Fassung 3
-des Sicherheitskonzepts und die Schlussbereinigung der übrigen Dokumente sind von ihren Autoren gegen die
-Befunde abgearbeitet und vom Koordinator stichprobenweise gegengelesen, aber von keinem unabhängigen Agent
-erneut beurteilt. Was die Reviews als «vor einer Baufreigabe zusätzlich nötig» nennen, steht in
-`20-offene-entscheidungen.md` und `18-umsetzungsplan.md`.
+**Was nach den Schlussreviews noch unabhängig geprüft ist und was nicht.** Die Fassung 4 der Architektur, die
+Fassung 3 des Sicherheitskonzepts und die Schlussbereinigung der übrigen Dokumente haben ihre Autoren gegen die
+Befunde abgearbeitet. Review 7 hat danach gezielt geprüft, ob die kritischen und hohen Befunde der Reviews 4 bis 6
+geschlossen sind, und 14 Reststellen gefunden. Deren Behebung und der letzte Nachzug der Mockups sind vom
+Koordinator gegengelesen bzw. im Browser angesehen, aber von keinem unabhängigen Agent erneut beurteilt. Ein
+zweites Gesamtreview der Schlussfassungen gab es nicht. Was die Reviews als «vor einer Baufreigabe zusätzlich
+nötig» nennen, steht in `20-offene-entscheidungen.md` und `18-umsetzungsplan.md`.
 
 ## 4. Entscheide des Koordinators zwischen den Phasen
 
@@ -136,6 +140,7 @@ andere steht als Frage an den Auftraggeber in `20`.
 | Review 3, Review 4 | Kein Schalter und keine Zahl je Quelle (LTV-017); Vorladen nur global und je Sender |
 | Review 4 | Ohne Antwort gilt überall die wortlauttreue Vorgabe; laufender Dauersender weicht nicht (LTV-002); Auslegungen (Fire TV, Plattform-Streams, kein Download von Aufnahmen, Safari/iPhone) werden Fragen |
 | Review 6 | Live-Umwandlung nur mit wirksamer Sperre als Vorgabe; Schauzeit zählt, was der Server ausliefert |
+| Abgleich mit `main` | Am Ende wurde `main` in den Konzeptzweig geführt (ein Konflikt in `docs/dev/CURRENT_STATUS.md`, beide Abschnitte behalten). Der Zweig ändert nur Dokumente und `CLAUDE.md`; `task check:fast` lief deshalb nicht |
 
 ## 5. Einschränkungen und Abweichungen
 
@@ -153,6 +158,9 @@ andere steht als Frage an den Auftraggeber in `20`.
 - **Diagramme:** Die Mermaid-Diagramme wurden mit einem Prüfskript auf Syntax geprüft, nicht gerendert.
 - **Sitzungsabbruch:** Am 28. November lief die Anmeldung ab; zwei Agents wurden mitten in der Arbeit
   unterbrochen und danach auf ihrem Zwischenstand fortgesetzt. Verloren ging nichts.
+- **Ein Agent von einer Schutzfunktion gestoppt:** Der Agent, der die 14 Reststellen aus Review 7 beheben
+  sollte (Opus), wurde mitten in der Arbeit von einer Schutzfunktion des Modells beendet (Meldung der Umgebung,
+  ohne Bezug zum Inhalt des Konzepts). Auf Marcos Wort hat ein neuer Agent mit Sonnet die Arbeit zu Ende geführt.
 - **Nicht eingesetzte OMC-Agents:** `explore`, `scientist`, `debugger`, `tracer`, `qa-tester`, `git-master`,
   `code-simplifier` (für eine Konzeptphase ohne Code nicht nötig).
 - **Grenze je Lauf:** Mehr als acht Agents liefen nie gleichzeitig; Bau- und Testläufe gab es keine.
