@@ -136,3 +136,9 @@ Verifier für jede Abnahme).
   ohne Begründung oder gelockerte Grenzen.
 - Flake-Suche mit `-count=N` oder `--repeat-each` nur für ein Paket oder einen Test, nicht für die
   ganze Suite.
+- **Design und Oberflächen:** Dafür gibt es die Agents in `.claude/agents/` (`design-director`,
+  `ux-architect`, `brand-designer`, `motion-designer`, `ui-engineer`, `design-reviewer`,
+  `design-qa`); Werkzeuge, Skills und Zuordnung stehen in `docs/dev/DESIGN-WERKZEUGE.md`. Skills von
+  aussen sind Ratschläge, dieses Dokument geht vor. Wer gestaltet oder baut, prüft nicht selbst.
+- Echte Medienbilder für Mockups nur aus `~/.local/share/slouchcat-design/media`
+  (`scripts/design-media.sh`), nie in Git, nie in öffentliche Artefakte oder PR-Texte.

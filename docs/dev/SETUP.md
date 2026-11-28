@@ -13,6 +13,7 @@ wird ohne Root unter `~/.local` installiert; die gepinnten Versionen stehen in `
 | task | `go install github.com/go-task/task/v3/cmd/task@latest`, Link `~/.local/bin/task` | |
 | sqlc, goose, oapi-codegen, golangci-lint | `go tool` aus `server/go.mod` | keine Installation nötig |
 | JDK 21, Android-SDK, Emulatoren | `~/.local/share/jdk`, `~/.local/share/android-sdk`, `~/.android/avd` | `scripts/install-android-tools.sh` (Abschnitt «Die Android-Apps») |
+| Design-Werkzeuge (Grafik, Browser-Prüfung, MCP-Server), Design-Skills | `~/.local/share/slouchcat-design`, `~/.claude/skills` | `scripts/install-design-tools.sh`, `scripts/install-design-skills.sh` (`docs/dev/DESIGN-WERKZEUGE.md`) |
 | Gradle | Wrapper in `android/` | keine Installation nötig |
 
 Go-Upgrade: neues Tarball nach `~/.local/share/go` entpacken, `go.mod` und `.tool-versions` anpassen.
