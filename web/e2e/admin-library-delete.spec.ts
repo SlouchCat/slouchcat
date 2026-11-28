@@ -46,6 +46,33 @@ function deletions(page: Page): string[] {
   return sent;
 }
 
+/**
+ * Holds the page's polls of the `library.delete` runs back until the returned function is called.
+ * The job can end within milliseconds of the 202 (25 ms on a CI runner, 28 November 2026): when
+ * the first poll already finds it ended, the page replaces the queued status and its link «Zum Job»
+ * with «… gelöscht.» before the test reads them. A held poll the page cancelled meanwhile (it asks
+ * again after the 202) is gone already when it is let through.
+ */
+async function holdDeletePolls(page: Page): Promise<() => void> {
+  let release!: () => void;
+  const open = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname === '/api/v1/admin/jobs' && url.searchParams.get('type') === 'library.delete',
+    async (route) => {
+      await open;
+      await route.continue().catch(() => undefined);
+    },
+  );
+  return release;
+}
+
+// The service worker takes the page over within seconds and sends every GET under /api to the
+// network itself, past page.route: the held polls would get through. The page needs no worker.
+test.use({ serviceWorkers: 'block' });
+
 test.beforeAll(() => {
   mkdirSync(join(base, 'E2E Loeschfilm (2002)'), { recursive: true });
   copyFileSync(
@@ -119,6 +146,7 @@ test('a library is deleted from the keyboard after its name is typed @keyboard',
   await tabTo(page, remove, 5);
   await expectVisibleFocus(page);
   const sent = deletions(page);
+  const release = await holdDeletePolls(page);
   await page.keyboard.press('Enter');
 
   // The 202 closes the dialog at once; the row goes and the status says what happens.
@@ -128,6 +156,7 @@ test('a library is deleted from the keyboard after its name is typed @keyboard',
     'href',
     '/admin/jobs?item=library.delete',
   );
+  release();
   await expect(toggle(page)).toHaveCount(0);
   // The row went with the focus: the h1 has it (ALL-2), and the page holds no trap.
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeFocused();
@@ -146,10 +175,12 @@ test('one click on the button deletes the library with one request', async ({ pa
   await expect(confirm(page)).toBeVisible();
   await confirm(page).getByLabel('Zur Bestätigung den Namen eintippen').fill(NAME);
   const sent = deletions(page);
+  const release = await holdDeletePolls(page);
   await confirm(page).getByRole('button', { name: 'Bibliothek löschen' }).click();
 
   await expect(confirm(page)).toHaveCount(0);
   await expect(queued(page)).toBeVisible();
+  release();
   await expect(toggle(page)).toHaveCount(0);
   await done(page);
   expect(sent).toHaveLength(1);
