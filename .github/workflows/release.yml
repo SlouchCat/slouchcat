@@ -144,8 +144,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.image) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
@@ -179,8 +181,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.updater_image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.updater_image) || '' }}
-          cache-from: type=gha,scope=updater
-          cache-to: type=gha,mode=max,scope=updater
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
