@@ -466,3 +466,33 @@ freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Absc
 - `server (generators, linters)` führt `server:gen`, `server:gen:check` und `server:lint` als drei
   Schritte aus; die zwei späteren laufen auch nach einem roten Vorgänger, aber nicht nach einem roten
   `server:gen` (halb erzeugter Code gäbe nur Folgefehler).
+
+## Nachtrag vom 28. November 2026: Pull Requests prüfen, was ihre Änderung erreichen kann (M9)
+
+**Anlass:** Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig umzusetzen
+(`docs/perf/ci-optimierungsplan.md`, M9). Gemessen an 185 gemergten PRs seit dem 29. Oktober: 29 %
+reine Doku (übersprang schon vorher alles), 9 % nur Deploy-Dateien, 6 % nur Android; Server- und
+Web-Änderungen brauchen immer den e2e-Pfad.
+
+- **Entscheid:** Der Job `changes` ordnet die Pfade eines PR mit `.github/scripts/affected-jobs.sh`
+  sieben Jobgruppen zu (`server`, `relay`, `android`, `android_server`, `web`, `e2e`, `image`),
+  transitiv: Generatoren (`api/openapi.yaml`, `web/src/locales`, `packages/design-tokens`), über
+  Modulgrenzen gelesene Testdaten und die Binaries, die die e2e-Suite und die Android-Vertragsjobs
+  starten. Ein Job läuft, wenn seine Gruppe betroffen ist.
+- **Sicherer Ausfall:** Unbekannte Pfade, die Workflows und ihre Skripte, Taskfiles,
+  `.tool-versions` und die Lock-Dateien lösen alles aus. Ein Push auf `main`, der Wochenlauf und ein
+  Lauf von Hand prüfen immer alles.
+- **Gate:** «skipped» ist grün, wenn `changes` erfolgreich war und eine der drei Antworten gab: nur
+  Doku, schon geprüft, oder (neu) «Gruppe nicht betroffen». Jedes andere «skipped» bleibt rot.
+- **Volle Regression:** Der Merge eines gefilterten PR wird nie übernommen, denn `already-tested.sh`
+  nimmt keinen übersprungenen Job als Beleg. `main` prüft den gemergten Inhalt also voll. Ein Bruch
+  über eine Kante, die die Karte nicht kennt, zeigt sich dort, nicht vorher; es gibt keinen
+  automatischen Revert.
+- **Die Karte gegen den Code:** `.github/scripts/affected-jobs.test.sh` hält die Karte in 28 Fällen
+  fest und gegen die 20 Lesezugriffe über Modulgrenzen, die eine Suche in den Go-Tests (`server/`,
+  `relay/`), den Gradle-Builds und den e2e-Helfern findet. Der Test läuft im Job `changes` selbst
+  (Bash und grep, rund eine Sekunde): Ein PR, der einen neuen Lesezugriff einführt, den die Karte
+  nicht abdeckt, macht das Gate rot, bevor er einen nötigen Job überspringt.
+- Restrisiko, benannt: Was die Suche nicht sieht (ein Pfad, der zur Laufzeit zusammengesetzt wird),
+  deckt nur der volle Lauf auf `main`. Wer einen neuen Lesezugriff über Modulgrenzen schreibt, trägt
+  ihn in `affected-jobs.sh` ein.
