@@ -1,8 +1,9 @@
 # CI-Optimierungsplan (Vorschlag zur Freigabe)
 
-Stand: 28. November 2026, main `1220769b`. Zweig `claude/ci-optimierung`. **Welle 1 (M1, M2, M3, M7)
-hat Marco am 28. November 2026 freigegeben; sie ist auf diesem Zweig umgesetzt** (ADR 0013, Nachtrag
-vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). Alle anderen Massnahmen warten auf
+Stand: 28. November 2026. **Welle 1 (M1, M2, M3, M7)** ist umgesetzt und gemergt (PR #240; ADR 0013,
+Nachtrag vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). **Welle 2 (M4, M5)** ist
+freigegeben und umgesetzt: neue Dauertabelle, sieben statt sechs e2e-Shards (Marcos Wahl nach der
+Messung, `docs/perf/ci.md`, Abschnitt 10), Web-Job in zwei Hälften. Alle anderen Massnahmen warten auf
 seine Freigabe und werden danach einzeln, messbar und mit einem Revert umkehrbar umgesetzt
 (Abschnitt 6).
 
@@ -182,7 +183,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 |---|---|
 | Zustand | Playwright `retries: 1` weist Flakes als «flaky» aus. Rote Läufe werden von Hand neu gestartet. |
 | Problem | Jeder Neustart kostet eine volle Runde Wartezeit und Runner-Minuten. |
-| Nachweis | 22 Läufe mit Neustart, 17 davon ohne Codeänderung grün. Rangliste: `hdr.spec.ts` (Start unter 5 s) 9× rot auf 4 Zweigen, 3× auf demselben SHA später grün; `AudioServiceTest.headphonesPulledOutPauseTheSound` 5×; `admin-library-folders.spec.ts` 5× flaky; `episode.spec.ts` und `audiobook.spec.ts` je 4×; `LoginPage.test.tsx` (react-aria-Timer) 3×; `admin-integrations`, `metadata-editor`, `admin-wishes` je 3×. Emulator-Job im Fenster 53 rot, 33 grün (E3: 3 von 18 rot). |
+| Nachweis | 22 Läufe mit Neustart, 17 davon ohne Codeänderung grün. Dazu im Messlauf vom 28. November: `admin-library-delete.spec.ts:73` (Firefox), rot auch beim Retry, in der Wiederholung desselben Shards grün. Rangliste: `hdr.spec.ts` (Start unter 5 s) 9× rot auf 4 Zweigen, 3× auf demselben SHA später grün; `AudioServiceTest.headphonesPulledOutPauseTheSound` 5×; `admin-library-folders.spec.ts` 5× flaky; `episode.spec.ts` und `audiobook.spec.ts` je 4×; `LoginPage.test.tsx` (react-aria-Timer) 3×; `admin-integrations`, `metadata-editor`, `admin-wishes` je 3×. Emulator-Job im Fenster 53 rot, 33 grün (E3: 3 von 18 rot). |
 | Lösung | Je Test eine eigene Aufgabe, Ursache im Test oder in der App beheben. Nie überspringen, Wiederholungen erhöhen oder Zeitlimits verlängern. |
 | Laufzeit | je vermiedenem Neustart ≈ 15 min (gemessen, Median voller PR-Lauf E3) |
 | Runner-Min | je vermiedenem Neustart ≈ 188 (gemessen) |

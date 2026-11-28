@@ -10,9 +10,10 @@ vars:
   PLAYWRIGHT_VERSION:
     sh: node -p "require('./package.json').devDependencies['@playwright/test']"
   PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v{{.PLAYWRIGHT_VERSION}}-noble
-  # The e2e shards of CI: the length of the matrix in .github/workflows/ci.yml (job e2e). Six keep
-  # the longest shard at about 4.5 min of tests plus 1.5 min of setup (ADR 0013, addendum).
-  CI_E2E_SHARDS: "6"
+  # The e2e shards of CI: the length of the matrix in .github/workflows/ci.yml (job e2e). Seven
+  # since 28 November 2026: the longest shard about 10 min of job time, measured against 6, 8 and 9
+  # (docs/perf/ci.md, section 10; ADR 0013, addendum of 28 November 2026, wave 2).
+  CI_E2E_SHARDS: "7"
   REPO:
     sh: git rev-parse --show-toplevel
   # Heavy local runs (e2e, Storybook screenshots) wait for one of a few machine-wide slots, so

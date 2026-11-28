@@ -426,3 +426,40 @@ Laufs.
   gegen deren geänderte Schnittstelle übersetzt actionlint nicht.
 - `.github/actions/android-sdk` ersetzt die Wrapper-Prüfung und den JDK-/SDK-Schritt, die drei Jobs
   je einmal trugen. Eingaben und Matrixwerte erreichen die Skripte über `env:`.
+
+## Nachtrag vom 28. November 2026, Welle 2: e2e-Dauern aufgefrischt, Web-Job in zwei Hälften
+
+**Anlass:** `docs/perf/ci-optimierungsplan.md`, Welle 2 (M4, M5), von Marco am 28. November 2026
+freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Abschnitt 10.
+
+### e2e: Dauertabelle (M4 a)
+
+- `web/e2e/durations.json` stammte aus zwei Läufen vom 3. November (vor der Firefox-Auswahl, den
+  kürzeren Wartezeiten und 19 der heutigen Spec-Dateien). Neu aus drei grünen PR-Läufen seit dem
+  26. November: 806 Tests, sechs Shards planen auf 588 bis 590 s.
+- `task web:e2e:durations` formatiert die Tabelle jetzt mit prettier. Die von `durations.mjs`
+  geschriebene Form hätte `web:lint` rot gemacht (im Messlauf gesehen).
+
+### Sieben e2e-Shards statt sechs (M4 b, Marcos Entscheid vom 28. November 2026)
+
+- Gemessen auf dem Runner mit der neuen Tabelle, 6 bis 9 Shards je viermal (`docs/perf/ci.md`,
+  Abschnitt 10). Längster Shard im Median: 6 → 12,1 min, 7 → 10,2, 8 → 10,0, 9 → 8,9; Runner-Minuten
+  der e2e-Jobs je Lauf 66, 69, 74, 77.
+- **Entscheid: sieben.** Fast der ganze Gewinn von acht Shards (−1,9 statt −2,1 min) für 3 statt 8
+  Runner-Minuten mehr je Lauf. Neun wären am schnellsten (−3,2 min), kosten aber rund 6 % mehr
+  Runner-Minuten; Marco wählte am 28. November 2026 sieben. Die Annahme vom 3. November, ab etwa acht
+  Shards wachse der feste Anteil schneller als der geteilte schrumpfe, bestätigt sich: Jeder Shard
+  zahlt rund 2,5 min fest.
+- `ci.yml` (Matrix 1 bis 7) und `CI_E2E_SHARDS` in `web/Taskfile.yml` nennen dieselbe Zahl;
+  `task web:e2e:shards:check` prüft den Plan mit sieben Shards: 806 Tests, jeder in genau einem.
+
+### Web-Job in zwei Hälften (M5)
+
+- Wie `android` seit dem 26. November eine Matrix: `web (generators, linters)` führt
+  `task ci:web:lint` aus, `web (unit tests)` `task ci:web:test`. `task ci:web` ist genau beides, also
+  bleibt `task ci` gleich (dieser ADR: CI ruft nur Teile von `task ci`).
+- Grund: Linter (126 bis 214 s) und Vitest (239 bis 412 s) liefen nacheinander, und ein roter Linter
+  verdeckte das Ergebnis von Vitest. Gemessen getrennt: Lint-Hälfte 2,8 bis 2,9 min, Test-Hälfte
+  4,9 bis 7,8 min, heute der ganze Job im Median 7,8 min.
+- `server (generators, linters)` führt `server:gen`, `server:gen:check` und `server:lint` als drei
+  Schritte aus, die späteren auch nach einem roten.

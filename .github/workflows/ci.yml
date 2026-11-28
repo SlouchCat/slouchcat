@@ -636,8 +636,8 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
-  # The server binary with the web assets embedded, built once and handed to the e2e shards. Six
-  # shards building the same binary would be six Go toolchains and six Vite builds for one file.
+  # The server binary with the web assets embedded, built once and handed to the e2e shards. Seven
+  # shards building the same binary would be seven Go toolchains and seven Vite builds for one file.
   # ---------------------------------------------------------------------------------------------
   build:
     name: build (server binary with the web assets)
@@ -695,7 +695,10 @@ jobs:
         # two can never drift apart. The shards are cut by measured duration, not by test count
         # (web/e2e/shard-plan.mjs from web/e2e/durations.json); `task web:e2e:shards:check` and
         # web:e2e:durations take the same count from CI_E2E_SHARDS in web/Taskfile.yml.
-        shard: [1, 2, 3, 4, 5, 6]
+        # Seven since 28 November 2026: measured 6 to 9 shards four times each, seven gave the
+        # longest shard 10.2 min instead of 12.1 for 3 more runner minutes per run (docs/perf/ci.md,
+        # section 10; ADR 0013, addendum).
+        shard: [1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -753,8 +756,8 @@ jobs:
           SHARD_TOTAL: ${{ strategy.job-total }}
 
       # The blob report is the machine-readable form of the run, traces and screenshots included.
-      # The gate job merges the six of them into one HTML report; a single report per shard would
-      # be six reports with a sixth of the run in each. Uploaded on green runs too, because a shard
+      # The gate job merges the seven of them into one HTML report; a single report per shard would
+      # be seven reports with a seventh of the run in each. Uploaded on green runs too, because a shard
       # that passed on its retry is the interesting one.
       - name: Keep the blob report
         if: always()
