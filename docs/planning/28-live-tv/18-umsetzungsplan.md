@@ -1,6 +1,6 @@
 # Konzept 28 · Umsetzungsplan
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 > **Kurz gesagt.** Dieser Plan ist die Entwicklungsroadmap für Live-TV (Auftrag LTV-021, Abschnitt 18 Punkt 17).
 > Er ist ein **Vorschlag an dich**; gebaut wird erst auf dein ausdrückliches Wort, und wann Live-TV im Projekt
@@ -12,7 +12,11 @@ Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
 > an Messungen oder Entscheide gebunden sind: **H** Quellen im Heimnetz mit UDP, RTP und Multicast, **L** RTSP und
 > RTMP, **W** DASH und HLS mit fMP4 (zuletzt), **E** Ergänzungen nach Messung (Untertitel im Browser, Erkennen
 > eines stehenden Bildes). Wann die TV-App und die Handy-App folgen, ist eine Entscheidungsvorlage (Abschnitt 5).
-> Jede Stufe ist für sich nutzbar, hat eine Abnahme und ist ein Release.
+> Jede Stufe ist für sich nutzbar, hat eine Abnahme und ist ein Release. Safari, iPhone und iPad sind mangels
+> Testgerät in keiner Stufe geprüft und nicht zugesagt (`04` T-11, Entscheid 2).
+>
+> Fassung 2 ist mit den übrigen Papieren abgestimmt (Konsolidierung 1); dieser Stufenschnitt ist für alle
+> Stufenangaben massgeblich. Was sich geändert hat, steht in Abschnitt 12.
 
 Dieses Papier ändert keine Zeile Code und keine Regel. Alles hier ist **spezifiziert** oder **Empfehlung**; nichts
 ist gebaut. Massgeblich bleiben Spec, Entscheidungsprotokoll und ADR; bei Widerspruch gilt
@@ -97,14 +101,14 @@ führen W (Weg W), L (RTSP und RTMP) und «Apps» als späte Stufen. Dieser Plan
 
 1. **Neue Stufe H «Quellen im Heimnetz»:** UDP, RTP, Multicast, die festen Ziele im Heimnetz und der Netzmodus
    «host» werden aus Stufe 3 herausgelöst. Abweichung von `03` (LTV-003.14 bis .16), `07` 11.2 und `08` 2.8.
-2. **Neue Stufe E «Ergänzungen nach Messung»:** Untertitel als WebVTT im Browser (`04` O-5) und, falls nicht schon
-   in Stufe 3 gebaut, die Stichprobe mit Dekodieren für stehende Bilder (`05` 9.4). Beides hat heute keine
-   Stufe in `03` und `17`.
-3. **Stufe 1 in zwei Releases 1a und 1b** als Empfehlung, weil sie fast die Hälfte aller Abnahmekriterien trägt
-   (152 von 312 nach `17` 8.1).
+2. **Neue Stufe E «Ergänzungen nach Messung»:** Untertitel als WebVTT im Browser (`04` O-5) und die Stichprobe
+   mit Dekodieren für stehende Bilder (`05` 9.4, Vorgabe `04` F-14 (a): eigener Schritt nach Stufe 3). Wählst du
+   `04` F-14 (b), wandert die Stichprobe in Stufe 3.
+3. **Stufe 1 in zwei Releases 1a und 1b** als Empfehlung, weil 1a fast die Hälfte aller Abnahmekriterien trägt
+   (157 von 332 nach `17` 8.1, Fassung 2).
 
-Die Folgeänderungen in `03`, `07`, `08` und `17` sind O-1 dieses Dokuments; dieses Papier ändert die anderen
-Dateien nicht.
+`03`, `06`, `09`, `10`, `11`, `13`, `16` und `17` sind in Fassung 2 auf diesen Schnitt gezogen; `07`, `08`, `12`,
+`14` und `15` folgen. Den Stand je Widerspruch zeigt Abschnitt 4.1, offene Folgeänderungen O-1.
 
 ---
 
@@ -131,13 +135,14 @@ würde eine spätere andere Antwort aber Regeln, ADR-Text oder schon gebauten Co
 | vor Stufe 1 | `04` F-2 | Startpuffer nur im Arbeitsspeicher (Abweichung von LTV-019.01, .04) oder wählbar | entscheidet D-3 und ob es zwei Bauformen des Rings gibt |
 | vor Stufe 1 | `12` F-4 | Zugangsdaten der Quellen in einer «Sicherung ohne Geheimnisse» leeren | Sicherung ist ab Stufe 1 betroffen |
 | vor Stufe 1 | `15` F-13, `15` F-14, `14` F-12 | eigener Verwaltungsbereich; neue Sender ab Werk aktiv (`07` W-6); Eintrag in der Navigation | Seiten der Stufe 1 |
-| vor Stufe 1 | `17` O-8, O-11, O-3 | Schwellen des Benchmarks; gehört das iPhone zu Stufe 1 (es gibt keines, Entscheid 2); Grenze «Filmstart nicht unzulässig verzögert» | Abnahme der Stufe 1 |
+| vor Stufe 1 | `17` O-8, O-3 | Schwellen des Benchmarks; Grenze «Filmstart nicht unzulässig verzögert» | Abnahme der Stufe 1 |
+| vor Stufe 1 | `17` O-11 (Bestätigung) | Safari, iPhone, iPad: ungeprüft und nicht zugesagt (`04` T-11, 12.1; kein Gerät, Entscheid 2). Zu bestätigen ist nur, dass du die Stufe 1a so abnimmst | Abnahme der Stufe 1a (Abschnitt 4.3) |
 | vor Stufe 1 | `13` P-7, P-8 | Anteil des Umwandlungsbudgets für Live; Vorrang des Empfangs gegen Filmumwandlungen auf dem Software-Backend | Zulassung in Stufe 1 |
 | vor Stufe 2 | `03` F-3, F-5; `09` F-1 bis F-4; `14` F-2, F-3, F-6, F-8, F-11 | Meldewege der Erinnerungen, Programmsuche in der allgemeinen Suche, eigene Datei für Programmdaten, Namensgleiche zuordnen, EPG im Heimnetz, Bilder im Raster | |
-| vor Stufe 3 | `04` F-4, F-9; `15` F-19; `13` P-1, P-3, P-5 | Vorrang des Zuschauers vor ruhendem Empfang; was ab Werk vorsorglich empfangen wird; Ausfallmeldungen | |
+| vor Stufe 3 | `04` F-4, F-9, F-14; `15` F-19; `13` P-1, P-3, P-5 | Vorrang des Zuschauers vor ruhendem Empfang; was ab Werk vorsorglich empfangen wird; ob die Stichprobe «stehendes Bild» in Stufe 3 oder E kommt; Ausfallmeldungen | |
 | vor Stufe H | `04` F-11 | Multicast über Netzmodus «host» oder eigenes Netz des Containers | Zusatzdateien und Ausnahme A-9 |
 | vor Stufe 4 | `04` F-7, F-8; `10` F-1; `14` F-9; `13` P-4 | Rückspulgrenze, Speicherform des Puffers, Sofortaufnahme im Zeitversatz | |
-| vor Stufe 5 | `03` F-2, F-4, F-7, F-9, F-10; `04` F-5, F-6; `07` F-1; `08` F-1; `11` F-1, F-2; `14` F-4, F-5, F-10; `15` F-17, F-18, F-20, F-21; `13` P-2, P-6, P-9 | Kontingent, Vorrang der Aufnahmen, Entzug, Update, Spuren ausserhalb des TS, Notfall-Löschen, Höchstzahl gleichzeitiger Aufnahmen | |
+| vor Stufe 5 | `03` F-2, F-4, F-7, F-9, F-10; `04` F-5, F-6; `07` F-1; `08` F-1; `11` F-1, F-2; `14` F-4, F-5, F-10; `15` F-17, F-18, F-20, F-21; `13` P-2, P-6 (P-9 erledigt durch `04` 8.1) | Kontingent, Vorrang der Aufnahmen, Entzug, Update, Spuren ausserhalb des TS, Notfall-Löschen, Höchstzahl gleichzeitiger Aufnahmen | |
 | vor Stufe 6 | `03` F-8 | Serienaufnahme ohne zuverlässige Folgenkennung | |
 | vor Stufe L | `04` F-1 | RTSP und RTMP über neue Go-Bibliotheken oder FFmpeg | |
 | vor Stufe W | `04` F-13 | DASH und HLS mit fMP4, falls Weg W nicht dicht zu belegen ist | |
@@ -154,21 +159,25 @@ auf deinen Rechnern. **Laufzeit** ist die Messdauer des Versuchs, keine Schätzu
 | Nr. | Frage | Methode | Laufzeit | Abbruchkriterium | Was das Ergebnis am Entwurf ändern kann | Vor |
 |---|---|---|---|---|---|---|
 | **V-1** (`05` M-2) | Wie sehen deine wirklichen Quellen aus: Codec, Zeilensprung, Ton (AAC, MP2, AC-3), Länge der Bildgruppe, Bitrate, Keyframe-Kennzeichen, Schub beim Verbinden, Verhalten bei einer zweiten Verbindung? | Wegwerf-Werkzeug in Go, das einen Strom 2 Minuten liest und nur die TS-Tabellen und Zeitstempel auswertet; Ausgabe als Zahlentabelle je Quelle ohne Namen | je Quelle wenige Minuten; dazu eine Stichprobe von bis zu 50 Sendern | Die Quellen sind nicht erreichbar oder das Lesen verlangt etwas, das der Auftrag ausschliesst (DRM) | Anteil des Direktwegs im Browser (T-12) und damit die Kapazität (`04` 7.6); Vorgabe der Zeilensprung-Entfernung (T-15); ob 15 s Startpuffer reichen (T-7); ob Stufe H früher kommen muss (lokale Quellen); ob `12` F-3 (b) nötig ist | Baufreigabe Stufe 1 |
-| **V-2** (`05` M-3) | Spielt hls.js im schlanken Bau TS-Segmente mit H.264, HEVC, AAC, MP2, AC-3, Diskontinuitäten und einem gesetzten Startpunkt sauber ab? | statische Testseite mit hls.js und mit FFmpeg selbst erzeugten Testströmen (Testbild, Ton), Chrome und Firefox | ein Messlauf je Browser und Format | hls.js spielt TS mit Diskontinuität oder Startpunkt nicht verlässlich | T-11: bleibt TS, oder der Segmentierer liefert fMP4 (die eine vorgesehene Stelle, T-11); Tonregel (MP2/AC-3 immer umwandeln) | Baufreigabe Stufe 1 |
-| **V-3** (`05` M-5) | Safari und iPhone mit HLS-TS: Zeit bis zum Bild bei Listen mit 1, 2, 3 Segmenten | nur mit Gerät; ohne Gerät WebKit in Playwright als Näherung | ein Messlauf | kein Gerät vorhanden (Entscheid 2): dann gilt das iPhone für Stufe 1 als **ungeprüft** (`17` O-11) | kurze Segmente in der Startphase, hls.js auf dem iPhone als Ausweg (`05` 4.3) | Baufreigabe Stufe 1, nur wenn das iPhone dazugehört |
-| **V-4** (`05` M-25) | Lässt CT 190 (Kernel und Docker-Profil) die Sperre für FFmpeg zu (Landlock für Dateien und Netz)? Läuft die ganze Prüfreihe mit `no-new-privileges`, entzogenen Fähigkeiten und Prozessgrenze? Verträgt QSV eine Grenze des Adressraums? | Wegwerf-Programm im Container, das die Sperre setzt und FFmpeg auf einer Pipe startet; ein Testlauf der bestehenden Prüfreihe mit gehärteter Compose-Datei | ein Durchlauf je Einstellung | Sperre nicht verfügbar | `12` F-1 wird zur echten Weiche; Weg W kann ohne Sperre nicht gebaut werden (`04` F-13 (a)); Stufe 0 härtet nur, was den Testlauf besteht | Baufreigabe Stufe 1 (und Stufe 0 für die Härtung) |
+| **V-2** (`05` M-3) | Spielt hls.js im schlanken Bau TS-Segmente mit H.264, HEVC, AAC, MP2, AC-3, Diskontinuitäten und einem gesetzten Startpunkt sauber ab? | statische Testseite mit hls.js und mit FFmpeg selbst erzeugten Testströmen (Testbild, Ton), Chrome und Firefox | ein Messlauf je Browser und Format | hls.js spielt TS mit Diskontinuität oder Startpunkt nicht verlässlich | T-11: bleibt TS, oder der Segmentierer liefert fMP4 (die eine vorgesehene Stelle, T-11); Tonregel. Fest steht schon (`04` T-12, 7.6, belegt durch die Nachprüfung Nr. 11, 13): Der schlanke Bau liest HEVC, AC-3, E-AC-3 und LATM in TS nicht, ein voller Bau ist nicht vorgesehen; diese Sender gehen im Browser in die Umwandlung | Baufreigabe Stufe 1a |
+| **V-3** (`05` M-5) | Safari, iPhone, iPad mit HLS-TS: Zeit bis zum Bild bei Listen mit **1, 3 und 6** Segmenten (Apple verlangt mindestens sechs, Nachprüfung Nr. 6 bis 8; kürzere Listen sind eine bewusste Abweichung) | nur mit Gerät; ohne Gerät WebKit in Playwright als Näherung, die nichts belegt | ein Messlauf | **kein Gerät vorhanden (Entscheid 2): der Versuch kann nicht laufen.** Safari, iPhone und iPad bleiben ungeprüft und nicht zugesagt (`04` T-11, 12.1) | kurze Segmente in der Startphase, bis zu sechs Segmente für native Apple-Player (`05` O-28), hls.js auf dem iPad nach der bestehenden Weiche (`05` 4.3) | keine Baufreigabe hängt daran; nur, falls später ein Gerät da ist |
+| **V-4** (`05` M-25) | Lässt CT 190 (Kernel und Docker-Profil) die Sperre für FFmpeg zu (Landlock für Dateien und Netz, UDP je nach Kernel über Landlock oder den Filter für Systemaufrufe)? Läuft die ganze Prüfreihe mit `no-new-privileges`, entzogenen Fähigkeiten und Prozessgrenze? Verträgt QSV eine Grenze des Adressraums? | Wegwerf-Programm im Container, das die Sperre setzt und FFmpeg auf einer Pipe startet; ein Testlauf der bestehenden Prüfreihe mit gehärteter Compose-Datei | ein Durchlauf je Einstellung | Sperre nicht verfügbar | Die Sperre wird nach `04` T-27, 10.8 **hart** gesetzt oder ihr Fehlen ausgewiesen, nie «so gut es geht»; `12` F-1 wird zur echten Weiche; Weg W kann ohne Sperre nicht gebaut werden (`04` F-13 (a)); Stufe 0 härtet nur, was den Testlauf besteht | Baufreigabe Stufe 1a (und Stufe 0 für die Härtung) |
 | **V-5** (`05` M-4) | Media3 mit HLS-TS auf Pixel und Android-TV-Gerät: Ladepuffer, Start mit und ohne übergeordnete Liste, Decoder beim Umschalten | Wegwerf-App mit eigenem Paketnamen (Muster K27 Stufe 0), dieselben Testströme wie V-2 | ein Messlauf je Gerät | Media3 startet TS-Listen nicht verlässlich | Einstellungen des Players in der App; ob die Apps die übergeordnete Liste brauchen | Baufreigabe der Stufe, in der die Apps Live-TV bekommen (Abschnitt 5) |
 | **V-6** (`05` M-16) | UDP und Multicast im Container auf CT 190: Bridge mit veröffentlichtem Port, Netzmodus «host», eigenes Netz (`macvlan`, `ipvlan`) | ein FFmpeg sendet Testbild an Port oder Gruppe, ein Wegwerf-Empfänger im Container zählt Pakete | je Netzart ein Lauf unter Last | Multicast kommt in keiner Netzart an | `04` F-11; ob Multicast nur über «host» geht (Ausnahme A-9); im schlimmsten Fall ein Abstrich an LTV-003.16, den nur du entscheiden kannst (U-8) | Baufreigabe Stufe H |
-| **V-7** (`05` M-14, `10` M-1, `11` M-1, M-2) | Schreiblast je Zuschauer und Aufnahme auf SSD, HDD, RAM-Disk und NAS; was passiert, wenn das NAS 30 s weg ist oder abgehängt wird; `fdatasync` und `fallocate` im Container | Wegwerf-Skript schreibt Stückdateien mit 1 MB/s je Strom für 5 und 20 Ströme; trennt das NAS; prüft, ob je ins leere Verzeichnis geschrieben wird | je Speicherart ein Lauf von rund einer Stunde | Schreiben landet bei getrenntem NAS auf der lokalen Platte, oder ein hängender Aufruf hält das Herunterfahren auf | `04` F-8 (c) als Bremse; ob ein NAS als Speicherort «Aufnahmen» nur mit Warnung erlaubt ist; Grösse des Rückstaus (T-8); `13` O-2 | Baufreigabe Stufen 4 und 5 |
-| **V-8** (`13` M-1) | Läuft der Go-Empfänger 72 Stunden ohne wachsenden Speicher, Goroutinen und offene Dateien? | **kein Wegwerf-Code**, sondern der Empfänger aus Stufe 1, gehalten durch einen Haltegrund nur im Testbau, 20 Testsender des Simulators, keine Zuschauer, auf CT 190 | 72 Stunden; kann laufen, während Stufe 2 gebaut wird | Leck nach `17` 7 (Speicher > 10 %, Goroutinen oder Deskriptoren > 5 nach einer Stunde) | Stufe 3 wird nicht freigegeben, bis der Fehler in einem Patch von Stufe 1 behoben ist (U-4) | Baufreigabe Stufe 3 |
+| **V-7** (`05` M-14, `10` M-1, `11` M-1, M-2) | Schreiblast je Zuschauer und Aufnahme auf SSD, HDD, RAM-Disk und NAS; was passiert, wenn das NAS 30 s weg ist oder abgehängt wird; `fdatasync` und `fallocate` im Container | Wegwerf-Skript schreibt Stückdateien mit 1 MB/s je Strom für 5 und 20 Ströme; trennt das NAS; prüft, ob je ins leere Verzeichnis geschrieben wird | je Speicherart ein Lauf von rund einer Stunde | Schreiben landet bei getrenntem NAS auf der lokalen Platte, oder ein hängender Aufruf hält das Herunterfahren auf | `04` F-8 (c) als Bremse; ob ein NAS als Speicherort «Aufnahmen» nur mit Warnung erlaubt ist; Grösse des Rückstaus (T-8; wie er gezählt wird, ist durch `04` 8.1 entschieden) | Baufreigabe Stufen 4 und 5 |
+| **V-8** (`13` M-1, `05` M-12) | Läuft der Go-Empfänger 72 Stunden ohne wachsenden Speicher, Goroutinen und offene Dateien? | **kein Wegwerf-Code**, sondern der Empfänger aus Stufe 1, gehalten durch einen Haltegrund nur im Testbau, 20 Testsender des Simulators, keine Zuschauer, auf CT 190 | 72 Stunden; kann laufen, während Stufe 2 gebaut wird | Leck nach `17` 7 (Speicher > 10 %, Goroutinen oder Deskriptoren > 5 nach einer Stunde) | Stufe 3 wird nicht freigegeben, bis der Fehler in einem Patch von Stufe 1 behoben ist (U-4) | Baufreigabe Stufe 3 |
 | **V-9** (`09` M-10 bis M-12) | Wie gut sind deine echten Programmdaten (fehlende Endzeiten, Folgenkennung, Zeitversatz) und wie stark schwankt die Menge von Tag zu Tag? | Wegwerf-Skript liest deine XMLTV-Dateien einmal täglich und schreibt nur Zählwerte | zwei Wochen | keine verwendbare Datei | Schwelle «Liste geschrumpft» (50 %); Vorgaben der Zuordnung; Grundlage für `03` F-8 (Serien ohne Folgenkennung) | Bau Stufe 2 (früh beginnen, läuft nebenher) |
 | **V-10** (`05` M-10, M-11, M-12 FFmpeg) | Ist Weg W dicht: Öffnet FFmpeg mit umgeschriebenen Listen nur die Verbindung zum Weiterleiter? Hält ein FFmpeg-Leser für DASH 30 Stunden? | feindliche Testmenge (`05` 2.6) im Testaufbau, Mitschrift aller Verbindungsversuche des Prozesses | 30 Stunden für den Langlauf | eine einzige Verbindung an einem anderen Ziel | ohne Beleg kein Weg W (T-4); dann `04` F-13 | Baufreigabe Stufe W |
 | **V-11** (`05` M-23) | Verbinden die Go-Bibliotheken für RTSP und RTMP nur über den übergebenen Dialer? | Test mit einem Dialer, der alles ablehnt, gegen einen Testserver | ein Lauf | eine Verbindung am Dialer vorbei | `04` F-1 (b) oder (c) | Baufreigabe Stufe L |
 | **V-12** (`11` M-7) | Hat das Image Zonendaten, und rechnen wiederkehrende Aufnahmen unter `TZ` gleich UTC (CT 190) richtig? | Abfrage im Image mit gestellter Uhr über eine Zeitumstellung | ein Lauf | Zonendaten fehlen | Zonendaten ins Image oder in den Server einbetten | Bau Stufe 6 |
 
 Was **nicht** in Stufe V gehört, sondern während des Baus vor dem betroffenen Bauteil gemessen wird (`17` 8.2):
-`05` M-6, M-7, M-8, M-22, `13` M-5 (Stufe 1); `09` M-1 bis M-7, M-9 (Stufe 2); `05` M-13, M-15, M-17, M-20
-(Stufe 3); `05` M-9, M-19, `10` M-2, M-3 (Stufe 4); `11` M-5 (Stufe 5); `05` M-24 (Apps, Stufe E).
+`05` M-6, M-7, M-8, M-22, `13` M-5 (Stufe 1a); `09` M-1 bis M-7, M-9 (Stufe 2); `05` M-13, M-15, M-17
+(Stufe 3); `05` M-9, M-19, `10` M-2, M-3 (Stufe 4); `11` M-5 (Stufe 5); `05` M-20 (vor der Baufreigabe der
+Stufe E, bei `04` F-14 (b) in Stufe 3); `05` M-24 (Apps, Stufe E).
+
+**Zum Langlauf (`05` M-12, `04` Fassung 3):** 72 Stunden sind das **Tor zur Baufreigabe der Stufe 3** (V-8),
+7 Tage die **Abnahme der Stufe 3**.
 
 ---
 
@@ -184,7 +193,7 @@ der Quellen und ihre Störungen nachstellt.
 |---|---|---|---|
 | 0.1 | `docs(planning): record decision 37, concept 28 approved` (falls nicht schon mit der Freigabe) und `docs(planning): question 37 addendum, answers to the open questions` | Frage 37 nach dem Entwurf in `02` Abschnitt 5; Nachtrag mit deinen Antworten aus Abschnitt 2.1 | `docs/planning/04-entscheidungen.md`, Konzept-README |
 | 0.2 | `docs(rules): name live TV as an exception to the non-goals` | Spec «Non-Goals» (`docs/spec/01-anforderungen-v1.md:29`, `:44`, `:56-57`) und neuer Kriterienblock **L-1 ff.** (Empfehlung aus A1 3.2: Block in der Spec); Plan `docs/planning/03-plan-v1.md:30`; `docs/dev/HANDOVER.md:155`; `CLAUDE.md` **Regel 11** (Ausnahme A-1 mit Grenze: Fernsehsender, kein DRM, keine Plattform-Streams, Webradio ohne Aufnahmen), **Regel 10** (neue Schlüssel und Muster aus `12` 5.4), **Regel 3** (Hülle für die Sperre: `syscall.Exec` nur im Paket `transcode`, `12` O-1), **Regel 8** (TV-Tastentest mit Steuerkreuz, falls `03` F-6 die TV-App in Stufen 1 bis 6 nimmt; `01` RI-7), Regel 2 um `store/liveq` (nur im Paket `live`) | `docs/spec/`, `docs/planning/03-plan-v1.md`, `CLAUDE.md`, `docs/dev/HANDOVER.md` |
-| 0.3 | `docs(adr): 0046 live TV exceptions, rights and limits` | ADR 0046 «angenommen» mit allen benannten Ausnahmen **A-1 bis A-9** und ihren Grenzen (`02` Abschnitt 4, `12` 1.1; Beleg `AK-L-272`), dem Rechte-Modell (drei Schalter, Deckel, keine Altersprüfung) und den Antworten auf `12` F-1 bis F-3, `04` F-3, `04` F-10. Nachträge: ADR 0025 (Regel «FFmpeg sieht keine Adresse» gilt für Live-TV; Weg W als einzige, noch nicht gebaute Ausnahme), ADR 0032 (A-4), ADR 0045 (A-5), ADR 0029 (eigene schreibbare Wurzeln, A-7) | `docs/adr/0046-…md`, Nachträge in `docs/adr/` |
+| 0.3 | `docs(adr): 0046 live TV exceptions, rights and limits` | ADR 0046 «angenommen» mit allen benannten Ausnahmen **A-1 bis A-9** und ihren Grenzen (`02` Abschnitt 4, `12` 1.1; Beleg `AK-L-272`), dem Rechte-Modell (drei Schalter, Deckel, keine Altersprüfung), **einer** Definition «Profil mit Altersgrenze» (wirksame Grenze aus Profil und Konto unter 18, RD-05) und den Antworten auf `12` F-1 bis F-3, `04` F-3, `04` F-10. Nachträge: ADR 0025 (Regel «FFmpeg sieht keine Adresse» gilt für Live-TV; Weg W als einzige, noch nicht gebaute Ausnahme), ADR 0032 (A-4), ADR 0045 (A-5), ADR 0029 (eigene schreibbare Wurzeln, A-7) | `docs/adr/0046-…md`, Nachträge in `docs/adr/` |
 | 0.4 | `feat(logging): redact live TV source secrets` | neue Abfrageparameter, Endungsregel, Pfadmuster (Benutzerteil, Xtream-Pfade, Ersatznamen), Schlüsselnamen und zusammengesetzte Werte nach `12` 5.4, mit Pflicht-Testfall und Gegentest | `server/internal/logging/` |
 | 0.5 | `chore(lint): guard the live packages` | Paketgerüst `server/internal/live` (nur Paketkommentar, Zuschnitt nach `04` T-24); `depguard`-Riegel für `store/liveq` (Muster `wishq`), Riegel gegen `items`, `media_files`, `tracks` im Paket `live` (Analyzer `itemsaccess`), `forbidigo` für `syscall.Exec`/`unix.Exec` ausserhalb `transcode`; CI-Schritt, der das Release-Binary auf Test-Build-Tags prüft (`12` SM-26) | `server/.golangci.yml`, `server/internal/live/`, CI |
 | 0.6 | `chore(deploy): harden the default compose file` | nach `04` F-12 (a) und dem Lauf aus V-4: `no-new-privileges`, `cap_drop: ALL`, `pids_limit`, höhere Grenze offener Dateien (`13` O-6) | `deploy/compose.yaml`, `docs/INSTALLATION.md`, `deploy/README.md` |
@@ -197,7 +206,7 @@ kommen mit der Stufe, die sie braucht (H, L, W), nicht hier: Regel 11 «nichts v
 
 | Punkt | Inhalt |
 |---|---|
-| Abnahme | `AK-L-098`, `AK-L-246` (Schwärzung), `AK-L-272` (Ausnahmen in Regeln, Spec und ADR, Skript); `task check:fast` grün; Selbsttests des Simulators grün |
+| Abnahme | 5 `AK-L` nach `17` 8.1: `AK-L-098`, `-246` (Schwärzung), `-252`, `-272` (Ausnahmen in Regeln, Spec und ADR, Skript), `-281` (Compose-Datei); `task check:fast` grün; Selbsttests des Simulators grün |
 | Prüfliste für dich | (1) Du liest Regel 11 und ADR 0046 und findest jede Ausnahme mit ihrer Grenze. (2) Nach dem Update auf eine Fassung mit gehärteter Compose-Datei läuft dein Server wie vorher (Filme, Radio, Apps). |
 | Messungen | V-4 (für die Härtung) |
 | Doku | ADR 0046 und Nachträge; `docs/INSTALLATION.md` und `deploy/README.md` für die Compose-Härtung; `CURRENT_STATUS.md` erst, wenn Stufe 0 Code ins Produkt bringt (Schwärzung, Compose) |
@@ -222,22 +231,24 @@ Härtung früher bei allen ankommen, ist ein Patch-Release möglich (Weg «Versi
 
 ### 4.1 Widersprüche in den Stufenangaben der Fachpapiere
 
-Beim Abgleich von `03`, `04`, `05`, `07`, `08`, `12`, `16` und `17` fielen diese Unstimmigkeiten auf. Dieser Plan
-entscheidet sie als Vorschlag (letzte Spalte); die anderen Papiere werden in ihrer nächsten Fassung nachgeführt
-(O-1).
+Beim Abgleich von `03`, `04`, `05`, `07`, `08`, `12`, `16` und `17` fielen in Fassung 1 diese Unstimmigkeiten
+auf. Dieser Plan entscheidet sie (Spalte «Dieser Plan»); die Spalte «Stand nach Konsolidierung 1» sagt, wo sie
+nachgeführt sind und was offen bleibt.
 
-| Nr. | Thema | Stellen | Befund | Dieser Plan |
+| Nr. | Thema | Stellen (Fassung 1) | Dieser Plan | Stand nach Konsolidierung 1 |
 |---|---|---|---|---|
-| **D-1** | RTSP und RTMP | `03` LTV-003.12, .13: Stufe 3 · `04` T-3, F-1, `16` Matrix A, `17` 8.1: «späte Stufe L, vorbehaltlich F-1» | `03` setzt sie in Stufe 3, die Architektur in eine eigene späte Stufe, weil Go die Protokolle nicht spricht und erst ein Entscheid über neue Bibliotheken fallen muss | **Stufe L** |
-| **D-2** | DASH (und HLS mit fMP4) | `03` LTV-003.10: Stufe 3 · `04` T-3 («Weg W gehört zu keiner der Stufen 1 bis 3»), `04` O-24, `12` SM-44, `16`, `17` 8.1: Stufe W | `04` O-24 nennt die nötige Änderung in `03` selbst | **Stufe W**, zuletzt |
-| **D-3** | Speicherort des Startpuffers | `03` Lesart: Stufe 4 («samt Speicherorten für Startpuffer und Timeshift») · `03` LTV-019.01, .04 und LTV-007.12, .13: Stufe 3 · `07` 11.2: `live_config` Startpuffer in Stufe 3, `live_storage` in Stufe 4 · `08` 2.10: alle Speicherort-Operationen Stufe 4 | Kopftabelle und Zeilen von `03` widersprechen sich; die Wahl des Ordners braucht die Prüfungen und Marker von `live_storage`, die erst in Stufe 4 kommen | Mit `04` F-2 (b) (nur Arbeitsspeicher, Empfehlung) entfällt die Ortswahl; die Grösse ist eine Einstellung der Stufe 3. Mit `04` F-2 (a) kommt die Ortswahl für den Startpuffer in **Stufe 4** zusammen mit `live_storage` |
-| **D-4** | Feste Ziele im Heimnetz | `07` 11.2 (`live_net_targets`), `08` 2.8 (`resolveLiveNetTarget`), `12` SM-41, `03` LTV-003.14 bis .16: Stufe 3 · `17` 8.1: `AK-L-230`, `AK-L-231` (Quelle mit festem Ziel) in Stufe 1 | `17` prüft in Stufe 1 etwas, das es erst später gibt | In Stufe 1 prüfen `AK-L-230`, `-231` nur die verbotene Hälfte (keine lokale Adresse ohne Ziel); die erlaubte Hälfte gehört zu **Stufe H** |
-| **D-5** | Eingefrorener Strom | `03` LTV-011.04: Stufe 3 · `04` 9, `05` 9.4: Stillstand der Zeit in Stufe 3, **stehendes Bild** in gültigem Strom erst mit einer Stichprobe mit Dekodieren «als eigener, späterer Schritt nach Stufe 3» und nur nach `05` M-20 | `03` und `17` kennen diesen späteren Schritt nicht; LTV-011.04 wäre in Stufe 3 nur zur Hälfte erfüllt | Stichprobe als letzter Planschritt der Stufe 3, wenn M-20 vorliegt und trägt; sonst **Stufe E**. Bis dahin ist LTV-011.04 «teilweise» und so in `CURRENT_STATUS.md` zu nennen |
-| **D-6** | Untertitel je Zuschauer | `03` LTV-004.17: Stufe 1 · `04` 7.4, `16` Matrix E: im Browser und auf dem iPhone «in den ersten Stufen» keine Untertitel; Teletext nach WebVTT ist `04` O-5, «spätere Stufe» | LTV-004.17 ist im Browser in Stufe 1 nicht erfüllbar | Stufe 1 liefert die Wahl für Clients, die DVB-Untertitel zeichnen (Media3, nach `05` M-24); WebVTT für den Browser in **Stufe E** |
-| **D-7** | Messungen vor Stufe 1 | `04` T-11 und 12.1: «M-2, M-3, M-4 und M-5 vor der Baufreigabe der Stufe 1» ohne Bedingung · `05` 10.1, `16` 3.2, `17` 8.2: M-4 erst vor der Stufe, in der die Apps Live-TV bekommen; M-5 nur, wenn das iPhone zur Stufe gehört · Entscheid 2: kein iPhone vorhanden | `04` verlangt etwas, das mangels Gerät nicht geht | Es gilt `05`/`17`: M-2 und M-3 immer; M-4 nach Abschnitt 5; M-5 nur mit Gerät, sonst iPhone «ungeprüft» (`17` O-11) |
-| **D-8** | 72-Stunden-Lauf | `13` M-1, `17` 7: Baufreigabe der Stufe 3 · Strategie «dauerhaft» wird erst in Stufe 3 gebaut | Vor dem Bau kann nur der Empfänger aus Stufe 1 gemessen werden | V-8 misst den Empfänger der Stufe 1 mit einem Haltegrund nur im Testbau; der 7-Tage-Lauf (`05` M-12) ist Abnahme der Stufe 3 |
-| **D-9** | Compose-Härtung | `04` 10.6, 10.8: Stufe 1 (vorbehaltlich `04` F-12) | kein Widerspruch im Inhalt, nur im Zeitpunkt | **Stufe 0**, weil sie keine Funktion braucht und vor dem ersten fremden Datenstrom stehen soll |
-| **D-10** | Clients in jeder Stufe | `03` Lesart: «jede Stufe gilt zuerst für die Web-App» · `08` 1.2, 7.1: `x-clients: [app, tv]` ab Stufe 1 · `17` 8.1: eigene Zeile «Apps» | verträglich: Der Vertrag ist den Apps voraus, damit eine spätere App keine Vertragsänderung braucht | so übernommen; die Reihenfolge der Apps entscheidet Abschnitt 5 |
+| **D-1** | RTSP und RTMP | `03` LTV-003.12, .13: Stufe 3 · `04` T-3, F-1, `16` Matrix A, `17` 8.1: späte Stufe L | **Stufe L** | **erledigt** in `03` Fassung 2 (LTV-003.12, .13: L) und `17` Fassung 2 |
+| **D-2** | DASH, HLS mit fMP4 | `03` LTV-003.10: Stufe 3 · `04` T-3, O-24, `12` SM-44, `16`, `17`: Stufe W | **Stufe W**, zuletzt | **erledigt** in `03` Fassung 2 (LTV-003.10: W), `16` und `17` Fassung 2; `04` Fassung 3 Abschnitt 15 bestätigt |
+| **D-3** | Speicherort des Startpuffers | `03` Lesart: Stufe 4 · `03` LTV-019.01, .04: Stufe 3 · `07` 11.2: Startpuffer-Einstellungen Stufe 3, `live_storage` Stufe 4 · `08` 2.10: Speicherorte Stufe 4 | Mit `04` F-2 (b) (Empfehlung) nur die Grösse, Einstellung der Stufe 3. Mit `04` F-2 (a) die Ortswahl in **Stufe 4** mit `live_storage` | **erledigt** in `03` Fassung 2 (LTV-019.01, .04: 4; Lesart Stufe 4 «Ort des Startpuffers nur, falls `04` F-2 die Ortswahl behält»); `07` Fassung 2 führt in Stufe 3 nur noch die Einstellungen (Grösse); `08` folgt (noch Fassung 1). Die Weiche selbst bleibt `04` F-2 |
+| **D-4** | Feste Ziele im Heimnetz | `07`, `08`, `12` SM-41, `03`: Stufe 3 · `17` 8.1: `AK-L-230`, `-231` in Stufe 1 | verbotene Hälfte in **1a**, erlaubte Hälfte in **Stufe H** | **erledigt** in `03` Fassung 2 (LTV-003.14 bis .16: H) und `17` Fassung 2 (`-230`, `-231` als Teil in 1a, neu grün in H). **Offen** in `07` Fassung 2 (11.2 führt `live_net_targets` und `listen_interface` noch in Stufe 3), `08` (2.8 `resolveLiveNetTarget` Stufe 3), `12` (SM-41) und `04` T-3 («UDP, RTP, Multicast (Stufe 3)»): siehe D-11 |
+| **D-5** | Eingefrorener Strom («stehendes Bild») | `03` LTV-011.04: Stufe 3 · `04` 9, `05` 9.4: Stichprobe mit Dekodieren später, nach `05` M-20 | **Stufe E** nach der Vorgabe `04` F-14 (a); bei `04` F-14 (b) in Stufe 3. Bis zur Stichprobe ist LTV-011.04 «teilweise» erfüllt und so in `CURRENT_STATUS.md` zu nennen | **erledigt** in `03` Fassung 2 (LTV-011.04: «3; E»), `17` Fassung 2 (`AK-L-331` in E) und `04` Fassung 3 (F-14). Fassung 1 dieses Plans liess die Stichprobe noch wahlweise in Stufe 3; das ist korrigiert |
+| **D-6** | Untertitel je Zuschauer im Browser | `03` LTV-004.17: Stufe 1 · `04` 7.4, `16` Matrix E: im Browser zunächst keine Untertitel, WebVTT ist `04` O-5 | Stufe 1a für Clients, die DVB-Untertitel zeichnen (Media3, nach `05` M-24); WebVTT für den Browser in **Stufe E** | **erledigt** in `03` Fassung 2 (LTV-004.17: «1a; E») und `16`, `17` Fassung 2. **Offen** in Stufe E: wie der Browser WebVTT zeigt, weil der schlanke Bau von hls.js Untertitel-Spuren weglässt (O-7) |
+| **D-7** | Messungen vor Stufe 1 | `04` T-11, 12.1 ohne Bedingung · `05` 10.1, `16` 3.2, `17` 8.2 bedingt · kein Apple-Gerät | M-2 und M-3 immer; M-4 nach Abschnitt 5; M-5 kann nicht laufen | **teilweise erledigt:** M-5 ist in `04` Fassung 3 bereinigt (Apple-Clients ungeprüft und nicht zugesagt). **Offen** in `04` Fassung 3 T-11: «M-2, M-3 und M-4 vor der Baufreigabe der Stufe 1» ohne Bedingung für M-4; `05` Fassung 3 (M-4) und `17` Fassung 2 binden M-4 an die Stufe, in der die Apps Live-TV bekommen. Dieser Plan folgt `05`/`17` (an die Konsolidierung gemeldet) |
+| **D-8** | 72-Stunden-Lauf | `13` M-1, `17` 7: Baufreigabe Stufe 3, obwohl «dauerhaft» erst in Stufe 3 gebaut wird | V-8 misst den Empfänger der Stufe 1a mit einem Haltegrund nur im Testbau; 7 Tage sind Abnahme der Stufe 3 | **erledigt** in `04` Fassung 3 (14.8), `05` Fassung 3 (M-12), `13` und `17` Fassung 2 |
+| **D-9** | Compose-Härtung | `04` 10.6, 10.8: Stufe 1 (vorbehaltlich `04` F-12) | **Stufe 0** | **teilweise:** `17` Fassung 2 prüft sie in Stufe 0 (`AK-L-281`), `03` Fassung 2 nennt sie in Stufe 0. **Offen** in `04` Fassung 3 (10.6, 10.8: «1, vorbehaltlich F-12»); an die Konsolidierung gemeldet |
+| **D-10** | Clients in jeder Stufe | `03` «zuerst Web» · `08` `x-clients: [app, tv]` ab Stufe 1 · `17` Zeile «Apps» | so übernommen; Reihenfolge der Apps nach Abschnitt 5 | **kein Widerspruch**; `03` Fassung 2 sagt es ausdrücklich (Lesart) |
+| **D-11** (neu) | Stufe H in Architektur und Schema | `04` Fassung 3 T-3: «UDP, RTP, Multicast (Stufe 3)» · `07` Fassung 2 11.2: `live_net_targets`, `live_sources.listen_interface` in Stufe 3 · `08` 2.8: `resolveLiveNetTarget` Stufe 3 | **Stufe H** | **offen** in `04`, `07`, `08`; `03`, `16`, `17` sind auf H gezogen |
+| **D-12** (neu) | LTV-018 zwischen 1a und 1b | Fassung 1 dieses Plans nannte in 4.3 «LTV-018 ausser .12, .13» für 1a und «automatisch nach Zeitplan» für 1b | 1a: LTV-018.03 bis .11, .14 bis .21, .23 (von Hand, Erhalt der Pflege); **1b: LTV-018.01, .02, .22** (automatisch nach Zeitplan, Intervall je Quelle, Bestätigung bei auffällig unvollständiger Liste); .12 in Stufe 2, .13 in Stufe 5 | **erledigt**: gleich wie `03` Fassung 2 |
 
 Kein Widerspruch, aber erwähnenswert: `07` 11.2 legt in Stufe 2 die neuen Meldungsarten aller Stufen in
 `notifications` und `deliveries` an (geschlossene Wertelisten), während `08` 1.3 den Vertrag Werte erst mit ihrem
@@ -282,16 +293,17 @@ Umwandlung.
 
 | Punkt | Inhalt |
 |---|---|
-| **Umfang 1a «Schauen»** | Quellen: M3U/M3U8 als Datei und Adresse, Einzel-URL, Xtream-Live (LTV-003.01 bis .09, .11, .17 bis .21, .23); Zugangsdaten, Kopfzeilen, User-Agent verschlüsselt und nur an feste Ursprünge (T-28); nur öffentliche Ziele (D-4). Empfang **bei Bedarf** (LTV-002.03, .09, .10), ein Eingang je Sender, Verteiler mit Ring und Startpuffer von höchstens 15 s, Lebenszyklus über Haltegründe, Zulassung mit Serverdeckeln (LTV-004 ausser .06 und .32; T-1 bis T-3, T-6 bis T-9, T-11 bis T-14, T-17, T-19, T-21 bis T-24). Original, Umpacken, Ton- und Bild-Umwandlung je Zuschauer mit bestehender Hardware (LTV-004.08 bis .19), Zeilensprung-Entfernung (T-15), Eindämmung von FFmpeg und Fuzz-Ziele (T-27). Grundüberwachung (LTV-011.02, .03, .11, .12, .16, .17). Rechte: Schalter «Live-TV» auf Konto und Profil, 404 ohne Recht (LTV-012 ausser .04, .05; LTV-015 ausser Aufnahmen), Zählung zu Strömen, Bitrate, Höhe und Schauzeit (T-26). Import mit stabiler Identität und Erhalt der Pflege, Aktualisierung von Hand (LTV-018 ausser .12, .13). Favoriten und «zuletzt gesehen» (LTV-001.12). |
-| **Umfang 1b «Senderverwaltung erweitert»** | Zusammenführen und Duplikate (LA-07), eigene Gruppen (LA-08), Massenbearbeitung und Nummern, Logo-Upload, automatische Aktualisierung nach Zeitplan (Jobart), Importbericht mit «zurückgehaltener Liste» (LTV-006, LTV-018 Rest) |
+| **Umfang 1a «Schauen»** | Quellen: M3U/M3U8 als Datei und Adresse, Einzel-URL, Xtream-Live (LTV-003.01 bis .09, .11, .17 bis .21, .23); Zugangsdaten, Kopfzeilen, User-Agent verschlüsselt und nur an feste Ursprünge (T-28); nur öffentliche Ziele (D-4). Empfang **bei Bedarf** (LTV-002.03, .09, .10), ein Eingang je Sender, Verteiler mit Ring und Startpuffer von höchstens 15 s, Lebenszyklus über Haltegründe, Zulassung mit Serverdeckeln (LTV-004 ausser .06 und .32; T-1 bis T-3, T-6 bis T-9, T-11 bis T-14, T-17, T-19, T-21 bis T-24). Original, Umpacken, Ton- und Bild-Umwandlung je Zuschauer mit bestehender Hardware (LTV-004.08 bis .19), Zeilensprung-Entfernung (T-15), Eindämmung von FFmpeg mit harter Sperre oder ausgewiesenem Fehlen und Fuzz-Ziele (T-27), kein FFmpeg-Lauf länger als 24 Stunden (`04` 7.5). **Im Browser nur der schlanke Bau von hls.js:** HEVC, AC-3, E-AC-3 und AAC-LATM gehen dort in die Umwandlung (`04` T-12, 7.6; belegt, Nachprüfung Nr. 11, 13). Grundüberwachung (LTV-011.02, .03, .11, .12, .16, .17). Rechte: Schalter «Live-TV» auf Konto und Profil, 404 ohne Recht (LTV-012 ausser .04, .05; LTV-015 ausser Aufnahmen), Zählung zu Strömen, Bitrate, Höhe und Schauzeit (T-26). Import mit stabiler Identität (Treffer nur mit zweitem Merkmal, RD-02), in **einer** Schreibtransaktion je Quelle (RD-03), Erhalt der Pflege, Aktualisierung von Hand: LTV-018.03 bis .11, .14 bis .21, .23 (D-12). Deaktivieren oder Verschwinden eines Senders beendet nichts Laufendes; «sofort beenden» ist ein eigener Befehl (T-29). Favoriten und «zuletzt gesehen» (LTV-001.12). |
+| **Umfang 1b «Senderverwaltung erweitert»** | Zusammenführen und Duplikate (LA-07), eigene Gruppen (LA-08), Massenbearbeitung und Nummern, Logo-Upload, automatische Aktualisierung nach Zeitplan mit Intervall je Quelle (Jobart), Importbericht mit «zurückgehaltener Liste» bei auffällig unvollständiger Liste: LTV-018.01, .02, .22 (D-12); dazu die erweiterten Teile von LTV-006 |
 | **Tabellen** (`07` 11.2) | 1a: `live_config` (Spalten Stufe 1), `live_sources` (ohne Spalten der Stufen 3 und H), `live_source_headers`, `live_source_origins`, `live_source_imports`, `live_source_import_items`, `live_channels` (ohne `strategy`, `schedule_id`), `live_channel_locks`, `live_channel_categories`, `live_channel_streams`, `live_favorites`, `live_recent_channels`, `live_sessions` (ohne `recording_id`), `live_session_tunes`, `live_watch_time`, `live_stream_events`, Sicht `live_visible_channels`; Erweiterung `accounts`, `profiles`, `invitations` (Schalter «Live-TV», Werkseinstellung nach `03` F-1); Neubau `my_media` (Schlüssel `livetv`). 1b: `live_groups`, `live_group_channels`, `live_duplicate_dismissals`. Ein eingefrorener DB-Stand je Release in `testdata/db/` (Regel 5) |
 | **Operationen** (`08` 2) | 63 neue: Sender und Favoriten (11), Sitzung und Wiedergabe ohne `seekLiveSession` (8, davon 3 Binärrouten), Übersicht, Ströme, Diagnose ohne `switchLiveIngestSource` und `getLiveUpdateImpact` (6), Quellen und Importe ohne `resolveLiveNetTarget` (16), Sender, Gruppen, Duplikate (20; die Gruppen- und Zusammenführ-Operationen in 1b), `getLiveConfig`/`updateLiveConfig` (2). Erweitert: `getSession`, Profile, Konten, Einladungen, `listMyMedia`, `listStreams`, `getDashboard`, `listJobRuns`, `getWatchReport`, `PlaybackCapabilities` |
 | **Seiten** (`14`, `15`) | Zuschauer: LS-01 (ohne Programmteile), LS-02, LS-03, LS-07 (ohne Timeshift und Aufnahme), LS-20, LS-21, LS-25 (Ton-Vorrang mit Radio). Verwaltung: LA-01 bis LA-06, LA-12, LA-13 (Grundteil), in 1b LA-07, LA-08; geänderte Seiten LA-20 bis LA-23, LA-24 (Importfehler), LA-25, LA-26. Jede neue Seite mit Playwright-Tastaturtest (Regel 8) |
 | **Clients** | Web-App (Desktop, Handy-Breite, Tablet). Apps nach Abschnitt 5 |
 | **Abhängigkeiten** | Stufe 0; V-1, V-2, V-4 (und V-3 nur mit Gerät, V-5 nur bei Variante (b) oder (c) aus Abschnitt 5); Antworten «vor Stufe 1» |
-| **Risiken** | Direktweg greift selten (RP-1); hls.js mit TS (RP-2); Grösse der Stufe (RP-3); FFmpeg ohne Sperre (RP-4); Wirkung auf Filme (RP-9) |
-| **Abnahme** | 152 `AK-L` nach `17` 8.1 (Pflichtfälle, Verteilung, Umwandlung, Rechte, Sicherheit SM-01 bis SM-07, SM-13 bis SM-27, SM-35 bis SM-42 soweit Stufe 1, SM-44 für HLS; Schutz des Bestands `AK-L-282` bis `-291`); bei 1a/1b werden sie nach Inhalt geteilt (O-2) |
-| **Prüfliste für dich** (`17` 8.3) | (1) Testliste anlegen, Sender erscheinen. (2) Ein Sender: Bild kommt, Ton passt. (3) Zweites Gerät, derselbe Sender: in der Verwaltung **ein** Eingang, **zwei** Zuschauer. (4) Schnell durch zehn Sender: nichts hängt, danach ein bis zwei Eingänge. (5) «Live-TV» einem Profil entziehen: Wiedergabe endet, Bereich weg, kein «verboten». (6) Ein Profil mit Altersgrenze sieht Live-TV nur nach deiner Freigabe. (7) Ein Film läuft ungestört, während Live-TV läuft. Zusätzlich in 1b: (8) zwei Listen mit demselben Sender zusammenführen; Favoriten bleiben nach einer Aktualisierung. |
+| **Risiken** | Direktweg greift selten, im Browser zusätzlich wegen des schlanken Baus (RP-1); hls.js mit TS (RP-2); Grösse der Stufe (RP-3); FFmpeg ohne Sperre (RP-4); Wirkung auf Filme (RP-9); Arbeitspunkte aus Review 2: RD-01 bis RD-05, RD-08 (Abschnitt 4.14) |
+| **Was das für die Kapazität heisst** | Weil der Browser HEVC, AC-3, E-AC-3 und LATM nicht selbst liest, braucht dort jeder solche Sender eine Ton- oder Bild-Umwandlung. Auf CT 190 sind ab Werk nach `04` 7.6 höchstens zwei Browser-Zuschauer mit Bild-Umwandlung gleichzeitig möglich (Rechnung, Annahme); wie viele deiner Sender das trifft, zeigt erst V-1. Das ist eine Rechnung, keine Zusage |
+| **Abnahme** | nach `17` 8.1 (Fassung 2): **1a** 157 neue `AK-L` und 3 Teile (`-230`, `-231` verbotene Hälfte, `-322`); **1b** 4 neue und 4 Teile. Darin Pflichtfälle, Verteilung, Umwandlung, Rechte, Sicherheit SM-01 bis SM-07, SM-13 bis SM-27, SM-35 bis SM-42 soweit Stufe 1, SM-44 für HLS, Schutz des Bestands `AK-L-282` bis `-291`. **Apple-Clients:** Safari, iPhone und iPad gehören nicht zur Abnahme von 1a; `AK-L-295` steht als «ungeprüft», nicht als bestanden, und hält die Freigabe nicht auf. Der Release-Text sagt «Safari, iPhone, iPad: ungeprüft und nicht zugesagt»; du bestätigst das mit `17` O-11 |
+| **Prüfliste für dich** (`17` 8.3) | (1) Testliste anlegen, Sender erscheinen. (2) Ein Sender: Bild kommt, Ton passt. (3) Zweites Gerät, derselbe Sender: in der Verwaltung **ein** Eingang, **zwei** Zuschauer. (4) Schnell durch zehn Sender: nichts hängt, danach ein bis zwei Eingänge. (5) «Live-TV» einem Profil entziehen: Wiedergabe endet, Bereich weg, kein «verboten». (6) Ein Profil mit Altersgrenze sieht Live-TV nur nach deiner Freigabe. (7) Ein Film läuft ungestört, während Live-TV läuft. (8) Du deaktivierst einen Sender, den jemand schaut: Die Wiedergabe läuft weiter, neu einstellen geht nicht (T-29). Zusätzlich in 1b: (9) eine Quelle aktualisiert sich nach ihrem Intervall von selbst; (10) zwei Listen mit demselben Sender zusammenführen; Favoriten bleiben nach einer Aktualisierung. |
 | **Messungen** (`docs/perf/28-live-tv.md`) | während des Baus `05` M-6, M-7, M-8, M-22, `13` M-5; zur Abnahme `05` M-1 (Fälle 1, 3, 4 ohne Vorladen), `05` M-18 (hinter deinem Reverse-Proxy), `13` M-2 (1'000 Wechsel), `13` M-3 (20 Zuschauer), `13` M-6 (Wirkung auf Filme), `AK-L-308` |
 | **Doku** | ADR 0047 (Empfang, Verteilung, Sitzungen, Auslieferung, Umwandlung: T-1 bis T-3, T-6 bis T-9, T-11 bis T-15, T-17, T-19 bis T-24, T-26), ADR 0048 (Geheimnisse der Quellen, Netzschutz nur öffentlich, Eindämmung von FFmpeg: T-27, T-28, T-5 Teil «öffentlich»); `CURRENT_STATUS.md`; `docs/INSTALLATION.md` (Live-TV einrichten, Sicherheitshinweise V-1 bis V-5 aus `12`); Texte im Namensraum `live` in `de`, `en`, `de-DE`, übrige Sprachen nach dem Übersetzungsweg von Konzept 22 |
 | **Verträglichkeit** | neue Vertragsfassung (Minor) je Release 1a und 1b; alle Zuschauer-Operationen `scoped` mit `x-clients: [app, tv]`, Verwaltung `admin` ohne `x-clients`; nur additive Änderungen (`AK-L-286`); `livetv` in `listMyMedia` und Live-Einträge nur an Clients mit Live-TV-Fassung (`08` 7.2, O-1 dort); Stand neu einfrieren (`task server:freeze:x-clients`) |
@@ -327,7 +339,7 @@ und suchen und dich an eine Sendung erinnern lassen.
 | **Seiten** | LS-04, LS-05, LS-06, LS-13, LS-15, LS-01 (Programmteile), LS-22, LS-23, LS-24 (nur nach `03` F-5 / `14` F-3); LA-10, LA-11; Banner und Programm im Player (LS-07) |
 | **Abhängigkeiten** | Stufe 1; V-9 läuft nebenher; Antworten «vor Stufe 2» |
 | **Risiken** | Import blockiert die eine Schreibverbindung (RP-8); Pünktlichkeit der Erinnerung über Push (`09` M-8) |
-| **Abnahme** | 31 neue `AK-L`, dazu 4 Teile (`17` 8.1); `AK-L-290` (Benachrichtigungen) |
+| **Abnahme** | 31 neue `AK-L` und 4 Teile (`17` 8.1, Fassung 2); `AK-L-290` (Benachrichtigungen) |
 | **Prüfliste für dich** | (1) Test-Programmdatei laden: Raster zur richtigen Uhrzeit. (2) Sender ohne Daten: «Keine Programmdaten», trotzdem schaubar. (3) Erinnerung kommt rechtzeitig. (4) Suche findet eine Sendung; eine kaputte Datei lässt den alten Stand stehen. |
 | **Messungen** | während des Baus `09` M-1 bis M-7, M-9 (M-3 entscheidet `09` F-1 endgültig); zur Abnahme `09` M-3, M-4, M-8, `05` M-1 mit Programm, `AK-L-304` |
 | **Doku** | ADR 0049 (Programmdaten in eigener Datei `epg.db`, nicht in der Sicherung, streamender Parser, eine Zuordnung je Sender); `CURRENT_STATUS.md`; Sicherung und Wiederherstellung in der Installationsanleitung (was `epg.db` ist und warum sie fehlt); Servertexte der neuen Meldungen in allen Sprachen der Kanäle |
@@ -341,15 +353,15 @@ vorgeladen, und fällt eine Quelle aus, wechselt Slouchcat selbst auf die nächs
 
 | Punkt | Inhalt |
 |---|---|
-| **Umfang** | LTV-002.01, .02, .04 bis .07, .12 (dauerhaft, automatisch, zeitgesteuert, Vorgabe und Ausnahme je Sender, Vorladen, Wiederanlauf nach Neustart); LTV-003.22, LTV-004.32, LTV-011.09 (Ersatzquellen); LTV-010 (Startpuffer, Vorladen, Benchmark; LTV-001.06); LTV-011 Rest (Takt der Prüfungen, Bitrate, Auflösung, Codecs, kein Ton, Meldungen entprellt über das Benachrichtigungssystem); LTV-007.12, .13 und LTV-013.02 (Startpuffer getrennt, kein Archiv); Stichprobe mit Dekodieren als letzter Schritt, wenn `05` M-20 trägt (D-5) |
+| **Umfang** | LTV-002.01, .02, .04 bis .07, .12 (dauerhaft, automatisch, zeitgesteuert, Vorgabe und Ausnahme je Sender, Vorladen, Wiederanlauf nach Neustart); LTV-003.22, LTV-004.32, LTV-011.09 (Ersatzquellen); LTV-010 (Startpuffer, Vorladen, Benchmark; LTV-001.06); LTV-011 Rest (Takt der Prüfungen, Bitrate, Auflösung, Codecs, kein Ton, Meldungen entprellt über das Benachrichtigungssystem); LTV-007.12, .13 und LTV-013.02 (Startpuffer getrennt, kein Archiv); Zustand «zurückgestellt» für dauerhafte Ströme, die bei Mangel weichen, mit Wiederanlauf (`04` 5.1, 5.3); LTV-011.04 nur für den Stillstand des Transports, das stehende Bild in Stufe E (D-5, `04` F-14 (a)) |
 | **Tabellen** | `live_reception_schedules`, `live_reception_windows`; `live_channels.strategy`, `.schedule_id`; `live_sources.allow_more_conns`; `live_config` Empfang, Startpuffer (Grösse), Überwachung; Sicht `live_visible_channels` neu anlegen (`07` O-6) |
 | **Operationen** | 5 neue: `switchLiveIngestSource`, Zeitpläne (4); `updateLiveChannel` mit Empfang; `getLiveDiagnostics` mit den Teilen der Stufe 3 |
 | **Seiten** | LA-09; LA-13 (erweitert); LA-24 (Ausfallmeldungen); LA-01 (Kosten des vorsorglichen Empfangs); LS-07 (Hinweis «Ersatzquelle») |
 | **Abhängigkeiten** | Stufe 1 (technisch), Stufe 2 (Reihenfolge); **V-8 als Baufreigabe**; Antworten «vor Stufe 3» |
 | **Risiken** | Anbieter mit einer erlaubten Verbindung stören Vorladen und Dauerempfang (RP-5); Lecks über Tage (RP-6); Fehlalarme der Überwachung (`05` M-15) |
-| **Abnahme** | 37 neue `AK-L` und 10 Teile nach `17` 8.1, ohne die nach Stufe H umgehängten (`AK-L-043` bis `-045`, `-239`, `-240`, O-2); `AK-L-103` (24-Stunden-Lauf ohne Fehlalarm), `AK-L-305`, `AK-L-306` |
+| **Abnahme** | 31 neue `AK-L` und 8 Teile (`17` 8.1, Fassung 2); darin `AK-L-103` (24-Stunden-Lauf ohne Fehlalarm), `-305`, `-306` (7 Tage) |
 | **Prüfliste für dich** | (1) Ein «dauerhafter» Sender läuft ohne Zuschauer und kommt nach einem Neustart von selbst. (2) Ein zeitgesteuerter Sender startet im Fenster und endet danach. (3) Hauptquelle kappen: Zuschauer sieht kurz «Ersatzquelle» und schaut weiter. (4) Umschaltzeiten im Protokoll mit Median und Streuung: welche Zielwerte gehalten sind und welche nicht, mit Grund. (5) Der 7-Tage-Lauf zeigt keine wachsenden Werte. |
-| **Messungen** | vor der Baufreigabe V-8; während des Baus `05` M-13, M-15, M-17, M-20; zur Abnahme `05` M-12 (7 Tage), `13` M-2 mit Vorladen, `13` M-7 (Überlast), `05` M-1 (Fall 2 und alle Quellarten), `13` M-6 erneut |
+| **Messungen** | vor der Baufreigabe V-8 (72 h, Tor); während des Baus `05` M-13, M-15, M-17 (M-20 nur bei `04` F-14 (b)); zur Abnahme `05` M-12 (7 Tage), `13` M-2 mit Vorladen, `13` M-7 (Überlast), `05` M-1 (Fall 2 und alle Quellarten), `13` M-6 erneut |
 | **Doku** | ADR 0050 (Empfangsstrategien, Vorladen, Ersatzquellen, Überwachung, Werkszustand nach `04` F-9); `CURRENT_STATUS.md` mit dem Benchmark-Protokoll; Hinweis zu Anbieterzugängen mit einer Verbindung in der Installationsanleitung |
 | **Verträglichkeit** | neue Vertragsfassung; additiv |
 | **Grösse** | **gross** (vier Strategien, Vorladen, Überwachung, lange Messläufe auf CT 190) |
@@ -368,7 +380,7 @@ nutzen, aber nur für Ziele, die du je Quelle ausdrücklich bestätigst.
 | **Compose** | freiwillige Zusatzdateien `compose.live-udp.yaml` und `compose.live-hostnet.yaml` (Arbeitsnamen, `04` 10.6); keine Änderung an `compose.yaml` |
 | **Abhängigkeiten** | Stufe 1; V-6 als Baufreigabe; `04` F-11, `09` F-4 |
 | **Risiken** | Lockerung des Netzschutzes (RP-11); gefälschte UDP-Absender (`12` R-2); im Netzmodus «host» liegt das Loopback des Hosts offen (`12` R-5) |
-| **Abnahme** | `AK-L-043`, `-044`, `-045`, `-239`, `-240`, der erlaubte Teil von `-230`, `-231`, `-270` (Ziele), `-281` (UDP-Ports) |
+| **Abnahme** | 7 neue `AK-L` (`-043` bis `-045`, `-230`, `-231`, `-239`, `-240`) und 4 Teile (`-235`, `-254`, `-270`, `-281` UDP-Ports) nach `17` 8.1, Fassung 2 |
 | **Prüfliste für dich** | (1) Eine Quelle im Heimnetz geht erst, nachdem du ihr Ziel bestätigt hast; die Verwaltung zeigt die aufgelöste Adresse. (2) Ein Sender derselben Liste mit einem anderen Ziel im Heimnetz wird nie verbunden. (3) Ein Multicast-Sender läuft mit der gewählten Zusatzdatei; ohne sie erscheint der Hinweis. |
 | **Messungen** | V-6; zur Abnahme Paketverlust unter Last (`AK-L-044`) |
 | **Doku** | ADR 0051 (Quellen im Heimnetz mit festen Zielen, Netzmodus «host» mit seinen vier Folgen); Installationsanleitung mit den Folgen im Wortlaut; `CURRENT_STATUS.md` |
@@ -388,9 +400,9 @@ Einschalten und wieder zu «Live» springen; der Puffer gehört nur ihm und vers
 | **Seiten** | LS-07 (Zeitleiste, Pause, Spulen, Rückfrage beim Umschalten nach `14` F-9), LS-21 (Schalter); LA-15, LA-16 (Speicherort «Timeshift»), LA-22 (Schalter) |
 | **Abhängigkeiten** | Stufe 1 (technisch), Stufe 3 (Reihenfolge); V-7 als Baufreigabe; `04` F-7, F-8, `10` F-1 |
 | **Risiken** | Schreiblast bei vielen Zuschauern desselben Senders (`13` P-4, RP-7); Platz neben dem Cache der Filme (`AK-L-293`) |
-| **Abnahme** | 28 neue `AK-L` und 9 Teile (`17` 8.1); `AK-L-126`, `-129` |
+| **Abnahme** | 30 neue `AK-L` und 7 Teile (`17` 8.1, Fassung 2); darin `AK-L-126`, `-129` |
 | **Prüfliste für dich** | (1) 30 s pausieren, zurückspulen, zu «Live» springen. (2) Nicht vor das eigene Einschalten zurück. (3) Beim Umschalten ist der alte Puffer weg (Belegung sinkt). (4) Ein zweiter Zuschauer hat seinen eigenen Puffer. (5) Datenträger voll: Live läuft weiter, nur Zurückspulen fehlt, mit Hinweis. |
-| **Messungen** | vor der Baufreigabe V-7 (`05` M-14, `10` M-1); während des Baus `05` M-9, M-19, `10` M-2, M-3; zur Abnahme `13` M-3 mit Timeshift, `05` M-3, M-4, M-5 im Fenster |
+| **Messungen** | vor der Baufreigabe V-7 (`05` M-14, `10` M-1); während des Baus `05` M-9, M-19, `10` M-2, M-3; zur Abnahme `13` M-3 mit Timeshift, `05` M-3 im Fenster, M-4 nur, wo die Apps Live-TV haben; M-5 entfällt (kein Gerät) |
 | **Doku** | ADR 0052 (Sitzungspuffer vor der Umwandlung, eigene Kopie oder Antwort auf `04` F-8, Speicherorte und Marker); `CURRENT_STATUS.md`; Speicherplanung in der Installationsanleitung (`13` 5) |
 | **Verträglichkeit** | neue Vertragsfassung; `Profile.canLiveTimeshift` additiv |
 | **Grösse** | **mittel** |
@@ -409,8 +421,8 @@ Kontingent des Kontos.
 | **Seiten** | LS-08 bis LS-12, LS-14, Löschdialog in LS-21; Aufnahme aus LS-04, LS-06, LS-07; LA-14, LA-16 (Speicherort «Aufnahmen», Belegung je Konto ohne Titel), LA-21 (Kachel «Private Aufnahme»), LA-22 (Kontingent), LA-27 (Warnung vor dem Update) |
 | **Compose** | `stop_grace_period: 30s` in `compose.yaml`; Zusatzdatei `compose.live.yaml` mit schreibbarem Volume für Aufnahmen (Muster `compose.podcasts.yaml`) |
 | **Abhängigkeiten** | Stufen 2 und 4 (technisch), Stufe 3 (Reihenfolge, Ersatzquellen); V-7 (`11` M-1, M-2) und `13` M-4 als Baufreigabe; Antworten «vor Stufe 5» |
-| **Risiken** | Lücken bei Netzspeicher (RP-7); Planer nicht pünktlich (`11` M-3); Byte-Budget reicht nicht für zehn HD-Aufnahmen (`13` H-1); Anbieter lehnt die zusätzliche Verbindung einer Aufnahme ab (RP-5) |
-| **Abnahme** | 47 neue `AK-L` und 27 Teile (`17` 8.1); `AK-L-274` mit 30 s Stoppfrist, `AK-L-288` (Pause eines Jobs bricht keine Aufnahme ab) |
+| **Risiken** | Lücken bei Netzspeicher (RP-7); Planer nicht pünktlich (`11` M-3); Anbieter lehnt die zusätzliche Verbindung einer Aufnahme ab (RP-5); Arbeitspunkte aus Review 2: RD-01 (Löschen eines Profils mit laufender Aufnahme), RD-06, RD-07 (Abschnitt 4.14). Erledigt: «zehn HD-Aufnahmen passen nicht ins Byte-Budget» (`13` H-1), weil nach `04` 8.1 nur Ringe reserviert werden und der Rückstau bei Gebrauch zählt |
+| **Abnahme** | 50 neue `AK-L` und 31 Teile (`17` 8.1, Fassung 2); darin `AK-L-274` mit 30 s Stoppfrist, `AK-L-288` (Pause eines Jobs bricht keine Aufnahme ab) |
 | **Prüfliste für dich** | (1) Aufnahme planen, abmelden: sie läuft trotzdem. (2) Alle Tonspuren und Untertitel, dieselbe Qualität wie die Quelle. (3) Ein anderes Profil sieht sie nicht; das Hauptprofil sieht nur die Aufnahmen der Profile mit Altersgrenze. (4) Kontingent voll: neue Aufnahme abgelehnt und gemeldet, nichts gelöscht. (5) Aufnahme-Datenträger aushängen: keine Datei am falschen Ort, Aufnahme zeigt eine Lücke. (6) Neustart mitten in einer Aufnahme: sie macht weiter, mit Lücke. |
 | **Messungen** | vor der Baufreigabe V-7, `13` M-4; während des Baus `11` M-5; zur Abnahme `11` M-3, M-4, `13` M-6, M-7 |
 | **Doku** | ADR 0053 (Aufnahmen: Abzweig am Verteiler, Originalqualität, Speicherort, Kontingent, Ablehnung bei vollem Kontingent, Löschen nur nach Frist des Profils, Einsicht des Hauptprofils); `CURRENT_STATUS.md`; Installationsanleitung (Volume, Stoppfrist, Sicherung: Aufnahmen sind nicht in der Sicherung, nur ihre Angaben); Servertexte «Aufnahme fertig», «fehlgeschlagen», «abgelehnt» in allen Sprachen der Kanäle |
@@ -430,7 +442,7 @@ ohne Doppel, und auf Wunsch nur die letzten N Folgen behalten.
 | **Seiten** | LS-11 (Reiter «Serien», «Wiederkehrend»), Dialoge LD-02, LD-03 |
 | **Abhängigkeiten** | Stufen 2 und 5; V-12 |
 | **Risiken** | Programmdaten ohne Folgenkennung (V-9); Zeitumstellung (`11` M-7) |
-| **Abnahme** | `AK-L-133`, `-134`, `-178`, Teil von `-196` |
+| **Abnahme** | 3 neue `AK-L` (`-133`, `-134`, `-178`) und 2 Teile (`-196`, `-330`) |
 | **Prüfliste für dich** | (1) Eine Serienaufnahme plant nur Folgen mit sicherer Kennung und nimmt keine doppelt auf. (2) Eine wiederkehrende Aufnahme beginnt auch nach der Zeitumstellung zur gleichen Uhrzeit. |
 | **Messungen** | während des Baus V-12 / `11` M-7 |
 | **Doku** | Nachtrag zu ADR 0053; `CURRENT_STATUS.md` |
@@ -463,8 +475,8 @@ eng eingesperrten FFmpeg, der nur mit dem Weiterleiter des Servers sprechen kann
 |---|---|
 | **Umfang** | LTV-003.10 (DASH ohne DRM, DASH mit Kopierschutz abgelehnt); HLS mit fMP4 oder getrennter Tonspur; Weg W nach T-4 und `05` 2.6 (Weiterleiter, Umschreiben aller Adressen, TLS nur in Go, kein Tunnel, Sperre Pflicht, gesperrt im Netzmodus «host»); Prozessklasse «Empfang» (T-20) |
 | **Abhängigkeiten** | Stufe 1 (technisch), zuletzt in der Reihenfolge; V-4 (Sperre verfügbar), V-10 als Baufreigabe; `04` F-13 |
-| **Risiken** | Weg W nicht dicht (RP-12); FFmpeg-Empfänger nimmt Einheiten aus dem Teil der Filme (`13` H-5) |
-| **Abnahme** | `AK-L-041`, `-237`, `-238` und 5 Teile (`17` 8.1); `AK-L-306` Teil W (30 Stunden) |
+| **Risiken** | Weg W nicht dicht (RP-12); Landlock engt nur auf einen Port ein, nicht auf den Weiterleiter (`12` R-3, `04` T-4). Der FFmpeg-Empfänger belegt 0,5 Einheiten **innerhalb** des Live-Anteils mit eigener Obergrenze (`04` 8.1, 8.5); der Schutz der Filme bleibt also erhalten (`13` H-5 erledigt). Jeder FFmpeg-Lauf endet nach höchstens 24 Stunden und startet an der nächsten Segmentgrenze neu (`04` 7.5) |
+| **Abnahme** | 3 neue `AK-L` (`-041`, `-237`, `-238`) und 6 Teile (`-031`, `-176`, `-254`, `-273`, `-306` mit 30 Stunden, `-321`) nach `17` 8.1, Fassung 2 |
 | **Prüfliste für dich** | (1) Ein DASH-Testsender läuft. (2) Die Verwaltung zeigt «FFmpeg-Sperre aktiv»; ohne Sperre steht «DASH nicht verfügbar». (3) Ein DASH-Strom mit Kopierschutz wird abgelehnt. |
 | **Doku** | Nachtrag zu ADR 0025 (die benannte Ausnahme Weg W wird gebaut); ADR 0055 nur, wenn `04` F-13 (b) gewählt wird; `CURRENT_STATUS.md` |
 | **Verträglichkeit** | neue Vertragsfassung (nur Verwaltung) |
@@ -477,9 +489,10 @@ schwarzes Bild in einem sonst laufenden Strom.
 
 | Punkt | Inhalt |
 |---|---|
-| **Umfang** | Teletext- und DVB-Untertitel als WebVTT für Browser und iPhone (`04` O-5, D-6; rundet LTV-004.17 ab); Stichprobe mit Dekodieren aus dem Ring (`05` 9.4, D-5; rundet LTV-011.04 ab), falls nicht schon in Stufe 3 |
+| **Umfang** | Teletext- und DVB-Untertitel als WebVTT für Browser und iPhone (`04` O-5, D-6; rundet LTV-004.17 ab); Stichprobe mit Dekodieren aus dem Ring (`05` 9.4, D-5; rundet LTV-011.04 ab), nach `04` F-14 (a); bei (b) in Stufe 3 |
+| **Offener Punkt** | **Wie der Browser WebVTT zeigt, ist nicht festgelegt** (O-7): Der schlanke Bau von hls.js lässt Untertitel-Spuren weg (belegt, Nachprüfung Nr. 11), und ein voller Bau ist nicht vorgesehen (`04` 7.4, `16` Abschnitt 10 Nr. 16). Varianten zur Entscheidung vor der Baufreigabe der Stufe E: eigene Textspur im Player neben hls.js, voller Bau nur für Sitzungen mit Untertiteln, oder Untertitel im Browser nur eingebrannt in einer Bild-Umwandlung |
 | **Abhängigkeiten** | Stufe 1 (Untertitel), Stufe 3 (Stichprobe); `05` M-20, M-24 |
-| **Abnahme** | neue `AK-L` in `17` nachzutragen (O-2); Prüfliste: (1) Ein Testsender mit Teletext zeigt im Browser wählbare Untertitel. (2) Ein Testsender mit eingefrorenem Bild erscheint in der Diagnose als gestört. |
+| **Abnahme** | 2 neue `AK-L` (`-331` stehendes Bild, `-332` WebVTT) und 2 Teile (`-072`, `-094`) nach `17` 8.1, Fassung 2; vor der Baufreigabe `05` M-20; Prüfliste: (1) Ein Testsender mit Teletext zeigt im Browser wählbare Untertitel. (2) Ein Testsender mit eingefrorenem Bild erscheint in der Diagnose als gestört. |
 | **Doku** | Nachtrag zu ADR 0047 und ADR 0050; `CURRENT_STATUS.md` |
 | **Verträglichkeit** | additive Felder (Untertitelspuren) |
 | **Grösse** | **klein bis mittel** |
@@ -501,6 +514,23 @@ schwarzes Bild in einem sonst laufenden Strom.
 | W | 003 | `04` T-4, `05` 2.6, `12` | Web (Verwaltung) | **hoch** (Ausnahme ADR 0025) | mittel bis gross |
 | E | 004, 011 | `04` 7.4, `05` 9.4, `16` 6 | Web, iPhone | niedrig | klein bis mittel |
 | Apps | 014 | `14`, `16`, `08` 7 | TV-App, Handy-App | mittel | je App gross |
+
+### 4.14 Arbeitspunkte aus Review 2 (Datenmodell und API)
+
+`anhang/reviews/review-2-datenmodell-api.md` nennt einen kritischen und sieben hohe Befunde. Die Lösung gehört in
+`07` und `08`; dieser Plan legt fest, in welcher Stufe sie gebaut und geprüft werden müssen. Ohne sie wird die
+genannte Stufe nicht abgenommen.
+
+| Befund | Kern | Stufe | Arbeitspunkt im Bau |
+|---|---|---|---|
+| **RD-01** (kritisch) | Löschhaken für Profil und Konto stoppt Aufnahmen **in** der Schreibtransaktion: Verklemmung der einzigen Schreibverbindung | **1a** (Live-Sitzungen beim Löschen), **5** (laufende Aufnahmen) | zweistufig: vor der Löschtransaktion Sitzungen beenden, neue Starts sperren, Aufnahmen schliessen; in der Transaktion nur Zeilen. Test: Profil löschen, während eine Aufnahme schreibt, ohne Hänger |
+| **RD-02** | Wiedererkennung über `stream_id` oder `tvg-id` allein verschiebt Favoriten, Nummern, EPG und Planungen still auf andere Sender | **1a** | Treffer nur mit zweitem Merkmal; Widerspruch → `identity_conflict`, nicht anwenden; zweite Schutzschwelle «viele Umbenennungen zugleich» → Lauf zurückhalten (Wert in `07`); Test mit vertauschten Kennungen |
+| **RD-03** | Anwenden in Stapeln zu 500 ist nicht transaktional; Teilzustand, überschriebene Sperren | **1a** | Anwenden in **einer** Schreibtransaktion je Quelle, alles Rechnen vorher; Dauer auf HDD messen (Teil von `13` M-2-Umfeld, in `docs/perf/28-live-tv.md`) |
+| **RD-04** | Kindspalten von Fremdschlüsseln ohne Index: Löschen einer Quelle wird zum Vollscan auf der Schreibverbindung | **1a** (Quellen, Ereignisse, Importe, Sitzungen), **2** (`live_epg_sources`), **5** (`live_recording_parts`) | Indizes mit der jeweiligen Migration; Test «Quelle mit 11'000 Senderquellen löschen» mit Zeitgrenze |
+| **RD-05** | Werkseinstellung schaltet Live-TV für Profile in Konten mit Altersgrenze ein | **0** (eine Definition «Profil mit Altersgrenze» = `min(Profil, Konto) < 18` in ADR 0046), **1a** (Migration) | eine Funktion für Werkseinstellung, neue Profile und `owner_age_limited`; Test mit einem Konto mit Altersgrenze 12 |
+| **RD-06** | Die Verwaltung sieht, welches Konto gerade welchen Sender aufnimmt | **5** | `LiveIngest.recordings` nur als Zahl, `consumers` nur Zuschauer (LA-12); Test: keine Antwort der Verwaltung verbindet Konto und Sender einer Aufnahme (`AK-L-271`) |
+| **RD-07** | Meldung «Kontingent voll» an das Hauptprofil fehlt; nach Muster gebaut, verriete sie Titel erwachsener Profile | **5** | eigene Meldungsart für das Hauptprofil ohne Titel, Sender und Zeiten (Titel nur bei Profilen mit Altersgrenze); Bytesuche im Test |
+| **RD-08** | «Sicherung ohne Geheimnisse» (`12` F-4) verletzt die CHECK-Regeln aus `07` | **1a** (Quellen), **2** (EPG-Quellen) | Form der geleerten Werte in `07` festlegen (etwa Platzhalter statt `NULL`, oder Quelle «Zugang fehlt»); Test: Sicherung ohne Geheimnisse lässt sich erstellen und wiederherstellen und enthält kein Testgeheimnis |
 
 ---
 
@@ -598,7 +628,7 @@ So läuft jede Stufe nach der Arbeitsweise dieses Repos (`CLAUDE.md` «Arbeitswe
 
 | Nr. | Risiko | Wahrscheinlichkeit / Wirkung | Gegenmassnahme | Zeigt sich in |
 |---|---|---|---|---|
-| RP-1 | Der Direktweg ohne FFmpeg greift bei deinen Sendern selten (Zeilensprung, MP2, MPEG-2) | eher wahrscheinlich / hoch: wenige gleichzeitige Zuschauer im Browser | V-1 vor der Baufreigabe; Ton-Umwandlung als billiger Weg; Kapazität in `04` 7.6 neu rechnen | V, 1 |
+| RP-1 | Der Direktweg ohne FFmpeg greift bei deinen Sendern selten (Zeilensprung, MP2, MPEG-2; im Browser wegen des schlanken Baus auch HEVC, AC-3, E-AC-3, LATM) | eher wahrscheinlich / hoch: wenige gleichzeitige Zuschauer im Browser | V-1 vor der Baufreigabe; Ton-Umwandlung als billiger Weg; Kapazität in `04` 7.6 neu rechnen | V, 1 |
 | RP-2 | hls.js oder Safari kommen mit TS-Segmenten, Diskontinuitäten oder der Startregel schlecht zurecht | möglich / hoch: langsames Umschalten, Abbrüche | V-2, V-3; Segmentierer kann auf fMP4 wechseln (T-11) | V, 1 |
 | RP-3 | Stufe 1 ist so gross, dass Prüfung und Review leiden | wahrscheinlich / mittel | Schnitt 1a/1b; Planschritte klein; Review je Planschritt | 1 |
 | RP-4 | Der Kernel erlaubt keine Sperre für FFmpeg | möglich / hoch für die Sicherheit: Schadcode in FFmpeg läse die Geheimnisse (`12` R-1) | V-4; `12` F-1; Anzeige «FFmpeg läuft ohne Sandbox»; Weg W ohne Sperre nicht gebaut | V, 1, W |
@@ -611,12 +641,13 @@ So läuft jede Stufe nach der Arbeitsweise dieses Repos (`CLAUDE.md` «Arbeitswe
 | RP-11 | Heimnetz-Quellen und Netzmodus «host» öffnen den Server nach innen | möglich / hoch | eigene Stufe H, feste Ziele je Quelle, nie Loopback und Link-Local, Zusatzdateien statt Standard | H |
 | RP-12 | Weg W lässt sich nicht als dicht belegen | möglich / mittel: DASH und fMP4 fehlen | V-10; `04` F-13; Stufe W ganz am Schluss | W |
 | RP-13 | Lange Messläufe belegen CT 190, auf dem du selbst testest und Updates einspielst | wahrscheinlich / niedrig bis mittel | angekündigte Fenster, Zwischenstand je 24 h, Wiederaufnahme als neuer Lauf (`17` R-4) | 1, 3, W |
-| RP-14 | Kein iPhone, kein Mac (Entscheid 2) | sicher / mittel: Safari ungeprüft | iPhone in Stufe 1 als «ungeprüft» oder ausserhalb der Stufe (`17` O-11); WebKit in Playwright als Näherung | 1 bis 5 |
+| RP-14 | Kein iPhone, iPad, Mac (Entscheid 2) | sicher / mittel: Safari, iPhone, iPad ungeprüft und nicht zugesagt | ausserhalb jeder Abnahme, Hinweis im Release-Text (`04` T-11, `17` O-11); WebKit in Playwright nur als Näherung | 1 bis 5 |
 | RP-15 | Die CI wird spürbar länger | wahrscheinlich / niedrig | eigene Zeilen in `server/testgroups.txt`, Fuzz und Langläufe wöchentlich oder auf CT 190; Messen bei Stufe 1 (`17` O-12) | 1 |
 | RP-16 | Ältere Apps vertragen neue Aufzählungswerte nicht | möglich / mittel: leere Einträge | Auslieferung nur an Clients mit Live-TV-Fassung (`08` 7.2); Prüfung der erzeugten Kotlin-Clients (`08` O-1) | 1, 2, Apps |
 | RP-17 | Ein Bauteil rutscht in Richtung der Ausschlussliste (Archiv, gemeinsamer Puffer, gemeinsame Umwandlung, vorsorgliche Umwandlung) | möglich / hoch für den Auftrag | Negativtests «gibt es nicht» in jeder Stufe (`17` 5.12); Review prüft Abschnitt 16 des Auftrags | alle |
 | RP-18 | Andere Arbeit nimmt Frage 37 oder ADR 0046 zuerst | möglich / niedrig | Nummern erst beim Bau vergeben, Verweise im Konzept nachführen | 0 |
 | RP-19 | Die Zeitumstellung verschiebt wiederkehrende Aufnahmen | möglich / mittel | V-12, Tests mit gestellter Uhr | 6 |
+| RP-21 | Schema-Befunde aus Review 2: Verklemmung der Schreibverbindung beim Löschen, still vertauschte Sender beim Import, nicht transaktionaler Import, Vollscans ohne Index, Live-TV für Kinder in Konten mit Altersgrenze, zwei Lecks der Privatsphäre, Sicherung ohne Geheimnisse nicht baubar (RD-01 bis RD-08) | ohne Korrektur sicher / hoch | Arbeitspunkte je Stufe (Abschnitt 4.14), Lösung in `07`/`08` | 0, 1a, 2, 5 |
 | RP-20 | Der Betreiber verletzt die Bedingungen seiner Anbieter (Mehrfachverteilung) | Sache des Betreibers / rechtlich | Hinweis in der Verwaltung (LTV-004.38) und in der Installationsanleitung | 1 |
 
 ### 8.2 Abbruch- und Umplanungspunkte
@@ -637,6 +668,7 @@ werden als beschlossen, geht es als Frage an dich, mit Varianten.
 | **U-9** | `13` M-6 zeigt, dass Live-TV Filme spürbar verzögert | Live-Anteil am Budget senken, Vorrang nach `13` P-7, P-8 neu entscheiden; Stufe wird erst nach der Korrektur abgenommen |
 | **U-10** | Der Benchmark verfehlt Zielwerte | kein Abbruch: Zielwerte sind zu prüfende Grössen. Das Protokoll nennt jede Abweichung mit Grund; du entscheidest, ob die Stufe so abgenommen wird (`17` O-8) |
 | **U-11** | V-5 zeigt Probleme mit Media3 | App-Ausgaben verschieben sich; die Web-Stufen laufen weiter (Variante (a) aus Abschnitt 5 als Rückfall) |
+| **U-14** | `04` F-14 (b) gewählt | Stichprobe «stehendes Bild» wandert von E in Stufe 3; `05` M-20 wird Bauvoraussetzung der Stufe 3 |
 | **U-12** | Stufe 1a zeigt beim Bau, dass der Schnitt 1a/1b nicht trägt | 1a und 1b werden zu einem Release; die Abnahme bleibt dieselbe |
 | **U-13** | `09` M-3 zeigt, dass auch die eigene Datei den Server stört | Import drosseln oder in die Nacht legen; Frage an dich, falls das die Aktualität der Programmdaten mindert |
 
@@ -649,13 +681,13 @@ Alle bestehenden Tests bleiben unverändert grün; neue Erwartungen an bestehend
 
 | Bereich | Was sich ändert (Stufe) | Wie der Schutz geprüft wird |
 |---|---|---|
-| **Dateiwiedergabe und Umwandlung** | neue Budget-Schnittstelle «reservieren, umbuchen, freigeben» und Live-Anteil am Budget (1); Kopplung der Grenzen in beide Richtungen zwischen `playback` und `live` (1); `PlaybackCapabilities` additiv (1); abschaltbarer Baustein gegen Zeilensprung, nur von Live genutzt (1); FFmpeg-Empfänger des Wegs W ausserhalb des Live-Anteils (W) | `AK-L-282` (Entscheide und Argumentlisten identisch), `AK-L-283` (50 gleichzeitige Starts, genau einer gelingt), `13` M-6 mit Filmstart gegen den gemessenen Wert aus `docs/perf/wiedergabestart.md`, `AK-L-033` |
+| **Dateiwiedergabe und Umwandlung** | neue Budget-Schnittstelle «reservieren, umbuchen, freigeben» und Live-Anteil am Budget (1); Kopplung der Grenzen in beide Richtungen zwischen `playback` und `live` (1); `PlaybackCapabilities` additiv (1); abschaltbarer Baustein gegen Zeilensprung, nur von Live genutzt (1); FFmpeg-Empfänger des Wegs W mit 0,5 Einheiten **innerhalb** des Live-Anteils und eigener Obergrenze (W, `04` 8.1, 8.5) | `AK-L-282` (Entscheide und Argumentlisten identisch), `AK-L-283` (50 gleichzeitige Starts, genau einer gelingt), `13` M-6 mit Filmstart gegen den gemessenen Wert aus `docs/perf/wiedergabestart.md`, `AK-L-033` |
 | **Radio und Podcasts** | Live-TV als dritte Tonquelle mit Ton-Vorrang (1); `netguard` bekommt weitere nie öffentliche Präfixe, wirkt auch für Radio und Podcasts (1, Verschärfung) | `AK-L-284` (Radio ohne Stockung während 20 Live-Sitzungen, bestehende Radio-Tests), bestehende Tests von `netguard`, Podcasts und Radio |
-| **Konten, Profile, Einladungen** | Schalter «Live-TV» (1), «Timeshift» (4), «Aufnahmen» und Kontingent (5) auf Konto, Profil, Einladung; keine Kopplung an die Altersgrenze, also kein Auslöser aus ADR 0045 auf diesen Spalten (A-5); Löschdialog eines Profils mit Zahl und Grösse seiner Aufnahmen (5) | Migrationstests mit eingefrorenem Stand; Tests der Deckelregel (Profil nie mehr als Konto); bestehende Tests des Wunschrechts unverändert; `AK-L-285` (Jugendschutz der Bibliothek unverändert) |
+| **Konten, Profile, Einladungen** | Schalter «Live-TV» (1), «Timeshift» (4), «Aufnahmen» und Kontingent (5) auf Konto, Profil, Einladung; keine Kopplung an die Altersgrenze, also kein Auslöser aus ADR 0045 auf diesen Spalten (A-5); Löschdialog eines Profils mit Zahl und Grösse seiner Aufnahmen (5); Löschen von Profil und Konto in zwei Schritten ausserhalb der Schreibtransaktion (1a, 5; RD-01) | Migrationstests mit eingefrorenem Stand; Tests der Deckelregel (Profil nie mehr als Konto); Werkseinstellung mit Konto mit Altersgrenze (RD-05); Löschen eines Profils während einer Aufnahme ohne Hänger (RD-01); bestehende Tests des Wunschrechts unverändert; `AK-L-285` (Jugendschutz der Bibliothek unverändert) |
 | **Sichtbarkeit und Jugendschutz der Bibliothek** | keine Änderung; Live-Antworten tragen keine `ItemRef` (A-8); das Paket `live` fasst `items`, `media_files`, `tracks` nicht an | `itemsaccess`, `depguard`, Kinderprofil-Vertragstest unverändert (`AK-L-285`) |
 | **Verwaltung** | Übersicht, Aktive Wiedergaben, Konten, Hintergrundjobs, Meine Medien, Seitenleiste (1); Benachrichtigungen der Verwaltung (1 Import, 3 Ausfälle); Update-Dialog (5); Speicherseite (4, 5) | Tastaturtests der geänderten Seiten; bestehende e2e-Specs und Storybook-Baselines nur mit Hinzufügungen (`AK-L-291`) |
 | **Benachrichtigungen** | neue Arten und Ereignisse: Erinnerung (2), Ausfall eines Senders (3), Aufnahme fertig, fehlgeschlagen, abgelehnt (5); Neubau von `notifications` und `deliveries` (2) | `AK-L-290` (`TestServerTexts`, `task i18n:check`); Migration gegen eingefrorene Stände; PIN-Profile ohne Titel (`AK-L-271`) |
-| **Sicherung und Wiederherstellung** | Zugangsdaten der Quellen in der Sicherung ohne Geheimnisse geleert (1, `12` F-4); `epg.db` nicht in der Sicherung (2, `09` F-1); Aufnahmedateien nicht in der Sicherung, nur ihre Angaben (5) | bestehende Tests der Sicherung; neue Tests «Sicherung enthält kein Testgeheimnis», Wiederherstellung ohne `epg.db` und ohne Aufnahmedateien |
+| **Sicherung und Wiederherstellung** | Zugangsdaten der Quellen in der Sicherung ohne Geheimnisse geleert (1, `12` F-4); `epg.db` nicht in der Sicherung (2, `09` F-1); Aufnahmedateien nicht in der Sicherung, nur ihre Angaben (5) | bestehende Tests der Sicherung; geleerte Geheimnisse verträglich mit den CHECK-Regeln (RD-08); neue Tests «Sicherung enthält kein Testgeheimnis», Wiederherstellung ohne `epg.db` und ohne Aufnahmedateien |
 | **Updater** | Warnung und Bestätigung bei laufenden oder bald beginnenden Aufnahmen über `installUpdate` (5, `04` F-6); der Updater-Begleiter selbst bleibt unverändert (ADR 0024) | `AK-L-226`, `AK-L-275`; bestehende Updater-Tests |
 | **Compose und Installation** | Härtung von `compose.yaml` (0); Grenze offener Dateien (0); Zusatzdateien für UDP und Netzmodus «host» (H); `stop_grace_period: 30s` und Zusatzdatei mit Aufnahme-Volume (5) | `AK-L-281`; Testlauf der ganzen Prüfreihe mit gehärteter Datei (V-4); `AK-L-274` (Herunterfahren 10 s bis Stufe 4, 30 s ab Stufe 5) |
 | **Hintergrundjobs** | neue Gruppe mit fünf Jobarten `livetv.*` (1, 2, 4, 5); der Aufnahme-Planer ist kein Job | `AK-L-288` (Pause einer Jobart bricht keine Aufnahme ab), bestehende Job-Tests |
@@ -685,14 +717,14 @@ Alle bestehenden Tests bleiben unverändert grün; neue Erwartungen an bestehend
 | LTV-008 DVR | 5, 6 | |
 | LTV-009 Aufnahmeeigentum | 5, 6 | E-3, A-6 |
 | LTV-010 Fast Zapping | 1 (bestehende Ströme sofort nutzen), 3 (Startpuffer, Vorladen, Benchmark); `05` M-1 bei jeder Stufe mit Wiedergabe | |
-| LTV-011 Streamüberwachung | 1 (Neuverbinden, Abbruch, Meldungen, Leiter), 3 (Rest), 3 oder E (stehendes Bild) | D-5 |
+| LTV-011 Streamüberwachung | 1a (Neuverbinden, Abbruch, Meldungen, Leiter), 3 (Rest, Stillstand des Transports), E (stehendes Bild nach `04` F-14 (a)) | D-5 |
 | LTV-012 Benutzerrechte | 1 (Live-TV, Grenzen, 404), 4 (Timeshift), 5 (Aufnahmen) | |
 | LTV-013 Kein Catch-up | in jeder Stufe als Negativtest (`17` 5.12); 3 (Dauerempfang schreibt nichts auf) | Ausschluss |
 | LTV-014 Oberfläche | 1 (Start, Senderübersicht, Player), 2 (Programm, Details), 4 (Timeshift im Player), 5 (Meine und Geplante Aufnahmen), 6 (Serien); App-Ausgaben | |
 | LTV-015 Jugendschutz | 0 (Ausnahme dokumentiert), 1 (Freigabe durch das Hauptprofil), 2 (Programmdaten ohne Altersfilter), 5 (Aufnahmen der Profile mit Altersgrenze) | A-2, A-5 |
 | LTV-016 Kein Multi-View, kein PiP | 1 (ein Sender je Player) und Negativtests in jeder Stufe | Ausschluss |
 | LTV-017 Keine Anbieterlimits | 1 (Zugangsdaten sicher, kein Limit) und Negativtests | `04` F-3 |
-| LTV-018 Automatische Senderaktualisierung | 1 (1a von Hand mit Erhalt der Pflege, 1b nach Zeitplan), 2 (EPG-Zuordnung bleibt), 5 (Planungen bleiben) | |
+| LTV-018 Automatische Senderaktualisierung | 1a (.03 bis .11, .14 bis .21, .23: von Hand, Erhalt der Pflege), 1b (.01, .02, .22: automatisch, Intervall, Bestätigung bei unvollständiger Liste), 2 (.12), 5 (.13) | D-12 |
 | LTV-019 Speicherverwaltung | 3 (Grösse des Startpuffers), 4 (Speicherort Timeshift, Grenzen, Reserve; Ort des Startpuffers nach `04` F-2), 5 (Speicherort Aufnahmen, Kontingent) | D-3 |
 | LTV-020 Originalqualität | 5 | |
 | LTV-021 Konzept vor Bau | Konzeptphase, V | dieses Dokument ist die verlangte Roadmap |
@@ -728,12 +760,29 @@ Stufe und keinen Code.
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | Folgeänderungen in anderen Papieren nach Abschnitt 1.5 und 4.1: Stufe H in `03` (LTV-003.14 bis .16), `07` 11.2 (`live_net_targets`, `listen_interface`), `08` 2.8 (`resolveLiveNetTarget`), `17` 8.1 bis 8.3; D-1 und D-2 in `03`; D-3 in `03` und `08`; D-4 in `17`; D-5 und D-6 (Stufe E) in `03` und `17`; D-7 in `04` | nächste Fassung der Papiere |
-| O-2 | Aufteilung der `AK-L` auf 1a und 1b sowie auf 3 und H; neue `AK-L` für Stufe E | `17` |
+| O-1 | Noch offene Folgeänderungen nach Abschnitt 4.1: Stufe H in `04` T-3, `07` 11.2, `08` 2.8, `12` SM-41 (D-4, D-11); D-3 in `08`; M-4 in `04` T-11 (D-7); Zeitpunkt der Härtung in `04` 10.6, 10.8 (D-9). In `03`, `16`, `17` erledigt | `04`, `07`, `08`, `12` |
+| O-2 | erledigt durch `17` Fassung 2 (Aufteilung auf 1a, 1b, 3, H; `AK-L-331`, `-332` für E) | – |
 | O-3 | Zuschnitt der ADR 0047 bis 0055 ist ein Vorschlag; die Nummern vergibt der Bau, Zahl und Grenzen entscheidet die jeweilige Stufe | Bau |
 | O-4 | Ob Stufe 0 ein eigenes Patch-Release bekommt (Abschnitt 3.4) | du, beim Bauauftrag |
 | O-5 | Wo das Wegwerf-Werkzeug von V-1 liegt, damit es nie ins Produkt gelangt (eigener, nie gemergter Zweig oder Arbeitsordner der Session) | Bau, vor V-1 |
+| O-7 | Stufe E: wie der Browser WebVTT-Untertitel zeigt, obwohl der schlanke Bau von hls.js Untertitel-Spuren weglässt (Varianten in 4.12; `16` Abschnitt 10 Nr. 16) | Entscheid vor der Baufreigabe der Stufe E, Frage an dich |
 | O-6 | Ob die TV-App-Ausgabe einer Stufe dieselbe Abnahme wie die Web-Stufe braucht oder eine verkürzte Prüfliste reicht | du, mit `03` F-6 |
+
+## 12. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Konsolidierung 1):
+
+- **Kopf und Kurzfassung:** Fassung 2; Safari, iPhone und iPad als ungeprüft und nicht zugesagt (`04` T-11).
+- **LTV-018 zwischen 1a und 1b** an einer Stelle eindeutig (D-12, 4.3, 10.1): 1b trägt .01, .02, .22, wie `03` Fassung 2 (Rückmeldung `03`).
+- **Stichprobe «stehendes Bild»** fest in Stufe E nach `04` F-14 (a); Stufe 3 nur noch bei (b) (D-5, 1.5, 4.5, 4.12, U-14; Rückmeldung `17`).
+- **Zählungen der `AK-L`** in 3.2 und in 4.3 bis 4.12 nach `17` Fassung 2 (332 statt 312; Rückmeldung `17`).
+- **Weg W** zählt 0,5 Einheiten im Live-Anteil (4.11, Abschnitt 9); Risiko «zehn Aufnahmen passen nicht ins Byte-Budget» als erledigt markiert (4.8); P-9 und `13` O-2 als erledigt (2.1, V-7) (Rückmeldung `13`, `04` 8.1).
+- **V-3** misst 1, 3 und 6 Segmente und kann ohne Gerät nicht laufen; keine Baufreigabe hängt daran (Rückmeldung `13`, Nachprüfung Nr. 6 bis 8, `04` T-11).
+- **`04` Fassung 3 eingearbeitet:** T-29 (Deaktivieren beendet nichts Laufendes) in 1a; Zustand «zurückgestellt» in Stufe 3; 72 h als Tor und 7 Tage als Abnahme der Stufe 3 (2.2, D-8); schlanker Bau von hls.js mit Folge für Umfang und Kapazität von 1a (4.3, V-2, RP-1); harte Sperre (V-4, 1a); FFmpeg-Lauf höchstens 24 Stunden (1a, W); Abnahme von 1a ohne Apple-Clients (4.3, 2.1).
+- **Stufe E:** offener Punkt zur Anzeige von WebVTT im Browser trotz schlankem Bau (4.12, O-7; Rückmeldung `16`).
+- **Review 2:** neuer Abschnitt 4.14 mit RD-01 bis RD-08 je Stufe; RP-21; Einträge in Stufe 0, 1a, 5 und Abschnitt 9 (Rückmeldung Review 2).
+- **Widersprüche D-1 bis D-10** mit Stand nach der Konsolidierung; neu D-11 (Stufe H in `04`, `07`, `08`) und D-12 (LTV-018).
+- **O-1, O-2** nachgeführt; O-7 neu.
 
 *Ende von `18-umsetzungsplan.md`. Nichts in diesem Dokument ist gebaut oder gemessen; jede Stufe beginnt erst auf
 Marcos ausdrückliches Wort.*
