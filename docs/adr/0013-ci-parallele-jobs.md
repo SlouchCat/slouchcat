@@ -357,3 +357,60 @@ auf oberster Ebene, und alle laufen in genau einer Gruppe (`--check` zählt es b
 `server:lint`). `ciCheck` und `ciTest` hängen an denselben 21 und 13 Aufgaben wie vorher; `ciTest` ist unverändert (lokal 1857 JVM-Testfälle, keiner übersprungen). `-race`
 bleibt in jeder Gruppe, `checkptr` bleibt wie am 4. November entschieden. Das Gate verlangt
 weiter jeden Job; ein Matrix-Job ist nur grün, wenn jede seiner Hälften grün ist.
+
+## Nachtrag vom 28. November 2026: Übernahme ohne informative Jobs, Selbstprüfung der Workflows
+
+**Anlass:** Messung aller 505 Läufe vom 29. Oktober bis 28. November 2026
+(`docs/perf/ci-optimierungsplan.md`, Welle 1, von Marco am 28. November 2026 freigegeben: M1, M2,
+M3, M7). Messwerte: `docs/perf/ci.md`, Abschnitt 9.
+
+### main übernimmt auch bei rotem informativem Job, gebunden an den geprüften Baum (M1)
+
+- **Befund:** `already-tested.sh` verlangte `success` von **jedem** Job des PR-Laufs, auch von
+  `android-emulator (flow, informational)`, den das Gate nicht verlangt. 10 der 39 vollen
+  `main`-Läufe seit dem 16. November liefen nur deshalb voll; 18 grüne PR-Läufe trugen einen roten
+  Emulator-Job.
+- **Entscheid:** Die Jobs ausserhalb des Gates stehen in **`.github/ci-informational-jobs.txt`**.
+  Das Skript nimmt sie aus der Prüfung aus und meldet ihr Ergebnis; das Gate des `main`-Laufs nennt
+  es («Informational jobs of that run: …»). Was das Gate nicht verlangt, verlangt auch die Übernahme
+  nicht.
+- **Neue Bedingung 5:** Der Job `changes` eines PR-Laufs schreibt den Baum, den der Lauf prüft, als
+  Annotation `tested-tree`. Übernommen wird nur, wenn genau dieser Baum der Baum auf `main` ist.
+  Ein Lauf desselben PR-Kopfs gegen einen anderen Zielzweig prüfte einen anderen Merge und zählt
+  nicht mehr (Sicherheitsprüfung vom 28. November 2026). Das Feld `pull_requests` eines Laufs taugt
+  dafür nicht: GitHub nennt dort nur **offene** PRs, und in allen 505 Läufen war es leer.
+- PR-Läufe von vor dieser Änderung haben keine Annotation; ihre Merges laufen auf `main` voll.
+- **Fremdtext:** Dateinamen, Jobnamen und Annotationen stammen aus dem PR. Der Job `changes` schaltet
+  beim Auflisten der Dateien die Workflow-Befehle ab (`::stop-commands::`), und das Skript gibt
+  Fremdtext nur einzeilig und bereinigt aus. Sonst könnte eine Datei mit dem Namen eines
+  Workflow-Befehls diesen im Job ausführen.
+- Selbsttest: `.github/scripts/already-tested.test.sh` (12 Fälle, gefälschtes `gh`).
+
+### apt mit Zeitgrenze (M2)
+
+Jeder apt-Aufruf in `.github/actions/system-packages` endet nach 300 s (die ganze Aktion brauchte im
+Monat höchstens 289 s), dazu `Acquire::Retries 3` und 30 s Zeitgrenze je Verbindung. Ein hängender
+Spiegel (17 Jobs im Monat bis zur Jobgrenze von 30 bis 45 Minuten) wird damit nach Minuten rot, mit
+der Meldung «apt hang (infrastructure)». Kein Test wird wiederholt.
+
+### Rote Läufe lesen (M3)
+
+`scripts/ci-failures.sh` (`task ci:failures RUN=<id>`) gibt je rotem Job den roten Schritt, eine
+Einordnung, einen Hinweis auf denselben Job grün auf demselben Commit und die Fehlerzeilen des
+Schritts aus, höchstens 80 Zeilen. Das ganze Log bleibt auf der Platte. An den zehn Referenzläufen
+der Messung: Ursache 10 von 10, zusammen rund 8 900 statt 3,05 Millionen Tokens. Das Gate schreibt
+seine Ergebnistabelle zusätzlich auf die Übersichtsseite des Laufs.
+
+### Die Workflows prüfen sich selbst (M7)
+
+- **`task ci:workflows`**, Teil von `task ci` und des Jobs `server (generators, linters)`:
+  actionlint (mit shellcheck über jeden `run:`-Block), die **stehende Regel** dieses ADR als Programm
+  (`server/tools/ciworkflows`: jeder Job steht in `needs` des Gates und in dessen Prüfliste, oder er
+  ist informativ mit `continue-on-error`; das Gate hat `if: always()` und heisst `ci`) und die
+  Selbsttests der zwei CI-Skripte. Bisher war die Regel nur ein Kommentar.
+- actionlint kommt wie `task` als Release-Archiv mit geprüfter SHA-256 (`.github/actionlint-checksums.txt`).
+  `go tool` aus `server/go.mod` geht nicht: actionlint 1.7.12 verlangt `go.yaml.in/yaml/v4`
+  v4.0.0-rc.3, gosec (über golangci-lint) rc.6; Go nimmt im gemeinsamen Modulgraph die höhere, und
+  gegen deren geänderte Schnittstelle übersetzt actionlint nicht.
+- `.github/actions/android-sdk` ersetzt die Wrapper-Prüfung und den JDK-/SDK-Schritt, die drei Jobs
+  je einmal trugen. Eingaben und Matrixwerte erreichen die Skripte über `env:`.

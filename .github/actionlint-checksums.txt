@@ -2,9 +2,10 @@
 # format `sha256sum` writes and reads. Same reasoning as .github/task-checksums.txt: the binary
 # lands on PATH, and a release asset can be replaced after the fact; a hash recorded here cannot.
 #
-# Why not `go tool` from server/go.mod like the other Go tools: in the server's module graph
-# go.yaml.in/yaml/v4 resolves to a release candidate actionlint 1.7.12 does not compile against
-# (28 November 2026). Locally: `go install github.com/rhysd/actionlint/cmd/actionlint@v<version>`.
+# Why not `go tool` from server/go.mod like the other Go tools: actionlint 1.7.12 requires
+# go.yaml.in/yaml/v4 v4.0.0-rc.3, gosec (through golangci-lint) rc.6, and in the shared module graph
+# Go picks rc.6, whose changed API actionlint does not compile against (28 November 2026).
+# Locally: `go install github.com/rhysd/actionlint/cmd/actionlint@v<version>`.
 #
 # When .tool-versions moves `actionlint` to a new version, add its line. Upstream publishes the
 # value in the release's checksums file (and GitHub shows it as the asset's digest):

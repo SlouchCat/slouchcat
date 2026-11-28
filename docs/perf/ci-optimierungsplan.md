@@ -1,8 +1,10 @@
 # CI-Optimierungsplan (Vorschlag zur Freigabe)
 
-Stand: 28. November 2026, main `1220769b`. Zweig `claude/ci-optimierung`. **Nichts davon ist umgesetzt;**
-kein Workflow wurde geändert. Jede Massnahme braucht Marcos Freigabe und wird danach einzeln, messbar
-und mit einem Revert umkehrbar umgesetzt (Abschnitt 6).
+Stand: 28. November 2026, main `1220769b`. Zweig `claude/ci-optimierung`. **Welle 1 (M1, M2, M3, M7)
+hat Marco am 28. November 2026 freigegeben; sie ist auf diesem Zweig umgesetzt** (ADR 0013, Nachtrag
+vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). Alle anderen Massnahmen warten auf
+seine Freigabe und werden danach einzeln, messbar und mit einem Revert umkehrbar umgesetzt
+(Abschnitt 6).
 
 Grundlage sind Messungen aus der GitHub-API und den Job-Logs, keine Schätzungen. Geschätzte Werte sind als
 **geschätzt** gekennzeichnet, mit Rechenweg. Quellen (lokal, nicht im Repo):
@@ -75,7 +77,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 | Zustand | `.github/scripts/already-tested.sh` übernimmt das Ergebnis eines grünen PR-Laufs, wenn **jeder** seiner Jobs `success` meldet. Dazu zählt `android-emulator (flow, informational)`, der `continue-on-error` hat und nicht im Gate steht. Der PR-Lauf wird nur über Kopf-SHA und Ereignis zugeordnet. |
 | Problem | Ein roter informativer Job verhindert die Übernahme; main läuft dann voll, obwohl das Gate denselben Job nicht verlangt. Ein grüner PR-Lauf desselben SHA gegen einen anderen Zielzweig zählt mit. |
 | Nachweis | Seit 16.11. 39 volle main-Läufe. Gründe (Prüfreihenfolge des Skripts): 10× Emulator im PR-Lauf rot, 12× PR-Kopf hinter main, 16× PR nur Doku (Absicht, ADR 0013), 1× unerklärt (Lauf 45844593181). 18 grüne PR-Läufe tragen einen roten Emulator-Job, z. B. 45987897414, 45253038403, 45216383177. In E3 kostete die Übernahme 12,5 statt 186,2 Runner-Min und endete nach 5,5 statt 13,9 min. |
-| Lösung | Im Skript die Jobs ausnehmen, die das Gate nicht prüft (eine Liste an einer Stelle, die Gate und Skript lesen), und deren Ergebnis im Gate-Protokoll nennen. Nur PR-Läufe zählen, deren `pull_requests[].base.ref` `main` ist (Fork-PRs haben keine Liste und laufen voll). Test mit gefälschtem `gh` und Fixtures. |
+| Lösung | Im Skript die Jobs ausnehmen, die das Gate nicht prüft (Liste `.github/ci-informational-jobs.txt`, die das Skript liest und `task ci:workflows` gegen das Gate prüft), und deren Ergebnis im Gate-Protokoll nennen. Bindung an den Inhalt: Der Job `changes` jedes PR-Laufs schreibt den geprüften Baum als Annotation `tested-tree`, übernommen wird nur bei genau dem Baum auf main. *Abweichung vom ersten Entwurf:* Die Bindung über `pull_requests[].base.ref` geht nicht, weil GitHub dort nur offene PRs nennt (in allen 505 Läufen leer). Test mit gefälschtem `gh` und Fixtures (12 Fälle). |
 | Laufzeit | Auf main-Läufe wartet niemand. Das main-Ergebnis liegt nach rund 5,5 statt 13,9 min vor (gemessen, E3, n = 2 und 5). |
 | Runner-Min | **geschätzt** 1800–4400 je Monat: 10 verhinderte Übernahmen in 12 Tagen (gemessen) × 174 Runner-Min je Lauf (abgeleitet); untere Grenze mit der Rotquote des Emulators in E3 (17 %). |
 | Aufwand | S (halber Tag) |
@@ -166,7 +168,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 | Zustand | Workflow-Dateien werden nicht geprüft. Die Gate-Liste wird von Hand gepflegt (ADR 0013, stehende Regel). Kein Git-Hook. JDK/SDK-Schritt, Gradle-Wrapper-Prüfung mit SHA-256 und Gradle-Cache-Schlüssel stehen je dreimal in `ci.yml` und müssen gleich bleiben. |
 | Problem | Ein vergessener Job in der Gate-Liste bleibt unbeobachtet; drei Kopien laufen auseinander. |
 | Nachweis | actionlint 0 Meldungen, zizmor offline 5 hoch / 17 mittel / 28 niedrig (bewertet: Fehlalarme oder niedrig). |
-| Lösung | `task ci:workflows`: actionlint als `go tool` gepinnt, Selbsttest «jeder Job steht in `needs` des Gates und in dessen Prüfliste», zizmor offline (gepinnte Fassung, lokal; in CI nach Entscheid). Aufruf in `server-lint` und in `task check:fast`, wenn `.github/` geändert ist. Composite `.github/actions/android-sdk` mit Wrapper-SHA in einer Datei. Eingaben der Composite-Actions über `env:` statt direkt in `run:`. |
+| Lösung | `task ci:workflows`: actionlint (gepinnt in `.tool-versions`, in CI als Release-Archiv mit geprüfter SHA-256; *Abweichung:* als `go tool` baut es im Modulgraph des Servers nicht), Selbsttest «jeder Job steht in `needs` des Gates und in dessen Prüfliste» (`server/tools/ciworkflows`), Selbsttests der CI-Skripte. zizmor offline lokal (`task workflows:audit`; in CI nach Entscheid). Aufruf in `server-lint` und in `task check:fast`, wenn eine Eingabe sich geändert hat. Composite `.github/actions/android-sdk` mit der Wrapper-SHA an einer Stelle. Eingaben der Composite-Actions und Matrixwerte über `env:` statt direkt in `run:`. |
 | Laufzeit | 0 (Sekunden in `server-lint`, kein Pol) |
 | Runner-Min | ≈ 0 |
 | Aufwand | S |
