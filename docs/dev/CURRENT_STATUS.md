@@ -31,6 +31,9 @@ Abschnitt 12).
   Review: drei Blocker (fehlende Kanten Launcher-Icons → web, Mock-Server → android_server,
   Store-Grafiken → web), drei Warnungen und acht kleine Punkte behoben; die zweite Prüfung gab frei
   und fand sechs Lücken in der Wache des Kartentests und in `ciworkflows`, alle behoben.
+- **Vorläufig nachgemessen** (n = 4 volle PR-Läufe mit sieben Shards, `docs/perf/ci.md`, Abschnitt 13):
+  Gate im Median 13,8 statt 15,2 min, 169,5 statt 188 Runner-Minuten. Der main-Lauf nach dem Merge von
+  #245 lief voll und grün (12,7 min); der Kartentest wird auf main wie vorgesehen übersprungen.
 - **Beobachtung:** Im main-Lauf 46170173276 nach dem Merge von #244 war der informative Job
   `android-emulator` rot (ein Instrumentierungstest in `connectedPlayDebugAndroidTest`, Name nur im
   Artefakt `android-emulator-reports`); im PR-Lauf war er grün, das Gate blieb grün.
