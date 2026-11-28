@@ -1,6 +1,6 @@
 # Konzept 28 · Oberfläche für Zuschauer
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 Dieses Dokument beschreibt jede Seite, jeden Dialog und jeden Zustand des Live-TV-Bereichs für
 Zuschauer in den drei Clients **Web-App** (Computer, Tablet, Handy-Browser), **Handy-App** (Android,
@@ -12,8 +12,18 @@ Alles hier ist **spezifiziert**, nichts ist gebaut. Wo ein bestehendes Bauteil w
 steht sein Ort im Repo dabei (**gebaut**, Datei). Werte wie Schwellen in Sekunden sind **Vorschläge**,
 die das Fachkonzept (`03-fachkonzept.md`) oder Streaming (`05-streaming-und-fast-zapping.md`)
 festlegen; Zielzeiten sind zu prüfende Grössen, keine Zusage. Offene Weichen stehen als **F-n** in
-Abschnitt 9. Die Nummern F-1 bis F-12 sind in diesem Dokument fortlaufend; `15-administration.md`
-setzt mit F-13 fort. `20-offene-entscheidungen.md` übernimmt sie.
+Abschnitt 9. Die Nummern F-1 bis F-12 und F-23 gehören zu diesem Dokument; `15-administration.md`
+führt F-13 bis F-22. `20-offene-entscheidungen.md` übernimmt sie als «`14` F-n».
+
+**Massgeblich** sind für Zahlen `04-architektur.md` Abschnitt 14, für fachliche Regeln `03-fachkonzept.md`
+(DR-nn), für Aufnahmen `11-dvr.md`, für Timeshift `10-timeshift.md`, für die Stufen `18-umsetzungsplan.md`.
+Die klickbaren Mockups sind gebaut (`19-mockups.md`); wo sie von diesem Dokument abweichen, steht es an der
+Stelle als «Im Mockup anders, weil …» oder ist hier nachgezogen (Abschnitt 11).
+
+**Stufen** (nach `18` 4.3 bis 4.13): Jede Seite nennt ihre Stufe. Die Web-App bekommt jede Stufe zuerst;
+die TV-App folgt nach Empfehlung `03` F-6 (b) je Stufe mit eigenem Tag, die Handy-App gesammelt nach Stufe 5
+oder 6; bis dahin geht Live-TV am Handy über die Web-App im Browser (`18` 5). Bis Marco `03` F-6 beantwortet,
+sind die App-Fassungen dieses Dokuments Vorlage, keine Zusage für eine Stufe.
 
 Kurz erklärt: **EPG** ist die elektronische Programmzeitschrift, also die Programmdaten der Sender.
 **Timeshift** heisst zeitversetztes Fernsehen: anhalten, zurückspulen, wieder zu «live». **Zappen**
@@ -26,8 +36,10 @@ heisst schnell von Sender zu Sender schalten.
 1. **Ohne Recht fehlt der Bereich.** Hat das Profil das Recht «Live-TV» nicht (wirksam nur, wenn Konto
    und Profil es haben), gibt es keinen Eintrag, keine Route, keinen Hinweis. Eine direkt aufgerufene
    Adresse zeigt die bestehende Seite «Nicht gefunden» (Server antwortet 404, nie 403). Dasselbe gilt
-   für das Recht «Aufnahmen» (alle Aufnahme-Knöpfe, Seiten LS-08 bis LS-12 und LS-14 fehlen) und das
-   Recht «Timeshift» (Anhalten und Zurückspulen fehlen, Abschnitt 4.7).
+   für das Recht «Aufnahmen» (alle Aufnahme-Knöpfe, Seiten LS-08 bis LS-12 und LS-14 fehlen; vorhandene
+   Aufnahmen sind dann 404 und bleiben gespeichert, Planungen ruhen, `03` F-7 (a) bis zu Marcos Antwort)
+   und das Recht «Timeshift» (Anhalten und Zurückspulen fehlen, Abschnitt 4.7). Timeshift und Aufnahmen
+   setzen Live-TV voraus (`03` DR-22).
 2. **Kein Altersfilter.** Live-TV zeigt allen freigegebenen Profilen alle Sender des Angebots. Es gibt
    keine Sperre nach Sender, Sendung oder Programmdaten (LTV-015, benannte Ausnahme vom Altersmodell).
 3. **Aufnahmen sind privat.** Sie erscheinen nur in «Meine Aufnahmen» des eigenen Profils, nie auf der
@@ -59,7 +71,9 @@ Initialen auf Fläche (`StationLogo`-Rückfall), Bilder aus dem lokalen, nicht e
 
 **Konto** «Familie Keller» (`familie.keller@example.ch`), Kontingent für Aufnahmen 200 GB, Rechte
 Live-TV, Aufnahmen und Timeshift an. Profile: **Anna** (Hauptprofil, ohne Altersgrenze), **Luca**
-(Altersgrenze 16), **Mia** (Altersgrenze 6). Timeshift-Höchstdauer des Servers: 2 Stunden.
+(Altersgrenze 16), **Mia** (Altersgrenze 6). Timeshift-Höchstdauer: Werksvorgabe 60 Minuten (`04` 14.6,
+`03` DR-07); **die Beispielinstanz hat 2 Stunden eingestellt** (so auch im Mockup), damit die Beispiele
+mit langem Zeitversatz funktionieren.
 
 **Sender** (Nummer · Name · Land · Sprache · Gruppen · Programmdaten):
 
@@ -115,20 +129,21 @@ Erstausstrahlung). Für die Serienaufnahme gibt es so denselben Titel auf zwei S
 | Der Bergdoktor | ZDF | Do 26.11., 20:13–21:55 | – | **nicht aufgenommen**: Kontingent des Kontos war voll |
 
 **Geplant von Anna:** Einzel «das aktuelle sportstudio» (ZDF, heute 23:30); Einzel «Der Marsianer»
-(SRF zwei, heute 22:15–00:35, überschneidet sich mit «sportstudio»); Serie «Tatort» (alle Sender, nur
-Erstausstrahlungen, Folgen nicht doppelt, behalte 10; nächster Termin So 20:05 SRF 1, die Ausstrahlung
-20:15 Das Erste ist als «schon geplant» übersprungen); wiederkehrend «Tagesschau» (SRF 1, Mo–Fr
-19:30–19:55, behalte 5); manuell «TV24, Mo 30.11., 21:00–22:00» (Sender ist aus dem Angebot
-verschwunden: Warnung «Sender weg»).
+(SRF zwei, heute 22:15–00:35, überschneidet sich mit «sportstudio», Hinweis, kein Konflikt); Serie
+«Tatort» (alle Sender, Folgen mit Kennung, behalte 10; nächster Termin So 20:05 SRF 1, die Ausstrahlung
+20:15 Das Erste ist als «schon geplant» übersprungen); wiederkehrend «Tagesschau» (SRF 1, Mo–Fr ab
+19:30, Dauer 25 Min., behalte 5); manuell «TV24, Mo 30.11., 21:00–22:00» (Sender ist aus dem Angebot
+verschwunden: Warnung «Sender nicht verfügbar»).
 
 **Erinnerungen von Anna:** «Tatort: Die Stille nach dem Sturm», So 20:05, SRF 1, 5 Min. vorher;
 «Sport aktuell», heute 21:45, SRF zwei, zum Beginn.
 
-**Kontingent:** 200 GB; Anna 82 GB, übrige Profile 60 GB, frei 58 GB.
+**Kontingent:** 200 GB; belegt 142 GB in 31 Aufnahmen (Anna 82 GB, Luca 56,7 GB, Mia 3,3 GB; so im
+Mockup), frei 58 GB.
 
 **Aufnahmen von Mia** (für LS-14): «Checker Tobi» (KiKA, Sa 21.11., 0,9 GB, fertig), Serie «Die
-Sendung mit der Maus» (behalte 5, 3 Folgen, 2,4 GB). **Luca:** «Eishockey: SCB – EV Zug» (SRF zwei,
-Di 24.11., 6,1 GB, fertig).
+Sendung mit der Maus» (behalte 5, 3 Folgen, 2,4 GB). **Luca:** unter anderem «Eishockey: SCB – EV Zug»
+(SRF zwei, Di 24.11., 6,1 GB, fertig); zusammen 56,7 GB.
 
 ---
 
@@ -164,7 +179,13 @@ flowchart LR
 | TV-App | Leiste links, Abschnitt «Medien», Eintrag **«Live-TV»** vor Webradio (`order = 990`); «Läuft gerade» zeigt auch den laufenden Sender | `RailEntry` in `android/app-tv/.../shell/Registry.kt`, `RADIO_ORDER = 1_000`, `NOW_ORDER = 1_001` | `RailEntry("livetv", RailSection.Media, 990, …)` |
 
 **Ohne Recht** fehlen alle drei Einträge, die Zahl in «Meine Medien» ebenso. Die Zähler-Abfrage
-liefert den Eintrag gar nicht erst (der Server entscheidet, Regel 12).
+liefert den Eintrag gar nicht erst (der Server entscheidet, Regel 12). Eine App ohne Live-TV-Fassung bekommt
+den Eintrag ebenfalls nicht (`08` 7.2).
+
+`03` DR-23 nennt Live-TV «Eintrag der Hauptnavigation und, wie Webradio, Eintrag in ‹Meine Medien›». Dieses
+Dokument liest das so: Der eine Eintrag steht in der Seitenleiste (der Hauptnavigation) im Band «Meine
+Medien», wie Webradio heute; so ist auch das Mockup gebaut. Ob zusätzlich ein Eintrag in der oberen Gruppe
+(neben Start und Suche) gemeint ist, bleibt F-12. Die Startseite bekommt keine Live-TV-Reihe (DR-23).
 
 **Innerhalb des Bereichs** führt eine Reiterleiste oben durch die Hauptseiten. Sie erscheint auf allen
 Live-TV-Seiten ausser dem Player:
@@ -183,15 +204,15 @@ oben als fokussierbare Chips; ↑ aus der ersten Inhaltsreihe führt hinein, ↓
 
 ### 1.2 Bestehende Seiten, die sich ändern
 
-| Kennung | Seite | Änderung | Client |
-|---|---|---|---|
-| LS-20 | Hauptnavigation | Eintrag «Live-TV» (oben 1.1) | alle |
-| LS-21 | Profile verwalten: Profilformular (`/settings/profiles`, `web/src/features/profiles/ProfileForm.tsx`; Handy-App Einstellungen › Profile; TV «Profile verwalten») | neuer Block «Live-TV» mit drei Schaltern (Abschnitt 1.3) | alle |
-| LS-22 | Benachrichtigungen einstellen (`/settings/notifications`, `features/notifications/ChannelSettingsPage.tsx`) | neue Ereignisse «Sendungserinnerung», «Aufnahme fertig», «Aufnahme fehlgeschlagen oder unvollständig», «Aufnahme nicht möglich» (F-6) | Web, Handy-App |
-| LS-23 | Benachrichtigungen (Glocke, `features/discover/NotificationsPage.tsx`, `ui/InboxEntry.tsx`) | neue Einträge mit Symbol `reminder`/`record`, Ziel Sendungsdetails, Player oder Aufnahme | alle |
-| LS-24 | Suche (`/search`, `features/discover/SearchPage.tsx`) | nur ein Verweis «Im TV-Programm suchen: ‹Begriff›» unter den Treffern, wenn das Recht besteht (F-3); **nie Aufnahmen** | Web, Handy-App, TV |
-| LS-25 | Ton-Vorrang (`web/src/app/radio/priority.ts`) und Mini-Player-Dock | Live-TV ist eine dritte Tonquelle: Einschalten von Live-TV beendet Radio und Hörbuch; Verlassen des Live-Players hinterlässt **keinen** Mini-Player (kein Bild-im-Bild) | Web; Handy-App analog |
-| LS-26 | Startseite | **keine Änderung** in Stufe 1 (F-2); Aufnahmen nie | alle |
+| Kennung | Seite | Änderung | Client | Stufe |
+|---|---|---|---|---|
+| LS-20 | Hauptnavigation | Eintrag «Live-TV» (oben 1.1) | alle | 1 |
+| LS-21 | Profile verwalten: Profilformular (`/settings/profiles`, `web/src/features/profiles/ProfileForm.tsx`; Handy-App Einstellungen › Profile; TV «Profile verwalten») | neuer Block «Live-TV» mit drei Schaltern (Abschnitt 1.3); Link «Aufnahmen meiner Profile» (LS-14, `03` DR-02); im Löschdialog eines Profils Zahl und Grösse seiner Aufnahmen (`03` DR-04) | alle | 1 (Schalter «Live-TV»), 4 («Timeshift»), 5 («Aufnahmen», Link, Löschdialog) |
+| LS-22 | Benachrichtigungen einstellen (`/settings/notifications`, `features/notifications/ChannelSettingsPage.tsx`) | drei neue Ereignisarten mit je einem Schalter: «Sendungserinnerung», «Aufnahme fertig», «Aufnahme fehlgeschlagen» (darunter auch «nicht aufgenommen, Kontingent voll»; `07` W-21); Kanäle nach `03` F-3 | Web, Handy-App | 2 (Erinnerung), 5 (Aufnahmen) |
+| LS-23 | Benachrichtigungen (Glocke, `features/discover/NotificationsPage.tsx`, `ui/InboxEntry.tsx`) | neue Einträge mit Symbol `reminder`/`record`, Ziel Sendungsdetails, Player oder Aufnahme; bei Profilen mit PIN über externe Kanäle ohne Titel (`03` DR-05) | alle | 2, 5 |
+| LS-24 | Suche (`/search`, `features/discover/SearchPage.tsx`) | nach `03` F-5 (Empfehlung dort (a): keine Änderung); **nie Aufnahmen** | Web, Handy-App, TV | 2 (nur nach `03` F-5) |
+| LS-25 | Ton-Vorrang (`web/src/app/radio/priority.ts`) und Mini-Player-Dock | Live-TV ist eine dritte Tonquelle: Einschalten von Live-TV beendet Radio und Hörbuch vor dem Umschalten; Verlassen des Live-Players hinterlässt **keinen** Mini-Player (kein Bild-im-Bild) | Web; Handy-App analog | 1 |
+| LS-26 | Startseite | **keine Änderung** (`03` DR-23); Aufnahmen nie | alle | – |
 
 ### 1.3 Die drei Schalter im Profilformular (LS-21)
 
@@ -224,7 +245,9 @@ Timeshift: aus».
   (Muster `canRequestCapped`).
 - **Abhängigkeit:** «Aufnahmen» und «Timeshift» sind nur wählbar, wenn «Live-TV» an ist; sonst gesperrt
   mit «Zuerst Live-TV einschalten.»
-- **Vorgabe beim Anlegen** eines Profils: offen, F-1.
+- **Vorgabe beim Anlegen** eines Profils: Profile mit Altersgrenze haben alle drei Schalter aus
+  (`03` DR-01); die übrigen Werkseinstellungen und der Bestand bei Einführung sind `03` F-1 (Empfehlung
+  dort (a): Profile ohne Altersgrenze an, Konten aus, Konto des Administrators an).
 - **Keine Kopplung an die Altersgrenze:** Ändert das Hauptprofil später die Altersgrenze, bleiben die
   Schalter, wie sie sind (LTV-015).
 - **TV-App:** gleiche drei Schalter als `SwitchRow`-Zeilen; Bestätigung als `TvDialog`.
@@ -235,25 +258,25 @@ Timeshift: aus».
 
 Routen der Web-App unter `/live`, Pfade als Vorschlag für `web/src/app/paths.ts`. Handy-App: Routen
 `live/...` im Compose-Navigationsgraph. TV: Seiten der TV-App. «Recht» nennt das zusätzlich nötige Recht
-neben «Live-TV».
+neben «Live-TV». «Stufe» nach `18` (Web zuerst; TV und Handy nach `18` 5).
 
-| Kennung | Seite | Zweck | Route Web | Handy-App | TV | Recht | LTV |
-|---|---|---|---|---|---|---|---|
-| LS-01 | Live-TV-Start | Einstieg: jetzt, gleich, zuletzt, Favoriten, Genre, Einstiege | `/live` | `live` | Live-TV › Start | – | 014 |
-| LS-02 | Senderübersicht | alle Sender mit Jetzt/Danach, Gruppen, Filter, Suche | `/live/channels?group=&q=&country=&lang=&category=&fav=` | `live/channels` | Live-TV › Sender | – | 006, 014 |
-| LS-03 | Meine Sender | Favoriten ansehen und ordnen | `/live/channels/favorites` | `live/favorites` | Live-TV › Sender, Reihe «Meine Sender» + Ordnen | – | 001, 010, 014 |
-| LS-04 | Programmzeitschrift | Raster Sender × Zeit; Handy als Liste | `/live/guide?day=&time=&group=` | `live/guide` | Live-TV › Programm; Taste GUIDE | – | 005, 014 |
-| LS-05 | Programmsuche | Sendungen senderübergreifend finden, auch «nach Genre» | `/live/guide/search?q=&when=&genre=&group=` | `live/guide/search` | Live-TV › Programm › Suche | – | 005 |
-| LS-06 | Sendungsdetails | eine Sendung mit allen Aktionen | `/live/programs/$programId` | `live/program/{id}` | Seitenmenü rechts oder eigene Seite | – | 005, 008, 014 |
-| LS-07 | Live-Player | Fernsehen schauen, zappen, Timeshift, sofort aufnehmen | `/live/watch/$channelId?list=` | `live/watch/{id}` | Vollbild | Timeshift für Spulen, Aufnahmen für ● | 007, 010, 014, 016 |
-| LS-08 | Meine Aufnahmen | private Aufnahmen des Profils | `/live/recordings?state=&sort=` | `live/recordings` | Live-TV › Aufnahmen | Aufnahmen | 008, 009, 014 |
-| LS-09 | Aufnahme-Detail | eine Aufnahme: Zustand, Lücken, Aufbewahrung | `/live/recordings/$recordingId` | `live/recording/{id}` | Seite | Aufnahmen | 008, 009 |
-| LS-10 | Aufnahme-Player | Aufnahme abspielen (auch laufende) | `/live/recordings/$recordingId/play` | Player | Player | Aufnahmen | 008, 016, 020 |
-| LS-11 | Geplante Aufnahmen | Termine, Serien, Wiederkehrend | `/live/scheduled?tab=upcoming|series|recurring` | `live/scheduled` | Live-TV › Aufnahmen › Geplant | Aufnahmen | 008, 014 |
-| LS-12 | Konflikte und Warnungen | was einer geplanten Aufnahme im Weg steht | `/live/scheduled/warnings` | `live/scheduled/warnings` | Seite | Aufnahmen | 008, 019 |
-| LS-13 | Erinnerungen | Sendungserinnerungen | `/live/reminders` | `live/reminders` | Live-TV › Erinnerungen | – | 005 |
-| LS-14 | Aufnahmen meiner Profile | Hauptprofil: Aufnahmen der Profile mit Altersgrenze | `/live/recordings/profiles` | `live/recordings/profiles` | Live-TV › Aufnahmen › Profile | Hauptprofil, Aufnahmen | 009, 015 |
-| LS-15 | Senderprogramm | Tagesprogramm eines Senders als Liste | `/live/guide/channel/$channelId?day=` | `live/guide/channel/{id}` | Seite | – | 005 |
+| Kennung | Seite | Zweck | Route Web | Handy-App | TV | Recht | LTV | Stufe |
+|---|---|---|---|---|---|---|---|---|
+| LS-01 | Live-TV-Start | Einstieg: jetzt, gleich, zuletzt, Favoriten, Genre, Einstiege | `/live` | `live` | Live-TV › Start | – | 014 | 1 (Zuletzt, Meine Sender, Einstiege); 2 (Jetzt, Gleich, Genre); 5 (Einstiege Aufnahmen) |
+| LS-02 | Senderübersicht | alle Sender mit Jetzt/Danach, Gruppen, Filter, Suche | `/live/channels?group=&q=&country=&lang=&category=&fav=` | `live/channels` | Live-TV › Sender | – | 006, 014 | 1 (Jetzt/Danach ab 2; eigene Gruppen ab 1b) |
+| LS-03 | Meine Sender | Favoriten ansehen und ordnen | `/live/channels/favorites` | `live/favorites` | Live-TV › Sender, Reihe «Meine Sender» + Ordnen | – | 001, 010, 014 | 1 |
+| LS-04 | Programmzeitschrift | Raster Sender × Zeit; Handy als Liste | `/live/guide?day=&time=&group=` | `live/guide` | Live-TV › Programm; Taste GUIDE | – | 005, 014 | 2 (Aufnahme-Aktionen 5) |
+| LS-05 | Programmsuche | Sendungen senderübergreifend finden, auch «nach Genre» | `/live/guide/search?q=&when=&genre=&group=` | `live/guide/search` | Live-TV › Programm › Suche | – | 005 | 2 |
+| LS-06 | Sendungsdetails | eine Sendung mit allen Aktionen | `/live/programs/$programId` | `live/program/{id}` | Seitenmenü rechts oder eigene Seite | – | 005, 008, 014 | 2 (Aufnehmen 5, Serie 6) |
+| LS-07 | Live-Player | Fernsehen schauen, zappen, Timeshift, sofort aufnehmen | `/live/watch/$channelId?list=` | `live/watch/{id}` | Vollbild | Timeshift für Spulen, Aufnahmen für ● | 007, 010, 014, 016 | 1 (Schauen, Zappen); 2 (Banner, Programm-Überlagerung); 3 (Hinweis «Ersatzquelle»); 4 (Timeshift, LD-10); 5 (Aufnehmen) |
+| LS-08 | Meine Aufnahmen | private Aufnahmen des Profils | `/live/recordings?state=&sort=` | `live/recordings` | Live-TV › Aufnahmen | Aufnahmen | 008, 009, 014 | 5 (Serienstapel 6) |
+| LS-09 | Aufnahme-Detail | eine Aufnahme: Zustand, Lücken, Aufbewahrung | `/live/recordings/$recordingId` | `live/recording/{id}` | Seite | Aufnahmen | 008, 009 | 5 |
+| LS-10 | Aufnahme-Player | Aufnahme abspielen (auch laufende) | `/live/recordings/$recordingId/play` | Player | Player | Aufnahmen | 008, 016, 020 | 5 |
+| LS-11 | Geplante Aufnahmen | Termine, Serien, Wiederkehrend | `/live/scheduled?tab=upcoming|series|recurring` | `live/scheduled` | Live-TV › Aufnahmen › Geplant | Aufnahmen | 008, 014 | 5 (Termine, Manuell); 6 (Serien, Wiederkehrend) |
+| LS-12 | Konflikte und Warnungen | was einer geplanten Aufnahme im Weg steht | `/live/scheduled/warnings` | `live/scheduled/warnings` | Seite | Aufnahmen | 008, 019 | 5 |
+| LS-13 | Erinnerungen | Sendungserinnerungen | `/live/reminders` | `live/reminders` | Live-TV › Erinnerungen | – | 005 | 2 |
+| LS-14 | Aufnahmen meiner Profile | Hauptprofil: Aufnahmen der Profile mit Altersgrenze | `/live/recordings/profiles` | `live/recordings/profiles` | Live-TV › Aufnahmen › Profile | Hauptprofil, Aufnahmen | 009, 015 | 5 |
+| LS-15 | Senderprogramm | Tagesprogramm eines Senders als Liste | `/live/guide/channel/$channelId?day=` | `live/guide/channel/{id}` | Seite | – | 005 | 2 («Zeit aufnehmen» 5) |
 
 **Zustände je Seite** (Einzelheiten im jeweiligen Abschnitt):
 
@@ -270,10 +293,11 @@ neben «Live-TV».
 | LS-13 | «Keine Erinnerungen» | Skeleton | `Notice` | – | – | – |
 | LS-15 | «Keine Programmdaten für diesen Tag» | Skeleton | `Notice` | ganzer Tag «Keine Programmdaten» + «Zeit aufnehmen» | «Zeit aufnehmen» fehlt | – |
 
-**Dialoge** (Kennung `LD-nn`, Abschnitt 5): LD-01 Aufnahme planen · LD-02 Serienaufnahme · LD-03
-Manuelle oder wiederkehrende Aufnahme · LD-04 Sofortaufnahme · LD-05 Erinnerung · LD-06 Löschen und
-Abbrechen · LD-07 Konflikt oder Warnung · LD-08 Tag und Uhrzeit wählen · LD-09 Filterblatt (Handy) ·
-LD-10 Senderwechsel bei Zeitversatz · LD-11 Aufbewahrung ändern.
+**Dialoge** (Kennung `LD-nn`, Abschnitt 5, Stufe in Klammern): LD-01 Aufnahme planen (5) · LD-02
+Serienaufnahme (6) · LD-03 Manuelle (5) oder wiederkehrende Aufnahme (6) · LD-04 Sofortaufnahme (5) ·
+LD-05 Erinnerung (2) · LD-06 Löschen und Abbrechen (5) · LD-07 Konflikt oder Warnung (5) · LD-08 Tag und
+Uhrzeit wählen (2) · LD-09 Filterblatt, Handy (1) · LD-10 Senderwechsel bei Zeitversatz (4) · LD-11
+Aufbewahrung ändern (5).
 
 ---
 
@@ -302,7 +326,8 @@ Systemgeste; am TV die Zurück-Taste. Der Fokusring ist überall `state.focus-ri
 4. Reihe **«Gleich im Fernsehen»**: Sendungen, die in den nächsten 60 Minuten beginnen, gleiche
    Reihenfolge, Karte zeigt «ab 21:45» statt Fortschritt. Klick = Sendungsdetails.
 5. Reihe **«Zuletzt gesehen»** (`Row` Variante `tiles`): `ChannelCard` (neu, 6.2) mit Logo, Nummer,
-   Name, Jetzt-Titel und Fortschritt. Klick = einschalten. Höchstens 12.
+   Name, Jetzt-Titel und Fortschritt. Klick = einschalten. Höchstens die letzten 20 Sender, gezählt ab dem
+   ersten sichtbaren Bild; Vorladen zählt nicht (`03` DR-15). Menü der Reihe: «Liste leeren».
 6. Reihe **«Meine Sender»** (`ChannelCard`), «Alle»-Link zu LS-03.
 7. Reihe **«Nach Genre»** (`Row` Variante `chips`, `GenreChip`): Nachrichten, Sport, Film, Serie,
    Dokumentation, Kinder, Musik, Show, Kultur. Die Genres stammen aus den Programmdaten, nur Genres
@@ -364,7 +389,9 @@ einschalten, Zurück schliesst zuerst das Filtermenü.
 **Zustände:** leer «Kein Sender passt zu den Filtern» + «Filter entfernen»; Sender ohne EPG zeigt in
 der Jetzt-Spalte «Keine Programmdaten» (gedämpft, aber ≥ 8:1); gestörter Sender (Server meldet ihn
 nicht verfügbar) bleibt sichtbar mit Abzeichen «Gestört» (`StatusDot` warning) und Text «Gerade nicht
-erreichbar»; einschalten ist möglich (Player zeigt 4.8).
+erreichbar»; einschalten ist möglich (Player zeigt 4.12). Ein vom Administrator **deaktivierter** oder aus
+der Quelle **verschwundener** Sender fehlt dagegen ganz (404); Favoriten, Nummer und Planungen bleiben
+gespeichert und wirken wieder, wenn er zurückkommt (`03` DR-16).
 
 ### 3.3 LS-03 Meine Sender
 
@@ -393,7 +420,8 @@ Siehe Abschnitt 4.1 bis 4.4 (eigener Abschnitt wegen Umfang).
 
 **Zweck:** senderübergreifend Sendungen finden (LTV-005), auch der Einstieg «Nach Genre».
 
-**Aufbau:** `SearchField` «Sendungen suchen» (Titel, Episodentitel, Beschreibung); Filter
+**Aufbau:** `SearchField` «Sendungen suchen» (Titel und Episodentitel; die Beschreibung durchsucht
+Stufe 2 nicht, `09` 8.4, `08` W-26); Filter
 `ChoiceChips` «Wann»: Jetzt · Heute · Morgen · Nächste 7 Tage (bis zum Vorschauzeitraum);
 `FacetSelect` «Genre», «Gruppe» (inkl. Meine Sender). Treffer gruppiert nach Tag («Heute», «Morgen»,
 «Mo 30.11.»), je Treffer eine `ProgramRow` (Variante von `ChannelRow`, 6.1): Zeit «20:15–21:45» ·
@@ -436,7 +464,7 @@ Sendung gefunden. Programmdaten reichen bis Fr 4.12.»; Sender ohne EPG fehlen u
      (Serienkennung oder Episodenangabe in den Daten); sonst fehlt der Knopf, und LD-02 ist über
      LD-01 «Stattdessen jede Ausstrahlung dieses Titels aufnehmen» erreichbar.
    - **Erinnern** (Symbol `reminder`) → LD-05; nur bei künftigen Sendungen; gesetzt = «Erinnerung um
-     20:10».
+     20:10». Bei Sendern ohne Programmdaten gibt es weder Erinnerung noch Aufnahme aus dem EPG (`03` DR-09).
    - **Senderprogramm** → LS-15.
 4. Beschreibung, voller Text.
 5. `FactList` nur mit Angaben aus den Daten: Originaltitel, Jahr, Land, Regie, Mitwirkende, Folge
@@ -482,7 +510,10 @@ Siehe Abschnitt 4.5 bis 4.10.
    10 Folgen». **Serien** sind als Stapel zusammengefasst («Tatort · 6 Folgen», `CollectionCard`-Art),
    Klick öffnet die Folgenliste (LS-08 mit `?series=`).
 7. Abschnitt **«Fehlgeschlagen und nicht aufgenommen»** als Aufklapper (zu; Kopf «2 Aufnahmen»): Zeilen
-   mit Titel, Sender, Zeit, **Grund in Klartext** (4.8 / 5.7), Knopf «Entfernen».
+   mit Titel, Sender, Zeit, **Grund in Klartext** nach den Gründen aus `11` 3.6 (Kontingent voll, Server
+   ausgelastet, Sender nicht verfügbar, Quelle nicht erreichbar, Speicher voll oder fehlt, Server lief nicht),
+   Knopf «Entfernen». Abgebrochene Aufnahmen mit Daten («abgebrochen, Recht entzogen», «unvollständig,
+   Sender deaktiviert») bleiben abspielbar und stehen im Raster mit Abzeichen.
 
 **Mehrfachauswahl:** Knopf «Auswählen» → Kartenecken mit Kontrollkästchen, Leiste «2 ausgewählt ·
 10,0 GB · Löschen» → LD-06.
@@ -530,8 +561,12 @@ Bestehender Videoplayer (`features/player/PlayerPage.tsx`, `ui/PlayerChrome.tsx`
   Kapitelknöpfe nach Konzept 23 «Keine Kapitel»).
 - **Laufende Aufnahme:** Zeitleiste wächst; rechts «Aufnahme läuft» mit Knopf «Zum aktuellen Stand»
   (Muster «Zurück zu Live», 4.6). Kein Timeshift-Recht nötig: es ist die eigene Aufnahme.
-- Wiedergabefortschritt je Profil. Spielt das Hauptprofil eine Aufnahme eines Kinderprofils ab
-  (LS-14), zählt der Fortschritt nur für das Hauptprofil (Empfehlung, F-5).
+- Wiedergabefortschritt gehört dem Profil, dem die Aufnahme gehört. Spielt das Hauptprofil eine Aufnahme
+  eines Profils mit Altersgrenze ab (LS-14), wird **kein** Fortschritt gespeichert, weder beim Profil noch
+  beim Hauptprofil (`03` DR-21, `11` 6.3); der Player startet dann ohne `ResumeChoice` am Beginn der
+  Sendung. Das Abspielen setzt «Live-TV» beim Hauptprofil selbst voraus (`03` DR-03).
+- Die Wiedergabe einer Aufnahme ist ein Strom und zählt zu Stream-, Bandbreiten- und Auflösungsgrenze und
+  zur Schauzeit (`03` DR-12); die Fehlerbilder der Grenzen sind dieselben wie in 4.12.
 
 ### 3.11 LS-11 Geplante Aufnahmen
 
@@ -547,13 +582,16 @@ aufgenommen: Kontingent») · Aktionen «Ändern» (LD-01 bzw. LD-03) und «Abbr
 Aufbewahrung, voraussichtliche Grösse, Herkunft, letzte Anpassung an das EPG («Zeit angepasst: neu
 20:20 statt 20:15»).
 
-**Reiter «Serien»:** Regeln als Zeilen: «Tatort · alle Sender · nur Erstausstrahlungen · Folgen nicht
-doppelt · behalte 10 · 1 Termin geplant · 6 Aufnahmen». Aktionen «Ändern» (LD-02), «Beenden» (LD-06).
-Aufgeklappt: die nächsten Termine, übersprungene Ausstrahlungen mit Grund («schon aufgenommen»,
-«Wiederholung», «schon geplant»).
+**Reiter «Serien»:** Regeln als Zeilen: «Tatort · alle Sender · behalte 10 · 1 Termin geplant · 6
+Aufnahmen»; ohne zuverlässige Folgenkennung zusätzlich der Satz «Folgen nicht erkennbar, Wiederholungen
+werden mit aufgenommen» (`03` F-8 (a), `11` 2.4). Aktionen «Ändern» (LD-02), «Beenden» (LD-06).
+Aufgeklappt: die nächsten Termine (höchstens 50 je Regel, sonst «weitere Termine folgen»), übersprungene
+Ausstrahlungen mit Grund («übersprungen: Folge schon aufgenommen (S2 F5)», «gleiche Sendung auf einem anderen
+Sender schon geplant», «vom Profil ausgelassen»), Knopf «Gedächtnis leeren» (`11` 2.4).
 
-**Reiter «Wiederkehrend»:** «Tagesschau · SRF 1 · Mo–Fr 19:30–19:55 · behalte 5 · nächster Termin Mo
-30.11.» und manuelle Einmal-Aufnahmen unter «Manuell». Aktionen wie oben.
+**Reiter «Wiederkehrend»:** «Tagesschau · SRF 1 · Mo–Fr ab 19:30, 25 Min. · behalte 5 · nächster Termin Mo
+30.11.» (Termine 14 Tage im Voraus, `11` 2.1); manuelle Einmal-Aufnahmen stehen unter «Termine» mit Art
+«Manuell». Aktionen wie oben.
 
 **Handy:** Zeilen als Karten; Reiter als Chips. **TV:** Liste, OK öffnet ein Seitenmenü «Ändern /
 Abbrechen / Zur Sendung».
@@ -571,21 +609,27 @@ kein Anbieterlimit** in Slouchcat (LTV-017); darum gibt es keinen «Konflikt um 
 bleibt, sind Warnungen mit Folgen, die das Profil verstehen soll.
 
 **Aufbau:** Liste von Karten (`Notice`-Stil, Rahmen nach Schwere), je Karte: Art, betroffene Termine,
-Folge in Klartext, Aktionen. Arten:
+Folge in Klartext, Aktionen. Die Konflikte sind die aus `11` 4.1 (K-1 bis K-6, `03` DR-11); dazu kommen
+Hinweise, die keine Konflikte sind. Arten:
 
-| Art | Schwere | Text (Beispiel) | Aktionen |
-|---|---|---|---|
-| **Kontingent** | warning; danger, wenn schon jetzt voll | «Für ‹Der Marsianer› (ca. 8 GB) fehlt voraussichtlich Platz im Speicher des Kontos: frei 58 GB, geplant bis dann 61 GB. Ist beim Start nicht genug frei, wird die Aufnahme nicht gemacht.» | «Aufnahmen aufräumen» (LS-08 nach Grösse), «Trotzdem behalten» (Warnung bleibt sichtbar) |
-| **Speicher des Servers** | warning | «Auf dem Server wird der Speicher für Aufnahmen knapp. Aufnahmen können ausfallen. Der Server-Admin ist informiert.» | keine (nur Information) |
-| **Überschneidung** | info | «‹Der Marsianer› (bis 00:35) und ‹das aktuelle sportstudio› (ab 23:28) überschneiden sich. Beide werden aufgenommen.» | «Eine abbrechen …» |
-| **Doppelt** | info | «‹Tatort: Die Stille nach dem Sturm› ist schon über die Serienaufnahme geplant (So 20:05, SRF 1).» | «Einzelaufnahme entfernen» |
-| **Sender weg** | danger | «TV24 ist nicht mehr im Angebot. 1 Aufnahme kann nicht starten.» | «Anderen Sender wählen» (LD-03), «Abbrechen» |
-| **Sendung verschwunden** | warning | «‹Arena› steht nicht mehr im Programm von SRF 1 (Fr 4.12.). Die Aufnahme wird nicht gemacht.» | «Zeit trotzdem aufnehmen» (LD-03 vorbelegt), «Entfernen» |
-| **Zeit geändert** | info | «Neue Zeit nach Programmänderung: 20:20–21:50 statt 20:15–21:45. Angepasst.» | «OK» (blendet aus) |
-| **Sommer-/Winterzeit** | info | «Am 28.3.2027 gibt es 02:30 nicht. Die Aufnahme beginnt um 03:00.» | «OK» |
+| Art | `11` | Schwere | Text (Beispiel) | Aktionen |
+|---|---|---|---|---|
+| **Kontingent** | K-1 | warning; danger, wenn schon jetzt voll | «Dein Kontingent reicht voraussichtlich nicht (noch 3,1 GB frei, gebraucht 6,4 GB). Ist beim Start nicht genug frei, wird die Aufnahme nicht gemacht und gemeldet.» | «Aufnahmen aufräumen» (LS-08 nach Grösse), «Trotzdem behalten» (Warnung bleibt sichtbar) |
+| **Speicher des Servers** | K-2 | warning | «Auf dem Server wird der Speicher für Aufnahmen knapp. Aufnahmen können eine Lücke bekommen. Der Server-Admin ist informiert.» | keine (nur Information) |
+| **Server ausgelastet** | K-3 | warning | «Zu dieser Zeit sind auf dem Server schon viele Aufnahmen geplant. Reicht der Platz nicht, wird diese Aufnahme nicht gemacht.» | keine |
+| **Sender nicht verfügbar** | K-4 | danger | «TV24 ist nicht mehr im Angebot. 1 Aufnahme kann nicht starten.» | «Anderen Sender wählen» (LD-03), «Abbrechen» |
+| **Nicht mehr im Programm** | K-5 | warning | «‹Arena› steht nicht mehr im Programm von SRF 1 (Fr 4.12.). Die Aufnahme läuft trotzdem zur alten Zeit.» | «Behalten», «Löschen» |
+| **Nicht eindeutig** | (`11` 2.3) | warning | «Das Programm hat sich geändert, und ‹Arena› ist nicht eindeutig wiederzufinden. Die Aufnahme läuft zur alten Zeit.» | Auswahl der Kandidaten |
+| **Recht fehlt** | K-6 | – | erscheint nicht: ohne Recht fehlt die Seite; Planungen ruhen (`03` F-7) | – |
+| Überschneidung | Hinweis | info | «‹Der Marsianer› (bis 00:35) und ‹das aktuelle sportstudio› (ab 23:28) überschneiden sich. Beide werden aufgenommen.» | keine |
+| Doppelt geplant | Hinweis | info | «‹Tatort: Die Stille nach dem Sturm› ist schon über die Serienaufnahme geplant (So 20:05, SRF 1).» | «Einzelaufnahme entfernen» |
+| Zeit geändert | Hinweis | info | «Neue Zeit nach Programmänderung: 20:20–21:50 statt 20:15–21:45. Angepasst.» | «OK» (blendet aus) |
+| Sommer-/Winterzeit | Hinweis | info | «Am 28.3.2027 gibt es 02:30 nicht. Die Aufnahme beginnt um 03:00.» | «OK» |
 
-Ob eine Überschneidung im Mockup als «Konflikt» heisst: nein, sie ist ein Hinweis, weil beide Aufnahmen
-laufen (Empfehlung; ob Aufnahmen zu den Stream-Grenzen des Kontos zählen, klärt 03/11, O-Punkt dort).
+Zwei Aufnahmen zur selben Zeit sind **kein** Konflikt (`03` DR-11); Aufnahmeprozesse zählen nicht zu den
+Stream-Grenzen des Kontos (`03` DR-12). Wann was erscheint (beim Anlegen, nach Änderungen, nach jedem
+EPG-Import, täglich, 10 Minuten vor Beginn; Meldung in der Glocke, wenn ein Termin neu in einen Konflikt
+gerät), legt `11` 4.3 fest.
 
 **Abzeichen** dafür überall: im Raster (Zelle), auf LS-11 (Zustand), auf LS-01 (Hinweisband).
 
@@ -600,7 +644,10 @@ laufen (Empfehlung; ob Aufnahmen zu den Stream-Grenzen des Kontos zählen, klär
 
 - Web und Handy-App offen: `toast`-artiges Band oben (bleibt bis Klick, `role=status`): «Tatort beginnt
   in 5 Min. auf SRF 1» [Einschalten] [Schliessen]; dazu Eintrag in der Glocke (LS-23).
-- App zu: Push nach F-6 («Tatort beginnt um 20:05 auf SRF 1»), Antippen öffnet LS-07.
+- App zu: über die Kanäle nach `03` F-3 («Tatort beginnt um 20:05 auf SRF 1»; bei Profilen mit PIN nur
+  «Eine Sendung beginnt gleich», `03` DR-05), Antippen öffnet LS-07. Pünktlichkeit über Push ist zu messen
+  (`09` M-8).
+- Ist der Sender deaktiviert oder das Recht entzogen, kommt keine Erinnerung (`03` DR-08).
 - TV: `TvToastHost` unten rechts mit «OK: einschalten», 15 s sichtbar; läuft ein Player, erscheint
   der Hinweis über dem Bild und OK schaltet um (mit LD-10, falls zeitversetzt).
 - Verschiebt das EPG die Sendung, folgt die Erinnerung (Zeile zeigt «Zeit geändert»). Entfällt die
@@ -617,10 +664,16 @@ sehen, abspielen und löschen. Profile ohne Altersgrenze erscheinen hier nie.
 **Aufbau:** Kopf «Aufnahmen meiner Profile» und Satz «Hier siehst du die Aufnahmen der Profile mit
 Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat.» Je Profil ein Aufklapper (zu),
 Kopfzeile mit Avatar und Zusammenfassung «Mia · 4 Aufnahmen · 3,3 GB · 2 geplant». Aufgeklappt: Liste
-wie LS-08 (Karten oder Zeilen) mit Abspielen und Löschen. Geplante Termine des Profils: F-4.
+wie LS-08 (Karten oder Zeilen) mit Abspielen und Löschen, ohne Fortschritt und ohne «Weiter ab»
+(`03` DR-21). Geplante Termine des Profils erscheinen nur als Zahl in der Kopfzeile («2 geplant»; so `08`
+und das Mockup); ob mehr, ist F-4. Löschen geht auch, wenn das Recht «Aufnahmen» des Profils oder des
+Kontos aus ist, damit Platz frei wird; Abspielen setzt «Live-TV» beim Hauptprofil voraus (`03` DR-03).
 
-**Erreichbar** nur aus LS-08 (Karte) und über die Reiterleiste «Aufnahmen › Profile»; fehlt ganz, wenn
-das Konto keine Profile mit Altersgrenze und Aufnahmerecht hat.
+**Erreichbar** aus der Profilverwaltung (LS-21, Link «Aufnahmen meiner Profile», Ort nach `03` DR-02),
+aus LS-08 (Karte) und über die Reiterleiste «Aufnahmen › Profile»; die Aufnahmen stehen nie vermischt mit
+den eigenen. Fehlt ganz, wenn das Konto keine Profile mit Altersgrenze hat, die Aufnahmen haben. Welche
+Aufnahmen als «Profil mit Altersgrenze» gelten, wenn die Grenze später gesetzt wird, entscheidet `04` F-10
+(Empfehlung (b): Kennzeichen beim Anlegen der Aufnahme).
 
 **Löschen** durch das Hauptprofil: LD-06 mit Satz «Mia sieht die Aufnahme danach nicht mehr.» Das
 betroffene Profil bekommt einen Eintrag in seiner Glocke «Anna hat ‹Checker Tobi› gelöscht.»
@@ -639,7 +692,9 @@ beim Öffnen in Sicht gescrollt; vergangene Zeilen mit «vorbei»-Kennzeichen (H
 `live.cell.past`, Text bleibt ≥ 8:1). Lücken als eigene Zeile «20:00–24:00 · Keine Programmdaten».
 
 **Ohne EPG** (TeleZüri): «Für diesen Sender gibt es keine Programmdaten.» + Knöpfe «Einschalten» und
-«Zeit aufnehmen» (LD-03 mit Sender vorbelegt).
+«Zeit aufnehmen» (LD-03 mit Sender vorbelegt). Auch jede **künftige Lücke** ohne Programmdaten bei einem
+Sender mit EPG (KiKA ab 21:00) trägt «Zeit aufnehmen» mit der Lücke als vorbelegter Zeit (nachgezogen
+aus dem Mockup, `19` 6).
 
 ---
 
@@ -793,7 +848,9 @@ Ein Raster Sender × Zeit ist auf 360–412 px Breite kaum lesbar. Darum zeigt d
 - Raster: 7 Zeilen sichtbar, 2½ Stunden Breite. Fokus springt **von Sendung zu Sendung**.
 - **Seitenweise blättern:** ↓ in der untersten sichtbaren Zeile schiebt um eine Zeile (der Fokus bleibt
   auf Zeile 6, damit man sieht, was kommt); Kanal +/− (falls vorhanden) = eine Seite (7 Zeilen);
-  Vorspulen/Zurückspulen-Taste = 2 Stunden vor/zurück; → am rechten Rand schiebt um 30 Minuten.
+  Vorspulen/Zurückspulen-Taste = 2 Stunden vor/zurück; → am rechten Rand schiebt um 30 Minuten. Weil viele
+  Fernbedienungen keine Spultasten haben, stehen in der Auswahlzeile zusätzlich zwei Knöpfe «− 2 Std.» und
+  «+ 2 Std.» (nachgezogen aus dem Mockup, `19` 6).
 - OK = Sendungsdetails als Seitenmenü (LS-06 TV); auf der Senderspalte = einschalten.
 - Taste Wiedergabe/Pause auf einer laufenden Sendung = einschalten (Abkürzung).
 - Zurück: schliesst Seitenmenü → verlässt Raster zur Reiterleiste → verlässt Seite.
@@ -840,7 +897,8 @@ Wiedergabe/Pause · +10 s · **Nächster Sender** | **Live-Anzeige** · Uhrzeit 
 stehen (Konzept 23, 3.1), mit Vorschaukarte beim Fokus: «Nächster Sender: 3 SRF info · Tagesschau».
 Menüs öffnen über ihrem Knopf ohne X (Konzept 23, 4.1).
 
-**Web Tablet:** wie Computer, Leiste zweizeilig ab 768 px nach bestehender Regel.
+**Web Tablet:** wie Computer, Leiste zweizeilig ab 768 px nach bestehender Regel. Die Bedienleiste
+blendet wie im Videoplayer nach 4 s aus.
 
 **Web Handy und Handy-App hochkant:** Bild oben 16:9, darunter **nicht** schwarze Fläche, sondern:
 
@@ -855,7 +913,16 @@ Menüs öffnen über ihrem Knopf ohne X (Konzept 23, 4.1).
 von rechts. Drehen ändert nichts an der Wiedergabe.
 
 **TV:** Vollbild ohne Leiste; Bedienung erscheint unten bei OK; Senderliste links als Seitenmenü
-(`TvSideMenu`-Art, gespiegelt von links); Info-Banner unten.
+(`TvSideMenu`-Art, gespiegelt von links); Info-Banner unten. Die Senderliste folgt der Herkunftsliste;
+Lieblingssender sind darin nur mit dem Herz markiert (wie im Mockup).
+
+**Hintergrund und Bildschirm aus (Handy-App, TV-App; `04` Abschnitt 10.3):** Geht die App in den
+Hintergrund oder geht der Bildschirm aus, hält der Player an und die App beendet die Sitzung. Es gibt keinen
+Ton im Hintergrund und kein Bild-im-Bild des Systems. Kommt man zurück, stellt die App denselben Sender neu
+ein; der Zeitversatz ist dann weg, und die Leiste beginnt neu (Hinweis `toast` «Neu eingeschaltet»). Eine
+kurze Unterbrechung unter 60 Sekunden (Anruf, Blick in eine andere App) übersteht die Sitzung. Für einen
+Browser-Tab im Hintergrund ist das Verhalten offen (`04` O-25, zu messen M-3/M-5); die Oberfläche zeigt
+dort nichts Eigenes.
 
 ### 4.6 Live-Anzeige und «Zurück zu Live»
 
@@ -888,9 +955,13 @@ Bauteil `LiveSeekBar` (neu, 6.5; baut auf den Spuren von `SeekBar`, `state.track
   Beschriftung «Vor 20:03 nicht verfügbar», damit klar ist, warum man nicht an den Sendungsbeginn kommt.
 - **Ende** = Live-Kante, wächst mit der Zeit.
 - **Sendungsgrenzen** als feine Marken mit Titel im Tooltip bzw. Fokus («ab 22:00 Tagesschau Nacht»).
-- **Höchstdauer erreicht** (z. B. 2 Stunden): der Anfang wandert mit, Beschriftung «ab 18:41 (höchstens
-  2 Std.)». Kürzt der Server den Puffer, weil sein Speicher voll ist: `toast` «Der Zeitversatz wurde
-  gekürzt: zurück bis 19:52.»
+- **Höchstdauer erreicht** (Werksvorgabe 60 Minuten, einstellbar 15, 30, 60, 120, 240; in der
+  Beispielinstanz 2 Stunden): der Anfang wandert mit, Beschriftung «ab 18:41 (höchstens 2 Std.)». Kürzt
+  der Server den Puffer, weil der Deckel über alle Puffer erreicht ist (zuerst der älteste Teil des grössten
+  Puffers, nie unter 5 Minuten, `04` 14.6): `toast` «Der Zeitversatz wurde gekürzt: zurück bis 19:52.»
+- **Anfang beim Einschalten:** Die Leiste beginnt an der letzten vollständigen Bildgruppe vor dem
+  Einschalten (einige Sekunden, technisch nötig, `04` T-7); sie wird als «seit 20:03» angezeigt. Davor
+  gibt es nichts (`04` F-7, Vorgabe).
 - **Senderwechsel:** Die Leiste beginnt neu beim neuen Einschaltpunkt (LTV-007). Zurückspulen auf den
   vorigen Sender gibt es nicht.
 - **Spulen:** ←/→ ±10 s, Shift+←/→ ±60 s (Kapitel gibt es live nicht); Ziehen an der Leiste; am TV ←/→
@@ -901,8 +972,11 @@ Bauteil `LiveSeekBar` (neu, 6.5; baut auf den Spuren von `SeekBar`, `state.track
   `toast` «Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.» Hat der Server
   Timeshift ganz abgeschaltet oder gerade keinen Platz: «Zurückspulen ist gerade nicht möglich.»
 - **Pause länger als der Puffer:** Der Puffer läuft weiter; ist die Position aus dem Fenster gefallen,
-  springt die Wiedergabe an den neuen Anfang und zeigt `toast` «Du warst zu lange pausiert. Weiter ab
-  18:41.»
+  springt die Wiedergabe an den **neuen Anfang des Fensters** (nicht an die Live-Kante, `10` 5) und zeigt
+  `toast` «Die älteste Minute ist weggefallen. Weiter ab 18:41.»
+- **Speicherort «Timeshift» voll oder weg:** Live läuft weiter, nur Zurückspulen fehlt, mit Hinweis
+  «Zurückspulen ist gerade nicht möglich.» (`18` 4.7 Prüfliste 5).
+- **Pause und Schauzeit:** Eine Pause zählt nicht zur täglichen Schauzeit (`03` DR-12).
 
 ### 4.8 Senderwechsel im Player
 
@@ -921,6 +995,10 @@ die Favoriten, aus einer Gruppe durch die Gruppe, sonst durch alle Sender nach N
 zeigt oben, welche Liste gilt («Liste: Meine Sender ▾»), und lässt sie wechseln. Am Ende der Liste geht
 es zum Anfang (ringförmig), mit kurzem Hinweis «Wieder am Anfang: 1 SRF 1».
 
+**Schnelles Durchschalten:** Der Server nimmt je Profil höchstens ein Einstellen je Sekunde an, mit einem
+Stoss von 5 (`04` 14.4). Drückt jemand schneller, zeigt der Player sofort den Banner des jeweils gewählten
+Senders, stellt aber erst den zuletzt gewählten ein; eine Fehlermeldung gibt es dafür nicht.
+
 **Senderliste über dem Bild** (Bauteil `ChannelZapList`, neu, 6.4): Spalte links, 360 px (TV 560 px),
 Grund `scrim.*`, je Zeile Nummer · Logo · Name · Jetzt-Titel mit Fortschritt; der laufende Sender
 markiert und beim Öffnen fokussiert. Das Bild läuft dahinter weiter (eine Wiedergabe, kein zweiter
@@ -932,7 +1010,10 @@ Player). Web: ↑/↓ wandert, Enter schaltet um und schliesst, Esc schliesst; T
 
 - Erste Ziffer öffnet oben rechts ein Feld «1_» mit Vorschau des Senders, der zur bisherigen Eingabe
   passt («12 · 3sat»). Bis zu 4 Ziffern.
-- Umschalten nach **2 Sekunden ohne weitere Ziffer** oder sofort mit Enter/OK; Esc/Zurück bricht ab.
+- Umschalten nach **2 Sekunden ohne weitere Ziffer** (Vorschlag dieses Dokuments; `04` nennt keinen
+  Wert) oder sofort mit Enter/OK, oder sofort, wenn keine längere Sendernummer mit der bisherigen
+  Eingabe beginnt; Esc/Zurück bricht ab.
+- Die Eingabe zählt erst beim Umschalten als Einstellen (Bremse oben).
 - Keine Nummer: «Kein Sender mit Nummer 812» für 2 s, kein Wechsel.
 - **Lösung für die Web-Tastenbelegung:** Im **Live-Player** bedeuten 0–9 Sendernummern, weil eine
   Sprungweite in Prozent bei Live keinen Sinn hat (die Länge wächst). Im **Aufnahme-Player** (LS-10)
@@ -970,8 +1051,13 @@ Taste G (Web) bzw. GUIDE (TV) bzw. Knopf «Programm» öffnet die Programmzeitsc
 Bild** (Grund `scrim.*` stark abgedunkelt, Ton läuft weiter). Inhalt und Bedienung wie LS-04 (Raster;
 am Handy die Liste), Startfokus auf der laufenden Sendung des laufenden Senders. Auswahl einer laufenden
 Sendung = Senderwechsel im selben Player (mit LD-10); Auswahl einer künftigen Sendung = Details als
-Seitenmenü mit Aufnehmen/Erinnern. Zurück/Esc schliesst und gibt den Fokus an den Knopf «Programm».
-Das ist kein Bild-im-Bild: Es gibt nur ein Bild, und es ist abgedeckt.
+Seitenmenü (Web: Seitenleiste rechts in der Überlagerung) mit Aufnehmen/Erinnern, ohne den Player zu
+verlassen (nachgezogen aus dem Mockup, `19` 6). Zurück/Esc schliesst und gibt den Fokus an den Knopf
+«Programm». Das ist kein Bild-im-Bild: Es gibt nur ein Bild, und es ist abgedeckt.
+
+**Handy-App:** «Programm» öffnet im Player ein **Blatt von unten** mit der Liste «Jetzt und danach» (4.2)
+statt einer Überlagerung, weil der Platz fehlt (nachgezogen aus dem Mockup). «Details» aus diesem Blatt
+verlässt den Player und beendet die Wiedergabe (Grundsatz 6); «Einschalten» schaltet im Player um.
 
 ### 4.10 Info-Einblendung, Aufnahmeknopf, Ton, Untertitel, Qualität, Vollbild
 
@@ -986,7 +1072,7 @@ Programmdaten». Am TV zeigt → im Banner die übernächste Sendung, OK auf «D
 |---|---|---|
 | keine Aufnahme | «● Aufnehmen» umrandet | LD-04 |
 | diese Sendung ist geplant | «● Geplant» gefüllt hell | LD-01 Ändern |
-| nimmt auf | «● Nimmt auf · 0:29» gefüllt `live.record` | Menü: «Bis Sendungsende verlängern» (falls kürzer gewählt), «Aufnahme beenden» (LD-06), «Zu meinen Aufnahmen» |
+| nimmt auf | «● Nimmt auf · 0:29» gefüllt `live.record` | Menü: «Bis Sendungsende verlängern» (bei «bis ich stoppe» mit EPG), «Aufnahme beenden» (LD-06), «Zu meinen Aufnahmen» |
 | Kontingent voll | «● Aufnehmen» | LD-04 zeigt Fehler (5.4) |
 
 Aufnahmen anderer Profile sind nirgends zu sehen.
@@ -999,6 +1085,14 @@ keine Untertitel: Knopf ausgegraut (`aria-disabled`) mit Hinweis «Dieser Sender
 Untertitel». Ein Wechsel, der den Strom neu aufbaut, zeigt kurz den Ladezustand «Wechsle Tonspur …».
 Was davon technisch je Client geht, legt `16-client-kompatibilitaet.md` fest; die Oberfläche zeigt nur,
 was der Server als Spur meldet.
+
+**Umwandlung im Browser:** Sender mit HEVC-Bild oder mit AC-3-, E-AC-3- oder LATM-Ton laufen im Browser über
+eine Umwandlung je Zuschauer, weil der schlanke Bau von hls.js sie nicht abspielt (`05` 5.3, `04` 15.1, belegt
+nach der Nachprüfung). Die Oberfläche zeigt das nur an zwei Stellen: im Qualitätsmenü als Zusatz
+«umgewandelt» an der gewählten Stufe (Ton «Stereo, umgewandelt», wo der Sender 5.1 sendet), und beim
+Umschalten über die längere Ladezeit (Zielwert unter 5 Sekunden statt unter 3, LTV-010). Am TV und am Handy
+(Media3) entfällt das meist; die Grenze legt die Fähigkeitsabfrage fest (`16`). Eine Umwandlung gibt es nur,
+wenn das Profil Umwandlung darf (bestehendes Recht); sonst Fehlerbild «nicht abspielbar» (4.12).
 
 **Vollbild:** wie heute (F, Doppelklick, Knopf). Am Handy quer = Vollbild.
 
@@ -1013,12 +1107,12 @@ stateDiagram-v2
   Umschalten --> Laeuft: erstes Bild
   Umschalten --> Verbindet: nach 0,5 s ohne Bild
   Verbindet --> Laeuft: erstes Bild
-  Verbindet --> Langsam: nach 5 s
+  Verbindet --> Langsam: nach 3 s
   Langsam --> Laeuft: erstes Bild
-  Langsam --> Fehler: nach 15 s oder Meldung des Servers
+  Langsam --> Fehler: nach 15 s ohne Segment oder Meldung des Servers
   Laeuft --> Unterbrochen: Strom stockt
   Unterbrochen --> Laeuft: weiter
-  Unterbrochen --> Fehler: nach 15 s
+  Unterbrochen --> Fehler: Server meldet «gestört»
   Fehler --> Umschalten: Erneut versuchen
 ```
 
@@ -1026,13 +1120,17 @@ stateDiagram-v2
 |---|---|
 | 0 s | altes Bild verschwindet sofort (schwarz, `media.backdrop`), **nie** ein stehendes Bild des alten Senders; `NowNextBanner` des **neuen** Senders sofort sichtbar; Leiste zeigt Live-Anzeige leer |
 | ab 0,5 s | zusätzlich ruhige Ladeanzeige in der Mitte (kein Zucken bei schnellem Start) mit «SRF info wird geladen» |
-| ab 5 s | Text «Dauert länger als üblich …» |
-| ab 15 s oder Fehlermeldung | Fehlerbild (unten) |
-| Strom stockt im Lauf | letztes Bild bleibt stehen, darüber Ladeanzeige «Verbindung wird wiederhergestellt …» |
+| ab 3 s | Text «Dauert länger als üblich …» |
+| ab 15 s ohne Segment oder Fehlermeldung | Fehlerbild (unten) |
+| Strom stockt im Lauf | letztes Bild bleibt stehen, darüber Ladeanzeige «Verbindung wird wiederhergestellt …»; der Server verbindet nach der festen Leiter 1, 2, 5, 10, 20 s neu und meldet `retryInSeconds` (`04` 14.1, `08`) |
 
-Die Schwellen 0,5 / 5 / 15 s sind Vorschläge (zu prüfen gegen die Zielzeiten aus LTV-010:
-unter 1 s für empfangene oder vorgeladene Sender, unter 3 s für neue, unter 5 s mit Neucodierung).
-Schnelles Zappen (mehrere Befehle in kurzer Folge) zeigt nur den Banner des zuletzt gewählten Senders.
+Die Schwellen und woher sie kommen: **15 s** = Startversuch endet ohne Segment (`04` 14.1, Vorgabe);
+**3 s** = die Antwort auf «einstellen» wartet bis zu 3 s auf das erste Segment (`04` 14.1, Annahme M-1) und
+der Zielwert «noch nicht empfangener Sender unter 3 s» (LTV-010); **0,5 s** ist ein Vorschlag dieses
+Dokuments gegen Flackern bei schnellem Start. Ein Stillstand gilt nach 10 s ohne Daten als Abbruch
+(`04` 14.1); bis dahin bleibt das Bild stehen. Mit Umwandlung (4.10) gilt der Zielwert unter 5 s; die
+Anzeige «dauert länger» kommt dann trotzdem nach 3 s. Schnelles Zappen zeigt nur den Banner des zuletzt
+gewählten Senders (4.8). *Im Mockup* sind die Ladezeiten zur Vorführung verkürzt (`19` 4).
 
 ### 4.12 Fehlerzustände im Player
 
@@ -1044,14 +1142,16 @@ Fokus liegt am TV auf dem ersten Knopf.
 | Sender nicht erreichbar | «ZDFinfo ist gerade nicht erreichbar. Slouchcat versucht es weiter.» (darunter «Nächster Versuch in 20 s») | «Erneut versuchen» · «Anderer Sender» (öffnet Senderliste) |
 | Ersatzquelle aktiv | kein Fehlerbild; `toast` «Auf eine Ersatzquelle umgeschaltet.» (nur einmal je Sitzung); in der Info ein kleines Zeichen «Ersatzquelle» | – |
 | Wiederverbindung | Ladeanzeige über dem letzten Bild «Verbindung wird wiederhergestellt …» | – |
-| Grenze des Kontos erreicht (gleichzeitige Wiedergaben) | bestehender Text der Wiedergabegrenze (`features/player/labels.ts`), z. B. «Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.» | «Zurück» |
+| Grenze des Kontos oder Profils erreicht (gleichzeitige Wiedergaben; Live-TV und Aufnahmen zählen mit, `03` DR-12) | bestehender Text der Wiedergabegrenze (`features/player/labels.ts`), z. B. «Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.» | «Zurück» |
 | Bandbreite/Auflösung begrenzt | kein Fehler; Qualität wird gedeckelt, Hinweis im Qualitätsmenü «Höchstens 720p für dieses Profil» | – |
 | Sehzeit des Tages aufgebraucht | bestehender Text der Sehzeit | «Zurück» |
 | Recht entzogen (während des Schauens) | «Live-TV ist für dieses Profil nicht mehr freigegeben.» | «Zur Startseite» |
 | Timeshift nicht erlaubt | kein Fehlerbild; 4.7 | – |
-| Sender nicht mehr im Angebot | «Diesen Sender gibt es nicht mehr.» | «Anderer Sender» |
+| Sender nicht mehr im Angebot (beim Einstellen) | «Diesen Sender gibt es nicht mehr.» | «Anderer Sender» |
+| Sender vom Administrator «sofort beendet» (`04` T-29; ohne diesen Befehl läuft die Wiedergabe weiter, bis man geht) | «Dieser Sender ist nicht mehr verfügbar.» | «Anderer Sender» |
 | Auf diesem Gerät nicht abspielbar (Format, keine Umwandlung erlaubt) | «Dieser Sender lässt sich auf diesem Gerät nicht abspielen.» | «Anderer Sender» |
-| Server überlastet | «Der Server ist gerade ausgelastet. Versuche es gleich nochmals.» | «Erneut versuchen» |
+| Server überlastet (Obergrenze der Eingänge oder Live-Sitzungen, `04` 14.1, 14.4) | «Der Server ist gerade ausgelastet. Versuche es gleich nochmals.» | «Erneut versuchen» |
+| Quelle lehnt weitere Verbindung ab (`04` 5.3) | «Für diesen Sender ist gerade keine weitere Verbindung möglich. Versuche einen anderen Sender.» | «Anderer Sender» · «Erneut versuchen» |
 | Sender ohne Ton (vom Admin so gekennzeichnet) | kein Fehler; Info «Dieser Sender hat keinen Ton.» | – |
 | Netz langsam | bestehendes `useSlowConnection` | – |
 
@@ -1100,35 +1200,48 @@ ZDF · Heute, 20:15–21:45
 
 Vorlauf      [Standard (2 Min.) ▾]     0 · 1 · 2 · 5 · 10 · 15 · 30 Min.
 Nachlauf     [Standard (10 Min.) ▾]    0 · 5 · 10 · 15 · 30 · 60 Min.
-Aufbewahren  [Standard (bis du löschst) ▾]   7 · 14 · 30 · 90 Tage · bis du löschst
+Aufbewahren  [bis du löschst ▾]        7 · 14 · 30 · 90 Tage · bis du löschst
 
-Aufnahme von 20:13 bis 21:55 · etwa 5,9 GB
+Aufnahme von 20:13 bis 21:55 · etwa 6,4 GB
 ⚠ (Warnungen, falls vorhanden, als Notice)
 
-↳ Stattdessen die Serie aufnehmen          (nur wenn Serie erkennbar)
+↳ Stattdessen die Serie aufnehmen
                                    [Abbrechen]  [Aufnahme planen]
 ```
 
-- Werte «Standard» nennen den Wert aus der Verwaltung in Klammern (LA-14).
+- Werte «Standard» nennen den Wert aus der Verwaltung in Klammern (LA-14). Der Standard wird beim Speichern
+  an der Planung festgehalten; eine spätere Änderung in der Verwaltung ändert die Planung nicht (`11` 1).
+- **Aufbewahren** ist ab Werk «bis du löschst» (`03` DR-18). Eine Standardfrist der Verwaltung füllt das
+  Feld nur vor und gilt erst, wenn das Profil so speichert (`03` F-10 (a)). Die Frist läuft ab dem Ende der
+  Aufnahme (`11` 8.2).
 - Läuft die Sendung schon: Hinweis «Die Sendung läuft seit 20:15. Die Aufnahme beginnt jetzt.»; Knopf
   heisst «Ab jetzt aufnehmen». Eine Aufnahme ab Sendungsbeginn gibt es nicht (kein Archiv).
-- Grösse: aus der gemessenen Bitrate des Senders, sonst «Grösse unbekannt».
+- Grösse: erwartete Grösse nach `11` 4.2 (mittlere Bitrate des Senders × Dauer mit Vor- und Nachlauf ×
+  1,05; ohne gemessene Bitrate mit 8 Mbit/s gerechnet, dann «etwa»).
 - Hinweis zur Programmänderung, immer klein: «Ändert sich die Sendezeit, passt Slouchcat die Aufnahme an.»
+  (nur, wenn die Verwaltung das eingeschaltet hat, LA-14).
+- «Stattdessen die Serie aufnehmen» öffnet LD-02 (Stufe 6) und fehlt bei Sendern ohne Programmdaten.
 - Fehler beim Speichern (`Form`, Serverfehler je Feld), z. B. «Diese Sendung ist schon vorbei.»
 
 ### 5.2 LD-02 Serienaufnahme
 
-Felder (Vorgaben fett):
+Felder nach `11` 1 und 2 (Vorgaben fett). Was `11` nicht kennt, ist als **Vorschlag, hängt an F-23**
+gekennzeichnet und im Bau erst nach Marcos Antwort dabei.
 
 | Feld | Werte | Hinweis |
 |---|---|---|
-| Serie | «Tatort» (nur Anzeige); Erkennung «nach Serienkennung des Programms» oder «nach Titel» | Bei «nach Titel» Satz: «Slouchcat erkennt die Serie am Titel. Ähnliche Titel können mitkommen.» |
-| Sender | **nur Das Erste** · alle Sender, auf denen die Serie läuft | Liste der gefundenen Sender: «Das Erste, SRF 1, ORF 2» |
-| Zeitfenster | **jederzeit** · nur zwischen [20:00] und [22:30]; Wochentage optional (Chips Mo–So, `WeekdayPicker` 6.9) | |
-| Nur Erstausstrahlungen | an/**aus** | gesperrt mit Hinweis, wenn die Programmdaten Wiederholungen nicht kennzeichnen: «Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht.» |
-| Folgen nicht doppelt aufnehmen | **an**/aus | gesperrt, wenn Folgen nicht eindeutig erkennbar: «Folgen sind hier nicht eindeutig erkennbar. Slouchcat nimmt jede passende Ausstrahlung auf.» |
-| Behalten | **alle Folgen** · die letzten 1 · 2 · 3 · 5 · 10 · 20 | bei Zahl: «Ist eine neue Folge fertig, löscht Slouchcat die älteste. Angesehene zuerst.» (benannte Ausnahme: nur das Profil stellt das ein) |
+| Serie | «Tatort» (nur Anzeige) | Slouchcat nimmt jede Sendung mit **gleichem Titel** auf (`09` 7.3, vollständige Gleichheit nach Bereinigung, keine «ähnlichen» Titel) |
+| Sender | **nur der Sender dieser Sendung (SRF 1)** · alle Sender, die du sehen kannst | Liste der gefundenen Sender: «SRF 1, Das Erste, ORF 2». Dieselbe Sendung zur selben Zeit auf mehreren Sendern gibt **einen** Termin (`11` 2.1) |
+| Folgen | nur Anzeige: «Folgen werden erkannt (Staffel und Folge). Schon aufgenommene Folgen werden übersprungen.» oder «Folgen nicht identifizierbar: Wiederholungen werden mit aufgenommen.» (`03` DR-10, F-8 (a); `11` 2.4) | Schalter «Auch unsichere Folgenangaben nutzen» (Stufen C und D aus `09` 7.1, ab Werk **aus**), nur sichtbar, wenn die Programmdaten solche Angaben haben |
+| Behalten | **alle Folgen** · die letzten 1 · 2 · 3 · 5 · 10 · 20 | bei Zahl: «Ist eine neue Folge fertig, löscht Slouchcat die älteste (nach Sendebeginn). Fehlgeschlagene zählen nicht.» (benannte Ausnahme: nur das Profil stellt das ein, `11` 8.2) |
 | Vor-/Nachlauf, Aufbewahren | wie LD-01 | |
+| *Nur Erstausstrahlungen* | *an/**aus*** | *Vorschlag, hängt an F-23.* Wirkt nur, wo die Programmdaten «neu» oder «schon gezeigt» angeben; sonst gesperrt mit «Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht.» |
+| *Zeitfenster und Wochentage* | ***jederzeit*** · *nur zwischen [20:00] und [22:30]; Wochentage (`WeekdayPicker` 6.9)* | *Vorschlag, hängt an F-23* |
+
+Gestrichen gegenüber Fassung 1 (`11` 14.1a): die Wahl «nach Serienkennung oder nach Titel» und der Satz
+«Ähnliche Titel können mitkommen» (widerspricht `09`), «Angesehene zuerst» beim Behalten (widerspricht E-4
+«die letzten N»), der Schalter «Folgen nicht doppelt aufnehmen» (die Erkennung wirkt immer, wo sie
+zuverlässig ist).
 
 Vorschau unten: «Demnächst: So 29.11. 20:05 SRF 1 · (20:15 Das Erste: gleiche Folge, wird übersprungen)
 · So 6.12. 20:05 SRF 1». Knöpfe «Abbrechen» · «Serie aufnehmen» bzw. im Ändern-Modus «Speichern» und
@@ -1136,16 +1249,23 @@ Gefahr-Link «Serienaufnahme beenden» (LD-06).
 
 ### 5.3 LD-03 Manuelle oder wiederkehrende Aufnahme
 
+Manuell (einmal) gehört zu Stufe 5, wiederkehrend zu Stufe 6 (`11` 1). Felder nach `11` 1 und 2.1:
+
 | Feld | Werte |
 |---|---|
 | Sender | Auswahl mit Suche (Nummer, Name) |
-| Datum | Datumsfeld, Vorgabe heute |
-| Von / Bis | Uhrzeit; «Bis» vor «Von» heisst nächster Tag (Hinweis «endet am Folgetag») |
-| Wiederholen | **einmal** · täglich · Mo–Fr · wöchentlich an [Wochentage] |
-| Wiederholung endet | **nie** · am [Datum] · nach [N] Aufnahmen |
-| Name | frei, Vorgabe «TeleZüri, Mo 30.11., 21:00» |
-| Behalten | (nur bei Wiederholung) alle · die letzten N |
+| Wiederholen | **einmal** · täglich · Mo–Fr · an Wochentagen [`WeekdayPicker`] (täglich und Mo–Fr sind nur Vorbelegungen der Wochentage) |
+| Datum | nur bei «einmal»; Datumsfeld, Vorgabe heute |
+| Beginn | Uhrzeit in Ortszeit |
+| Ende (einmal) bzw. Dauer (wiederkehrend) | einmal: Uhrzeit, «Ende» vor «Beginn» heisst nächster Tag (Hinweis «endet am Folgetag»); wiederkehrend: Dauer in Minuten (`11` speichert Dauer, damit die Zeitumstellung nichts verlängert oder kürzt) |
+| Vor-/Nachlauf | ab Werk **0** (die Zeiten sind schon gewählt, `11` 1) |
+| Name | frei, Vorgabe «TeleZüri, Mo 30.11., 21:00» bzw. «TeleZüri, Mo–Fr 21:00» |
+| Behalten | nur bei Wiederholung: **alle** · die letzten N |
 | Aufbewahren | wie LD-01 |
+
+Eine wiederkehrende Aufnahme läuft, **bis das Profil sie beendet** (LD-06); Termine entstehen 14 Tage im
+Voraus (`11` 2.1). Ein Ende «am Datum» oder «nach N Aufnahmen» kennt `11` nicht; es ist *Vorschlag,
+hängt an F-23*, und das Feld fehlt bis dahin.
 
 Hinweis bei Zeitumstellung (siehe LS-12). Einstiege: LS-11 «Neue Aufnahme», LS-15 «Zeit aufnehmen»,
 LS-12 «Anderen Sender wählen».
@@ -1157,27 +1277,33 @@ Jetzt aufnehmen
 SRF zwei · Eishockey: ZSC Lions – HC Davos (bis 21:45)
 
 (•) Bis Sendungsende (21:45, mit Nachlauf bis 21:55)
-( ) 30 Minuten   ( ) 1 Stunde   ( ) Bis ich stoppe (höchstens 4 Stunden)
-Aufbewahren [Standard ▾]
+( ) Bis ich stoppe (höchstens 4 Stunden)
+Aufbewahren [bis du löschst ▾]
 
 Die Aufnahme beginnt jetzt (20:41), nicht am Anfang der Sendung.
                                    [Abbrechen]  [Aufnehmen]
 ```
 
-- Ohne EPG fehlt «Bis Sendungsende», Vorgabe 1 Stunde.
-- Schaut man zeitversetzt: Satz «Du schaust zeitversetzt. Aufgenommen wird ab dem Live-Zeitpunkt.»
+- Zwei Wahlen nach `11` 1: bis Sendungsende plus Nachlauf, oder «bis ich stoppe» mit der Höchstdauer aus
+  LA-14 (Vorgabe 4 Stunden). Kein Vorlauf. Ohne EPG gibt es nur «bis ich stoppe».
+- *Im Mockup anders:* Das Mockup bietet zusätzlich «30 Minuten» und «1 Stunde» an; es entstand vor dem
+  Abgleich mit `11`. Die festen Dauern sind nicht Teil des Umfangs und fallen im Mockup weg.
+- Schaut man zeitversetzt: Knopf «Ab jetzt aufnehmen (live)» und Satz «Du schaust zeitversetzt.
+  Aufgenommen wird ab dem Live-Zeitpunkt.» (`10` 7, F-1 dort; bis zu Marcos Antwort Variante (a)).
 - Fehler Kontingent: Dialog zeigt statt der Auswahl `Notice` danger «Im Speicher deines Kontos ist kein
   Platz frei (200 von 200 GB). Lösche Aufnahmen, um aufzunehmen.» [Meine Aufnahmen] [Schliessen].
 - TV: `TvDialog` mit den Optionen als Liste, OK wählt und startet.
-- Bestätigung: `toast` «Aufnahme läuft bis 21:55.»
+- Bestätigung: `toast` «Aufnahme läuft bis 21:55.» Eine gestoppte Sofortaufnahme gilt als «fertig»
+  (`11` 3.6).
 
 ### 5.5 LD-05 Erinnerung
 
-«Erinnern an ‹Tatort: Die Stille nach dem Sturm› · So 29.11., 20:05 · SRF 1». Zeitpunkt `ChoiceChips`:
-zum Beginn · 2 · **5** · 10 · 15 Min. vorher. Satz zum Weg: «Du bekommst die Erinnerung in Slouchcat
-und als Mitteilung auf deinen Geräten.» (genauer Weg F-6). Knöpfe «Abbrechen», «Erinnern» bzw.
+«Erinnern an ‹Tatort: Die Stille nach dem Sturm› · So 29.11., 20:05 · SRF 1». Zeitpunkt `ChoiceChips`
+nach `03` DR-08: zum Beginn · **5** · 15 · 30 Min. vorher. Satz zum Weg: «Du bekommst die Erinnerung in
+Slouchcat und über die Meldewege deines Kontos.» (Weg nach `03` F-3). Knöpfe «Abbrechen», «Erinnern» bzw.
 «Speichern» und «Erinnerung entfernen». Schnellweg im Raster (Taste E auf gesetzter Erinnerung):
-entfernt ohne Dialog, `toast` «Erinnerung entfernt · Rückgängig».
+entfernt ohne Dialog, `toast` «Erinnerung entfernt · Rückgängig». Nur für Sendungen aus dem Programm,
+nicht für Sender ohne Programmdaten (`03` DR-09).
 
 ### 5.6 LD-06 Löschen und Abbrechen
 
@@ -1218,7 +1344,7 @@ Siehe 4.8. Web als kleiner nicht-modaler Dialog über der Leiste (kein Fokusfang
 
 ### 5.11 LD-11 Aufbewahrung ändern
 
-«Aufbewahren: (•) bis du löschst ( ) 7 ( ) 14 ( ) 30 ( ) 90 Tage ab Aufnahme». Bei Serien mit «behalte
+«Aufbewahren: (•) bis du löschst ( ) 7 ( ) 14 ( ) 30 ( ) 90 Tage ab Ende der Aufnahme». Bei Serien mit «behalte
 N» zusätzlich «Diese Folge immer behalten (zählt nicht zu den 10)». Satz: «Abgelaufene Aufnahmen
 löscht Slouchcat automatisch, weil du es so eingestellt hast.»
 
@@ -1324,6 +1450,9 @@ Vorschläge; Gliederung `live.<bereich>.<name>`.
 | `live.errors.notPlayable` | Dieser Sender lässt sich auf diesem Gerät nicht abspielen. | This channel cannot be played on this device. |
 | `live.errors.gone` | Diesen Sender gibt es nicht mehr. | This channel no longer exists. |
 | `live.errors.busy` | Der Server ist gerade ausgelastet. Versuche es gleich nochmals. | The server is busy. Please try again shortly. |
+| `live.errors.sourceRefused` | Für diesen Sender ist gerade keine weitere Verbindung möglich. Versuche einen anderen Sender. | No further connection is possible for this channel right now. Try another channel. |
+| `live.player.retuned` | Neu eingeschaltet | Tuned in again |
+| `live.player.oldestGone` | Die älteste Minute ist weggefallen. Weiter ab {{time}}. | The oldest minute has been dropped. Continuing from {{time}}. |
 | `live.zap.confirm` | Du schaust {{offset}} zeitversetzt. Beim Senderwechsel geht das verloren. | You are {{offset}} behind live. Switching channels discards it. |
 | `live.zap.pressAgain` | Nochmals drücken zum Wechseln | Press again to switch |
 | `live.rec.record` | Aufnehmen | Record |
@@ -1336,8 +1465,10 @@ Vorschläge; Gliederung `live.<bereich>.<name>`.
 | `live.rec.keep` | Aufbewahren | Keep |
 | `live.rec.keepUntilDeleted` | bis du löschst | until you delete |
 | `live.rec.keepLast_other` | die letzten {{count}} Folgen | the last {{count}} episodes |
-| `live.rec.onlyNew` | Nur Erstausstrahlungen | New episodes only |
-| `live.rec.noDuplicates` | Folgen nicht doppelt aufnehmen | Skip episodes already recorded |
+| `live.rec.episodesKnown` | Folgen werden erkannt. Schon aufgenommene Folgen werden übersprungen. | Episodes are recognised. Episodes already recorded are skipped. |
+| `live.rec.episodesUnknown` | Folgen nicht identifizierbar: Wiederholungen werden mit aufgenommen. | Episodes cannot be identified: repeats are recorded too. |
+| `live.rec.startNowLive` | Ab jetzt aufnehmen (live) | Record from now (live) |
+| `live.rec.untilStopped` | Bis ich stoppe (höchstens {{hours}} Stunden) | Until I stop (at most {{hours}} hours) |
 | `live.rec.startsNow` | Die Aufnahme beginnt jetzt ({{time}}), nicht am Anfang der Sendung. | Recording starts now ({{time}}), not at the beginning of the programme. |
 | `live.rec.mine` | Meine Aufnahmen | My recordings |
 | `live.rec.profiles` | Aufnahmen meiner Profile | My profiles' recordings |
@@ -1383,73 +1514,86 @@ Xtream-Bibliotheken.
 
 ## 9. Offene Gestaltungsfragen
 
-**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.**
-Varianten: (A) alle Profile ab Werk aus, das Hauptprofil schaltet ein; (B) Profile ohne Altersgrenze
-ab Werk an, Profile mit Altersgrenze aus; (C) alle an. Weil das Konto-Recht ab Werk aus ist (LA-22),
-wirkt nichts, bevor der Server-Admin das Konto freischaltet. **Empfehlung B:** Für Erwachsene genügt
-dann die Freischaltung des Kontos; Kinder bleiben ohne bewusste Freigabe des Hauptprofils draussen
-(passt zu LTV-015 «Hauptnutzer entscheidet ausdrücklich»).
+Erledigte oder in ein anderes Dokument gewanderte Fragen bleiben mit ihrer Nummer stehen.
 
-**F-2 Live-TV auf der Startseite der App.** (A) nein, Live-TV nur im eigenen Bereich; (B) neue
-Reihenart «Jetzt im Fernsehen» für die Startseite, vom Server-Admin wie andere Reihen ein- und
-ausschaltbar (Vertrag `HomeRow`). **Empfehlung A** für die erste Stufe; B als spätere Stufe, falls
-gewünscht. Aufnahmen kommen in keiner Variante auf die Startseite.
+**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.** Teilweise erledigt
+durch `03` DR-01 (Profile mit Altersgrenze ab Werk aus); der Rest ist **siehe `03` F-1** (Empfehlung dort (a),
+deckt sich mit der früheren Empfehlung hier).
 
-**F-3 Live-TV in der allgemeinen Suche.** (A) gar nicht; (B) nur ein Verweis «Im TV-Programm suchen»;
-(C) eigene Treffergruppe «Im Fernsehen» mit Sendern und Sendungen. **Empfehlung B:** klar getrennt,
-kein Mischen mit Bibliothekstiteln, wenig Aufwand. Aufnahmen nie.
+**F-2 Live-TV auf der Startseite der App.** **Erledigt durch `03` DR-23:** keine Live-TV-Reihe auf der
+Startseite (LS-26).
+
+**F-3 Live-TV in der allgemeinen Suche.** **Siehe `03` F-5** (Empfehlung dort (a): nur im Live-TV-Bereich,
+weil die allgemeine Suche altersgefiltert ist, `02` A-2). Die frühere Empfehlung «nur ein Verweis» ist
+zurückgezogen; wählt Marco `03` F-5 (b), wird LS-24 entsprechend gebaut.
 
 **F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** Festgelegt ist
-«sehen, löschen, abspielen» der Aufnahmen. Offen: (A) nur Aufnahmen; (B) dazu die geplanten Termine und
-Regeln nur lesend; (C) geplante auch abbrechen und ändern. Dazu: Bekommt das Profil eine Meldung, wenn
-das Hauptprofil eine seiner Aufnahmen löscht? **Empfehlung B** mit Meldung an das Profil: Das Hauptprofil
-versteht, warum Speicher knapp wird, ohne die Planung des Kindes zu übernehmen.
+«sehen, löschen, abspielen» der Aufnahmen (E-3, `03` DR-02). Offen: (A) nur Aufnahmen; (B) dazu die
+geplanten Termine und Regeln nur lesend; (C) geplante auch abbrechen und ändern. Dazu: Bekommt das Profil
+eine Meldung, wenn das Hauptprofil eine seiner Aufnahmen löscht? **Empfehlung B** mit Meldung an das Profil.
+Bis zur Antwort zeigt LS-14 die geplanten Termine nur als Zahl (wie `08` und das Mockup).
 
-**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** (A) eigener
-Fortschritt des Hauptprofils, das Kind sieht nichts davon; (B) gemeinsamer Fortschritt. **Empfehlung A**
-(Privatsphäre bleibt, «Neu» beim Kind bleibt «Neu»).
+**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** **Erledigt durch
+`03` DR-21 und `11` 6.3:** kein Fortschritt, weder beim Profil noch beim Hauptprofil (LS-10).
 
-**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** Heute stellt man Meldewege je **Konto** ein;
-E-Mail und Telegram eines Kontos sehen alle Profile. (A) nur in der Glocke des Profils und als
-Mitteilung auf Geräten, auf denen gerade dieses Profil gewählt ist; E-Mail und Telegram gar nicht;
-(B) wie A, dazu E-Mail/Telegram, wenn das Konto es einschaltet, mit Hinweis «Alle Profile des Kontos
-sehen diese Meldungen»; (C) wie alle anderen Ereignisse an das ganze Konto. **Empfehlung A** für
-Erinnerungen (zeitkritisch, privat), **B** für «Aufnahme fertig/fehlgeschlagen/abgelehnt». Die Meldung
-«abgelehnt» geht nach Marcos Entscheid an Profil und Hauptprofil.
+**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** **Siehe `03` F-3** (Empfehlung dort (a):
+Posteingang des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile ohne Titel nach DR-05). Die
+frühere Empfehlung hier (Erinnerungen nur im Posteingang und auf Geräten des Profils) bleibt als Hinweis
+für Marco: Bei gemeinsamer E-Mail sehen andere Profile, dass eine Erinnerung kam.
 
-**F-7 Bedienung des TV-Players mit Steuerkreuz.** (A) ↑/↓ = Sender ±, ← = Senderliste, → = Info,
-OK = Bedienleiste, Pause über die Pausetaste (wie verbreitete Live-TV-Apps; anders als der
-Videoplayer, wo ↑/↓ die Bedienung zeigen und OK pausiert); (B) wie der Videoplayer: OK = Pause, ←/→
-spulen, ↑ = Bedienung, ↓ = Senderliste, Senderwechsel nur über Liste, Kanaltasten und Ziffern.
-**Empfehlung A:** Schnelles Zappen ist Priorität (LTV-010), und viele Fernbedienungen haben keine
-Kanaltasten. Spulen bleibt in der Bedienleiste mit ←/→.
+**F-7 Bedienung des TV-Players mit Steuerkreuz.** (A) OK = Bedienleiste, ← = Senderliste links, → =
+Info, ↑/↓ ohne sichtbare Bedienung = Sender ±, Pause über die Pausetaste (wie verbreitete Live-TV-Apps;
+**so ist das TV-Mockup gebaut**); (B) wie der Videoplayer: OK = Pause, ←/→ spulen, ↑ = Bedienung, ↓ =
+Senderliste, Senderwechsel nur über Liste, Kanaltasten und Ziffern. **Empfehlung A:** Schnelles Zappen ist
+Priorität (LTV-010), und viele Fernbedienungen haben keine Kanaltasten. Spulen bleibt in der Bedienleiste
+mit ←/→. Hängt mit `03` F-6 zusammen (wann die TV-App Live-TV bekommt, `18` 5).
 
-**F-8 Altersangaben der Programmdaten anzeigen?** Manche Programmdaten liefern eine Altersangabe
-(z. B. «ab 12»). (A) nie anzeigen, weil Slouchcat sie nicht prüft und die Anzeige Schutz vortäuschen
-könnte; (B) als reine Information auf der Detailseite mit dem Satz «Angabe des Senders, Slouchcat prüft
-sie nicht». **Empfehlung A** (klar und im Sinn von LTV-015). Gefiltert wird in keiner Variante.
+**F-8 Altersangaben der Programmdaten anzeigen?** (A) nie anzeigen, weil Slouchcat sie nicht prüft und die
+Anzeige Schutz vortäuschen könnte; (B) als reine Information auf der Detailseite mit dem Satz «Angabe des
+Senders, Slouchcat prüft sie nicht». **Empfehlung A.** Gefiltert wird in keiner Variante (LTV-015).
 
-**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** (A) immer fragen, wenn man zeitversetzt
-schaut; (B) erst ab 60 s Abstand zu Live oder bei Pause, mit «Nicht mehr fragen»; (C) nie fragen,
-nur danach `toast` «Zeitversatz verworfen». **Empfehlung B** (schützt längeres Zurückspulen, stört
-schnelles Zappen nicht).
+**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** (A) immer fragen; (B) erst ab 60 s Abstand zu
+Live oder bei Pause, mit «Nicht mehr fragen»; (C) nie fragen, nur danach `toast` «Zeitversatz verworfen».
+**Empfehlung B.** Stufe 4 (`18` 4.7).
 
-**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** (A) Aufnahmen
-bleiben sichtbar, abspielbar und löschbar, nur neue Aufnahmen und Planungen gehen nicht (Planungen
-ruhen); (B) alles unsichtbar, aber erhalten, bis das Recht zurückkommt. Fällt das Recht «Live-TV» ganz
-weg, ist der Bereich unsichtbar (Grundsatz); dann gilt B ohnehin. **Empfehlung A** für den Wegfall nur
-von «Aufnahmen»: Das Profil kann Speicher freigeben, und nichts verschwindet überraschend. Die
-Rechteregel «ohne Recht unsichtbar» zielt auf die Funktion, nicht auf eigene Daten; falls Marco sie
-wörtlich auch auf eigene Aufnahmen anwenden will, gilt B.
+**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** **Siehe `03` F-7.**
+Dort gilt in allen Varianten: vorhandene Aufnahmen sind für das Profil 404 und bleiben gespeichert;
+Planungen ruhen nach (a). Die frühere Empfehlung hier (Aufnahmen bleiben sichtbar und löschbar) ist
+zurückgezogen, weil sie «ohne Recht unsichtbar» widerspricht. Freigeben von Speicher geht über das
+Hauptprofil (`03` DR-03) oder nach Rückgabe des Rechts. Ob das Hauptprofil auch löschen darf, wenn das Konto
+gar kein Live-TV mehr hat: `08` F-1.
 
-**F-11 Sendungsbilder im Raster.** (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine
-Bilder in breiten Zellen. **Empfehlung A**; Bilder in Fokus-Vorschau, Karten und Detailseite.
+**F-11 Sendungsbilder im Raster.** (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine Bilder
+in breiten Zellen. **Empfehlung A**; Bilder in Fokus-Vorschau, Karten und Detailseite.
 
-**F-12 Live-TV-Eintrag in der Web-Navigation.** (A) im Band «Meine Medien» neben Radio (Medienauswahl
-links, Reihenfolge durch den Server-Admin); (B) in der Hauptgruppe neben Start und Suche. **Empfehlung
-A** (passt zu Marcos Regel und zum Radio).
+**F-12 Live-TV-Eintrag in der Web-Navigation.** Grundsatz durch `03` DR-23 (Annahme) festgelegt: Eintrag in
+der Hauptnavigation und in «Meine Medien». Offen bleibt nur die Auslegung: (A) ein Eintrag im Band «Meine
+Medien» der Seitenleiste wie Webradio (so das Mockup); (B) zusätzlich ein Eintrag in der oberen Gruppe
+neben Start und Suche. **Empfehlung A** (Medienauswahl links, eine Stelle, ordnet und versteckt der
+Administrator).
 
----
+**F-23 Zusätzliche Felder für Serien- und wiederkehrende Aufnahmen.** Der Auftrag verlangt (LTV-008)
+Serienaufnahmen, wiederkehrende Aufnahmen, Vor- und Nachlauf, Aufbewahrung und das Erkennen schon
+aufgenommener Folgen «sofern zuverlässig identifizierbar». Das deckt `11` ab. Die Mockups und Fassung 1
+dieses Dokuments zeigen darüber hinaus: Zeitfenster und Wochentage als Filter einer **Serienregel**, «nur
+Erstausstrahlungen» und ein Ende einer **wiederkehrenden** Aufnahme («am Datum» oder «nach N»). `11`
+14.1a und `07` (W-10, W-11, O-3) modellieren sie nicht.
+- **(A) Ohne diese Felder, wie `11`.** Eine Serienregel nimmt jede Ausstrahlung mit gleichem Titel auf
+  dem gewählten Sender oder allen Sendern auf; eine wiederkehrende Aufnahme läuft, bis das Profil sie
+  beendet. Folge: am einfachsten; weil die meisten Programmdaten keine Folgenkennung liefern (`09` 7,
+  V-9 in `18`), nimmt eine Serienregel dann auch jede Wiederholung zu jeder Tageszeit auf; «behalte N»
+  mildert den Platzbedarf.
+- **(B) Mit Zeitfenster und Wochentagen für Serien** (und «nur Erstausstrahlungen», nur wo die
+  Programmdaten «neu» oder «schon gezeigt» angeben). Folge: Das Profil kann «Tatort, nur Sonntag 20:00 bis
+  22:30» sagen und so Wiederholungen ohne Folgenkennung ausschliessen; zwei Spalten mehr in der Regel,
+  mehr Prüfung im Planer. Es bleibt ein vom Profil gewählter Filter, kein Suchwort (Ausschluss
+  «suchwortbasierte Aufnahmen» bleibt unberührt).
+- **(C) wie B, dazu ein Ende der wiederkehrenden Aufnahme** («am Datum» oder «nach N Aufnahmen»).
+  Folge: bequemer für befristete Sendeplätze; ohne C beendet das Profil die Regel von Hand.
+
+**Empfehlung B** (ohne C): Es ist das wirksamste Mittel gegen Wiederholungen, solange Programmdaten
+selten eine Folgenkennung tragen. Bis zur Antwort gilt A; die Felder stehen in LD-02 und LD-03 als
+«Vorschlag, hängt an F-23» und werden nicht gebaut.
 
 ## 10. Abdeckung des Auftrags
 
@@ -1482,12 +1626,12 @@ A** (passt zu Marcos Regel und zum Radio).
 | LTV-014 kein neues Designsystem | Grundsatz 8, Abschnitt 6 |
 | LTV-005 Programmsuche, Erinnerungen, Aufnahme aus EPG, unvollständige Daten ehrlich, Ausfall stoppt TV nicht | LS-05, LS-13, 4.1, 4.4, Grundsatz 4 |
 | LTV-007 Timeshift ab Einschalten, pausieren, zurück, vor, zu Live, Senderwechsel löscht, nicht vor Einschalten | 4.6, 4.7, 4.8, LD-10 |
-| LTV-008 Sofort, geplant, aus EPG, manuell, Serie, wiederkehrend, Vor-/Nachlauf, Episoden erkennen, Fristen, Konflikte, EPG-Anpassung, Übersichten laufend/geplant/fertig/fehlgeschlagen, Wiedergabe, Löschen, unvollständig verständlich | LD-01–04, LS-08–12, LD-11 |
-| LTV-009 privat je Profil, eigener Fortschritt, eigene Löschung, Kontingent je Konto | Grundsatz 3, LS-08 Speicherleiste, LS-10 |
-| LTV-010 Fast Zapping in der Bedienung, Favoriten | 4.8 Zapping-Liste, 4.11 |
+| LTV-008 Sofort, geplant, aus EPG, manuell, Serie, wiederkehrend, Vor-/Nachlauf, Episoden erkennen «sofern zuverlässig», Fristen, Konflikte, EPG-Anpassung, Übersichten laufend/geplant/fertig/fehlgeschlagen, Wiedergabe, Löschen, unvollständig verständlich | LD-01–04 (Felder nach `11` 1 und 2, Zusätze F-23), LS-08–12, LD-11 |
+| LTV-009 privat je Profil, eigener Fortschritt, eigene Löschung, Kontingent je Konto | Grundsatz 3, LS-08 Speicherleiste, LS-10 (Fortschritt nach `03` DR-21), LS-14 |
+| LTV-010 Fast Zapping in der Bedienung, Favoriten, Zielzeiten | 4.8 Zapping-Liste und Bremse, 4.11 Ladeschwellen, 4.10 Umwandlung im Browser |
 | LTV-012 Rechte Konto und Profil, nie mehr als das Konto | 1.3 |
-| LTV-015 Freigabe durch Hauptprofil, keine Altersprüfung, unsichtbar ohne Freigabe, Aufnahmen von Kinderprofilen | 1.3, Grundsatz 1–2, LS-14, F-1, F-4, F-8 |
-| LTV-016 ein Sender je Player | Grundsatz 6, 4.9 |
+| LTV-015 Freigabe durch Hauptprofil, keine Altersprüfung, unsichtbar ohne Freigabe, Aufnahmen von Kinderprofilen | 1.3 (`03` DR-01), Grundsatz 1–2, LS-14 (`03` DR-02, DR-03), F-4, F-8 |
+| LTV-016 ein Sender je Player; mehrere Geräte im Rahmen der Grenzen | Grundsatz 6, 4.9, 4.5 «Hintergrund», 4.12 Grenzen |
 | 13.1 Startseite, Senderübersicht, Sendergruppen, Favoriten | LS-01, LS-02 (Gruppe), LS-03 |
 | 13.1 Programmzeitschrift, Sendungsdetails | LS-04, LS-06 |
 | 13.1 Live-Player, Senderwechsel im Player, Timeshift-Bedienung | LS-07, 4.5–4.9 |
@@ -1497,5 +1641,68 @@ A** (passt zu Marcos Regel und zum Radio).
 | 13.1 Leere, Lade-, Fehlerzustände | Zustandstabelle Abschnitt 2, je Seite, 4.11, 4.12 |
 | 13.3 Hauptnavigation, Profilverwaltung, Kinderprofil-Einstellungen | LS-20, LS-21 (1.3) |
 | 13.3 weitere betroffene Seiten (Zuschauer) | LS-22 bis LS-26 |
-| 13.4 realistische Beispieldaten, erkennbar simuliert | 0.1 |
+| 13.4 realistische Beispieldaten, erkennbar simuliert | 0.1 (abgeglichen mit dem Mockup) |
+| 13 Abgleich mit den gebauten Mockups | Abschnitt 11 |
+| LTV-021 Stufen | Spalte «Stufe» in 1.2 und 2, Dialogliste |
 | 16 Ausschlüsse | Abschnitt 8 |
+
+---
+
+## 11. Abweichungen der Mockups (Entscheid je Abweichung)
+
+Grundlage: `19-mockups.md` Abschnitt 6. «Nachgezogen» heisst: dieses Dokument folgt dem Mockup.
+
+| Abweichung (`19` 6) | Entscheid | Stelle |
+|---|---|---|
+| LS-21: Hinweis «zeigt alles» nur bei Profilen mit Altersgrenze | entspricht diesem Dokument | 1.3 |
+| LS-15: auch künftige Lücken ohne Programmdaten haben «Zeit aufnehmen» | nachgezogen | 3.15 |
+| LS-25, LD-10, LD-09, Ausblenden nach 4 s | entspricht diesem Dokument | 1.2, 5.10, 5.9, 4.5 |
+| Programm-Überlagerung zeigt Details künftiger Sendungen als Seitenleiste | nachgezogen | 4.9 |
+| «Recht entzogen» mit eigener Adresse im Mockup | nur Mockup; im Produkt Fehlerbild im Player, danach 404 | 4.12 |
+| LS-14: geplante Termine nur als Zahl | nachgezogen als Zwischenstand; offen F-4 | 3.14 |
+| TV: OK zeigt die Bedienleiste, ← die Senderliste | bleibt Frage F-7; das Mockup ist Variante A | 4.13, F-7 |
+| TV: Senderliste folgt der Herkunftsliste, Favoriten nur mit Herz | nachgezogen | 4.5 |
+| TV: «2 h»-Knöpfe im Raster | nachgezogen | 4.3 |
+| TV: kein LD-09; LS-21, LS-23, LS-24, LS-26 minimal | entspricht diesem Dokument | 3.2, 1.2 |
+| Handy: «Programm» im Player als Blatt | nachgezogen | 4.9 |
+| Handy: «Details» im Player beendet die Wiedergabe | entspricht Grundsatz 6 | 4.9 |
+| alle: Ladezeiten verkürzt | nur Mockup | 4.11 |
+| (nicht in `19` 6) LD-04 mit festen Dauern 30 Min./1 Std. | **im Mockup anders**, weil vor dem Abgleich mit `11` gebaut; die Dauern gehören nicht zum Umfang und fallen im Mockup weg | 5.4 |
+| (nicht in `19` 6) LD-02 mit Zeitfenster, «nur Erstausstrahlungen», «nach Titel/ähnlich» | Zeitfenster und Erstausstrahlung als Vorschlag hinter F-23; «ähnlich» und «angesehene zuerst» gestrichen; Mockup nachzuziehen | 5.2 |
+| (nicht in `19` 6) LD-05 mit Stufen 2 und 10 Minuten | im Mockup anzugleichen an `03` DR-08 (0, 5, 15, 30) | 5.5 |
+
+---
+
+## 12. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Konsolidierung 1, 28. November 2026):
+
+- **Kopf und Rahmen:** massgebliche Quellen genannt; Spalte «Stufe» für jede Seite und jeden Dialog nach
+  `18` 4.3 bis 4.13; Reihenfolge der Clients nach `18` 5 und `03` F-6 (Koordinator).
+- **Zahlen nach `04` 14:** Timeshift-Werksvorgabe 60 Minuten (Beispielinstanz 2 Stunden), Deckel mit
+  Kürzung bis höchstens 5 Minuten, Ladeschwellen 0,5 / 3 / 15 Sekunden mit Herkunft, Stillstand 10 Sekunden,
+  Wiederverbindungsleiter, Bremse beim Umschalten (`RUECKMELDUNGEN` 10/11 Nr. 1; `17`; Koordinator).
+- **LD-02 und LD-03 an `11` angeglichen:** «ähnliche Titel», «nach Serienkennung oder Titel», «Angesehene
+  zuerst» und der Schalter gegen doppelte Folgen gestrichen; Folgenerkennung als Anzeige mit Option für
+  unsichere Angaben; wiederkehrend mit Beginn und Dauer, Vorlauf 0, Ende nur durch das Profil; Zeitfenster,
+  Wochentage, «nur Erstausstrahlungen» und ein Ende der Wiederholung als Vorschlag hinter **neuer Frage
+  F-23** (`11` 14.1a, O-6; `07` W-10, W-11; Nachtrag des Koordinators).
+- **LD-04:** nur «bis Sendungsende» und «bis ich stoppe» (`11` 1); Knopf «Ab jetzt aufnehmen (live)» bei
+  Zeitversatz (`10` 7, F-1 dort).
+- **LD-05 und LS-13:** Vorlauf der Erinnerung 0, 5, 15, 30 Minuten nach `03` DR-08 (`07` W-2; Rückmeldung
+  aus `09`); Kanäle nach `03` F-3; PIN-Profile nach DR-05.
+- **LS-10, LS-14:** kein Fortschritt beim Abspielen durch das Hauptprofil (`03` DR-21, `07` W-20); Löschen
+  ohne Recht, Abspielen nur mit eigenem Live-TV (DR-03); Zugang auch aus der Profilverwaltung (DR-02).
+- **LS-12:** Konflikte K-1 bis K-6 aus `11` 4.1, Überschneidung ausdrücklich kein Konflikt, Aufnahmen
+  zählen nicht zu den Stream-Grenzen (DR-11, DR-12).
+- **LS-22:** drei Ereignisarten statt vier (`07` W-21). **LS-24:** nach `03` F-5. **LS-05:** keine Suche
+  in der Beschreibung in Stufe 2 (`08` W-26).
+- **Player:** Hintergrund und Bildschirm aus beenden die Sitzung in den Apps (`04` 10.3); Umwandlung von
+  HEVC und AC-3 im Browser im Qualitätsmenü und in der Ladezeit sichtbar (`05` 5.3); neue Fehlerbilder
+  «Quelle lehnt weitere Verbindung ab» und «sofort beendet» (`04` 5.3, T-29); Pause nach Fensterverlust an
+  den neuen Fensteranfang (`10` 5).
+- **Zuletzt gesehen:** 20 Sender (DR-15). **Deaktivierte und verschwundene Sender** unsichtbar (DR-16).
+- **Fragen:** F-2 und F-5 erledigt; F-1, F-3, F-6, F-10 verweisen auf `03`; F-12 auf die Auslegung von
+  DR-23 eingeengt; F-7 nennt das Mockup als Variante A; neu F-23.
+- **Mockups:** Abschnitt 11 mit einem Entscheid je Abweichung (`19` 6).
+- **Beispieldaten** an das Mockup angeglichen (Belegung 82 / 56,7 / 3,3 GB in 31 Aufnahmen).
