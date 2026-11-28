@@ -244,6 +244,16 @@ tasks:
     cmds:
       - scripts/heavy-slot.test.sh
 
+  # What broke in a CI run, without loading whole job logs into an agent's context: failed steps,
+  # class, proven flakes, annotations and the error lines (docs/perf/ci-optimierungsplan.md, M3).
+  # Read-only, needs `gh` signed in. The whole logs stay on disk (CI_FAILURES_DIR).
+  ci:failures:
+    desc: 'The failed jobs of a CI run with their error lines: task ci:failures RUN=<run id or URL>'
+    requires:
+      vars: [RUN]
+    cmds:
+      - scripts/ci-failures.sh '{{.RUN}}'
+
   # Translation tools of concept 22 (scripts/i18n, Node type stripping, no build step).
   # i18n:check is the release gate of 4.8: every locale file complete and consistent with en.json,
   # the server texts too (TestServerTexts, strict for every language with SLOUCHCAT_I18N_STRICT).

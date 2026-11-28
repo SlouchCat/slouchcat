@@ -934,6 +934,13 @@ jobs:
           status=0
           skip_ok=false
           reason=
+          # Everything printed here also goes to the run's summary page, so the result of every
+          # job can be read there without opening a log (docs/perf/ci-optimierungsplan.md, M3).
+          report=$(mktemp)
+          out() {
+            echo "$1"
+            echo "$1" >>"$report"
+          }
           if [ "$CHANGES" = success ] && [ "$DOCS_ONLY" = true ]; then
             skip_ok=true
             reason="documentation only"
@@ -943,18 +950,32 @@ jobs:
             # The informational jobs of that run (.github/ci-informational-jobs.txt): not judged,
             # by the gate there or here, but named so a red one is not lost.
             if [ -n "${TESTED_NOTE:-}" ]; then
-              echo "Informational jobs of that run: $TESTED_NOTE"
+              out "Informational jobs of that run: $TESTED_NOTE"
             fi
           fi
           check() {
             if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
-              printf '%-14s %s\n' "$1" "skipped ($reason)"
+              out "$(printf '%-16s %s' "$1" "skipped ($reason)")"
               return
             fi
-            printf '%-14s %s\n' "$1" "$2"
+            out "$(printf '%-16s %s' "$1" "$2")"
             [ "$2" = success ] || status=1
           }
-          printf '%-14s %s (documentation only: %s)\n' changes "$CHANGES" "${DOCS_ONLY:-?}"
+          # Written whatever the result, right before `exit $status` decides the gate.
+          summary() {
+            {
+              echo "### Gate \`ci\`"
+              echo
+              echo '```'
+              cat "$report"
+              echo '```'
+              if [ "$status" != 0 ]; then
+                echo
+                echo "Red. The failed steps with their error lines, without reading whole logs: \`task ci:failures RUN=$GITHUB_RUN_ID\`"
+              fi
+            } >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
+          }
+          out "$(printf '%-16s %s (documentation only: %s)' changes "$CHANGES" "${DOCS_ONLY:-?}")"
           [ "$CHANGES" = success ] || status=1
           check server-lint   '${{ needs.server-lint.result }}'
           check server-groups '${{ needs.server-groups.result }}'
@@ -967,4 +988,5 @@ jobs:
           check build         '${{ needs.build.result }}'
           check e2e           '${{ needs.e2e.result }}'
           check image         '${{ needs.image.result }}'
+          summary
           exit $status
