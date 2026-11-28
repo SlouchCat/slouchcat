@@ -66,6 +66,13 @@ jobs:
       tested: ${{ steps.tested.outputs.tested }}
       tested_run: ${{ steps.tested.outputs.run }}
       tested_note: ${{ steps.tested.outputs.note }}
+      run_server: ${{ steps.affected.outputs.run_server }}
+      run_relay: ${{ steps.affected.outputs.run_relay }}
+      run_android: ${{ steps.affected.outputs.run_android }}
+      run_android_server: ${{ steps.affected.outputs.run_android_server }}
+      run_web: ${{ steps.affected.outputs.run_web }}
+      run_e2e: ${{ steps.affected.outputs.run_e2e }}
+      run_image: ${{ steps.affected.outputs.run_image }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,6 +108,29 @@ jobs:
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
           echo "Documentation only: $docs_only"
 
+      # Which job groups the change can turn red (.github/scripts/affected-jobs.sh, M9): on a pull
+      # request from its paths, everything else checks everything. A group that is not affected
+      # skips, and the gate counts that skip as green only with this answer. A merge of such a pull
+      # request is never taken over by main (already-tested.sh: skipped jobs are no proof), so main
+      # checks the merged content in full.
+      # The map holds against the code: a test or build that reads a file across a module
+      # boundary the map does not cover makes this job red, and with it the gate, before a pull
+      # request can skip a job it needs. Bash and grep only, a second or two; here rather than in
+      # task ci:workflows alone, because that runs in a job the map may skip.
+      - name: The map of affected jobs holds against the code
+        run: .github/scripts/affected-jobs.test.sh
+
+      - id: affected
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = pull_request ]; then
+            .github/scripts/affected-jobs.sh < changed.txt | tee -a "$GITHUB_OUTPUT"
+          else
+            for g in server relay android android_server web e2e image; do echo "run_$g=true"; done | tee -a "$GITHUB_OUTPUT"
+          fi
+
       - id: tested
         env:
           EVENT: ${{ github.event_name }}
@@ -125,7 +155,7 @@ jobs:
   server-lint:
     name: server (generators, linters)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_server == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -168,7 +198,7 @@ jobs:
   server-groups:
     name: server test groups
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_server == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -186,7 +216,7 @@ jobs:
   server-test:
     name: server tests (${{ matrix.group }})
     needs: [changes, server-groups]
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_server == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
@@ -268,7 +298,7 @@ jobs:
   relay:
     name: relay (build, linters, tests, images)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_relay == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -332,7 +362,7 @@ jobs:
     # On main also when a pull-request run already checked the content: this job saves the Gradle
     # build cache there, and the next pull requests start from it (step "Save the Gradle build
     # cache" below). Skipping it after such a merge would leave the cache behind the sources.
-    if: needs.changes.outputs.docs_only != 'true' && (needs.changes.outputs.tested != 'true' || github.ref == 'refs/heads/main')
+    if: needs.changes.outputs.docs_only != 'true' && (needs.changes.outputs.tested != 'true' || github.ref == 'refs/heads/main') && needs.changes.outputs.run_android == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -438,7 +468,7 @@ jobs:
   android-contract:
     name: android-contract (client against a real server)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_android_server == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -517,7 +547,7 @@ jobs:
   android-emulator:
     name: android-emulator (flow, informational)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_android_server == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     continue-on-error: true
@@ -632,7 +662,7 @@ jobs:
   web:
     name: web (${{ matrix.name }})
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -656,7 +686,7 @@ jobs:
   storybook:
     name: web (Storybook screenshots)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -687,7 +717,7 @@ jobs:
   build:
     name: build (server binary with the web assets)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_e2e == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -730,7 +760,7 @@ jobs:
   e2e:
     name: e2e (shard ${{ matrix.shard }})
     needs: [changes, build]
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_e2e == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -821,7 +851,7 @@ jobs:
   image:
     name: image (amd64, arm64)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true' && needs.changes.outputs.run_image == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -980,6 +1010,13 @@ jobs:
           TESTED: ${{ needs.changes.outputs.tested }}
           TESTED_RUN: ${{ needs.changes.outputs.tested_run }}
           TESTED_NOTE: ${{ needs.changes.outputs.tested_note }}
+          RUN_SERVER: ${{ needs.changes.outputs.run_server }}
+          RUN_RELAY: ${{ needs.changes.outputs.run_relay }}
+          RUN_ANDROID: ${{ needs.changes.outputs.run_android }}
+          RUN_ANDROID_SERVER: ${{ needs.changes.outputs.run_android_server }}
+          RUN_WEB: ${{ needs.changes.outputs.run_web }}
+          RUN_E2E: ${{ needs.changes.outputs.run_e2e }}
+          RUN_IMAGE: ${{ needs.changes.outputs.run_image }}
         run: |
           set -eu
           status=0
@@ -1004,9 +1041,16 @@ jobs:
               out "Informational jobs of that run: $TESTED_NOTE"
             fi
           fi
+          # check <job> <result> <run flag of its group>. A skip is green when "changes" succeeded
+          # and said documentation only, already checked, or (M9) that the change cannot reach
+          # this job's group; any other skip stays red.
           check() {
             if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
               out "$(printf '%-16s %s' "$1" "skipped ($reason)")"
+              return
+            fi
+            if [ "$2" = skipped ] && [ "$CHANGES" = success ] && [ "${3:-}" = false ]; then
+              out "$(printf '%-16s %s' "$1" "skipped (not affected by the change)")"
               return
             fi
             out "$(printf '%-16s %s' "$1" "$2")"
@@ -1028,16 +1072,16 @@ jobs:
           }
           out "$(printf '%-16s %s (documentation only: %s)' changes "$CHANGES" "${DOCS_ONLY:-?}")"
           [ "$CHANGES" = success ] || status=1
-          check server-lint   '${{ needs.server-lint.result }}'
-          check server-groups '${{ needs.server-groups.result }}'
-          check server-test   '${{ needs.server-test.result }}'
-          check relay         '${{ needs.relay.result }}'
-          check android       '${{ needs.android.result }}'
-          check android-contract '${{ needs.android-contract.result }}'
-          check web           '${{ needs.web.result }}'
-          check storybook     '${{ needs.storybook.result }}'
-          check build         '${{ needs.build.result }}'
-          check e2e           '${{ needs.e2e.result }}'
-          check image         '${{ needs.image.result }}'
+          check server-lint   '${{ needs.server-lint.result }}' "$RUN_SERVER"
+          check server-groups '${{ needs.server-groups.result }}' "$RUN_SERVER"
+          check server-test   '${{ needs.server-test.result }}' "$RUN_SERVER"
+          check relay         '${{ needs.relay.result }}' "$RUN_RELAY"
+          check android       '${{ needs.android.result }}' "$RUN_ANDROID"
+          check android-contract '${{ needs.android-contract.result }}' "$RUN_ANDROID_SERVER"
+          check web           '${{ needs.web.result }}' "$RUN_WEB"
+          check storybook     '${{ needs.storybook.result }}' "$RUN_WEB"
+          check build         '${{ needs.build.result }}' "$RUN_E2E"
+          check e2e           '${{ needs.e2e.result }}' "$RUN_E2E"
+          check image         '${{ needs.image.result }}' "$RUN_IMAGE"
           summary
           exit $status

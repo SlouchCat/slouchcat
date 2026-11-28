@@ -133,6 +133,11 @@ tasks:
       - Taskfile.yml
       - scripts/ci-failures*.sh
       - server/tools/ciworkflows/**/*
+      # The map of affected jobs is checked against the files these read (affected-jobs.test.sh).
+      - server/**/*.go
+      - relay/**/*.go
+      - android/**/*.kts
+      - web/e2e/**/*
       - server/go.mod
       - server/go.sum
     cmds:
@@ -295,6 +300,7 @@ tasks:
         actionlint
       - cd server && go run ./tools/ciworkflows/cmd/ciworkflows ../.github/workflows/ci.yml ../.github/ci-informational-jobs.txt
       - .github/scripts/already-tested.test.sh
+      - .github/scripts/affected-jobs.test.sh
       - scripts/ci-failures.test.sh
 
   # zizmor's audit of the workflows, offline (no token, no network), for a person or an agent
