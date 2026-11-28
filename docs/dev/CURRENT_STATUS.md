@@ -1,8 +1,8 @@
 # Aktueller Stand
 
-## CI-Optimierung Welle 3: Cache-Haushalt, Release-Härtung, zwei Flakes (28. November 2026)
+## CI-Optimierung Welle 3: Cache-Haushalt, Release-Härtung, zwei Flakes (28. November 2026, PR #244)
 
-Zweig `claude/ci-welle3`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
+PR #244, Zweig `claude/ci-welle3`. Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig
 umzusetzen (`docs/perf/ci-optimierungsplan.md`, M6, H2, M8; ADR 0013, Nachtrag Welle 3; Messwerte
 `docs/perf/ci.md`, Abschnitt 11).
 
