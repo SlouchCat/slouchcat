@@ -1,6 +1,6 @@
 # Konzept 28 · Anforderungsmatrix
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 29. November 2026 · Fassung 2 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 > **Kurz gesagt.** Diese Datei ist die Rückverfolgung von Marcos 21 Grundsatzentscheiden (LTV-001 bis LTV-021) und der
 > Querschnittsabschnitte des Auftrags über die einzelnen Anforderungen bis zu Architektur, Datenmodell, API, Sicherheit,
@@ -19,8 +19,8 @@ Dieses Papier ändert kein anderes Dokument. Unstimmigkeiten zwischen den Dokume
 Ausschluss darunter; `LTV-Q-nn.mm` Querschnittsanforderung (nn = Abschnitt des Auftrags); `LTV-X-nn` Zeile der
 Ausschlussliste (Auftrag Abschnitt 16). Alle aus `03-fachkonzept.md`. `AK-L-nnn` Abnahmekriterium aus
 `17-test-und-abnahme.md`. `T-n` Architekturentscheid (`04`), `SM-nn` Sicherheitsmassnahme (`12`), `LS-nn` Seite der
-Zuschauer (`14`), `LA-nn` Seite der Verwaltung (`15`), `LD-nn` Dialog (`14`), `F-n` Frage an Marco (Schreibweise «dd F-n»:
-Frage n des Dokuments dd; ein eigenes Dokument `20-offene-entscheidungen.md` gibt es noch nicht).
+Zuschauer (`14`), `LA-nn` Seite der Verwaltung (`15`), `LD-nn` Dialog (`14`), `E-28-nn` offene Entscheidung (`20`; Frage an Marco;
+hier «E-28-nn» aus `20-offene-entscheidungen.md` Fassung 2).
 
 **Status.** Alle Zeilen: **spezifiziert** (Konzept liegt vor, nichts gebaut). **Implementiert** gibt es nicht. Eine
 Anforderung gilt erst als **erfüllt**, wenn alle Teilanforderungen umgesetzt und durch Test oder Messung belegt sind
@@ -45,7 +45,7 @@ die Spalte «Bezug» der Pflichtfälle sie nicht immer ausschreibt.
 | Operationen (`08`) je Entscheid | Operation nennt eine Seite (Spalte «Seite»), die Seite nennt den Entscheid (`14` 2, `15` 2, Spalte «LTV»); dazu direkte `LTV-…` in der Zeile | **abgeleitet über Seiten**; zählt eine Operation bei jedem Entscheid der Seite mit, Summen über Entscheide sind daher keine Gesamtzahl |
 | Seiten und Mockup | `14` 2 und `15` 2 (Spalte «LTV»); «Mockup» heisst: die Seite kommt in `19-mockups.md` vor | gelesen |
 | Dialoge `LD-nn` | `14` 2 nennt für Dialoge keinen Entscheid; sie erscheinen nur über Operationen | nicht zugeordnet zu Entscheiden |
-| Offene Fragen | Fragen `F-n` der Dokumente `02`–`18` (Absatz der Frage nennt den Entscheid `LTV-…`) | gelesen (Treffer im Text der Frage) |
+| Offene Fragen | Fragen `E-28-nn` aus `20` (Absatz der Frage nennt den Entscheid `LTV-…`, meist in «Bezug») | gelesen (Treffer im Text der Frage) |
 | Vertiefende Dokumente | Spalte «Dok» von `03` (Zahl der Anforderungen je Dokument); Abschnitte nennt `03` nicht | gelesen |
 
 ---
@@ -60,26 +60,26 @@ Ausschlüsse (`…X…`) in `03`; **Dok** vertiefende Dokumente (Zahl der Anford
 | LTV | Thema | Entscheid | Anf. / Ausschl. | Dok | T-n | Tabellen (07) | Operationen (08) | Seiten (Mockup) | AK-L (Zahl; Bereich) | Stufe(n) | Fragen | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | LTV-001 | Funktionsumfang | C – Vollwertige Live-TV-Plattform gemäss Detailentscheidungen: Slouchcat bekommt einen eigenständigen Live-TV-Bereich mit dem Umfang der Detailentscheide | 16 / 0 | 02 (1), 04 (1), 05 (4), 09 (2), 10 (1), 11 (2), 14 (3), 15 (2) | – | `live_favorites`\* | 4: Sender und Favoriten 4 | LS-03✓ | 3; 082, 188, 312 | K (1), 1a (8), 1b (1), 2 (3), 3 (1), 4 (1), 5 (1), 6 (1) | – | spezifiziert |
-| LTV-002 | Empfangsstrategie | C – Hybrid: Jeder Sender wird nach einer von vier Strategien empfangen: permanent, automatisch, bei Bedarf oder … | 13 / 0 | 05 (9), 06 (1), 11 (1), 15 (2) | T-18, T-29, T-16\*, T-17\* | `live_channel_streams`\*, `live_channels`\*, `live_reception_schedules`\*, `live_reception_windows`\* | 17: Sender und Favoriten 1, Verwaltung: Sender, Gruppen, Duplikate 9, Verwaltung: Empfang, Einstellungen, EPG, Speicher 7 | LA-06✓, LA-09✓ | 23; 004–008, 013, 061–063, 065, 083, 089, 147, 149, 209, 280, 301, 305–306, 313–316 | K (1), 1a (3), 3 (7), 5 (2) | 04 F-9 | spezifiziert |
-| LTV-003 | Empfangsquellen | B – Erweitertes IPTV: Slouchcat nimmt M3U/M3U8 als Datei und URL, einzelne Stream-URLs und Xtream-Codes-Live-APIs an und empfängt … | 25 / 11 | 05 (12), 07 (1), 09 (2), 12 (3), 15 (8), 16 (1) | T-2\*, T-5\* | `live_channel_streams`, `live_source_headers`, `live_sources`\* | 7: Verwaltung: Quellen und Importe 6, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-03✓ | 20; 024, 034–045, 051, 102, 175–177, 203, 273 | K (2), 1a (16), 3 (1), H (3), L (2), W (1) | 04 F-1, 04 F-13 | spezifiziert |
-| LTV-004 | Transcoding | B – Individuelles Transcoding: Ein Sender wird möglichst nur einmal empfangen und intern an alle Zuschauer und Aufnahmen … | 38 / 1 | 05 (33), 13 (1), 15 (1), 17 (4) | T-2, T-8, T-12, T-6\*, T-7\*, T-13\*, T-14\*, T-15\*, T-16\*, T-17\*, T-19\*, T-20\*, T-26\* | – | 0 | – | 30; 001–004, 013, 024, 026, 030, 033, 040, 064, 067–076, 181, 300–303, 308, 320, 330, 332 | 1a (36), 3 (1), 5 (1), E (1) | – | spezifiziert |
-| LTV-005 | EPG | B – Erweitert: Slouchcat liest Programmdaten aus XMLTV (Datei, URL, komprimiert, mehrere Quellen), ordnet sie Sendern zu … | 28 / 3 | 09 (21), 11 (2), 14 (5), 15 (1) | – | – | 29: Sender und Favoriten 4, Programm 5, Erinnerungen (Stufe 2) 3, Verwaltung: Quellen und Importe 1, Verwaltung: Empfang, Einstellungen, EPG, Speicher 16 | LA-10✓, LA-11✓, LS-04✓, LS-05✓, LS-06✓, LS-13✓, LS-15✓ | 23; 023, 104–116, 119, 138, 178, 183, 189–190, 198, 200, 304 | 2 (26), 5 (2) | – | spezifiziert |
-| LTV-006 | Senderverwaltung | B – Erweitert: Der Administrator pflegt Sender in einer leistungsfähigen Verwaltung; jeder Sender hat eine stabile Identität … | 20 / 1 | 07 (3), 09 (2), 14 (1), 15 (14) | T-2, T-29\* | `live_channel_categories`, `live_channels`, `live_group_channels`, `live_groups`, `live_channel_streams`\*, `live_duplicate_dismissals`\* | 26: Sender und Favoriten 5, Verwaltung: Sender, Gruppen, Duplikate 19, Verwaltung: Empfang, Einstellungen, EPG, Speicher 2 | LA-05✓, LA-06✓, LA-07✓, LA-08✓, LS-02✓ | 16; 040, 048, 052–059, 184, 205–208, 313 | 1a (11), 1b (9) | – | spezifiziert |
-| LTV-007 | Timeshift | A – Persönlicher Puffer: Jeder Zuschauer hat ab dem Einschalten seinen eigenen Zeitversatz-Puffer zum Pausieren und Spulen, der … | 14 / 1 | 05 (2), 10 (12), 15 (1) | T-7, T-10 | – | 15: Sender und Favoriten 3, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-15✓, LS-07✓ | 13; 009–011, 087, 120–124, 154, 171–172, 215 | 3 (2), 4 (12) | 04 F-7, 04 F-8 | spezifiziert |
-| LTV-008 | DVR | B – Erweiterte Aufnahmefunktion: Slouchcat nimmt Sendungen sofort, geplant, manuell, als Serie und wiederkehrend auf, auch ohne angemeldeten … | 26 / 5 | 05 (2), 06 (1), 09 (2), 11 (18), 14 (4) | T-16 | `live_recording_gaps`, `live_recording_rules`, `live_recordings`\* | 22: Programm 2, Live-Sitzung und Wiedergabe 8, Aufnahmen (Stufe 5) 8, Regeln (Serie, wiederkehrend; Stufe 6) 3, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-14✓, LS-06✓, LS-08✓, LS-09✓, LS-10✓, LS-11✓, LS-12✓ | 28; 012–013, 017, 027, 130–143, 145, 148, 178, 183, 193–195, 214, 303, 330 | 5 (23), 6 (3) | 14 F-23 | spezifiziert |
-| LTV-009 | Aufnahmeeigentum | A – Privat pro Profil: Aufnahmen, Planungen, Serienregeln, Fortschritt und Löschen gehören allein dem Profil; das Kontingent gilt je … | 12 / 0 | 07 (5), 11 (3), 12 (3), 15 (1) | – | – | 8: Programm 1, Aufnahmen (Stufe 5) 7 | LS-08✓, LS-09✓, LS-14✓ | 15; 016–017, 133, 140–141, 148, 153, 163–165, 173, 199, 212, 327–328 | K (1), 5 (10), 6 (1) | 03 F-8 | spezifiziert |
-| LTV-010 | Fast Zapping | B – Erweitert: Senderwechsel sollen sehr schnell sein: bestehende Ströme sofort nutzen, kleine Startpuffer, Vorladen benachbarter, häufiger … | 43 / 1 | 05 (24), 13 (15), 16 (5) | T-7\*, T-17\*, T-18\* | `live_favorites`\* | 17: Sender und Favoriten 6, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 2 | LS-03✓, LS-07✓ | 14; 008, 082–090, 181, 302, 316–317 | K (29), 1a (1), 3 (13) | 04 F-9, 14 F-7 | spezifiziert |
-| LTV-011 | Streamüberwachung | B – Erweitert: Slouchcat prüft Ströme, verbindet neu, erkennt Ausfälle, Standbild und fehlende Spuren, wechselt auf Ersatzquellen … | 21 / 1 | 05 (16), 12 (1), 14 (1), 15 (3) | – | `live_channels`, `live_stream_events`, `live_channel_streams`\* | 14: Sender und Favoriten 1, Verwaltung: Übersicht, Ströme, Diagnose 2, Verwaltung: Sender, Gruppen, Duplikate 8, Verwaltung: Empfang, Einstellungen, EPG, Speicher 3 | LA-06✓, LA-13✓ | 16; 024, 092–103, 213, 302, 331 | 1a (6), 3 (15), E (1) | 04 F-14, 15 F-19 | spezifiziert |
-| LTV-012 | Benutzerrechte | A – Einfach: Live-TV, Aufnahmen und Timeshift werden je Konto und je Profil erlaubt oder verboten, ein … | 13 / 1 | 05 (2), 07 (2), 12 (3), 13 (2), 14 (3), 15 (1) | T-10\*, T-13\*, T-19\*, T-20\*, T-21\*, T-26\* | – | 0 | – | 18; 018, 028–029, 033, 071, 076–077, 125, 160, 166–167, 169, 184, 218, 223, 267, 318, 326 | 1a (11), 4 (1), 5 (1) | – | spezifiziert |
+| LTV-002 | Empfangsstrategie | C – Hybrid: Jeder Sender wird nach einer von vier Strategien empfangen: permanent, automatisch, bei Bedarf oder … | 13 / 0 | 05 (9), 06 (1), 11 (1), 15 (2) | T-17, T-18, T-29, T-16\*, T-19\* | `live_channel_streams`\*, `live_channels`\*, `live_reception_schedules`\*, `live_reception_windows`\* | 17: Sender und Favoriten 1, Verwaltung: Sender, Gruppen, Duplikate 9, Verwaltung: Empfang, Einstellungen, EPG, Speicher 7 | LA-06✓, LA-09✓ | 24; 004–008, 013, 061–063, 065, 083, 089, 147, 149, 209, 280, 301, 305–306, 313–316, 334 | K (1), 1a (3), 3 (7), 5 (2) | E-28-02, E-28-29, E-28-30, E-28-40, E-28-48 | spezifiziert |
+| LTV-003 | Empfangsquellen | B – Erweitertes IPTV: Slouchcat nimmt M3U/M3U8 als Datei und URL, einzelne Stream-URLs und Xtream-Codes-Live-APIs an und empfängt … | 25 / 11 | 05 (12), 07 (1), 09 (2), 12 (3), 15 (8), 16 (1) | T-2\*, T-5\* | `live_channel_streams`, `live_source_headers`, `live_sources`\* | 7: Verwaltung: Quellen und Importe 6, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-03✓ | 21; 024, 034–045, 051, 102, 175–177, 203, 273, 355 | K (2), 1a (16), 3 (1), H (3), L (2), W (1) | E-28-05, E-28-06, E-28-61, E-28-34, E-28-54, E-28-55 | spezifiziert |
+| LTV-004 | Transcoding | B – Individuelles Transcoding: Ein Sender wird möglichst nur einmal empfangen und intern an alle Zuschauer und Aufnahmen … | 38 / 1 | 05 (33), 13 (1), 15 (1), 17 (4) | T-2, T-8, T-12, T-6\*, T-7\*, T-13\*, T-14\*, T-15\*, T-16\*, T-17\*, T-19\*, T-20\*, T-26\* | – | 0 | – | 31; 001–004, 013, 024, 026, 030, 033, 040, 064, 067–076, 181, 300–303, 308, 320, 330, 332, 353 | 1a (36), 3 (1), 5 (1), E (1) | E-28-04, E-28-14, E-28-56 | spezifiziert |
+| LTV-005 | EPG | B – Erweitert: Slouchcat liest Programmdaten aus XMLTV (Datei, URL, komprimiert, mehrere Quellen), ordnet sie Sendern zu … | 28 / 3 | 09 (21), 11 (2), 14 (5), 15 (1) | – | – | 29: Sender und Favoriten 4, Programm 5, Erinnerungen (Stufe 2) 3, Verwaltung: Quellen und Importe 1, Verwaltung: Empfang, Einstellungen, EPG, Speicher 16 | LA-10✓, LA-11✓, LS-04✓, LS-05✓, LS-06✓, LS-13✓, LS-15✓ | 23; 023, 104–116, 119, 138, 178, 183, 189–190, 198, 200, 304 | 2 (26), 5 (2) | E-28-18, E-28-22, E-28-23, E-28-24, E-28-25, E-28-26 | spezifiziert |
+| LTV-006 | Senderverwaltung | B – Erweitert: Der Administrator pflegt Sender in einer leistungsfähigen Verwaltung; jeder Sender hat eine stabile Identität … | 20 / 1 | 07 (3), 09 (2), 14 (1), 15 (14) | T-2, T-29\* | `live_channel_categories`, `live_channels`, `live_group_channels`, `live_groups`, `live_channel_streams`\*, `live_duplicate_dismissals`\* | 26: Sender und Favoriten 5, Verwaltung: Sender, Gruppen, Duplikate 19, Verwaltung: Empfang, Einstellungen, EPG, Speicher 2 | LA-05✓, LA-06✓, LA-07✓, LA-08✓, LS-02✓ | 16; 040, 048, 052–059, 184, 205–208, 313 | 1a (11), 1b (9) | E-28-17, E-28-18 | spezifiziert |
+| LTV-007 | Timeshift | A – Persönlicher Puffer: Jeder Zuschauer hat ab dem Einschalten seinen eigenen Zeitversatz-Puffer zum Pausieren und Spulen, der … | 14 / 1 | 05 (2), 10 (12), 15 (1) | T-7, T-10 | – | 15: Sender und Favoriten 3, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-15✓, LS-07✓ | 13; 009–011, 087, 120–124, 154, 171–172, 215 | 3 (2), 4 (12) | E-28-35, E-28-36, E-28-38 | spezifiziert |
+| LTV-008 | DVR | B – Erweiterte Aufnahmefunktion: Slouchcat nimmt Sendungen sofort, geplant, manuell, als Serie und wiederkehrend auf, auch ohne angemeldeten … | 26 / 5 | 05 (2), 06 (1), 09 (2), 11 (18), 14 (4) | T-16 | `live_recording_gaps`, `live_recording_rules`, `live_recordings`\* | 22: Programm 2, Live-Sitzung und Wiedergabe 8, Aufnahmen (Stufe 5) 8, Regeln (Serie, wiederkehrend; Stufe 6) 3, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-14✓, LS-06✓, LS-08✓, LS-09✓, LS-10✓, LS-11✓, LS-12✓ | 29; 012–013, 017, 027, 130–143, 145, 148, 178, 183, 193–195, 214, 303, 330, 356 | 5 (23), 6 (3) | E-28-62, E-28-37, E-28-39, E-28-46, E-28-49, E-28-52, E-28-53 | spezifiziert |
+| LTV-009 | Aufnahmeeigentum | A – Privat pro Profil: Aufnahmen, Planungen, Serienregeln, Fortschritt und Löschen gehören allein dem Profil; das Kontingent gilt je … | 12 / 0 | 07 (5), 11 (3), 12 (3), 15 (1) | – | – | 8: Programm 1, Aufnahmen (Stufe 5) 7 | LS-08✓, LS-09✓, LS-14✓ | 15; 016–017, 133, 140–141, 148, 153, 163–165, 173, 199, 212, 327–328 | K (1), 5 (10), 6 (1) | E-28-07, E-28-62, E-28-22, E-28-43, E-28-45, E-28-63, E-28-50 | spezifiziert |
+| LTV-010 | Fast Zapping | B – Erweitert: Senderwechsel sollen sehr schnell sein: bestehende Ströme sofort nutzen, kleine Startpuffer, Vorladen benachbarter, häufiger … | 43 / 1 | 05 (24), 13 (15), 16 (5) | T-7\*, T-17\*, T-18\* | `live_favorites`\* | 17: Sender und Favoriten 6, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 2 | LS-03✓, LS-07✓ | 14; 008, 082–090, 181, 302, 316–317 | K (29), 1a (3), 3 (13) | E-28-02, E-28-12, E-28-13, E-28-20, E-28-29, E-28-57 | spezifiziert |
+| LTV-011 | Streamüberwachung | B – Erweitert: Slouchcat prüft Ströme, verbindet neu, erkennt Ausfälle, Standbild und fehlende Spuren, wechselt auf Ersatzquellen … | 21 / 1 | 05 (16), 12 (1), 14 (1), 15 (3) | T-17\* | `live_channels`, `live_stream_events`, `live_channel_streams`\* | 14: Sender und Favoriten 1, Verwaltung: Übersicht, Ströme, Diagnose 2, Verwaltung: Sender, Gruppen, Duplikate 8, Verwaltung: Empfang, Einstellungen, EPG, Speicher 3 | LA-06✓, LA-13✓ | 17; 024, 092–103, 213, 302, 331, 335 | 0 (1), 1a (6), 3 (15), E (1) | E-28-31, E-28-32 | spezifiziert |
+| LTV-012 | Benutzerrechte | A – Einfach: Live-TV, Aufnahmen und Timeshift werden je Konto und je Profil erlaubt oder verboten, ein … | 13 / 1 | 05 (2), 07 (2), 12 (3), 13 (2), 14 (3), 15 (1) | T-10\*, T-13\*, T-19\*, T-20\*, T-21\*, T-26\* | – | 0 | – | 18; 018, 028–029, 033, 071, 076–077, 125, 160, 166–167, 169, 184, 218, 223, 267, 318, 326 | 1a (11), 4 (1), 5 (1) | E-28-59, E-28-09, E-28-66, E-28-41, E-28-42 | spezifiziert |
 | LTV-013 | Catch-up TV | Ausgeschlossen: Slouchcat bietet kein Catch-up TV; permanenter Empfang ist keine Aufzeichnung | 2 / 6 | 02 (1), 05 (1), 10 (1), 11 (1) | T-7 | – | 0 | – | 3; 005, 170–171 | K (1), 3 (1) | – | spezifiziert |
-| LTV-014 | Benutzeroberfläche | B – Moderne Streaming-Oberfläche: Live-TV bekommt einen eigenen, ruhigen Bereich im bestehenden Design mit Startseite, Senderübersicht, Programmzeitschrift, Sendungsdetails, … | 81 / 1 | 02 (1), 14 (74), 16 (6), 19 (1) | T-11\* | `live_favorites`\*, `live_recent_channels`\*, `live_recordings`\* | 36: Sender und Favoriten 11, Programm 5, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 7, Regeln (Serie, wiederkehrend; Stufe 6) 3, Erinnerungen (Stufe 2) 1 | LS-01✓, LS-02✓, LS-03✓, LS-04✓, LS-06✓, LS-07✓, LS-08✓, LS-11✓ | 28; 110, 130–131, 133, 135, 137, 139, 141–142, 185–197, 200, 217, 294–297 | K (1), 1a (22), 2 (27), 4 (5), 5 (20), 6 (4), E (1), Apps (4) | – | spezifiziert |
-| LTV-015 | Jugendschutz | Freigabe durch Hauptnutzer, keine Altersprüfung: Für Live-TV gibt es keine automatische Altersprüfung; das Hauptprofil schaltet Live-TV für ein Profil … | 14 / 0 | 09 (3), 11 (1), 12 (5), 14 (2), 17 (1), 20 (1), 21 (1) | – | `live_channels` | 4: Aufnahmen (Stufe 5) 4 | LS-14✓ | 8; 018–020, 161, 163, 179, 285, 326 | K (1), 0 (1), 1a (8), 2 (3), 5 (1) | 14 F-8 | spezifiziert |
+| LTV-014 | Benutzeroberfläche | B – Moderne Streaming-Oberfläche: Live-TV bekommt einen eigenen, ruhigen Bereich im bestehenden Design mit Startseite, Senderübersicht, Programmzeitschrift, Sendungsdetails, … | 82 / 0 | 14 (74), 16 (7), 19 (1) | T-11\* | `live_favorites`\*, `live_recent_channels`\*, `live_recordings`\* | 36: Sender und Favoriten 11, Programm 5, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 7, Regeln (Serie, wiederkehrend; Stufe 6) 3, Erinnerungen (Stufe 2) 1 | LS-01✓, LS-02✓, LS-03✓, LS-04✓, LS-06✓, LS-07✓, LS-08✓, LS-11✓ | 28; 110, 130–131, 133, 135, 137, 139, 141–142, 186–197, 200, 217, 294–297, 353 | K (2), 1a (22), 2 (27), 4 (5), 5 (20), 6 (4), E (1), Apps (4) | E-28-01, E-28-59, E-28-60, E-28-12, E-28-56, E-28-16, E-28-27, E-28-57 | spezifiziert |
+| LTV-015 | Jugendschutz | Freigabe durch Hauptnutzer, keine Altersprüfung: Für Live-TV gibt es keine automatische Altersprüfung; das Hauptprofil schaltet Live-TV für ein Profil … | 14 / 0 | 09 (3), 11 (1), 12 (5), 14 (2), 17 (1), 20 (1), 21 (1) | – | `live_channels` | 4: Aufnahmen (Stufe 5) 4 | LS-14✓ | 8; 018–020, 161, 163, 179, 285, 326 | K (1), 0 (1), 1a (8), 2 (3), 5 (1) | E-28-07, E-28-59, E-28-23, E-28-28 | spezifiziert |
 | LTV-016 | Multi-View und PiP | A – Ausgeschlossen: Ein Player zeigt genau einen Sender | 2 / 3 | 13 (1), 14 (1) | – | – | 14: Sender und Favoriten 3, Live-Sitzung und Wiedergabe 9, Aufnahmen (Stufe 5) 2 | LS-07✓, LS-10✓ | 4; 080, 174, 192, 330 | 1a (2) | – | spezifiziert |
-| LTV-017 | Anbieterverwaltung | A – Keine separate Anbieterlimitverwaltung: Slouchcat verwaltet keine Verbindungslimits je IPTV-Anbieter; die allgemeinen Ressourcenlimits gelten, Zugangsdaten werden sicher gespeichert | 3 / 6 | 12 (1), 13 (1), 15 (1) | T-17, T-26\* | `live_sources`\* | 7: Verwaltung: Quellen und Importe 6, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-03✓ | 5; 039, 166, 180, 203, 329 | 1a (3) | 03 F-1, 04 F-3, 15 F-21 | spezifiziert |
-| LTV-018 | Senderaktualisierung | B – Automatisch: Senderlisten werden automatisch und von Hand aktualisiert, ohne dass Pflege, Favoriten, Zuordnungen und Planungen … | 23 / 1 | 06 (1), 09 (20), 15 (2) | – | `live_channel_locks`, `live_channels`, `live_group_channels`, `live_source_import_items`\*, `live_source_imports`\*, `live_sources`\* | 16: Verwaltung: Quellen und Importe 13, Verwaltung: Sender, Gruppen, Duplikate 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-02✓, LA-03✓, LA-04✓ | 14; 021–023, 046–051, 059, 204, 323–325 | 1a (18), 1b (3), 2 (1), 5 (1) | 03 F-7 | spezifiziert |
-| LTV-019 | Speicherverwaltung | B – Erweitert: Startpuffer, Timeshift und Aufnahmen haben getrennt einstellbare Speicherorte mit Limits, Reserve, Bereinigung und Warnungen, … | 22 / 4 | 11 (6), 13 (7), 15 (9) | T-25 | `live_config`\*, `live_recordings`\*, `live_storage`\* | 10: Aufnahmen (Stufe 5) 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 8 | LA-15✓, LA-16✓, LS-12✓ | 17; 017, 025, 032, 143, 150–159, 182, 216, 307 | 4 (16), 5 (6) | 03 F-9, 04 F-2, 15 F-17 | spezifiziert |
-| LTV-020 | Aufnahmequalität | A – Originalqualität: Aufnahmen werden ohne Neucodierung mit allen empfangenen Ton- und Untertitelspuren gespeichert; verlustfreies Umpacken ist … | 22 / 0 | 05 (1), 11 (20), 14 (1) | T-6, T-16\* | – | 8: Live-Sitzung und Wiedergabe 8 | LS-10✓ | 8; 014–015, 027, 140, 144–145, 182, 332 | K (2), 5 (20) | 11 F-1 | spezifiziert |
-| LTV-021 | Entwicklung | C – Konzept und Mockups vor Implementierung: Live-TV wird zuerst vollständig konzipiert und mit klickbaren Mockups gezeigt; gebaut wird erst nach … | 15 / 0 | 04 (1), 07 (1), 08 (1), 12 (1), 13 (2), 17 (2), 18 (1), 19 (1), 21 (1) | – | – | 0 | – | 1; 311 | K (15) | – | spezifiziert |
+| LTV-017 | Anbieterverwaltung | A – Keine separate Anbieterlimitverwaltung: Slouchcat verwaltet keine Verbindungslimits je IPTV-Anbieter; die allgemeinen Ressourcenlimits gelten, Zugangsdaten werden sicher gespeichert | 3 / 6 | 12 (1), 13 (1), 15 (1) | T-17, T-18\*, T-26\* | `live_sources` | 7: Verwaltung: Quellen und Importe 6, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-03✓ | 6; 039, 166, 180, 203, 329, 336 | 1a (3) | E-28-02, E-28-59, E-28-09, E-28-11, E-28-69, E-28-49 | spezifiziert |
+| LTV-018 | Senderaktualisierung | B – Automatisch: Senderlisten werden automatisch und von Hand aktualisiert, ohne dass Pflege, Favoriten, Zuordnungen und Planungen … | 23 / 1 | 06 (1), 09 (20), 15 (2) | – | `live_channel_locks`, `live_channels`, `live_group_channels`, `live_source_import_items`\*, `live_source_imports`\*, `live_sources`\* | 16: Verwaltung: Quellen und Importe 13, Verwaltung: Sender, Gruppen, Duplikate 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 1 | LA-02✓, LA-03✓, LA-04✓ | 14; 021–023, 046–051, 059, 204, 323–325 | 1a (18), 1b (3), 2 (1), 5 (1) | E-28-41 | spezifiziert |
+| LTV-019 | Speicherverwaltung | B – Erweitert: Startpuffer, Timeshift und Aufnahmen haben getrennt einstellbare Speicherorte mit Limits, Reserve, Bereinigung und Warnungen, … | 22 / 4 | 11 (6), 13 (7), 15 (9) | T-25 | `live_config`\*, `live_recordings`\*, `live_storage`\* | 10: Aufnahmen (Stufe 5) 2, Verwaltung: Empfang, Einstellungen, EPG, Speicher 8 | LA-15✓, LA-16✓, LS-12✓ | 18; 017, 025, 032, 143, 150–159, 182, 216, 307, 356 | 4 (17), 5 (6) | E-28-10, E-28-39, E-28-46, E-28-47, E-28-51 | spezifiziert |
+| LTV-020 | Aufnahmequalität | A – Originalqualität: Aufnahmen werden ohne Neucodierung mit allen empfangenen Ton- und Untertitelspuren gespeichert; verlustfreies Umpacken ist … | 22 / 0 | 05 (1), 11 (20), 14 (1) | T-6, T-16\* | – | 8: Live-Sitzung und Wiedergabe 8 | LS-10✓ | 8; 014–015, 027, 140, 144–145, 182, 332 | K (2), 5 (20) | E-28-44 | spezifiziert |
+| LTV-021 | Entwicklung | C – Konzept und Mockups vor Implementierung: Live-TV wird zuerst vollständig konzipiert und mit klickbaren Mockups gezeigt; gebaut wird erst nach … | 15 / 0 | 04 (1), 07 (1), 08 (1), 12 (1), 13 (2), 17 (2), 18 (1), 19 (1), 21 (1) | – | – | 0 | – | 1; 311 | K (15) | E-28-01, E-28-08, E-28-58 | spezifiziert |
 
 Anmerkungen: «\*» an einer Tabelle: nur über eine Seite abgeleitet; «\*» an einem T-n: nur über ein `AK-L` des Entscheids abgeleitet (das `AK-L` nennt T-n und Entscheid). Bei LTV-001 (Sammelentscheid) und LTV-014 (Oberfläche) sind Seiten-,
 Operations- und Tabellenspalten wegen der vielen Seiten breit; die Zeilen der Detailentscheide sind genauer. Die Zahl der `AK-L`
@@ -118,16 +118,16 @@ Alle Zeilen: Status **spezifiziert**.
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
-| LTV-002.01 | Ein Sender mit Strategie «permanent» wird rund um die Uhr empfangen, auch … | 3 | 05 | T | 005, 301, 305–306, 314 | spezifiziert |
+| LTV-002.01 | Ein Sender mit Strategie «permanent» wird rund um die Uhr empfangen, auch … | 3 | 05 | T | 005, 301, 305–306, 314, 334 | spezifiziert |
 | LTV-002.02 | Mit Strategie «automatisch» hält Slouchcat häufig genutzte Sender nach Nutzung und freien … | 3 | 05 | T | 062 | spezifiziert |
 | LTV-002.03 | Mit Strategie «bei Bedarf» startet Slouchcat den Empfang erst, wenn ein Profil … | 1a | 05 | T | 063 | spezifiziert |
-| LTV-002.04 | Mit Strategie «zeitgesteuert» empfängt Slouchcat den Sender nach einem Zeitplan, den der … | 3 | 05 | T | 007, 314 | spezifiziert |
+| LTV-002.04 | Mit Strategie «zeitgesteuert» empfängt Slouchcat den Sender nach einem Zeitplan, den der … | 3 | 05 | T | 007, 314, 334 | spezifiziert |
 | LTV-002.05 | Der Administrator legt eine globale Standardstrategie fest, die für jeden Sender ohne … | 3 | 15 | T | 061, 209 | spezifiziert |
 | LTV-002.06 | Der Administrator kann je Sender eine eigene Strategie wählen, die der globalen … | 3 | 15 | T | 061, 209 | spezifiziert |
-| LTV-002.07 | Slouchcat lädt benachbarte Sender (nach Kanalnummer) vor, wenn die Mittel reichen (LTV-010). | 3 | 05 | T | 008, 083, 089, 316 | spezifiziert |
+| LTV-002.07 | Slouchcat lädt benachbarte Sender (nach Kanalnummer) vor, wenn die Mittel reichen (LTV-010). … | 3 | 05 | T | 008, 083, 089, 316 | spezifiziert |
 | LTV-002.08 | Slouchcat startet den Empfang für eine geplante Aufnahme selbst und rechtzeitig vor … | 5 | 11 | T | 013, 065, 149 | spezifiziert |
 | LTV-002.09 | Slouchcat beendet einen Eingangsstrom, den kein Zuschauer, keine Aufnahme, keine Strategie und … | 1a | 05 | T | 006, 063, 315 | spezifiziert |
-| LTV-002.10 | Slouchcat beendet nie einen Eingangsstrom, solange eine Wiedergabe ihn nutzt, auch nicht … | 1a | 05 | T | 004, 063, 313, 315 | spezifiziert |
+| LTV-002.10 | Slouchcat beendet nie einen Eingangsstrom, solange eine Wiedergabe ihn nutzt, auch nicht … | 1a | 05 | T | 004, 063, 313, 315, 334 | spezifiziert |
 | LTV-002.11 | Slouchcat beendet nie einen Eingangsstrom, solange eine laufende Aufnahme ihn nutzt. | 5 | 05 | T | 004, 147, 313 | spezifiziert |
 | LTV-002.12 | Nach einem Neustart nimmt Slouchcat den Empfang aller Sender mit Strategie «permanent» … | 3 | 06 | T | 005, 065, 280 | spezifiziert |
 | LTV-002.13 | Das Konzept beschreibt eine ressourcenschonende Regel, wann Slouchcat Eingangsströme automatisch startet und … | K | 05 | S | 062 | spezifiziert |
@@ -149,7 +149,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-003.11 | Slouchcat bezieht Live-Sender (nur Live) über eine Xtream-Codes-kompatible Schnittstelle. | 1a | 09 | T | 037 | spezifiziert |
 | LTV-003.12 | Slouchcat empfängt RTSP-Ströme. | L | 05 | T | 042 | spezifiziert |
 | LTV-003.13 | Slouchcat empfängt RTMP-Ströme. | L | 05 | T | 042 | spezifiziert |
-| LTV-003.14 | Slouchcat empfängt UDP-Ströme an festen Zielen der Quelle (A-3; veröffentlichte UDP-Ports A-9). | H | 05 | T | 043, 045 | spezifiziert |
+| LTV-003.14 | Slouchcat empfängt UDP-Ströme an festen Zielen der Quelle (A-3: ab Werk eine … | H | 05 | T | 043, 045 | spezifiziert |
 | LTV-003.15 | Slouchcat empfängt RTP-Ströme an festen Zielen der Quelle (A-3, A-9). | H | 05 | T | 043, 045 | spezifiziert |
 | LTV-003.16 | Slouchcat empfängt Multicast-Ströme an festen Zielen der Quelle (A-3; Netzmodus «host» oder … | H | 05 | T | 044–045 | spezifiziert |
 | LTV-003.17 | Slouchcat empfängt Ströme, die eine Anmeldung verlangen (Benutzer und Passwort oder Token), … | 1a | 12 | T | 039 | spezifiziert |
@@ -190,7 +190,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-004.06 | Eine zusätzliche Aufnahme desselben Senders öffnet möglichst keine weitere Eingangsverbindung. | 5 | 17 | T | 013, 303 | spezifiziert |
 | LTV-004.07 | Jeder Zuschauer hat eine eigene, unabhängige Wiedergabesitzung. | 1a | 05 | T | 002, 330 | spezifiziert |
 | LTV-004.08 | Passen Originalqualität und Format zum Gerät, rechnet Slouchcat Bild und Ton nicht … | 1a | 05 | T | 002, 068 | spezifiziert |
-| LTV-004.09 | Braucht ein Zuschauer eine Umwandlung, bekommt er einen eigenen Umwandlungsprozess. | 1a | 05 | T | 002 | spezifiziert |
+| LTV-004.09 | Braucht ein Zuschauer eine Umwandlung, bekommt er einen eigenen Umwandlungsprozess, aber nur … | 1a | 05 | T | 002 | spezifiziert |
 | LTV-004.10 | Slouchcat gibt den Strom in Originalform weiter, wenn das Gerät ihn kann. | 1a | 05 | T | 068 | spezifiziert |
 | LTV-004.11 | Slouchcat packt den Strom verlustfrei um (Remux), wenn nur der Container nicht … | 1a | 05 | T | 069 | spezifiziert |
 | LTV-004.12 | Slouchcat wandelt das Bild je Zuschauer um, wenn Gerät oder Grenze es … | 1a | 05 | T | 002, 070, 308, 320 | spezifiziert |
@@ -198,7 +198,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-004.14 | Jeder Zuschauer kann innerhalb seiner Grenzen eine eigene Auflösung bekommen. | 1a | 05 | T | 002, 071 | spezifiziert |
 | LTV-004.15 | Jeder Zuschauer kann innerhalb seiner Grenzen eine eigene Bitrate bekommen. | 1a | 05 | T | 002, 071 | spezifiziert |
 | LTV-004.16 | Jeder Zuschauer wählt seine Tonspur selbst, ohne andere Zuschauer zu beeinflussen. | 1a | 05 | T | 002, 072 | spezifiziert |
-| LTV-004.17 | Jeder Zuschauer wählt seine Untertitelspur selbst, ohne andere Zuschauer zu beeinflussen; in … | 1a; E | 05 | T | 002, 072, 332 | spezifiziert |
+| LTV-004.17 | Jeder Zuschauer wählt seine Untertitelspur selbst, ohne andere Zuschauer zu beeinflussen. Stand … | 1a; E | 05 | T | 002, 072, 332, 353 | spezifiziert |
 | LTV-004.18 | Slouchcat nutzt für Umwandlungen die bestehende Hardwarebeschleunigung. | 1a | 05 | T | 070, 308 | spezifiziert |
 | LTV-004.19 | Ohne verfügbare Hardware fällt Slouchcat wie heute auf Software zurück, gemäss der … | 1a | 05 | T | 070 | spezifiziert |
 | LTV-004.20 | Live-TV hält die bestehenden Konto- und Ressourcenlimits ein (Ströme, Bandbreite, Auflösung, Budget … | 1a | 13 | T | 033, 067, 076, 301 | spezifiziert |
@@ -328,7 +328,7 @@ Alle Zeilen: Status **spezifiziert**.
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
-| LTV-008.01 | Ein Profil kann eine Sofortaufnahme des laufenden Senders starten (im Player und … | 5 | 11 | T | 130 | spezifiziert |
+| LTV-008.01 | Ein Profil kann eine Sofortaufnahme des laufenden Senders starten (im Player und … | 5 | 11 | T | 130, 356 | spezifiziert |
 | LTV-008.02 | Ein Profil kann eine einzelne künftige Sendung zur Aufnahme planen. | 5 | 11 | T | 131, 330 | spezifiziert |
 | LTV-008.03 | Ein Profil kann eine Aufnahme direkt aus der Programmzeitschrift planen (wie LTV-005.18). | 5 | 11 | T | 131, 330 | spezifiziert |
 | LTV-008.04 | Ein Profil kann eine manuelle Aufnahme mit Sender, Start- und Endzeit planen, … | 5 | 11 | T | 132 | spezifiziert |
@@ -365,7 +365,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-008.X-04 | Nicht dabei: automatische Aufnahmen bestimmter Schauspieler oder Sportmannschaften. | – | S | 178 | spezifiziert |
 | LTV-008.X-05 | Nicht dabei: automatische Übernahme von Aufnahmen in die Film- und Serienbibliotheken. | 11 | T | 148, 183 | spezifiziert |
 
-### LTV-009 Private Aufnahmen pro Profil (12 Anforderungen, 0 Ausschlüsse)
+### LTV-009 Aufnahmeeigentum · Private Aufnahmen pro Profil (12 Anforderungen, 0 Ausschlüsse)
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -388,14 +388,14 @@ Alle Zeilen: Status **spezifiziert**.
 |---|---|---|---|---|---|---|
 | LTV-010.01 | Schnelles Umschalten hat bei Abwägungen in Konzept und Bau hohe Priorität. | K | 05 | S | – | spezifiziert |
 | LTV-010.02 | Wird ein Sender schon empfangen, nutzt Slouchcat beim Umschalten diesen Eingangsstrom sofort. | 1a | 05 | T | 090, 302, 317 | spezifiziert |
-| LTV-010.03 | Die Player starten Live-Ströme mit optimierten Einstellungen für einen schnellen Start. | 3 | 05 | M | 088 | spezifiziert |
+| LTV-010.03 | Die Player starten Live-Ströme mit optimierten Einstellungen für einen schnellen Start. | 1a; 3 | 05 | M | 088 | spezifiziert |
 | LTV-010.04 | Slouchcat hält je empfangenem Sender einen kleinen technischen Startpuffer. | 3 | 05 | T | 087 | spezifiziert |
 | LTV-010.05 | Slouchcat lädt benachbarte Sender vor (wie LTV-002.07). | 3 | 05 | T | 008, 089, 316 | spezifiziert |
-| LTV-010.06 | Slouchcat lädt häufig genutzte Sender vor. | 3 | 05 | T | 008, 089 | spezifiziert |
+| LTV-010.06 | Slouchcat lädt häufig genutzte Sender vor (global und je Sender gesteuert, DR-29). | 3 | 05 | T | 008, 089 | spezifiziert |
 | LTV-010.07 | Slouchcat berücksichtigt beim Vorladen die Senderfavoriten der aktiven Zuschauer. | 3 | 05 | T | 008, 089 | spezifiziert |
 | LTV-010.08 | Slouchcat gibt vorgeladene Ströme frei, wenn sie nicht mehr gebraucht werden (wie … | 3 | 05 | T | 008, 089 | spezifiziert |
 | LTV-010.09 | Die Grösse der Startpuffer ist auf schnellen Start bei geringem Speicher abgestimmt. | 3 | 05 | M | 087 | spezifiziert |
-| LTV-010.10 | Slouchcat bereitet die Ausgabe je Gerätetyp so vor, dass jedes Gerät ohne … | 3 | 16 | M | 088 | spezifiziert |
+| LTV-010.10 | Slouchcat bereitet die Ausgabe je Gerätetyp so vor, dass jedes Gerät ohne … | 1a; 3 | 16 | M | 088 | spezifiziert |
 | LTV-010.11 | Das Konzept untersucht Keyframe-Abstände. | K | 05 | S | – | spezifiziert |
 | LTV-010.12 | Das Konzept untersucht GOP-Strukturen. | K | 05 | S | – | spezifiziert |
 | LTV-010.13 | Das Konzept untersucht HLS-Segmentlängen. | K | 05 | S | – | spezifiziert |
@@ -451,14 +451,14 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-011.09 | Slouchcat wechselt bei Störung selbst auf eine Ersatzquelle (wie LTV-003.22). | 3 | 05 | T | 024, 102 | spezifiziert |
 | LTV-011.10 | Slouchcat stellt einen Strom möglichst unterbrechungsarm wieder her (Zuschauer bleiben verbunden). | 3 | 05 | M | 102 | spezifiziert |
 | LTV-011.11 | Zuschauer und Administrator bekommen verständliche Fehlermeldungen ohne Zugangsdaten. | 1a | 14 | T | 097 | spezifiziert |
-| LTV-011.12 | Slouchcat protokolliert technische Fehler über das bestehende Logging (Regel 10). | 1a | 12 | T | 098 | spezifiziert |
+| LTV-011.12 | Slouchcat protokolliert technische Fehler über das bestehende Logging (Regel 10). | 0; 1a | 12 | T | 098 | spezifiziert |
 | LTV-011.13 | Slouchcat meldet dem Administrator längere Ausfälle eines Senders oder einer Quelle (Meldeschwelle … | 3 | 15 | T | 099, 213 | spezifiziert |
 | LTV-011.14 | Die Überwachung unterscheidet Stromarten (Video mit Ton, ohne Ton, verschiedene Protokolle). | 3 | 05 | T | 095 | spezifiziert |
 | LTV-011.15 | Ein Sender, der regulär keine Tonspur hat, gilt nicht als gestört. | 3 | 05 | T | 095 | spezifiziert |
 | LTV-011.16 | Die Wiederherstellung endet nie in einer Endlosschleife. | 1a | 05 | T | 093, 100 | spezifiziert |
 | LTV-011.17 | Wiederverbindungen sind begrenzt und werden mit wachsendem Abstand versucht. | 1a | 05 | T | 093, 100 | spezifiziert |
 | LTV-011.18 | Verfügbarkeitsprüfungen sind in Zahl und Takt begrenzt. | 3 | 05 | T | 092 | spezifiziert |
-| LTV-011.19 | Slouchcat öffnet keine unnötigen parallelen Prüfverbindungen (ein laufender Strom wird an sich … | 3 | 05 | T | 092, 101, 302 | spezifiziert |
+| LTV-011.19 | Slouchcat öffnet keine unnötigen parallelen Prüfverbindungen (ein laufender Strom wird an sich … | 3 | 05 | T | 092, 101, 302, 335 | spezifiziert |
 | LTV-011.20 | Meldungen an den Administrator sind entprellt (keine Flut für denselben Ausfall). | 3 | 15 | T | 099 | spezifiziert |
 | LTV-011.21 | Meldungen laufen über das bestehende Benachrichtigungssystem. | 3 | 15 | T | 099 | spezifiziert |
 
@@ -510,7 +510,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-013.X-05 | Nicht dabei: serverweite rollierende TV-Archive. | 10 | T | 171 | spezifiziert |
 | LTV-013.X-06 | Nicht dabei: Daueraufzeichnung aller empfangenen Sender. | 11 | T | 171 | spezifiziert |
 
-### LTV-014 Moderne Benutzeroberfläche (81 Anforderungen, 1 Ausschlüsse)
+### LTV-014 Moderne Benutzeroberfläche (82 Anforderungen, 0 Ausschlüsse)
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -565,7 +565,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-014.49 | Der Player zeigt aktuelle und kommende Sendung. | 2 | 14 | T | 192 | spezifiziert |
 | LTV-014.50 | Im Player lässt sich eine Aufnahme starten (mit Recht «Aufnahmen»). | 5 | 14 | T | 130, 192 | spezifiziert |
 | LTV-014.51 | Im Player lässt sich die Tonspur wählen. | 1a | 14 | T | 192 | spezifiziert |
-| LTV-014.52 | Im Player lässt sich die Untertitelspur wählen (Browser ab Stufe E, wie … | 1a; E | 14 | T | 192 | spezifiziert |
+| LTV-014.52 | Im Player lässt sich die Untertitelspur wählen; Stand je Client und Stufe … | 1a; E | 14 | T | 192, 353 | spezifiziert |
 | LTV-014.53 | Im Player lässt sich die Qualität wählen, innerhalb der Grenzen. | 1a | 14 | T | 192 | spezifiziert |
 | LTV-014.54 | Der Player hat einen Vollbildmodus. | 1a | 14 | T | 192 | spezifiziert |
 | LTV-014.55 | Der Player zeigt verständliche Ladezustände. | 1a | 14 | S | – | spezifiziert |
@@ -589,18 +589,13 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-014.73 | Der Zustand jeder Planung ist sichtbar (geplant, läuft, Konflikt, nicht eindeutig, ruht). | 5 | 14 | T | 142, 194, 196 | spezifiziert |
 | LTV-014.74 | Die Oberfläche ist modern, ruhig, übersichtlich und konsistent mit dem bestehenden Design. | 1a | 19 | S | – | spezifiziert |
 | LTV-014.75 | Live-TV läuft in der Web-App am Desktop. | 1a | 16 | T | 294 | spezifiziert |
-| LTV-014.76 | Live-TV läuft auf dem Smartphone (Web-App und Handy-App, F-6). | 1a; Apps | 16 | T | 295–296 | spezifiziert |
-| LTV-014.77 | Live-TV läuft auf dem Tablet (Web-App und Handy-App, F-6). | 1a; Apps | 16 | T | 295–296 | spezifiziert |
+| LTV-014.76 | Live-TV läuft auf dem Smartphone (Web-App und Handy-App, F-6). Safari auf dem … | 1a; Apps | 16 | T | 295–296 | spezifiziert |
+| LTV-014.77 | Live-TV läuft auf dem Tablet (Web-App und Handy-App, F-6). Safari auf dem … | 1a; Apps | 16 | T | 295–296 | spezifiziert |
 | LTV-014.78 | Live-TV läuft in der Android-TV-App (F-6). | Apps | 16 | T | 297 | spezifiziert |
 | LTV-014.79 | Live-TV läuft auf Google-TV-Geräten über die Android-TV-App (F-6). | Apps | 16 | T | 297 | spezifiziert |
 | LTV-014.80 | Weitere bestehende Clients sind berücksichtigt; geplante weitere Clients gibt es nicht (Apple … | K | 16 | S | – | spezifiziert |
+| LTV-014.82 | Slouchcat berücksichtigt Fire TV: Das Konzept prüft, ob die Android-TV-App auf Fire … | K | 16 | S | – | spezifiziert |
 | LTV-014.81 | Live-TV erfindet kein neues Designsystem. | 1a | 14 | S | – | spezifiziert |
-
-**Ausschlüsse zu LTV-014** (Negativtest aus `17` 5.12, falls vorhanden):
-
-| ID | Kurztext | Dok | Abn. | Negativtest / AK-L | Status |
-|---|---|---|---|---|---|
-| LTV-014.X-01 | Nicht dabei: Fire TV (Nicht-Ziel des Repos, AB-3). | 02 | S | 185 | spezifiziert |
 
 ### LTV-015 Kinderprofile und Jugendschutz (14 Anforderungen, 0 Ausschlüsse)
 
@@ -621,7 +616,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-015.13 | Die Behandlung der Aufnahmen von Profilen mit Altersgrenze, auch in Suche und … | 5 | 11 | T | 163 | spezifiziert |
 | LTV-015.14 | Nicht eindeutige Detailregeln zu Aufnahmen von Profilen mit Altersgrenze sind Marco vorgelegt … | K | 20 | S | – | spezifiziert |
 
-### LTV-016 Klassische Wiedergabe (2 Anforderungen, 3 Ausschlüsse)
+### LTV-016 Multi-View und PiP · Klassische Wiedergabe (2 Anforderungen, 3 Ausschlüsse)
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -636,7 +631,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-016.X-02 | Nicht dabei: Bild-in-Bild. | – | S | 174 | spezifiziert |
 | LTV-016.X-03 | Nicht dabei: mehrere Sender gleichzeitig im selben Player. | – | S | 174 | spezifiziert |
 
-### LTV-017 Keine separate Anbieterlimitverwaltung (3 Anforderungen, 6 Ausschlüsse)
+### LTV-017 Anbieterverwaltung · Keine separate Anbieterlimitverwaltung (3 Anforderungen, 6 Ausschlüsse)
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -700,10 +695,10 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-019.05 | Ein Speicherort kann eine SSD sein. | 4 | 13 | T | 151 | spezifiziert |
 | LTV-019.06 | Ein Speicherort kann eine NVMe sein. | 4 | 13 | T | 151 | spezifiziert |
 | LTV-019.07 | Ein Speicherort kann eine HDD sein. | 4 | 13 | T | 151 | spezifiziert |
-| LTV-019.08 | Ein Speicherort kann ein eingebundener Netzspeicher sein. | 5 | 13 | T | 151 | spezifiziert |
+| LTV-019.08 | Ein Speicherort kann ein eingebundener Netzspeicher sein. | 4; 5 | 13 | T | 151 | spezifiziert |
 | LTV-019.09 | Ein Speicherort kann jedes bestehende Linux-Dateisystem sein, das der Container sieht. | 4 | 13 | T | 151 | spezifiziert |
 | LTV-019.10 | Der Administrator setzt globale Speicherlimits je Speicherort. | 4 | 15 | T | 025, 152, 216 | spezifiziert |
-| LTV-019.11 | Der Administrator setzt ein Kontingent für Aufnahmen je Konto. | 5 | 15 | T | 017, 153, 216 | spezifiziert |
+| LTV-019.11 | Der Administrator setzt ein Kontingent für Aufnahmen je Konto. | 5 | 15 | T | 017, 153, 216, 356 | spezifiziert |
 | LTV-019.12 | Der Administrator setzt die maximale Timeshift-Dauer (wie LTV-007.10). | 4 | 15 | T | 154 | spezifiziert |
 | LTV-019.13 | Der Administrator setzt je Speicherort eine Mindestreserve an freiem Platz, die Slouchcat … | 4 | 15 | T | 025, 152, 216 | spezifiziert |
 | LTV-019.14 | Slouchcat wendet Aufbewahrungsfristen automatisch an, so wie das Profil sie gewählt hat … | 5 | 11 | T | 143 | spezifiziert |
@@ -725,7 +720,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-019.X-03 | Nicht dabei: automatisches Verschieben älterer Aufnahmen. | – | S | 159, 182 | spezifiziert |
 | LTV-019.X-04 | Nicht dabei: nachträgliche Komprimierung. | – | S | 182 | spezifiziert |
 
-### LTV-020 Aufnahmen in Originalqualität (22 Anforderungen, 0 Ausschlüsse)
+### LTV-020 Aufnahmequalität · Aufnahmen in Originalqualität (22 Anforderungen, 0 Ausschlüsse)
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -770,7 +765,7 @@ Alle Zeilen: Status **spezifiziert**.
 | LTV-021.12 | Konzept 28 enthält die Änderungen an bestehenden Spezifikationen. | K | 21 | S | 311 | spezifiziert |
 | LTV-021.13 | Konzept 28 enthält eine Entwicklungsroadmap. | K | 18 | S | 311 | spezifiziert |
 | LTV-021.14 | Konzept 28 enthält Abnahmekriterien. | K | 17 | S | 311 | spezifiziert |
-| LTV-021.15 | Vor Marcos ausdrücklicher Freigabe entsteht kein Produktivcode. | K | – | S | 311 | spezifiziert |
+| LTV-021.15 | Vor Marcos ausdrücklicher Baufreigabe einer Stufe entsteht für diese Stufe kein Produktivcode. | K | – | S | 311 | spezifiziert |
 
 ---
 
@@ -794,7 +789,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 
 ### LTV-Q-08 Zentrale Streaming-Engine (Auftrag Abschnitt 8)
 
-**Summe:** 47 Anforderungen; mit `AK-L`: 3; Stufen: K (45), 1 (1), 5 (1).
+**Summe:** 47 Anforderungen; mit `AK-L`: 3; Stufen: K (45), 1 (1), 5 (2).
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -822,7 +817,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 | LTV-Q-08.22 | … die Ebene «individuelle Umwandlung». | K | 04 | S | – | spezifiziert |
 | LTV-Q-08.23 | … die Ebene «persönliches Timeshift». | K | 04 | S | – | spezifiziert |
 | LTV-Q-08.24 | … die Ebene «Aufnahme». | K | 04 | S | – | spezifiziert |
-| LTV-Q-08.25 | Der zentrale Empfang läuft unabhängig von den einzelnen Wiedergabesitzungen. | 1a | 05 | T | 081 | spezifiziert |
+| LTV-Q-08.25 | Der zentrale Empfang läuft unabhängig von den einzelnen Wiedergabesitzungen. | 1a; 5 | 05 | T | 081 | spezifiziert |
 | LTV-Q-08.26 | Eine Aufnahme hängt nie an einem umgewandelten Zuschauerstrom, sondern am Eingangsstrom. | 5 | 05 | T | 081 | spezifiziert |
 | LTV-Q-08.27 | Das Konzept begründet die Lage des Timeshift-Puffers in der Kette (Spulen, Umwandlung, … | K | 10 | S | – | spezifiziert |
 | LTV-Q-08.28 | Ablaufdiagramm: Start eines noch nicht empfangenen Senders. | K | 06 | S | – | spezifiziert |
@@ -938,7 +933,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 
 ### LTV-Q-10 Sicherheit (Auftrag Abschnitt 10)
 
-**Summe:** 65 Anforderungen; mit `AK-L`: 63; Stufen: K (3), 0 (3), 1 (43), 2 (6), H (3), 4 (5), 5 (2).
+**Summe:** 65 Anforderungen; mit `AK-L`: 63; Stufen: K (3), 0 (3), 1 (43), 2 (6), H (3), 4 (6), 5 (2), W (1).
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
@@ -951,7 +946,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 | LTV-Q-10.07 | Die Prüfung gilt für IPv4. | 1a | 12 | T | 232 | spezifiziert |
 | LTV-Q-10.08 | Die Prüfung gilt für IPv6. | 1a | 12 | T | 232 | spezifiziert |
 | LTV-Q-10.09 | Interne Netze sind nur über eine freigegebene Quelle erreichbar (A-3). | H | 12 | T | 045, 230, 235 | spezifiziert |
-| LTV-Q-10.10 | Lokale Quellen brauchen eine ausdrückliche Freigabe des Administrators je Quelle (AB-17). | H | 12 | T | 230 | spezifiziert |
+| LTV-Q-10.10 | Lokale Quellen brauchen eine ausdrückliche Freigabe des Administrators je Quelle als feste … | H | 12 | T | 230 | spezifiziert |
 | LTV-Q-10.11 | Risiken von Multicast und UDP sind behandelt (Netzmodus des Containers, fremde Gruppen). | H | 12 | S | 239 | spezifiziert |
 | LTV-Q-10.12 | Verschachtelte HLS- und DASH-Manifeste werden in jeder Stufe geprüft. | 1a | 12 | T | 236 | spezifiziert |
 | LTV-Q-10.13 | Segment-Adressen werden geprüft. | 1a | 12 | T | 236 | spezifiziert |
@@ -977,7 +972,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 | LTV-Q-10.33 | Prozesse werden sicher beendet. | 1a | 12 | T | 253 | spezifiziert |
 | LTV-Q-10.34 | Verwaiste Prozesse entstehen nicht oder werden aufgeräumt. | 1a | 12 | T | 253 | spezifiziert |
 | LTV-Q-10.35 | Prozesse können die Ressourcen des Servers nicht erschöpfen. | 1a | 13 | T | 251, 253 | spezifiziert |
-| LTV-Q-10.36 | Adressen, die FFmpeg oder eine Medienbibliothek selbst abruft, umgehen den SSRF-Schutz nicht. | 1a | 12 | T | 237 | spezifiziert |
+| LTV-Q-10.36 | Adressen, die FFmpeg oder eine Medienbibliothek selbst abruft, umgehen den SSRF-Schutz nicht. | 1a; W | 12 | T | 237 | spezifiziert |
 | LTV-Q-10.37 | XML External Entities werden nicht aufgelöst. | 2 | 12 | T | 257 | spezifiziert |
 | LTV-Q-10.38 | XML-Bomben werden abgewehrt. | 2 | 12 | T | 257 | spezifiziert |
 | LTV-Q-10.39 | Komprimierte XMLTV-Dateien werden mit Grenzen entpackt. | 2 | 12 | T | 258 | spezifiziert |
@@ -987,7 +982,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 | LTV-Q-10.43 | Abgerufene Dateien haben eine Grössengrenze. | 1a | 12 | T | 256 | spezifiziert |
 | LTV-Q-10.44 | Parser haben Zeitgrenzen. | 1a | 12 | T | 256 | spezifiziert |
 | LTV-Q-10.45 | Importe können die Ressourcen des Servers nicht erschöpfen. | 1a | 13 | T | 256 | spezifiziert |
-| LTV-Q-10.46 | Kein Puffer ist unbegrenzt. | 1a | 12 | T | 260 | spezifiziert |
+| LTV-Q-10.46 | Kein Puffer ist unbegrenzt. | 1a; 4 | 12 | T | 260 | spezifiziert |
 | LTV-Q-10.47 | Pfade können nicht aus den Speicherorten ausbrechen (Regel 4). | 4 | 12 | T | 261 | spezifiziert |
 | LTV-Q-10.48 | Dateirechte der Speicherorte sind eng gesetzt. | 4 | 12 | S | 261 | spezifiziert |
 | LTV-Q-10.49 | Timeshift-Dateien sind nur für ihre Sitzung abrufbar. | 4 | 12 | T | 263 | spezifiziert |
@@ -1004,7 +999,7 @@ Matrix (`17` 9.3, `AK-L-310`).
 | LTV-Q-10.60 | Die bestehenden Kontogrenzen gelten. | 1a | 12 | T | 268 | spezifiziert |
 | LTV-Q-10.61 | Alle Freigaben werden im Server durchgesetzt. | 1a | 12 | T | 267 | spezifiziert |
 | LTV-Q-10.62 | Unsichtbare Inhalte liefern 404. | 1a | 12 | T | 267 | spezifiziert |
-| LTV-Q-10.63 | Alle bestehenden Sicherheitsanforderungen gelten weiter, ausser den benannten Ausnahmen A-1 bis A-9. | 0 | 12 | S | 272 | spezifiziert |
+| LTV-Q-10.63 | Alle bestehenden Sicherheitsanforderungen gelten weiter, ausser den benannten Ausnahmen A-1 bis A-13. | 0 | 12 | S | 272 | spezifiziert |
 | LTV-Q-10.64 | Kein Sicherheitsmechanismus wird stillschweigend gelockert. | K | 12 | S | 272 | spezifiziert |
 | LTV-Q-10.65 | Das Sicherheitskonzept wird unabhängig geprüft. | K | 23 | S | – | spezifiziert |
 
@@ -1063,13 +1058,13 @@ Matrix (`17` 9.3, `AK-L-310`).
 
 ### LTV-Q-12 Integration in bestehende Funktionen (Auftrag Abschnitt 12)
 
-**Summe:** 30 Anforderungen; mit `AK-L`: 21; Stufen: K (1), 0 (1), 1 (21), 2 (2), 5 (2), Apps (2).
+**Summe:** 30 Anforderungen; mit `AK-L`: 21; Stufen: K (1), 0 (1), 1 (21), 2 (2), 5 (3), Apps (2).
 
 | ID | Kurztext | Stufe | Dok | Abn. | AK-L | Status |
 |---|---|---|---|---|---|---|
 | LTV-Q-12.01 | Die Benutzerverwaltung (Konten, Einladungen) trägt die drei Schalter je Konto. | 1a | 15 | T | 160, 223 | spezifiziert |
 | LTV-Q-12.02 | Die Profilverwaltung trägt die drei Schalter je Profil. | 1a | 14 | T | 160, 218 | spezifiziert |
-| LTV-Q-12.03 | Profile mit Altersgrenze folgen LTV-015 und DR-01 bis DR-05. | 1a | 14 | T | 146 | spezifiziert |
+| LTV-Q-12.03 | Profile mit Altersgrenze folgen LTV-015 und DR-01 bis DR-05. | 1a; 5 | 14 | T | 146 | spezifiziert |
 | LTV-Q-12.04 | Die Verwaltung des Hauptprofils zeigt Freigaben und die Aufnahmen der Profile mit … | 5 | 14 | T | 163 | spezifiziert |
 | LTV-Q-12.05 | Der Live-TV-Player baut auf dem bestehenden Player auf. | 1a | 14 | S | – | spezifiziert |
 | LTV-Q-12.06 | Umwandlungen laufen über die bestehende Transcoding-Kette, kein zweites System. | 1a | 04 | S | – | spezifiziert |
@@ -1369,7 +1364,7 @@ Zeilen der Review-Tabelle hat das Skript über Stichwörter vergeben; `03` und `
 | LTV-X-26 | Neue Benutzergruppen | 03 7.1 Z. 1786; auch in LTV-006.X-01 | 184 | ja (9 Benutzergruppen) | spezifiziert |
 | LTV-X-27 | Externe Transcoding-Nodes | 03 7.1 Z. 1787; auch in AB-1 | 185 | nein (nicht ausdrücklich) | spezifiziert |
 | LTV-X-28 | Separate Live-TV-Microservices | 03 7.1 Z. 1788; auch in LTV-Q-08.15 | (nur über «Auch in»: 185) | nein (nicht ausdrücklich) | spezifiziert |
-| LTV-X-29 | Verpflichtende externe IPTV-Middleware | 03 7.1 Z. 1789; auch in AB-1 | – nicht zugeordnet | nein (nicht ausdrücklich) | spezifiziert |
+| LTV-X-29 | Verpflichtende externe IPTV-Middleware | 03 7.1 Z. 1789; auch in AB-1 | 333 | nein (nicht ausdrücklich) | spezifiziert |
 
 ---
 
@@ -1387,7 +1382,7 @@ Zeilen der Review-Tabelle hat das Skript über Stichwörter vergeben; `03` und `
 | T-4 | Die Regel «FFmpeg sieht keine Adresse» (ADR 0025) gilt für … | – | – | – | 1; 321 |
 | T-5 | Netzschutz je Quelle mit festen Zielen. | – | – | 003, Q-10 | 3; 045, 230–231 |
 | T-6 | Internes Verteilformat ist unveränderter MPEG-TS. | LTV-020 | – | 004, Q-15 | 2; 001, 079 |
-| T-7 | Der technische Startpuffer ist dieser Ring und nichts sonst. | LTV-007, LTV-013 | – | 004, 007, 010 | 3; 074, 087, 123 |
+| T-7 | Der technische Startpuffer ist dieser Ring und nichts sonst. | LTV-007, LTV-013 | – | 004, 007, 010 | 4; 074, 087, 123, 338 |
 | T-8 | Niemand kann den Empfang aufhalten. | LTV-004 | – | 004, Q-08, Q-15 | 3; 003, 073, 081 |
 | T-9 | Eigener Sitzungstyp «Live-Sitzung». | – | – | – | 0; – |
 | T-10 | Der persönliche Zeitversatz-Puffer liegt vor der Umwandlung und gehört einer … | LTV-007 | – | 007, 012, Q-15 | 3; 009–010, 125 |
@@ -1397,9 +1392,9 @@ Zeilen der Review-Tabelle hat das Skript über Stichwörter vergeben; `03` und `
 | T-14 | Der Server entscheidet je Sitzung zwischen Original, Ton-Umwandlung und Bild-Umwandlung | – | – | 004, Q-15 | 1; 002 |
 | T-15 | Zeilensprung-Entfernung (Deinterlacing) ist ein neuer, abschaltbarer Baustein der Videokette | – | – | 004, Q-12 | 2; 070, 078 |
 | T-16 | Die Aufnahme zweigt am Verteiler ab, | LTV-008 | – | 002, 004, 008, 020, Q-08, Q-15 | 3; 013–014, 081 |
-| T-17 | Lebenszyklus über benannte Haltegründe. | LTV-017 | – | 002, 004, 010, Q-15 | 4; 003, 315–316, 319 |
-| T-18 | Empfangsstrategie: vier Arten und Vorladen, alle verbindlich und vollständig beschrieben | LTV-002 | – | 002, 010 | 1; 316 |
-| T-19 | Ein Zulassungsort, vier Grössen. | – | – | 004, 012, Q-15 | 3; 033, 067, 074 |
+| T-17 | Lebenszyklus über benannte Haltegründe. | LTV-002, LTV-017 | – | 002, 004, 010, 011, 017, Q-15 | 8; 003, 315–316, 319, 334–336, 354 |
+| T-18 | Empfangsstrategie: vier Arten und Vorladen, alle verbindlich und vollständig beschrieben | LTV-002 | – | 002, 010, 017 | 2; 316, 336 |
+| T-19 | Ein Zulassungsort, vier Grössen. | – | – | 002, 004, 012, Q-15 | 4; 033, 067, 074, 334 |
 | T-20 | Empfang und Aufnahme laufen im Serverprozess, nicht in FFmpeg, | – | – | 004, 012, Q-15 | 1; 033 |
 | T-21 | Stream-Endpunkte tragen ein Token lt, | – | – | 012, Q-10, Q-15 | 3; 028, 264, 318 |
 | T-22 | Flüchtiges lebt im Arbeitsspeicher, Dauerhaftes in SQLite. | – | – | – | 0; – |
@@ -1407,9 +1402,9 @@ Zeilen der Review-Tabelle hat das Skript über Stichwörter vergeben; `03` und `
 | T-24 | Paketzuschnitt | – | – | – | 0; – |
 | T-25 | Drei Speicherorte, jeder vom Administrator gewählt. | LTV-019 | – | 019, Q-15 | 2; 032, 150 |
 | T-26 | Live-TV zählt zu den bestehenden Grenzen: | – | – | 004, 012, 017, Q-12 | 3; 076, 166, 283 |
-| T-27 | FFmpeg wird eingedämmt, und kein Paket der Quelle kann den … | – | – | – | 1; 321 |
-| T-28 | Jede Adresse einer Quelle und jede Stream-Adresse eines Senders ist … | – | – | Q-10 | 1; 243 |
-| T-29 | Deaktivieren oder Verschwinden eines Senders beendet nichts Laufendes von selbst. | LTV-002 | – | 002, 006 | 2; 147, 313 |
+| T-27 | FFmpeg wird eingedämmt, und kein Paket der Quelle kann den … | – | – | – | 2; 321, 341 |
+| T-28 | Jede Adresse einer Quelle und jede Stream-Adresse eines Senders ist … | – | – | Q-10 | 2; 243, 348 |
+| T-29 | Deaktivieren oder Verschwinden eines Senders beendet nichts Laufendes von selbst; … | LTV-002 | – | 002, 006 | 3; 147, 313, 340 |
 
 ### 6.2 SM-nn → LTV / Auftrag Abschnitt 10
 
@@ -1417,19 +1412,19 @@ Spalte «Bezug» aus `12` Abschnitt 11. `LTV-Q-10.nn` entspricht dem Auftrag Abs
 
 | SM | Massnahme | Bezug (LTV) | Auftrag 10 | Pflicht vor | LTV über AK-L (abgeleitet) | AK-L |
 |---|---|---|---|---|---|---|
-| SM-01 | Dialer je Quelle mit Prüfung jeder Verbindung an der angewählten … | LTV-003 | 10: .02, .03, .04, .09, .10 | 1a (Regel mit leerer Liste: nur öffentlich), H (feste Ziele) | 003 | 031, 045, 230 |
-| SM-02 | ein HTTP-Transport je Quelle und Regelstand, geschlossen bei Änderung; laufende … | – | – | 1a (H für den Fall mit Freigabe) | – | 231 |
+| SM-01 | Dialer je Quelle mit Prüfung jeder Verbindung an der angewählten … | LTV-003 | 10: .02, .03, .04, .09, .10 | 1a (Regel mit leerer Liste: nur öffentlich), H (feste Ziele) | 003 | 031, 045, 230, 352 |
+| SM-02 | ein HTTP-Transport je Quelle und Regelstand, geschlossen bei Änderung; laufende … | – | – | 1a (H für den Fall mit Freigabe) | – | 231, 340 |
 | SM-03 | Präfixe 64:ff9b:1::/48, 2001::/32, ::ffff:0:0:0/96, 192.0.0.0/24, 240.0.0.0/4 in netguard; eigene Adressen … | – | 10: .07, .08 | 1a | – | 232 |
 | SM-04 | eigene CheckRedirect: höchstens 5 Sprünge mit Unterlisten, nur http/https, kein … | – | 10: .05 | 1a | – | 031, 233 |
 | SM-05 | DNS-Rebinding: keine Entscheidung vor der Verbindung; feste Ziele als Adressen, … | – | 10: .06 | 1a | – | 234 |
-| SM-06 | Import ohne Probe; Sender ausserhalb der Ziele markiert, nie verbunden; … | – | 10: .09 | 1a (Markierung ohne Probe), H (Sammelhinweis, Freigabe) | 003 | 045, 235 |
+| SM-06 | Import ohne Probe; Sender ausserhalb der Ziele markiert, nie verbunden; … | – | 10: .09 | 1a (Markierung ohne Probe), H (Sammelhinweis, Freigabe) | 003 | 045, 235, 352 |
 | SM-07 | Grenzen für HLS: Takt, Zieldauer, Varianten, Tiefe, Kreise, Grössen | – | 10: .12, .13, .14, .15 | 1a | – | 236 |
 | SM-08 | Weg W: Ersatzpfade auf 127.0.0.1 für jede Adresse, keine Proxy-Einstellung, … | – | 10: .36 | W | 003 | 031, 041, 237 |
-| SM-09 | Sperre des FFmpeg-Empfängers, hart gesetzt: Landlock (Dateien; TCP nur Port … | – | – | W (Pflicht) | – | 238, 321 |
+| SM-09 | Sperre des FFmpeg-Empfängers, hart gesetzt: Landlock (Dateien; TCP nur Port … | – | – | W (Pflicht) | – | 238, 321, 341 |
 | SM-10 | UDP, RTP, Multicast: nur Administrator, Bindung an eine Schnittstelle, Port … | – | 10: .11 | H | 003 | 043–044, 239 |
 | SM-11 | Netzmodus «host» als A-9; Weg W gesperrt; Adressen und IPv6-Präfixe … | – | – | H | 003 | 044, 240 |
 | SM-12 | RTSP/RTMP nur über den übergebenen Dialer, RTSP nur TCP, keine … | – | – | L | 003 | 042, 241 |
-| SM-13 | Logos und EPG-Bilder nur über den Server, nur öffentlich, Go-Decoder … | – | 10: .16, .17 | 1a (Logos), 2 (EPG-Bilder) | 005, 006 | 056, 119, 242 |
+| SM-13 | Logos und EPG-Bilder nur über den Server, nur öffentlich; Go … | – | 10: .16, .17 | 1a (Logos), 2 (EPG-Bilder) | 005, 006 | 056, 119, 242 |
 | SM-14 | jede Adresse und jeder Kopfzeilen-Wert verschlüsselt, nur site im Klartext; … | – | 10: .18, .19 | 1a | 003, 017 | 039, 243 |
 | SM-15 | Geheimnisse nur an feste Ursprünge; aus Listen nur User-Agent und … | – | 10: .20, .21, .26 | 1a | – | 244 |
 | SM-16 | API und Oberfläche: Geheimnisse nur schreibbar, nur site und Namen, … | – | 10: .23, .24 | 1a | 003, 011, 017 | 039, 097, 245 |
@@ -1438,7 +1433,7 @@ Spalte «Bezug» aus `12` Abschnitt 11. `LTV-Q-10.nn` entspricht dem Auftrag Abs
 | SM-19 | keine Zugangsdaten in Argumenten, Umgebung, ffmpeg.log; Fehlerausgabe von FFmpeg nie … | – | – | 1a | 011 | 097, 248 |
 | SM-20 | Xtream: Adressen nur aus dem eingetragenen Host, server_info nie verwendet, … | – | 10: .26 | 1a | 003 | 037, 249 |
 | SM-21 | Argumente nur Zahlen und Listenwerte; festes Eingangsformat; -protocol_whitelist pipe auch … | – | 10: .27, .28 | 1a | 020 | 015, 250 |
-| SM-22 | Hülle für jeden Live-FFmpeg: Umgebung (ohne SLOUCHCAT_, http_proxy, no_proxy), rlimits … | – | 10: .29, .35 | 1a (Landlock als Pflicht nach F-1) | – | 251, 321 |
+| SM-22 | Hülle für jeden Live-FFmpeg: Umgebung (ohne SLOUCHCAT_, http_proxy, no_proxy), rlimits … | – | 10: .29, .35 | 1a (mit M-25 auf CT 190 vor der Baufreigabe von 0/1a) | – | 251, 321, 341 |
 | SM-23 | Compose: no-new-privileges, cap_drop: [ALL], pids_limit | – | – | 0 (nach 04 F-12 (a) und V-4, 18 Planschritt 0.6), sonst 1a | – | 252 |
 | SM-24 | Prozesslimits, Zeitgrenzen, Beendigung, Waisen, Neustartdrossel | – | 10: .31, .32, .33, .34, .35 | 1a | 004 | 026, 030, 253 |
 | SM-25 | recover an der Wurzel jeder Live-Go-Routine; keine Allokation aus Längenfeldern; … | – | 10: .29, .30 | 1a (TS, HLS, M3U, Xtream), 2 (XMLTV), H (RTP), W (MPD) | – | 254 |
@@ -1452,15 +1447,27 @@ Spalte «Bezug» aus `12` Abschnitt 11. `LTV-Q-10.nn` entspricht dem Auftrag Abs
 | SM-33 | Marker und Dateisystemtyp je Speicherort, kein Schreiben in leeren Einhängepunkt | – | 10: .51 | 4 (Aufnahmen 5) | 019 | 032, 158, 262 |
 | SM-34 | Timeshift- und Aufnahmedateien nur über Server-Endpunkte der eigenen Sitzung; keine … | – | 10: .49, .50 | 4 (Aufnahmen 5) | 007 | 009, 011, 263 |
 | SM-35 | Token lt nach 08 4.2: HMAC zuerst, Bindung an Sitzung … | – | 10: .53, .54, .59 | 1a | 012 | 028, 264 |
-| SM-36 | Widerruf über die Haken in auth, Sicherung je Listenanfrage höchstens … | – | 10: .55, .56 | 1a | 012 | 028–029, 265 |
+| SM-36 | Widerruf über die Haken in auth; Sicherung je Listenanfrage und … | – | 10: .55, .56 | 1a | 012 | 028–029, 265, 351 |
 | SM-37 | eine Zugriffsabfrage je Objektart mit Profil und Konto; Aufnahmeregel nach … | LTV-009 | 10: .57, .58 | 1a (Favoriten, Verlauf, Sitzungen), 2 (Erinnerungen), 5 (Aufnahmen, Planungen), 6 (Serienregeln) | 007, 009, 012 | 011, 016, 028, 164, 266 |
 | SM-38 | Vertragstest: jede Live-Operation und Route ohne wirksames Recht 404; x-visibility, … | LTV-012 | 10: .61, .62 | 1a | 007, 012, 015 | 011, 018, 267 |
-| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst | – | 10: .60 | 1a | 010 | 090, 268 |
+| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst; Sitzung ohne Segmentabruf … | – | 10: .60 | 1a (Drosselung, Deckel, Sitzung ohne Segmentabruf wie 04 8.5 und 17), 3 (deviceId) | 010 | 090, 268, 351 |
 | SM-40 | bestehender CSRF-Schutz unverändert für jede schreibende Live-Operation (403 csrf_header_missing, gebaut); … | – | 10: .59 | 1a | 012 | 028, 269 |
 | SM-41 | Protokoll der Verwaltung für Quellen, Ziele, Ursprünge, Speicherorte, Schalter | – | – | 1a (Quellen, Ursprünge, Schalter), H (feste Ziele) | – | 270 |
 | SM-42 | Administratorsicht ohne private Titel; Meldungen bei PIN-Profilen ohne Titel | LTV-009 | – | 1a (Wiedergaben), 5 (Aufnahmen) | 009 | 016, 165, 271, 327 |
-| SM-43 | benannte Ausnahmen A-1 bis A-9 in Regeln, Spec und ADR … | – | 10: .63, .64 | 0 | – | 272 |
+| SM-43 | benannte Ausnahmen A-1 bis A-13 (A-10 Weg W, A-11 Zusatz … | – | 10: .63, .64 | 0 | – | 272 |
 | SM-44 | DRM erkennen und ablehnen (05 2.5; Einordnung nach der HLS-Spezifikation … | LTV-003 | – | 1a (HLS), W (DASH) | 003 | 031, 041, 176, 273 |
+| SM-45 | Verwaltung zeigt laufende Aufnahmen je Eingang nur als Zahl ab … | LTV-009 | – | 5 | 009 | 327 |
+| SM-46 | Meldung «Kontingent voll» an das Hauptprofil in eigener Art ohne … | LTV-009 | – | 5 | 009 | 328 |
+| SM-47 | Entfernen einer Quelle und Ändern ihrer Adresse, Zugangsdaten, Kopfzeilen, Ursprünge … | – | – | 1a (Quellen, Text beim Deaktivieren), H (Ziele) | – | 340 |
+| SM-48 | Bau der Hülle: Unterbefehl als erste Anweisung in main ohne … | – | – | 1a (Lint 0) | – | 342 |
+| SM-49 | Filter der Systemaufrufe als Erlaubnisliste mit SECCOMP_RET_KILL_PROCESS, Prüfung der Architektur, … | – | – | 1a (Umwandlung, Probe), W (Empfänger) | – | 343 |
+| SM-50 | Schauzeit nach dem, was der Server beobachtet: jedes ausgelieferte, verschiedene … | LTV-012 | – | 1a | – | 344 |
+| SM-51 | Weiterleiter beantwortet nur selbst umgeschriebene Verweise (genaue Adressen, Vorlagen nur … | – | – | W | – | 345 |
+| SM-52 | Feste Reihenfolge der Prüfungen: Anmeldung, CSRF, Recht, Objekt, erst dann … | – | 10: .62 | 1a | – | 346 |
+| SM-53 | Mengengrenze der Programmdaten (500 Sendungen je Sender und Tag, Gesamtzahl … | – | 10: .45 | 2 | – | 347 |
+| SM-54 | Ursprung = Schema, Host und Port; Geheimnisse einer https-Quelle nie … | – | 10: .26 | 1a | – | 348 |
+| SM-55 | Empfehlung an den Bestand (kein Teil von Konzept 28, braucht … | – | – | 0 (Empfehlung) | – | 349 |
+| SM-56 | Meldungen über E-Mail, Push und Telegram zu Aufnahmen und Erinnerungen … | LTV-009 | – | 2 (Erinnerungen), 5 (Aufnahmen) | – | 350 |
 
 ### 6.3 Seiten LS-/LA-/LD- → LTV
 
@@ -1535,17 +1542,17 @@ Zahl der Anforderungen und Ausschlüsse je Entscheid, deren Stufenangabe in `03`
 
 | Stufe | Entscheide nach 03 (Zahl der Anforderungen) | Entscheide nach 18 4.13 |
 |---|---|---|
-| K | 001 (1), 002 (1), 003 (2), 009 (1), 010 (29), 013 (1), 014 (1), 015 (1), 020 (2), 021 (15), Q-08 (45), Q-10 (3), Q-11 (43), Q-12 (1), Q-13 (71), Q-14 (45), Q-15 (2), Q-17 (36) | – |
-| 0 | 015 (1), Q-10 (3), Q-12 (1) | 015 |
-| 1 | 001 (8), 002 (3), 003 (16), 004 (36), 006 (20), 010 (1), 011 (6), 012 (11), 014 (22), 015 (8), 016 (2), 017 (3), 018 (21), Q-08 (1), Q-09 (52), Q-10 (43), Q-12 (21), Q-14 (2), Q-15 (27) | 001, 002, 003, 004, 006, 010, 011, 012, 015, 016, 017, 018 |
+| K | 001 (1), 002 (1), 003 (2), 009 (1), 010 (29), 013 (1), 014 (2), 015 (1), 020 (2), 021 (15), Q-08 (45), Q-10 (3), Q-11 (43), Q-12 (1), Q-13 (71), Q-14 (45), Q-15 (2), Q-17 (36) | – |
+| 0 | 011 (1), 015 (1), Q-10 (3), Q-12 (1) | 015 |
+| 1 | 001 (8), 002 (3), 003 (16), 004 (36), 006 (20), 010 (3), 011 (6), 012 (11), 014 (22), 015 (8), 016 (2), 017 (3), 018 (21), Q-08 (1), Q-09 (52), Q-10 (43), Q-12 (21), Q-14 (2), Q-15 (27) | 001, 002, 003, 004, 006, 010, 011, 012, 015, 016, 017, 018 |
 | 2 | 001 (3), 005 (26), 014 (27), 015 (3), 018 (1), Q-09 (8), Q-10 (6), Q-12 (2), Q-15 (1) | 005, 014, 018 |
 | 3 | 001 (1), 002 (7), 003 (1), 004 (1), 007 (2), 010 (13), 011 (15), 013 (1), Q-09 (8), Q-11 (3), Q-15 (7) | 002, 003, 004, 007, 010, 011, 013, 019 |
 | H | 003 (3), Q-10 (3) | 003 |
-| 4 | 001 (1), 007 (12), 012 (1), 014 (5), 019 (16), Q-09 (7), Q-10 (5), Q-15 (4) | 007, 012, 014, 019 |
-| 5 | 001 (1), 002 (2), 004 (1), 005 (2), 008 (23), 009 (10), 012 (1), 014 (20), 015 (1), 018 (1), 019 (6), 020 (20), Q-08 (1), Q-09 (8), Q-10 (2), Q-12 (2), Q-15 (9) | 002, 004, 005, 008, 009, 012, 014, 015, 018, 019, 020 |
+| 4 | 001 (1), 007 (12), 012 (1), 014 (5), 019 (17), Q-09 (7), Q-10 (6), Q-15 (4) | 007, 012, 014, 019 |
+| 5 | 001 (1), 002 (2), 004 (1), 005 (2), 008 (23), 009 (10), 012 (1), 014 (20), 015 (1), 018 (1), 019 (6), 020 (20), Q-08 (2), Q-09 (8), Q-10 (2), Q-12 (3), Q-15 (9) | 002, 004, 005, 008, 009, 012, 014, 015, 018, 019, 020 |
 | 6 | 001 (1), 008 (3), 009 (1), 014 (4) | 008, 009, 014 |
 | L | 003 (2) | 003 |
-| W | 003 (1) | 003 |
+| W | 003 (1), Q-10 (1) | 003 |
 | E | 004 (1), 011 (1), 014 (1) | 004, 011 |
 | Apps | 014 (4), Q-12 (2) | 014 |
 
@@ -1559,21 +1566,22 @@ Das Skript (nicht im Repo) hat `03`, `17`, `04`, `07`, `08`, `12`, `14`, `15`, `
 
 | Grösse | Wert |
 |---|---|
-| Zeilen in `03` Abschnitte 3 und 4 (ohne `LTV-X-nn` aus 7.1) | **974**: Entscheide 453 Anforderungen + 46 Ausschlüsse `…X…`; Querschnitt 474 Anforderungen + 1 Ausschluss `LTV-Q-12.X-01` |
-| davon Anforderungen (ohne Ausschlüsse) | **927** (= 453 + 474) |
-| davon Ausschlüsse (`…X-…`) | 47 |
+| Zeilen in `03` Abschnitte 3 und 4 (ohne `LTV-X-nn` aus 7.1) | **974**: Entscheide 454 Anforderungen + 45 Ausschlüsse `…X…`; Querschnitt 474 Anforderungen + 1 Ausschluss `LTV-Q-12.X-01` |
+| davon Anforderungen (ohne Ausschlüsse) | **928** (= 454 + 474) |
+| davon Ausschlüsse (`…X-…`) | 46 |
+| als «entfällt» geführte Zeilen (nicht mitgezählt) | 1: LTV-014.X-01 |
 | Zeilen der Ausschlussliste `LTV-X-nn` (03 7.1) | 29 |
-| `AK-L`-Zeilen in `17` | 332 (davon ohne erkennbaren LTV-/LTV-Q-/LTV-X-Bezug: 37) |
+| `AK-L`-Zeilen in `17` | 357 (davon ohne erkennbaren LTV-/LTV-Q-/LTV-X-Bezug: 55) |
 | Architekturentscheide `T-n` in `04` | 29 |
-| Sicherheitsmassnahmen `SM-nn` in `12` | 44 |
+| Sicherheitsmassnahmen `SM-nn` in `12` | 56 |
 | Seiten und Dialoge `LS-`/`LA-`/`LD-` in `14`/`15` | 58 (davon Mockup: 58) |
 | Operationen in `08` (Tabellen 2.1–2.10 mit Seitenspalte) | 115 (`08` 2.13 nennt «Neu insgesamt» 115) |
 | Tabellen in `07` mit eigenem Absatz | 31 |
-| Fragen `F-n` der Dokumente | 62 |
+| Offene Entscheidungen `E-28-nn` in `20` | 69 |
 
 **Abgleich mit der Zählung in `03` (Anhang «Zählung»):**
 
-- Zeilen «Summe» im Anhang von `03`: 453 Anforderungen / 45 Ausschlüsse. Die Einzelzellen desselben Anhangs ergeben 453 / 46; das Skript zählt 453 / 46. **Die gedruckte Summe der Ausschlüsse stimmt nicht mit den Einzelzellen überein.**
+- Zeilen «Summe» im Anhang von `03`: 454 Anforderungen / 45 Ausschlüsse. Die Einzelzellen desselben Anhangs ergeben 454 / 45; das Skript zählt 454 / 45. 
 - Querschnitt: Anhang nennt 474 Anforderungen und 1 Ausschluss; das Skript zählt 474 Anforderungen und 1 Ausschluss.
 - Keine Abweichung je Entscheid und je Querschnittsabschnitt.
 - `LTV-Q-12.X-…`-Zeilen (Ausschluss im Querschnitt): 1; sie zählen oben bei «Querschnitt».
@@ -1582,63 +1590,50 @@ Das Skript (nicht im Repo) hat `03`, `17`, `04`, `07`, `08`, `12`, `14`, `15`, `
 
 | Prüfung | Zahl | von |
 |---|---|---|
-| Anforderungen mit Stufe (nicht leer, nicht «–») | 927 | 927 |
-| mit Dokumentverweis (Spalte «Dok») | 923 | 927 |
-| Anforderungen mit Abnahme T oder M | 588 | 927 |
+| Anforderungen mit Stufe (nicht leer, nicht «–») | 928 | 928 |
+| mit Dokumentverweis (Spalte «Dok») | 924 | 928 |
+| Anforderungen mit Abnahme T oder M | 588 | 928 |
 | … davon mit mindestens einem `AK-L` | 588 | 588 |
 | … davon **ohne** `AK-L` | 0 | 588 |
-| Abnahme S (Sichtprüfung) | 339 | 927 |
+| Abnahme S (Sichtprüfung) | 340 | 928 |
 | … davon mit `AK-L` (freiwillig) | 27 | |
-| Anforderungen mit irgendeinem `AK-L` | 615 | 927 |
-| Anforderungen ohne `AK-L` (alle Arten) | 312 | 927 |
-| Ausschlüsse (`…X-…`) mit mindestens einem `AK-L` | 44 | 47 |
-| Ausschlüsse mit Abnahme T oder M | 9 | 47 |
+| Anforderungen mit irgendeinem `AK-L` | 615 | 928 |
+| Anforderungen ohne `AK-L` (alle Arten) | 313 | 928 |
+| Ausschlüsse (`…X-…`) mit mindestens einem `AK-L` | 43 | 46 |
+| Ausschlüsse mit Abnahme T oder M | 9 | 46 |
 
 Verteilung der Abnahmeart in `03`: «M»: 21, «S»: 377, «T»: 576.
 
-**Ohne Stufe (0):** keine. Die {len(excl)} Ausschlüsse tragen in `03` bewusst «–» als Stufe (sie werden nicht gebaut) und sind hier nicht mitgezählt.
+**Ohne Stufe (0):** keine. Die 46 Ausschlüsse tragen in `03` bewusst «–» als Stufe (sie werden nicht gebaut) und sind hier nicht mitgezählt.
 
 **Ohne Dokumentverweis (4):** LTV-021.01, LTV-021.02, LTV-021.03, LTV-021.15. Von den Ausschlüssen tragen {sum(1 for r in excl if r['dok'].strip() in ('', '–', '-'))} von {len(excl)} «–» als Dokument; sie sind hier nicht mitgezählt (Negativtest siehe Matrix D).
 
 **Abnahme T oder M, aber ohne `AK-L` («nicht zugeordnet», 0):** keine.
 
-**Abnahme S ohne `AK-L` (312):** erwartungsgemäss; `17` 9.3 weist sie der Sichtprüfung dieser Matrix zu (`AK-L-310`). Kennungen: LTV-001.01, LTV-001.03, LTV-001.05, LTV-001.15, LTV-003.24, LTV-003.25, LTV-004.21, LTV-004.38, LTV-005.17, LTV-006.20, LTV-007.12, LTV-009.12, LTV-010.01, LTV-010.11, LTV-010.12, LTV-010.13, LTV-010.14, LTV-010.15, LTV-010.16, LTV-010.17, LTV-010.18, LTV-010.19, LTV-010.20, LTV-010.21, LTV-010.22, LTV-010.23, LTV-010.24, LTV-010.25, LTV-010.26, LTV-010.27, LTV-010.32, LTV-010.33, LTV-010.34, LTV-010.35, LTV-010.36, LTV-010.37, LTV-010.38, LTV-010.39, LTV-010.40, LTV-010.41, LTV-010.43, LTV-012.01, LTV-013.01, LTV-014.07, LTV-014.20, LTV-014.21, LTV-014.22, LTV-014.55, LTV-014.56, LTV-014.74, LTV-014.80, LTV-014.81, LTV-015.11, LTV-015.14, LTV-017.03, LTV-019.17, LTV-020.08, LTV-020.10, LTV-020.21, LTV-Q-08.01, LTV-Q-08.02, LTV-Q-08.03, LTV-Q-08.04, LTV-Q-08.05, LTV-Q-08.06, LTV-Q-08.07, LTV-Q-08.08, LTV-Q-08.09, LTV-Q-08.10, LTV-Q-08.11, LTV-Q-08.12, LTV-Q-08.13, LTV-Q-08.14, LTV-Q-08.16, LTV-Q-08.17, LTV-Q-08.18, LTV-Q-08.19, LTV-Q-08.20, LTV-Q-08.21, LTV-Q-08.22, LTV-Q-08.23, LTV-Q-08.24, LTV-Q-08.27, LTV-Q-08.28, LTV-Q-08.29, LTV-Q-08.30, LTV-Q-08.31, LTV-Q-08.32, LTV-Q-08.33, LTV-Q-08.34, LTV-Q-08.35, LTV-Q-08.36, LTV-Q-08.37, LTV-Q-08.38, LTV-Q-08.39, LTV-Q-08.40, LTV-Q-08.41, LTV-Q-08.42, LTV-Q-08.43, LTV-Q-08.44, LTV-Q-08.45, LTV-Q-08.46, LTV-Q-08.47, LTV-Q-09.01, LTV-Q-09.82, LTV-Q-09.83, LTV-Q-10.01, LTV-Q-10.65, LTV-Q-11.01, LTV-Q-11.02, LTV-Q-11.03, LTV-Q-11.04, LTV-Q-11.05, LTV-Q-11.06, LTV-Q-11.07, LTV-Q-11.08, LTV-Q-11.09, LTV-Q-11.10, LTV-Q-11.11, LTV-Q-11.12, LTV-Q-11.13, LTV-Q-11.14, LTV-Q-11.15, LTV-Q-11.16, LTV-Q-11.17, LTV-Q-11.18, LTV-Q-11.19, LTV-Q-11.20, LTV-Q-11.21, LTV-Q-11.22, LTV-Q-11.23, LTV-Q-11.24, LTV-Q-11.25, LTV-Q-11.26, LTV-Q-11.27, LTV-Q-11.28, LTV-Q-11.29, LTV-Q-11.30, LTV-Q-11.31, LTV-Q-11.32, LTV-Q-11.33, LTV-Q-11.34, LTV-Q-11.38, LTV-Q-11.39, LTV-Q-11.40, LTV-Q-11.41, LTV-Q-11.42, LTV-Q-11.43, LTV-Q-11.44, LTV-Q-11.45, LTV-Q-11.46, LTV-Q-12.05, LTV-Q-12.06, LTV-Q-12.14, LTV-Q-12.18, LTV-Q-12.19, LTV-Q-12.26, LTV-Q-12.28, LTV-Q-12.29, LTV-Q-13.01, LTV-Q-13.02, LTV-Q-13.03, LTV-Q-13.04, LTV-Q-13.05, LTV-Q-13.06, LTV-Q-13.07, LTV-Q-13.08, LTV-Q-13.09, LTV-Q-13.10, LTV-Q-13.11, LTV-Q-13.12, LTV-Q-13.13, LTV-Q-13.14, LTV-Q-13.15, LTV-Q-13.16, LTV-Q-13.17, LTV-Q-13.18, LTV-Q-13.19, LTV-Q-13.20, LTV-Q-13.21, LTV-Q-13.22, LTV-Q-13.23, LTV-Q-13.24, LTV-Q-13.25, LTV-Q-13.26, LTV-Q-13.27, LTV-Q-13.28, LTV-Q-13.29, LTV-Q-13.30, LTV-Q-13.31, LTV-Q-13.32, LTV-Q-13.33, LTV-Q-13.34, LTV-Q-13.35, LTV-Q-13.36, LTV-Q-13.37, LTV-Q-13.38, LTV-Q-13.39, LTV-Q-13.40, LTV-Q-13.41, LTV-Q-13.42, LTV-Q-13.43, LTV-Q-13.44, LTV-Q-13.45, LTV-Q-13.46, LTV-Q-13.47, LTV-Q-13.48, LTV-Q-13.49, LTV-Q-13.50, LTV-Q-13.51, LTV-Q-13.52, LTV-Q-13.53, LTV-Q-13.54, LTV-Q-13.55, LTV-Q-13.56, LTV-Q-13.57, LTV-Q-13.58, LTV-Q-13.59, LTV-Q-13.60, LTV-Q-13.61, LTV-Q-13.62, LTV-Q-13.63, LTV-Q-13.64, LTV-Q-13.65, LTV-Q-13.66, LTV-Q-13.67, LTV-Q-13.68, LTV-Q-13.69, LTV-Q-13.70, LTV-Q-13.71, LTV-Q-14.01, LTV-Q-14.02, LTV-Q-14.03, LTV-Q-14.04, LTV-Q-14.05, LTV-Q-14.06, LTV-Q-14.07, LTV-Q-14.08, LTV-Q-14.09, LTV-Q-14.10, LTV-Q-14.11, LTV-Q-14.12, LTV-Q-14.13, LTV-Q-14.14, LTV-Q-14.15, LTV-Q-14.16, LTV-Q-14.17, LTV-Q-14.18, LTV-Q-14.19, LTV-Q-14.20, LTV-Q-14.21, LTV-Q-14.22, LTV-Q-14.23, LTV-Q-14.24, LTV-Q-14.25, LTV-Q-14.26, LTV-Q-14.27, LTV-Q-14.28, LTV-Q-14.29, LTV-Q-14.30, LTV-Q-14.31, LTV-Q-14.32, LTV-Q-14.33, LTV-Q-14.34, LTV-Q-14.35, LTV-Q-14.36, LTV-Q-14.37, LTV-Q-14.38, LTV-Q-14.39, LTV-Q-14.40, LTV-Q-14.41, LTV-Q-14.42, LTV-Q-14.43, LTV-Q-14.44, LTV-Q-14.45, LTV-Q-14.47, LTV-Q-17.01, LTV-Q-17.02, LTV-Q-17.03, LTV-Q-17.04, LTV-Q-17.05, LTV-Q-17.06, LTV-Q-17.07, LTV-Q-17.08, LTV-Q-17.09, LTV-Q-17.10, LTV-Q-17.11, LTV-Q-17.12, LTV-Q-17.13, LTV-Q-17.14, LTV-Q-17.15, LTV-Q-17.16, LTV-Q-17.17, LTV-Q-17.18, LTV-Q-17.19, LTV-Q-17.20, LTV-Q-17.21, LTV-Q-17.22, LTV-Q-17.23, LTV-Q-17.24, LTV-Q-17.25, LTV-Q-17.26, LTV-Q-17.27, LTV-Q-17.28, LTV-Q-17.29, LTV-Q-17.30, LTV-Q-17.31, LTV-Q-17.32, LTV-Q-17.33, LTV-Q-17.34, LTV-Q-17.35, LTV-Q-17.36.
+**Abnahme S ohne `AK-L` (313):** erwartungsgemäss; `17` 9.3 weist sie der Sichtprüfung dieser Matrix zu (`AK-L-310`). Kennungen: LTV-001.01, LTV-001.03, LTV-001.05, LTV-001.15, LTV-003.24, LTV-003.25, LTV-004.21, LTV-004.38, LTV-005.17, LTV-006.20, LTV-007.12, LTV-009.12, LTV-010.01, LTV-010.11, LTV-010.12, LTV-010.13, LTV-010.14, LTV-010.15, LTV-010.16, LTV-010.17, LTV-010.18, LTV-010.19, LTV-010.20, LTV-010.21, LTV-010.22, LTV-010.23, LTV-010.24, LTV-010.25, LTV-010.26, LTV-010.27, LTV-010.32, LTV-010.33, LTV-010.34, LTV-010.35, LTV-010.36, LTV-010.37, LTV-010.38, LTV-010.39, LTV-010.40, LTV-010.41, LTV-010.43, LTV-012.01, LTV-013.01, LTV-014.07, LTV-014.20, LTV-014.21, LTV-014.22, LTV-014.55, LTV-014.56, LTV-014.74, LTV-014.80, LTV-014.82, LTV-014.81, LTV-015.11, LTV-015.14, LTV-017.03, LTV-019.17, LTV-020.08, LTV-020.10, LTV-020.21, LTV-Q-08.01, LTV-Q-08.02, LTV-Q-08.03, LTV-Q-08.04, LTV-Q-08.05, LTV-Q-08.06, LTV-Q-08.07, LTV-Q-08.08, LTV-Q-08.09, LTV-Q-08.10, LTV-Q-08.11, LTV-Q-08.12, LTV-Q-08.13, LTV-Q-08.14, LTV-Q-08.16, LTV-Q-08.17, LTV-Q-08.18, LTV-Q-08.19, LTV-Q-08.20, LTV-Q-08.21, LTV-Q-08.22, LTV-Q-08.23, LTV-Q-08.24, LTV-Q-08.27, LTV-Q-08.28, LTV-Q-08.29, LTV-Q-08.30, LTV-Q-08.31, LTV-Q-08.32, LTV-Q-08.33, LTV-Q-08.34, LTV-Q-08.35, LTV-Q-08.36, LTV-Q-08.37, LTV-Q-08.38, LTV-Q-08.39, LTV-Q-08.40, LTV-Q-08.41, LTV-Q-08.42, LTV-Q-08.43, LTV-Q-08.44, LTV-Q-08.45, LTV-Q-08.46, LTV-Q-08.47, LTV-Q-09.01, LTV-Q-09.82, LTV-Q-09.83, LTV-Q-10.01, LTV-Q-10.65, LTV-Q-11.01, LTV-Q-11.02, LTV-Q-11.03, LTV-Q-11.04, LTV-Q-11.05, LTV-Q-11.06, LTV-Q-11.07, LTV-Q-11.08, LTV-Q-11.09, LTV-Q-11.10, LTV-Q-11.11, LTV-Q-11.12, LTV-Q-11.13, LTV-Q-11.14, LTV-Q-11.15, LTV-Q-11.16, LTV-Q-11.17, LTV-Q-11.18, LTV-Q-11.19, LTV-Q-11.20, LTV-Q-11.21, LTV-Q-11.22, LTV-Q-11.23, LTV-Q-11.24, LTV-Q-11.25, LTV-Q-11.26, LTV-Q-11.27, LTV-Q-11.28, LTV-Q-11.29, LTV-Q-11.30, LTV-Q-11.31, LTV-Q-11.32, LTV-Q-11.33, LTV-Q-11.34, LTV-Q-11.38, LTV-Q-11.39, LTV-Q-11.40, LTV-Q-11.41, LTV-Q-11.42, LTV-Q-11.43, LTV-Q-11.44, LTV-Q-11.45, LTV-Q-11.46, LTV-Q-12.05, LTV-Q-12.06, LTV-Q-12.14, LTV-Q-12.18, LTV-Q-12.19, LTV-Q-12.26, LTV-Q-12.28, LTV-Q-12.29, LTV-Q-13.01, LTV-Q-13.02, LTV-Q-13.03, LTV-Q-13.04, LTV-Q-13.05, LTV-Q-13.06, LTV-Q-13.07, LTV-Q-13.08, LTV-Q-13.09, LTV-Q-13.10, LTV-Q-13.11, LTV-Q-13.12, LTV-Q-13.13, LTV-Q-13.14, LTV-Q-13.15, LTV-Q-13.16, LTV-Q-13.17, LTV-Q-13.18, LTV-Q-13.19, LTV-Q-13.20, LTV-Q-13.21, LTV-Q-13.22, LTV-Q-13.23, LTV-Q-13.24, LTV-Q-13.25, LTV-Q-13.26, LTV-Q-13.27, LTV-Q-13.28, LTV-Q-13.29, LTV-Q-13.30, LTV-Q-13.31, LTV-Q-13.32, LTV-Q-13.33, LTV-Q-13.34, LTV-Q-13.35, LTV-Q-13.36, LTV-Q-13.37, LTV-Q-13.38, LTV-Q-13.39, LTV-Q-13.40, LTV-Q-13.41, LTV-Q-13.42, LTV-Q-13.43, LTV-Q-13.44, LTV-Q-13.45, LTV-Q-13.46, LTV-Q-13.47, LTV-Q-13.48, LTV-Q-13.49, LTV-Q-13.50, LTV-Q-13.51, LTV-Q-13.52, LTV-Q-13.53, LTV-Q-13.54, LTV-Q-13.55, LTV-Q-13.56, LTV-Q-13.57, LTV-Q-13.58, LTV-Q-13.59, LTV-Q-13.60, LTV-Q-13.61, LTV-Q-13.62, LTV-Q-13.63, LTV-Q-13.64, LTV-Q-13.65, LTV-Q-13.66, LTV-Q-13.67, LTV-Q-13.68, LTV-Q-13.69, LTV-Q-13.70, LTV-Q-13.71, LTV-Q-14.01, LTV-Q-14.02, LTV-Q-14.03, LTV-Q-14.04, LTV-Q-14.05, LTV-Q-14.06, LTV-Q-14.07, LTV-Q-14.08, LTV-Q-14.09, LTV-Q-14.10, LTV-Q-14.11, LTV-Q-14.12, LTV-Q-14.13, LTV-Q-14.14, LTV-Q-14.15, LTV-Q-14.16, LTV-Q-14.17, LTV-Q-14.18, LTV-Q-14.19, LTV-Q-14.20, LTV-Q-14.21, LTV-Q-14.22, LTV-Q-14.23, LTV-Q-14.24, LTV-Q-14.25, LTV-Q-14.26, LTV-Q-14.27, LTV-Q-14.28, LTV-Q-14.29, LTV-Q-14.30, LTV-Q-14.31, LTV-Q-14.32, LTV-Q-14.33, LTV-Q-14.34, LTV-Q-14.35, LTV-Q-14.36, LTV-Q-14.37, LTV-Q-14.38, LTV-Q-14.39, LTV-Q-14.40, LTV-Q-14.41, LTV-Q-14.42, LTV-Q-14.43, LTV-Q-14.44, LTV-Q-14.45, LTV-Q-14.47, LTV-Q-17.01, LTV-Q-17.02, LTV-Q-17.03, LTV-Q-17.04, LTV-Q-17.05, LTV-Q-17.06, LTV-Q-17.07, LTV-Q-17.08, LTV-Q-17.09, LTV-Q-17.10, LTV-Q-17.11, LTV-Q-17.12, LTV-Q-17.13, LTV-Q-17.14, LTV-Q-17.15, LTV-Q-17.16, LTV-Q-17.17, LTV-Q-17.18, LTV-Q-17.19, LTV-Q-17.20, LTV-Q-17.21, LTV-Q-17.22, LTV-Q-17.23, LTV-Q-17.24, LTV-Q-17.25, LTV-Q-17.26, LTV-Q-17.27, LTV-Q-17.28, LTV-Q-17.29, LTV-Q-17.30, LTV-Q-17.31, LTV-Q-17.32, LTV-Q-17.33, LTV-Q-17.34, LTV-Q-17.35, LTV-Q-17.36.
 
 ### 7.3 Kennungen in `17`, die in `03` nicht vorkommen, und umgekehrt
 
-**Im «Bezug» einer `AK-L`-Zeile oder in der Prosa von `17` genannt, aber in `03` nicht definiert (0):** keine.
+**Im «Bezug» einer `AK-L`-Zeile oder in der Prosa von `17` genannt, aber in `03` nicht definiert (1):** LTV-014.X-01.
 
-**In `03` definiert, in `17` nirgends genannt (weder im Bezug noch in der Prosa; 314), davon mit Abnahme T oder M: 0** (keine). Die übrigen haben Abnahme S (Sichtprüfung, kein `AK-L` vorgesehen, `17` 9.3):
+Nur im Bezug (mit den `AK-L`): LTV-014.X-01: AK-L-185, AK-L-355.
 
-LTV-001.01, LTV-001.03, LTV-001.05, LTV-001.15, LTV-003.24, LTV-003.25, LTV-004.21, LTV-005.17, LTV-006.20, LTV-007.12, LTV-009.12, LTV-010.01, LTV-010.11, LTV-010.12, LTV-010.13, LTV-010.14, LTV-010.15, LTV-010.16, LTV-010.17, LTV-010.18, LTV-010.19, LTV-010.20, LTV-010.21, LTV-010.22, LTV-010.23, LTV-010.24, LTV-010.25, LTV-010.26, LTV-010.27, LTV-010.32, LTV-010.33, LTV-010.34, LTV-010.35, LTV-010.36, LTV-010.37, LTV-010.38, LTV-010.39, LTV-010.40, LTV-010.41, LTV-010.43, LTV-011.X-01, LTV-012.01, LTV-013.01, LTV-014.07, LTV-014.20, LTV-014.21, LTV-014.22, LTV-014.55, LTV-014.56, LTV-014.74, LTV-014.80, LTV-014.81, LTV-015.11, LTV-015.14, LTV-017.03, LTV-018.X-01, LTV-019.17, LTV-020.08, LTV-020.10, LTV-020.21, LTV-Q-08.01, LTV-Q-08.02, LTV-Q-08.03, LTV-Q-08.04, LTV-Q-08.05, LTV-Q-08.06, LTV-Q-08.07, LTV-Q-08.08, LTV-Q-08.09, LTV-Q-08.10, LTV-Q-08.11, LTV-Q-08.12, LTV-Q-08.13, LTV-Q-08.14, LTV-Q-08.16, LTV-Q-08.17, LTV-Q-08.18, LTV-Q-08.19, LTV-Q-08.20, LTV-Q-08.21, LTV-Q-08.22, LTV-Q-08.23, LTV-Q-08.24, LTV-Q-08.27, LTV-Q-08.28, LTV-Q-08.29, LTV-Q-08.30, LTV-Q-08.31, LTV-Q-08.32, LTV-Q-08.33, LTV-Q-08.34, LTV-Q-08.35, LTV-Q-08.36, LTV-Q-08.37, LTV-Q-08.38, LTV-Q-08.39, LTV-Q-08.40, LTV-Q-08.41, LTV-Q-08.42, LTV-Q-08.43, LTV-Q-08.44, LTV-Q-08.45, LTV-Q-08.46, LTV-Q-08.47, LTV-Q-09.01, LTV-Q-09.82, LTV-Q-09.83, LTV-Q-10.01, LTV-Q-10.65, LTV-Q-11.01, LTV-Q-11.02, LTV-Q-11.03, LTV-Q-11.04, LTV-Q-11.05, LTV-Q-11.06, LTV-Q-11.07, LTV-Q-11.08, LTV-Q-11.09, LTV-Q-11.10, LTV-Q-11.11, LTV-Q-11.12, LTV-Q-11.13, LTV-Q-11.14, LTV-Q-11.15, LTV-Q-11.16, LTV-Q-11.17, LTV-Q-11.18, LTV-Q-11.19, LTV-Q-11.20, LTV-Q-11.21, LTV-Q-11.22, LTV-Q-11.23, LTV-Q-11.24, LTV-Q-11.25, LTV-Q-11.26, LTV-Q-11.27, LTV-Q-11.28, LTV-Q-11.29, LTV-Q-11.30, LTV-Q-11.31, LTV-Q-11.32, LTV-Q-11.33, LTV-Q-11.34, LTV-Q-11.38, LTV-Q-11.39, LTV-Q-11.40, LTV-Q-11.41, LTV-Q-11.42, LTV-Q-11.43, LTV-Q-11.44, LTV-Q-11.45, LTV-Q-11.46, LTV-Q-12.05, LTV-Q-12.06, LTV-Q-12.14, LTV-Q-12.18, LTV-Q-12.19, LTV-Q-12.26, LTV-Q-12.28, LTV-Q-12.29, LTV-Q-12.X-01, LTV-Q-13.01, LTV-Q-13.02, LTV-Q-13.03, LTV-Q-13.04, LTV-Q-13.05, LTV-Q-13.06, LTV-Q-13.07, LTV-Q-13.08, LTV-Q-13.09, LTV-Q-13.10, LTV-Q-13.11, LTV-Q-13.12, LTV-Q-13.13, LTV-Q-13.14, LTV-Q-13.15, LTV-Q-13.16, LTV-Q-13.17, LTV-Q-13.18, LTV-Q-13.19, LTV-Q-13.20, LTV-Q-13.21, LTV-Q-13.22, LTV-Q-13.23, LTV-Q-13.24, LTV-Q-13.25, LTV-Q-13.26, LTV-Q-13.27, LTV-Q-13.28, LTV-Q-13.29, LTV-Q-13.30, LTV-Q-13.31, LTV-Q-13.32, LTV-Q-13.33, LTV-Q-13.34, LTV-Q-13.35, LTV-Q-13.36, LTV-Q-13.37, LTV-Q-13.38, LTV-Q-13.39, LTV-Q-13.40, LTV-Q-13.41, LTV-Q-13.42, LTV-Q-13.43, LTV-Q-13.44, LTV-Q-13.45, LTV-Q-13.46, LTV-Q-13.47, LTV-Q-13.48, LTV-Q-13.49, LTV-Q-13.50, LTV-Q-13.51, LTV-Q-13.52, LTV-Q-13.53, LTV-Q-13.54, LTV-Q-13.55, LTV-Q-13.56, LTV-Q-13.57, LTV-Q-13.58, LTV-Q-13.59, LTV-Q-13.60, LTV-Q-13.61, LTV-Q-13.62, LTV-Q-13.63, LTV-Q-13.64, LTV-Q-13.65, LTV-Q-13.66, LTV-Q-13.67, LTV-Q-13.68, LTV-Q-13.69, LTV-Q-13.70, LTV-Q-13.71, LTV-Q-14.01, LTV-Q-14.02, LTV-Q-14.03, LTV-Q-14.04, LTV-Q-14.05, LTV-Q-14.06, LTV-Q-14.07, LTV-Q-14.08, LTV-Q-14.09, LTV-Q-14.10, LTV-Q-14.11, LTV-Q-14.12, LTV-Q-14.13, LTV-Q-14.14, LTV-Q-14.15, LTV-Q-14.16, LTV-Q-14.17, LTV-Q-14.18, LTV-Q-14.19, LTV-Q-14.20, LTV-Q-14.21, LTV-Q-14.22, LTV-Q-14.23, LTV-Q-14.24, LTV-Q-14.25, LTV-Q-14.26, LTV-Q-14.27, LTV-Q-14.28, LTV-Q-14.29, LTV-Q-14.30, LTV-Q-14.31, LTV-Q-14.32, LTV-Q-14.33, LTV-Q-14.34, LTV-Q-14.35, LTV-Q-14.36, LTV-Q-14.37, LTV-Q-14.38, LTV-Q-14.39, LTV-Q-14.40, LTV-Q-14.41, LTV-Q-14.42, LTV-Q-14.43, LTV-Q-14.44, LTV-Q-14.45, LTV-Q-14.47, LTV-Q-17.01, LTV-Q-17.02, LTV-Q-17.03, LTV-Q-17.04, LTV-Q-17.05, LTV-Q-17.06, LTV-Q-17.07, LTV-Q-17.08, LTV-Q-17.09, LTV-Q-17.10, LTV-Q-17.11, LTV-Q-17.12, LTV-Q-17.13, LTV-Q-17.14, LTV-Q-17.15, LTV-Q-17.16, LTV-Q-17.17, LTV-Q-17.18, LTV-Q-17.19, LTV-Q-17.20, LTV-Q-17.21, LTV-Q-17.22, LTV-Q-17.23, LTV-Q-17.24, LTV-Q-17.25, LTV-Q-17.26, LTV-Q-17.27, LTV-Q-17.28, LTV-Q-17.29, LTV-Q-17.30, LTV-Q-17.31, LTV-Q-17.32, LTV-Q-17.33, LTV-Q-17.34, LTV-Q-17.35, LTV-Q-17.36.
+In `03` steht LTV-014.X-01 nur noch als «entfällt»; `17` nennt die Kennung weiterhin (siehe oben), das ist ein Nachzug in `17`.
 
-**`AK-L`-Zeilen ohne erkennbaren LTV-Bezug (37):** AK-L-078, AK-L-079, AK-L-091, AK-L-117, AK-L-118, AK-L-126, AK-L-127, AK-L-128, AK-L-129, AK-L-162, AK-L-220, AK-L-225, AK-L-226, AK-L-229, AK-L-231, AK-L-238, AK-L-240, AK-L-241, AK-L-248, AK-L-252, AK-L-255, AK-L-259, AK-L-270, AK-L-271, AK-L-274, AK-L-275, AK-L-277, AK-L-278, AK-L-279, AK-L-286, AK-L-288, AK-L-293, AK-L-298, AK-L-299, AK-L-319, AK-L-321, AK-L-322 (Bezug nennt dort nur `T-n`, `SM-nn`, `M-n`, `DR-nn`, Regeln oder Dokumente).
+**In `03` definiert, in `17` nirgends genannt (weder im Bezug noch in der Prosa; 315), davon mit Abnahme T oder M: 0** (keine). Die übrigen haben Abnahme S (Sichtprüfung, kein `AK-L` vorgesehen, `17` 9.3):
+
+LTV-001.01, LTV-001.03, LTV-001.05, LTV-001.15, LTV-003.24, LTV-003.25, LTV-004.21, LTV-005.17, LTV-006.20, LTV-007.12, LTV-009.12, LTV-010.01, LTV-010.11, LTV-010.12, LTV-010.13, LTV-010.14, LTV-010.15, LTV-010.16, LTV-010.17, LTV-010.18, LTV-010.19, LTV-010.20, LTV-010.21, LTV-010.22, LTV-010.23, LTV-010.24, LTV-010.25, LTV-010.26, LTV-010.27, LTV-010.32, LTV-010.33, LTV-010.34, LTV-010.35, LTV-010.36, LTV-010.37, LTV-010.38, LTV-010.39, LTV-010.40, LTV-010.41, LTV-010.43, LTV-011.X-01, LTV-012.01, LTV-013.01, LTV-014.07, LTV-014.20, LTV-014.21, LTV-014.22, LTV-014.55, LTV-014.56, LTV-014.74, LTV-014.80, LTV-014.81, LTV-014.82, LTV-015.11, LTV-015.14, LTV-017.03, LTV-018.X-01, LTV-019.17, LTV-020.08, LTV-020.10, LTV-020.21, LTV-Q-08.01, LTV-Q-08.02, LTV-Q-08.03, LTV-Q-08.04, LTV-Q-08.05, LTV-Q-08.06, LTV-Q-08.07, LTV-Q-08.08, LTV-Q-08.09, LTV-Q-08.10, LTV-Q-08.11, LTV-Q-08.12, LTV-Q-08.13, LTV-Q-08.14, LTV-Q-08.16, LTV-Q-08.17, LTV-Q-08.18, LTV-Q-08.19, LTV-Q-08.20, LTV-Q-08.21, LTV-Q-08.22, LTV-Q-08.23, LTV-Q-08.24, LTV-Q-08.27, LTV-Q-08.28, LTV-Q-08.29, LTV-Q-08.30, LTV-Q-08.31, LTV-Q-08.32, LTV-Q-08.33, LTV-Q-08.34, LTV-Q-08.35, LTV-Q-08.36, LTV-Q-08.37, LTV-Q-08.38, LTV-Q-08.39, LTV-Q-08.40, LTV-Q-08.41, LTV-Q-08.42, LTV-Q-08.43, LTV-Q-08.44, LTV-Q-08.45, LTV-Q-08.46, LTV-Q-08.47, LTV-Q-09.01, LTV-Q-09.82, LTV-Q-09.83, LTV-Q-10.01, LTV-Q-10.65, LTV-Q-11.01, LTV-Q-11.02, LTV-Q-11.03, LTV-Q-11.04, LTV-Q-11.05, LTV-Q-11.06, LTV-Q-11.07, LTV-Q-11.08, LTV-Q-11.09, LTV-Q-11.10, LTV-Q-11.11, LTV-Q-11.12, LTV-Q-11.13, LTV-Q-11.14, LTV-Q-11.15, LTV-Q-11.16, LTV-Q-11.17, LTV-Q-11.18, LTV-Q-11.19, LTV-Q-11.20, LTV-Q-11.21, LTV-Q-11.22, LTV-Q-11.23, LTV-Q-11.24, LTV-Q-11.25, LTV-Q-11.26, LTV-Q-11.27, LTV-Q-11.28, LTV-Q-11.29, LTV-Q-11.30, LTV-Q-11.31, LTV-Q-11.32, LTV-Q-11.33, LTV-Q-11.34, LTV-Q-11.38, LTV-Q-11.39, LTV-Q-11.40, LTV-Q-11.41, LTV-Q-11.42, LTV-Q-11.43, LTV-Q-11.44, LTV-Q-11.45, LTV-Q-11.46, LTV-Q-12.05, LTV-Q-12.06, LTV-Q-12.14, LTV-Q-12.18, LTV-Q-12.19, LTV-Q-12.26, LTV-Q-12.28, LTV-Q-12.29, LTV-Q-12.X-01, LTV-Q-13.01, LTV-Q-13.02, LTV-Q-13.03, LTV-Q-13.04, LTV-Q-13.05, LTV-Q-13.06, LTV-Q-13.07, LTV-Q-13.08, LTV-Q-13.09, LTV-Q-13.10, LTV-Q-13.11, LTV-Q-13.12, LTV-Q-13.13, LTV-Q-13.14, LTV-Q-13.15, LTV-Q-13.16, LTV-Q-13.17, LTV-Q-13.18, LTV-Q-13.19, LTV-Q-13.20, LTV-Q-13.21, LTV-Q-13.22, LTV-Q-13.23, LTV-Q-13.24, LTV-Q-13.25, LTV-Q-13.26, LTV-Q-13.27, LTV-Q-13.28, LTV-Q-13.29, LTV-Q-13.30, LTV-Q-13.31, LTV-Q-13.32, LTV-Q-13.33, LTV-Q-13.34, LTV-Q-13.35, LTV-Q-13.36, LTV-Q-13.37, LTV-Q-13.38, LTV-Q-13.39, LTV-Q-13.40, LTV-Q-13.41, LTV-Q-13.42, LTV-Q-13.43, LTV-Q-13.44, LTV-Q-13.45, LTV-Q-13.46, LTV-Q-13.47, LTV-Q-13.48, LTV-Q-13.49, LTV-Q-13.50, LTV-Q-13.51, LTV-Q-13.52, LTV-Q-13.53, LTV-Q-13.54, LTV-Q-13.55, LTV-Q-13.56, LTV-Q-13.57, LTV-Q-13.58, LTV-Q-13.59, LTV-Q-13.60, LTV-Q-13.61, LTV-Q-13.62, LTV-Q-13.63, LTV-Q-13.64, LTV-Q-13.65, LTV-Q-13.66, LTV-Q-13.67, LTV-Q-13.68, LTV-Q-13.69, LTV-Q-13.70, LTV-Q-13.71, LTV-Q-14.01, LTV-Q-14.02, LTV-Q-14.03, LTV-Q-14.04, LTV-Q-14.05, LTV-Q-14.06, LTV-Q-14.07, LTV-Q-14.08, LTV-Q-14.09, LTV-Q-14.10, LTV-Q-14.11, LTV-Q-14.12, LTV-Q-14.13, LTV-Q-14.14, LTV-Q-14.15, LTV-Q-14.16, LTV-Q-14.17, LTV-Q-14.18, LTV-Q-14.19, LTV-Q-14.20, LTV-Q-14.21, LTV-Q-14.22, LTV-Q-14.23, LTV-Q-14.24, LTV-Q-14.25, LTV-Q-14.26, LTV-Q-14.27, LTV-Q-14.28, LTV-Q-14.29, LTV-Q-14.30, LTV-Q-14.31, LTV-Q-14.32, LTV-Q-14.33, LTV-Q-14.34, LTV-Q-14.35, LTV-Q-14.36, LTV-Q-14.37, LTV-Q-14.38, LTV-Q-14.39, LTV-Q-14.40, LTV-Q-14.41, LTV-Q-14.42, LTV-Q-14.43, LTV-Q-14.44, LTV-Q-14.45, LTV-Q-14.47, LTV-Q-17.01, LTV-Q-17.02, LTV-Q-17.03, LTV-Q-17.04, LTV-Q-17.05, LTV-Q-17.06, LTV-Q-17.07, LTV-Q-17.08, LTV-Q-17.09, LTV-Q-17.10, LTV-Q-17.11, LTV-Q-17.12, LTV-Q-17.13, LTV-Q-17.14, LTV-Q-17.15, LTV-Q-17.16, LTV-Q-17.17, LTV-Q-17.18, LTV-Q-17.19, LTV-Q-17.20, LTV-Q-17.21, LTV-Q-17.22, LTV-Q-17.23, LTV-Q-17.24, LTV-Q-17.25, LTV-Q-17.26, LTV-Q-17.27, LTV-Q-17.28, LTV-Q-17.29, LTV-Q-17.30, LTV-Q-17.31, LTV-Q-17.32, LTV-Q-17.33, LTV-Q-17.34, LTV-Q-17.35, LTV-Q-17.36.
+
+**`AK-L`-Zeilen ohne erkennbaren LTV-Bezug (55):** AK-L-078, AK-L-079, AK-L-091, AK-L-117, AK-L-118, AK-L-126, AK-L-127, AK-L-128, AK-L-129, AK-L-162, AK-L-220, AK-L-225, AK-L-226, AK-L-229, AK-L-231, AK-L-238, AK-L-240, AK-L-241, AK-L-248, AK-L-252, AK-L-255, AK-L-259, AK-L-270, AK-L-271, AK-L-274, AK-L-275, AK-L-277, AK-L-278, AK-L-279, AK-L-286, AK-L-288, AK-L-293, AK-L-298, AK-L-299, AK-L-319, AK-L-321, AK-L-322, AK-L-337, AK-L-338, AK-L-339, AK-L-340, AK-L-341, AK-L-342, AK-L-343, AK-L-344, AK-L-345, AK-L-346, AK-L-347, AK-L-348, AK-L-349, AK-L-350, AK-L-351, AK-L-352, AK-L-354, AK-L-357 (Bezug nennt dort nur `T-n`, `SM-nn`, `M-n`, `DR-nn`, Regeln oder Dokumente).
 
 ### 7.4 Stufenangaben, die zwischen `03`, `17` und `18` abweichen
 
 Mechanischer Vergleich: Stufenmengen werden aus der Zelle gelesen (1a und 1b als «1»; K ausgenommen). Ein Treffer heisst nur: keine gemeinsame Stufe; ob die Abweichung ein Fehler ist oder ein beabsichtigter Teilschnitt («1a; E» gegen «1a»), entscheidet die Durchsicht.
 
-**`03` gegen `17` (Anforderung: Stufen von `03` und `AK-L` haben keine gemeinsame Stufe; 27):**
+**`03` gegen `17` (Anforderung: Stufen von `03` und `AK-L` haben keine gemeinsame Stufe; 10):**
 
 | Anforderung | Stufe in 03 | AK-L | Stufe in 17 |
 |---|---|---|---|
-| LTV-015.05 | 2 | 019, 179 | 1a |
-| LTV-015.06 | 2 | 019, 179 | 1a |
-| LTV-015.07 | 2 | 019, 179 | 1a |
-| LTV-Q-08.25 | 1a | 081 | 5 |
-| LTV-010.03 | 3 | 088 | 1a (Web), je Stufe der Apps |
-| LTV-010.10 | 3 | 088 | 1a (Web), je Stufe der Apps |
-| LTV-011.12 | 1a | 098 | 0 |
-| LTV-Q-12.03 | 1a | 146 | 5 |
-| LTV-019.08 | 5 | 151 | 4 |
-| LTV-014.08 | 5 | 186 | 2 |
-| LTV-014.09 | 5 | 186 | 2 |
-| LTV-014.49 | 2 | 192 | 1a (Timeshift 4, Aufnahmen 5) |
-| LTV-Q-09.62 | 3 | 212 | 1a (Aufnahmen 5) |
-| LTV-Q-10.03 | 2 | 230 | H (verbotene Hälfte 1a) |
-| LTV-Q-10.36 | 1a | 237 | W |
-| LTV-Q-10.46 | 1a | 260 | 4 |
-| LTV-Q-15.44 | 3 | 309 | 1a |
 | LTV-Q-15.49 | 1a | 310 | K |
 | LTV-001.02 | 1a | 312 | K |
 | LTV-001.04 | 2 | 312 | K |
@@ -1656,26 +1651,18 @@ keine.
 
 (Nur ausdrücklich genannte Kennungen der Umfangszeilen sind erfasst; Angaben wie «LTV-004 ausser .06 und .32» sind nicht aufgelöst.)
 
-**`03` gegen `18` 10.1 je Entscheid (`03` nennt eine Stufe, die `18` 10.1 für den Entscheid nicht aufführt; 1):**
+**`03` gegen `18` 10.1 je Entscheid (`03` nennt eine Stufe, die `18` 10.1 für den Entscheid nicht aufführt; 0):**
 
-| Entscheid | Stufen in 03, die 18 10.1 nicht nennt | Stufen laut 18 10.1 |
-|---|---|---|
-| LTV-014 | Apps, E | 1 (Start, Senderübersicht, Player), 2 (Programm, Details), 4 (Timeshift im Player), 5 (Meine und Geplante Aufnahmen), 6 (Serien); App-Ausgaben |
+keine.
 
-**`17` gegen `18` 10.1 je Entscheid (Stufe eines `AK-L` des Entscheids steht nicht in `18` 10.1; 10):**
+**`17` gegen `18` 10.1 je Entscheid (Stufe eines `AK-L` des Entscheids steht nicht in `18` 10.1; 4):**
 
 | Entscheid | Stufen der AK-L, die 18 10.1 nicht nennt |
 |---|---|
-| LTV-002 | W |
-| LTV-004 | 4, 6 |
-| LTV-005 | 6 |
-| LTV-006 | 3, 5 |
-| LTV-007 | 1 |
+| LTV-004 | 4, 6, Apps |
 | LTV-008 | 1 |
-| LTV-009 | 1 |
-| LTV-010 | Apps |
-| LTV-011 | 0 |
-| LTV-020 | E |
+| LTV-009 | 1, 3 |
+| LTV-017 | 3 |
 
 ### 7.5 Doppelte Kennungen
 
@@ -1690,20 +1677,20 @@ keine.
 
 ### 7.6 Weitere Befunde der Zuordnung
 
-- Thema eines Entscheids in `03` (Überschrift) weicht vom Register des Auftrags ab (4): LTV-009: Auftrag «Aufnahmeeigentum», 03 «Private Aufnahmen pro Profil»; LTV-016: Auftrag «Multi-View und PiP», 03 «Klassische Wiedergabe»; LTV-017: Auftrag «Anbieterverwaltung», 03 «Keine separate Anbieterlimitverwaltung»; LTV-020: Auftrag «Aufnahmequalität», 03 «Aufnahmen in Originalqualität». Matrix A nennt das Thema des Auftrags.
-- Dokumentverweise in `03` (Spalte «Dok») auf Dokumente, die im Ordner nicht vorhanden sind: `20`: 2 Zeilen (LTV-015.14, LTV-Q-11.46); `23`: 3 Zeilen (LTV-Q-10.65, LTV-Q-13.71, LTV-Q-17.01).
+- Thema eines Entscheids in `03` (Überschrift) weicht vom Register des Auftrags ab (0): keine Abweichung. Matrix A nennt das Thema des Auftrags.
+- Dokumentverweise in `03` (Spalte «Dok») auf Dokumente, die im Ordner nicht vorhanden sind: keine.
 - Entscheide ohne `T-n` im Text von `04`: LTV-001, LTV-003, LTV-005, LTV-009, LTV-010, LTV-011, LTV-012, LTV-014, LTV-015, LTV-016, LTV-018, LTV-021.
 - Entscheide, die in `14`/`15` Abschnitt 2 keiner Seite zugeordnet sind: LTV-004, LTV-012, LTV-013, LTV-021.
-- Entscheide, die kein Absatz in `07` nennt (Tabellen dann nur über Seiten, falls vorhanden): LTV-001, LTV-002, LTV-004, LTV-005, LTV-007, LTV-009, LTV-010, LTV-012, LTV-013, LTV-014, LTV-016, LTV-017, LTV-019, LTV-020, LTV-021.
+- Entscheide, die kein Absatz in `07` nennt (Tabellen dann nur über Seiten, falls vorhanden): LTV-001, LTV-002, LTV-004, LTV-005, LTV-007, LTV-009, LTV-010, LTV-012, LTV-013, LTV-014, LTV-016, LTV-019, LTV-020, LTV-021.
 - Entscheide ohne irgendein `AK-L`: keine.
-- Entscheide ohne offene Frage in den Dokumenten (keine Frage nennt sie): LTV-001, LTV-004, LTV-005, LTV-006, LTV-012, LTV-013, LTV-014, LTV-016, LTV-021.
+- Entscheide ohne offene Entscheidung in `20` (keine nennt sie): LTV-001, LTV-013, LTV-016.
 - Seiten ohne Entscheid in der Spalte «LTV» (29): LA-01, LA-12, LA-20, LA-21, LA-22, LA-23, LA-24, LA-25, LA-26, LA-27, LA-28, LD-01, LD-02, LD-03, LD-04, LD-05, LD-06, LD-07, LD-08, LD-09, LD-10, LD-11, LS-20, LS-21, LS-22, LS-23, LS-24, LS-25, LS-26.
 - Seiten ohne Erwähnung in `19-mockups.md` (0): keine.
 - Operationen ohne Seite in der Spalte «Seite» (1): updateLiveConfig.
 - `T-n` ohne `LTV-…` im Text (18): T-1, T-3, T-4, T-5, T-9, T-11, T-13, T-14, T-15, T-19, T-20, T-21, T-22, T-23, T-24, T-26, T-27, T-28.
-- `SM-nn` ohne `LTV-…` in der Spalte «Bezug» (9): SM-02, SM-09, SM-11, SM-12, SM-19, SM-23, SM-26, SM-30, SM-41.
-- Ausschlüsse `LTV-X-nn` ohne Negativtest (1): LTV-X-29.
-- Fehlende Dokumente: `20-offene-entscheidungen.md`, `21` (Änderungen an Dokumenten) und `23` sind im Ordner nicht vorhanden; die Fragen stammen aus den Einzeldokumenten.
+- `SM-nn` ohne `LTV-…` in der Spalte «Bezug» (14): SM-02, SM-09, SM-11, SM-12, SM-19, SM-23, SM-26, SM-30, SM-41, SM-47, SM-48, SM-49, SM-51, SM-55.
+- Ausschlüsse `LTV-X-nn` ohne Negativtest (0): keine.
+- Alle Dokumente `01`–`24` bis auf `22` (diese Datei) liegen im Ordner; `22` verweist `03` Fassung 3 auf diese Datei.
 
 **Grenzen dieser Matrix.** Die Zuordnung Tabelle, Operation und Seite zu einem Entscheid beruht auf Textnennungen und Seitenverweisen
 und ist keine Aussage des Konzepts; was keinen Treffer hat, bleibt leer, auch wenn es fachlich dazugehört. Die Abnahmekriterien
