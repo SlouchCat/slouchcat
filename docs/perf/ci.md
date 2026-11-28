@@ -422,8 +422,10 @@ Gemessen am PR-Lauf 46158298349 und am main-Lauf 46161151377:
 
 Neu je Push auf `main`: bisher acht `go-race`-Einträge und zwei `gradle-build`-Einträge (rund 3,3 GiB),
 jetzt höchstens zwei `gradle-build`-Einträge, `go-race` einmal am Tag (rund 1,6 GiB). Entfallen:
-`gradle-e2e` (0,46 GiB) und der Build-Cache im Abhängigkeits-Cache (geschätzt rund 0,5 GiB; der
-Build-Cache selbst ist je Hälfte 0,8 GiB gross). **Nachmessen:** nach einer Woche Belegung und
+`gradle-e2e` (0,46 GiB), die Kopie des Abhängigkeits-Caches in jedem PR, der eine Build-Datei ändert
+(rund 2,5 GiB), und der Build-Cache im Abhängigkeits-Cache (geschätzt rund 0,5 bis 0,8 GiB). Den
+Eintrag `gradle-Linux-…` (2,36 GiB) liest nach dem ersten neuen Speichern niemand mehr; er fällt mit
+der nächsten Verdrängung weg. **Nachmessen:** nach einer Woche Belegung und
 Einträge je Familie; Ziel: die apt- und setup-go-Caches bleiben im Inventar, Belegung unter 9 GiB.
 
 ### Release-Images ohne Cache

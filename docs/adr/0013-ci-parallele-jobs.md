@@ -487,7 +487,13 @@ freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Absc
   viermal langsamer.
 - Der Gradle-Abhängigkeits-Cache (`gradle-deps-…`, vorher `gradle-…`, 2,3 GB) trägt den Build-Cache
   nicht mehr mit, der darin eine veraltete Kopie seines ersten Laufs war; der Build-Cache hat seinen
-  eigenen Cache. Der alte Schlüssel ist für den ersten Lauf Rückfallebene.
+  eigenen Cache. Er wird nur noch auf `main` gespeichert, nur wenn sein Schlüssel fehlte, und vor dem
+  Speichern wird `build-cache-1` gelöscht. Ein Ausschlussmuster (`!…/build-cache-1`) wirkt dafür
+  nicht: `actions/cache` gibt `~/.gradle/caches` als ein Verzeichnis an tar (Review vom 28. November
+  2026). Die Pfadliste bleibt gleich, damit der alte Eintrag als Rückfallebene gefunden wird (die
+  Cache-Version ist ein Hash der Pfadliste). Bisher speicherte jeder PR, der eine Build-Datei änderte,
+  eine eigene Kopie von rund 2,5 GB.
+- `go-race` speichert nur, wenn der Eintrag des Tages fehlte.
 - `android-contract` liest die Caches des Jobs `android` mit (wie der Emulator-Job), statt eine eigene
   Kopie (`gradle-e2e-…`, 0,5 GB) zu halten; beide lesen zusätzlich den Debug-Build-Cache von `main`.
 
@@ -496,7 +502,7 @@ freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Absc
 - `release.yml`: keine Rechte auf Workflow-Ebene, der Job nennt seine eigenen; der Checkout hinterlegt
   kein Token; Tag, Version, Image-Namen und Digests erreichen Manifest und `gh release` über `env:`.
 - `release.yml` und `release-relay.yml` prüfen wie `release-android.yml`, dass der getaggte Commit in
-  `main` oder einem Zweig `release/*` liegt (Backports). Geprüft: `v1.44.1` besteht, ein Commit ausserhalb
+  `main` oder einem Zweig `release/*` liegt (Backports), jeweils im ersten Job. Geprüft: `v1.44.1` besteht, ein Commit ausserhalb
   jedes Zweigs scheitert. Gegen einen Tag, der nicht sein soll, schützt das Tag-Ruleset (H1, Marco);
   diese Prüfung fängt das Versehen.
 - **Release-Images ohne Build-Cache** (`no-cache: true`): Code, der in einem CI-Lauf auf `main` läuft
