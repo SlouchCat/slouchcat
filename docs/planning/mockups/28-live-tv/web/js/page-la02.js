@@ -12,11 +12,14 @@ function la02Last(s) {
   if (!s.last) return '<span class="muted">noch nie</span>';
   return `<span class="la02-st"><span class="dot ${s.lastOk ? 'ok' : 'bad'}"></span>${fmt.dayRel(s.last).replace('Heute', 'heute').replace('Gestern', 'gestern')} ${fmt.time(s.last)} · ${s.lastOk ? 'in Ordnung' : 'fehlgeschlagen'}</span>${!s.lastOk && s.lastError ? `<small class="la02-err">${esc(s.lastError)}. Die bisherige Liste bleibt aktiv.</small>` : ''}`;
 }
+/* addresses only as scheme · host · port; credentials only «gesetzt» (15 Fassung 2, Grundsatz 5) */
+function la02Shp(u) { const m = String(u || '').match(/^([a-z0-9]+):\/\/@?([^/:?]+)(?::(\d+))?/i); if (!m) return esc(u); const port = m[3] || { https: '443', http: '80' }[m[1].toLowerCase()] || ''; return `${esc(m[1].toLowerCase())} · ${esc(m[2])}${port ? ' · ' + port : ''}`; }
+const la02Targets = (s) => (s.targets ? s.targets.length : s.fixedTargets || 0);
 function la02Address(s) {
-  if (s.kind === 'xtream') return `<span class="mono">${esc(s.address)}</span> · Benutzer <span class="mono">${esc(s.user)}</span> · Passwort ••••••`;
+  if (s.kind === 'xtream') return `<span class="mono">${la02Shp(s.address)}</span> · Benutzer und Passwort gesetzt`;
   if (s.kind === 'm3u-file') return `Datei <span class="mono">${esc(s.file)}</span> (${esc(s.fileSize)}, hochgeladen ${fmt.day(s.uploaded)})`;
-  if (s.kind === 'single') return s.streams.map((u) => `<span class="mono">${esc(u)}</span>`).join(', ');
-  return `<span class="mono">${esc(s.address)}</span>`;
+  if (s.kind === 'single') return s.streams.map((u) => `<span class="mono">${la02Shp(u)}</span>`).join(', ');
+  return `<span class="mono">${la02Shp(s.address)}</span>`;
 }
 function la02Detail(s) {
   const runs = LIVE.importRuns[s.id] || [];
@@ -24,9 +27,10 @@ function la02Detail(s) {
   return `<div class="la02-det">
     <dl class="kv"><dt>Adresse</dt><dd>${la02Address(s)}</dd>
     <dt>Aktualisieren</dt><dd>${s.interval ? `alle ${s.interval} Stunden` : 'nur von Hand'}</dd>
-    <dt>Neue Sender sofort anbieten</dt><dd>${s.offerNew ? 'an' : 'aus'}</dd>
+    <dt>Neue Sender sofort anbieten</dt><dd>${s.offerNew ? 'an' : 'aus (Werksvorgabe an; neue Sender kommen inaktiv mit Filter «Neu»)'}</dd>
+    <dt>Vorladen für Sender dieser Quelle</dt><dd>${s.moreConn ? 'an' : 'aus'}</dd>
     <dt>Gruppen</dt><dd>${s.groups}</dd><dt>Verschwundene Sender</dt><dd>${s.gone}</dd>
-    <dt>Heimnetz</dt><dd>${s.localNet ? 'erlaubt (lokale Ziele für diese Quelle freigegeben)' : 'nicht erlaubt'}</dd></dl>
+    <dt>Feste Ziele im Heimnetz</dt><dd>${la02Targets(s) ? `${la02Targets(s)} (bestätigt, protokolliert)` : 'keine'}</dd></dl>
     <h3 class="la02-h3">Letzte Läufe</h3>
     ${runs.length ? `<ul class="feed">${runs.map(([id, t, r, n, c, g, note]) => `<li><time>${fmt.day(t)} ${fmt.time(t)}</time><span><span class="dot ${res[r][0]}"></span> ${res[r][1]}${r === 'ok' ? ` · ${n} neu · ${c} geändert · ${g} verschwunden` : ''}${note ? ` · ${esc(note)}` : ''} · <a class="lnk" href="#/admin/live/sources/${s.id}/import/${id}" data-fid="la02:run:${id}">Details</a></span></li>`).join('')}</ul>` : '<p class="muted">Noch keine Läufe. Einzelströme werden nicht importiert.</p>'}
   </div>`;
@@ -43,7 +47,7 @@ function la02Row(s) {
     <td data-l="Sender">${fmt.num(s.active)} aktiv / ${fmt.num(s.total)}</td>
     <td data-l="Letzte Aktualisierung">${la02Last(s)}</td>
     <td data-l="Nächste">${la02Next(s)}</td>
-    <td data-l="Heimnetz">${s.localNet ? `<span class="chip blue">${icon('home2', 14)}Heimnetz erlaubt</span>` : '<span class="muted">–</span>'}</td>
+    <td data-l="Feste Ziele">${la02Targets(s) ? `<span class="chip blue">${icon('home2', 14)}${la02Targets(s)} feste Ziele im Heimnetz</span>` : '<span class="muted">–</span>'}</td>
     <td class="end"><div class="ta">${s.kind === 'single' ? '' : `<button type="button" class="btn quiet" data-act="la02Refresh" data-id="${s.id}" data-fid="la02:ref:${s.id}" ${LA02.busy[s.id] ? 'disabled' : ''}>${icon('refresh', 16)}Jetzt aktualisieren</button>`}<button type="button" class="btn quiet" data-act="la02Test" data-id="${s.id}" data-fid="la02:test:${s.id}">Testen</button>${menu}</div></td></tr>
     ${open ? `<tr class="sub"><td colspan="7">${la02Detail(s)}</td></tr>` : ''}`;
 }
@@ -60,7 +64,7 @@ route('/admin/live/sources', () => {
   else {
     const failed = list.filter((s) => !s.lastOk);
     html = (failed.length ? notice('warn', `Import «${esc(failed[0].name)}» fehlgeschlagen (${esc(failed[0].lastError)}).`, 'Die bisherige Liste bleibt aktiv. Nächster Versuch ' + la02Next(failed[0]) + '.', `<a class="btn secondary" href="#/admin/live/sources/${failed[0].id}/import/${LIVE.importRuns[failed[0].id][0][0]}" data-fid="la02:failrun">Letzten Import ansehen</a>`) : '')
-      + `<div class="tblw la02"><table class="tbl"><thead><tr><th>Name</th><th>Art</th><th>Sender</th><th>Letzte Aktualisierung</th><th>Nächste</th><th>Heimnetz</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${list.map(la02Row).join('')}</tbody></table></div>
+      + `<div class="tblw la02"><table class="tbl"><thead><tr><th>Name</th><th>Art</th><th>Sender</th><th>Letzte Aktualisierung</th><th>Nächste</th><th>Feste Ziele</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${list.map(la02Row).join('')}</tbody></table></div>
       <p class="muted la02-foot">${fmt.num(list.reduce((a, s) => a + s.active, 0))} aktive Sender aus ${list.length} Quellen. Eigene Namen, Logos, Gruppen, Nummern, Favoriten, Zuordnungen und geplante Aufnahmen bleiben bei jeder Aktualisierung erhalten.</p>`;
   }
   return { type: 'admin', area: 'livetv', page: 'sources', title: 'Quellen', intro: 'Senderlisten und Streams, aus denen Slouchcat die Sender bildet. Nur der Server-Admin trägt Quellen ein.',

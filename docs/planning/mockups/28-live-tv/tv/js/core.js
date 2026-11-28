@@ -98,7 +98,7 @@ const icon = (name, size) => `<svg width="${size || 32}" height="${size || 32}" 
 /* ---------- pictures ---------- */
 const dur = min => (min >= 60 ? `${Math.floor(min / 60)} Std. ${min % 60} Min.` : `${min} Min.`);
 /** picture from ../shared/img/lib/ (only local); a missing file becomes a calm field with the alt text */
-const pic = (file, alt, cls) => `<img src="${IMG}${file}" alt="${esc(alt || '')}" loading="lazy"${cls ? ` class="${cls}"` : ''} onerror="this.outerHTML='&lt;span class=&quot;ph&quot;&gt;${esc(esc(alt || ''))}&lt;/span&gt;'">`;
+const pic = (file, alt, cls) => (!LIVE_UI.imagesOn() ? `<span class="ph">${esc(alt || '')}</span>` : `<img src="${IMG}${file}" alt="${esc(alt || '')}" loading="lazy"${cls ? ` class="${cls}"` : ''} onerror="this.outerHTML='&lt;span class=&quot;ph&quot;&gt;${esc(esc(alt || ''))}&lt;/span&gt;'">`);
 const hostOf = url => String(url || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 const slug = s => String(s).toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* media of the rail: the libraries stay unchanged (Konzept 26); Live-TV is new, before the web radio */
@@ -187,7 +187,7 @@ function remember(path) {
 function missing(path) {
   return {
     nav: '', html: `<div class="page soon"><span class="soon-ic">${icon('clock', 88)}</span><h1>Unverändert</h1>
-      <p>Diese Seite ändert sich durch Konzept 28 «Live-TV» nicht (Mockup Konzept 26).</p><p class="soon-path">${esc(path)}</p>
+      <p>Diese Seite bleibt, wie sie ist.</p><p class="soon-path">${esc(path)}</p>
       <button type="button" class="tb primary" data-act="back" data-f="soon-back" data-default>${icon('back', 32)}<span>Zurück</span></button></div>`,
   };
 }
@@ -448,7 +448,7 @@ function art(file, mode) {
   const box = $('#art'); box.dataset.mode = mode || 'hero';
   if (file === artCur) return; artCur = file;
   const olds = $$('img', box); olds.forEach(o => o.classList.remove('on')); setTimeout(() => olds.forEach(o => o.remove()), 700);
-  if (!file) return;
+  if (!file || !LIVE_UI.imagesOn()) return;
   const im = new Image(); im.alt = ''; im.onload = () => im.classList.add('on'); im.onerror = () => im.remove(); im.src = IMG + file; box.appendChild(im);
 }
 

@@ -19,8 +19,9 @@ simulierter Wiedergabe. Rundgang, Abdeckung des Auftrags und Abweichungen: `docs
 
 ## Leiste oben
 
-- **Zustände:** Uhr (anhalten, vorspulen), Profil Anna (Hauptprofil), Luca (ab 16), Mia (ab 6), Rechte des
-  Profils und Deckel des Kontos, «Recht entzogen während der Wiedergabe», Seiten leer, lädt, Fehler, ohne EPG,
+- **Zustände:** Schalter «Echte Logos und Bilder», Uhr (anhalten, vorspulen), Profil Anna (Hauptprofil), Luca (ab 16), Mia (ab 6), Rechte des
+  Profils und Deckel des Kontos, «Recht entzogen während der Wiedergabe», Seiten leer (auf jeder Seite:
+  keine Sender, Aufnahmen, Planungen, Erinnerungen, Favoriten, nichts zuletzt gesehen), lädt, Fehler, ohne EPG,
   Sender gestört, viele Sender (2'000 im Raster), Kontingent voll, Fehler im Player (nicht erreichbar,
   Ersatzquelle, Grenze erreicht, Strom stockt, langsamer Start, nicht abspielbar, Server ausgelastet), in der
   Web-App zusätzlich Speicher knapp oder voll, Netzlaufwerk nicht eingehängt, EPG-Import fehlgeschlagen.
@@ -29,6 +30,8 @@ simulierter Wiedergabe. Rundgang, Abdeckung des Auftrags und Abweichungen: `docs
 
 ## Bilder
 
-Senderlogos und Sendungsbilder liegen nur lokal in `shared/img/` (git-ignoriert, Markenrechte). Fehlen sie,
-zeigt das Mockup Initialen auf heller Fläche und ruhige Flächen statt Bildern; bedienbar bleibt alles.
+Senderlogos und Sendungsbilder liegen nur lokal in `shared/img/` (git-ignoriert, Markenrechte), nie in Git.
+Das Mockup lädt sie nur, wenn der Schalter «Echte Logos und Bilder» an ist (auf `index.html` oder unter
+«Zustände»; gemerkt im Browser unter `sc28-img`). Ab Werk ist er aus: Initialen auf heller Fläche und ruhige
+Flächen statt Bildern, keine Anfrage nach Bilddateien, keine Fehler in der Konsole; bedienbar bleibt alles.
 Wer Seiten ändert, liest `BAUKASTEN.md`.

@@ -5,7 +5,8 @@
 'use strict';
 
 const LOGO = '<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M7 6l5 4h8l5-4v14a6 6 0 0 1-6 6h-6a6 6 0 0 1-6-6z"/><path fill="var(--bg)" d="M13 18h6l-3 4z"/></svg>';
-const LIBS = [['Filme', 'film', '1840'], ['Serien', 'tv', '505'], ['User-Empfehlungen', 'star', '3'], ['Podcast', 'mic', '100'], ['Hörbücher', 'book', '89'], ['Anime', 'film', '114'], ['Dokus', 'film', '63'], ['Radio', 'radio', '2 Sender'], ['Sammlungen', 'layers', '337']];
+/* counts of the test library, the same in all three clients (Filme 1'846, Webradio 3 Stationen) */
+const LIBS = [['Filme', 'film', "1'846"], ['Serien', 'tv', '505'], ['User-Empfehlungen', 'star', '3'], ['Podcast', 'mic', '100'], ['Hörbücher', 'book', '89'], ['Anime', 'film', '114'], ['Dokus', 'film', '63'], ['Radio', 'radio', '3 Stationen'], ['Sammlungen', 'layers', '337']];
 const roleLabel = (p) => (p.primary ? 'Hauptprofil' : p.age ? `Profil · ab ${p.age}` : 'Profil');
 const avatarHtml = (p, cls) => `<span class="av ${esc(p.accent)}${cls ? ' ' + cls : ''}">${esc(p.name[0])}</span>`;
 
@@ -77,7 +78,7 @@ function livePills() {
     area: bad ? [`${bad} gestört`, 'warn'] : null,
     sources: LIVE.sources.some((s) => !s.lastOk) ? ['Fehler', 'bad'] : null,
     diagnostics: bad ? [`${bad} gestört`, 'warn'] : null,
-    storage: LIVE.accounts.some((a) => a.quotaGB && a.usedGB / a.quotaGB >= 0.9) ? ['Speicher knapp', 'warn'] : null,
+    storage: ['full', 'unmounted'].includes(SIM.flags().admStorage) ? [SIM.flags().admStorage === 'full' ? 'Speicher voll' : 'Netzlaufwerk fehlt', 'bad'] : SIM.flags().admStorage === 'low' || LIVE.accounts.some((a) => a.quotaGB && a.usedGB / a.quotaGB >= 0.9) ? ['Speicher knapp', 'warn'] : null,
   };
 }
 const pill = (x) => (x ? `<span class="apill ${x[1]}" aria-hidden="true">${esc(x[0])}</span>` : '');
@@ -134,7 +135,7 @@ ACT.hideSide = () => { S.sideHidden = !S.sideHidden; commit(); };
 
 /* ---------- pages the concept does not change: reachable, explained, never a dead button ---------- */
 const UNCHANGED = {
-  merkliste: ['Merkliste', 'Titel, die du dir gemerkt hast. Aufnahmen erscheinen hier nie.'],
+  merkliste: ['Merkliste', 'Titel, die du dir gemerkt hast.'],
   gesehen: ['Gesehen', 'Was dieses Profil gesehen hat.'],
   einstellungen: ['Einstellungen', 'Tonsprachen, Untertitel und Serienmerker des Profils.'],
   wuensche: ['Wünsche', 'Wünsche über Seerr (Konzept 25).'],
@@ -142,7 +143,8 @@ const UNCHANGED = {
 };
 route('/unchanged/:what', (pm) => {
   const u = UNCHANGED[pm.what] || [decodeURIComponent(pm.what).replace(/^./, (c) => c.toUpperCase()), 'Bibliotheksseite mit Raster, Filter und Sortierung.'];
-  return { type: 'viewer', nav: { merkliste: 'watchlist', gesehen: 'watched', einstellungen: 'settings', wuensche: 'wishes' }[pm.what] || 'lib:' + u[0], title: u[0], html: `<div class="page"><div class="head"><h1>${esc(u[0])}</h1><p class="sub">${u[1]}</p></div>${notice('', 'Unverändert', 'Diese Seite ändert sich durch Konzept 28 «Live-TV» nicht. Das Mockup zeigt sie deshalb nicht im Einzelnen.', `<button type="button" class="btn secondary" data-act="back" data-fid="un:back">${icon('arrowL')}Zurück</button><a class="btn ghost" href="#/live" data-fid="un:live">Zu Live-TV</a>`)}</div>` };
+  /* no word about Live-TV in the app picture: the remark «unverändert durch Konzept 28» belongs to the mockup bar */
+  return { type: 'viewer', nav: { merkliste: 'watchlist', gesehen: 'watched', einstellungen: 'settings', wuensche: 'wishes' }[pm.what] || 'lib:' + u[0], title: u[0], html: `<div class="page"><div class="head"><h1>${esc(u[0])}</h1><p class="sub">${u[1]}</p></div><div class="empty">Diese Seite bleibt, wie sie ist.<div class="row-gap" style="justify-content:center;margin-top:12px"><button type="button" class="btn secondary" data-act="back" data-fid="un:back">${icon('arrowL')}Zurück</button></div></div></div>` };
 });
 route('/admin/x/:page', (pm) => {
   const a = AREAS.find((x) => x.pages.some((p) => p[0] === pm.page)) || AREAS[1];

@@ -101,6 +101,7 @@ ACT.tvdRunning = (d) => {
 ACT.tvdStopRec = (d) => { closeMenu(); LiveDlg.confirmDelete({ kind: 'running', ids: [d.id] }); };
 
 route('/live/programs/:id', (pm) => {
+  if (SIM.mode() === 'empty') return { nav: '', html: livePage({ tab: 'guide', html: `${tvNote('info', 'Noch keine Sender', esc(LU.TX.empty))}` }) };
   const p = SIM.program(pm.id);
   if (!p || SIM.epgOf(p.ch) === 'none') return { nav: '', html: livePage({ tab: 'guide', title: 'Nicht gefunden', html: `${tvNote('info', 'Diese Sendung steht nicht mehr im Programm.', '')}<div class="ltv-acts"><button type="button" class="tb primary" data-act="go" data-to="#/live/guide" data-f="tvp-nf" data-default>${icon('calendar', 32)}<span>Zum Programm</span></button></div>` }) };
   const more = L_more(p);
@@ -127,6 +128,7 @@ const tvpSec = (id, title, html, extra) => `<section class="rsec tvp-sec"><h2 cl
 ACT.tvpTuneCh = (d) => liveTune(d.ch, tvListFor(d.list));
 ACT.tvpNow = (d) => liveTune(d.ch, tvListFor(d.list));
 ACT.tvpSoon = (d) => tvProgramMenu(d.pid);
+ACT.tvpClearRecent = () => { SIM.clearRecent(); toast('Die Liste «Zuletzt gesehen» ist leer'); };
 ACT.tvpGenre = (d) => go(`#/live/guide/search?genre=${encodeURIComponent(d.genre)}&when=now`);
 
 route('/live', () => {
@@ -144,19 +146,19 @@ route('/live', () => {
       const nn = order.map((c) => ({ c, nn: SIM.nowNext(c.id) }));
       const nowL = nn.filter((x) => x.nn.now).map((x) => x.nn.now);
       const soonL = nn.filter((x) => x.nn.next && x.nn.next.start > t && x.nn.next.start - t <= 60).map((x) => x.nn.next);
-      const recent = SIM.recent().slice(0, 12);
+      const recent = SIM.recent().slice(0, 20);
       const genres = noEpg ? [] : SIM.genresSoon(3).sort((a, b) => b.n - a.n);
       let first = true; const def = () => { const v = first; first = false; return v; };
-      const warn = r.recordings ? SIM.warnings().length : 0;
+      const warn = r.recordings ? SIM.warningCount() : 0;
       const run = r.recordings ? SIM.recordings().filter((x) => x.state === 'running').length : 0;
       const up = r.recordings ? SIM.upcoming().length : 0;
       const rem = SIM.reminders().length;
       const tile = (f, ic, h, t1, t2, hr, dd) => `<a class="tvp-link" href="${hr}" data-f="${f}"${dd ? ' data-default' : ''}><span class="mi-ic">${icon(ic, 40)}</span><span><b>${t1}</b><small>${t2}</small></span></a>`;
-      body = `${warn ? `<a class="tnote warn tvp-alert" href="#/live/scheduled/warnings" data-f="st-warn">${icon('alert', 36)}<div><b>${warn === 1 ? 'Eine geplante Aufnahme braucht' : `${warn} geplante Aufnahmen brauchen`} deine Aufmerksamkeit</b><p>Öffnen und ansehen</p></div></a>` : ''}
+      body = `${warn ? `<a class="tnote warn tvp-alert" href="#/live/scheduled/warnings" data-f="st-warn">${icon('alert', 36)}<div><b>${esc(LU.warnText(warn))}</b><p>Öffnen und ansehen</p></div></a>` : ''}
         ${noEpg ? tvNote('info', 'Für die Sender gibt es gerade keine Programmdaten.', 'Fernsehen geht trotzdem.') : ''}
         ${nowL.length ? tvpSec('now', 'Jetzt im Fernsehen', nowL.map((p, i) => tvpCard(p, { f: 'now-' + p.ch, act: 'tvpNow', list: fav.some((c) => c.id === p.ch) ? 'fav' : 'all', def: def() })).join('')) : ''}
         ${soonL.length ? tvpSec('soon', 'Gleich im Fernsehen', soonL.map((p) => tvpCard(p, { f: 'soon-' + p.ch, act: 'tvpSoon', def: def() })).join('')) : ''}
-        ${recent.length ? tvpSec('recent', 'Zuletzt gesehen', recent.map((x) => tvpChCard(x.ch, { f: 'rc-' + x.ch.id, list: 'recent', def: def() })).join('')) : ''}
+        ${recent.length ? tvpSec('recent', 'Zuletzt gesehen', recent.map((x) => tvpChCard(x.ch, { f: 'rc-' + x.ch.id, list: 'recent', def: def() })).join('') + `<button type="button" class="tvp-card more" data-act="tvpClearRecent" data-f="rc-clear" aria-label="Liste «Zuletzt gesehen» leeren"><span class="tvp-im">${icon('trash', 44)}<b>Liste leeren</b></span></button>`) : ''}
         ${fav.length ? tvpSec('fav', 'Meine Sender', fav.map((c) => tvpChCard(c, { f: 'fv-' + c.id, list: 'fav', def: def() })).join('') + `<a class="tvp-card more" href="#/live/channels/favorites" data-f="fv-all"><span class="tvp-im"><b>Alle</b>${icon('right', 44)}</span></a>`) : ''}
         ${genres.length ? `<section class="rsec tvp-sec"><h2 class="rh">Nach Genre</h2><div class="tvp-rail slim" data-row="genre">${genres.map((g) => `<button type="button" class="tb ghost" data-act="tvpGenre" data-genre="${esc(g.genre)}" data-f="gn-${esc(g.genre)}"${def() ? ' data-default' : ''}><span>${esc(g.genre)}</span></button>`).join('')}</div></section>` : ''}
         <section class="rsec tvp-sec"><h2 class="rh">Einstiege</h2><div class="tvp-rail slim" data-row="links">
@@ -168,8 +170,16 @@ route('/live', () => {
   }
   return { nav: '', html: livePage({ tab: 'start', html: `<div class="tvp-start">${body.replace('<div class="tvp-rail"', '<div data-top class="tvp-rail"')}</div>` }), key: tvpNumKeys };
 });
+/** without the right the new remote keys do nothing visible: no channel entry, no hint about Live-TV or
+    recordings (14, 0 Grundsatz 1); true = swallowed */
+function tvKeyGuard(name) {
+  const r = SIM.rights();
+  if (!r.liveTv && /^(ch_up|ch_down|guide|info|rec|last|d\d)$/.test(name)) return true;
+  return name === 'rec' && !r.recordings;
+}
 /** digits jump to the channel with that number; OK commits an entry in progress */
 function tvpNumKeys(name, ev) {
+  if (tvKeyGuard(name)) return true;
   if (/^d\d$/.test(name)) { liveNumber(name, (c) => liveTune(c.id, tvAllIds())); return true; }
   if (name === 'ok' && liveNumberActive()) { liveNumberCommit(); return true; }
   return false;
@@ -226,6 +236,7 @@ route('/live/guide/search', (pm, query) => {
     <button type="button" class="tb ghost" data-act="tvsGroup" data-f="sr-group">${icon('list', 32)}<span>${esc(groupName)}</span></button></div>`;
   let body;
   if (st) body = st;
+  else if (!SIM.channels().length) body = tvNote('info', 'Noch keine Sender', esc(LU.TX.empty));
   else if (!s.q && !s.genre) body = tvNote('search', 'Gib einen Titel ein oder wähle ein Genre.', '');
   else {
     const res = SIM.search(s.q, { when: s.when, genre: s.genre, group: s.group || undefined });
@@ -256,6 +267,7 @@ ACT.tvsSetGroup = (d) => { TVS.search.group = d.v; closeMenu(); };
 
 /* ---------- LS-15 Senderprogramm ---------- */
 route('/live/guide/channel/:id', (pm, query) => {
+  if (SIM.mode() === 'empty') return { nav: '', html: livePage({ tab: 'guide', html: `${tvNote('info', 'Noch keine Sender', esc(LU.TX.empty))}` }) };
   const c = SIM.channel(pm.id);
   if (!c || SIM.chState(c) === 'gone') return { nav: '', html: livePage({ tab: 'guide', title: 'Nicht gefunden', html: `${tvNote('info', 'Diesen Sender gibt es nicht mehr.', '')}<div class="ltv-acts"><button type="button" class="tb primary" data-act="go" data-to="#/live/channels" data-f="cp-nf" data-default>${icon('list', 32)}<span>Zu den Sendern</span></button></div>` }) };
   const t = SIM.now(); const today = Math.floor(t / 1440);

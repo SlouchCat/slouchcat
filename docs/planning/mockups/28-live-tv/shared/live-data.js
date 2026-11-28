@@ -51,9 +51,9 @@
     { id: 'src-xtream', name: 'Xtream Beispielanbieter', kind: 'xtream', address: 'http://xtream.example.com:8080', host: 'xtream.example.com', user: 'demo',
       active: 120, total: 9874, groups: 212, gone: 0, interval: 12, last: at(0, '05:00'), lastOk: false, lastError: 'Server antwortet 503', next: at(0, '17:00'), state: 'warn', localNet: false, offerNew: false, moreConn: false },
     { id: 'src-region', name: 'Senderliste Region', kind: 'm3u-file', file: 'senderliste-region.m3u', fileSize: '1.2 MB', uploaded: at(-8, '14:20'),
-      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false, moreConn: false },
+      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false, moreConn: true },
     { id: 'src-mc', name: 'Heimnetz Multicast', kind: 'single', streams: ['udp://@239.10.0.1:5000', 'udp://@239.10.0.2:5000'],
-      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, offerNew: false, moreConn: false },
+      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, fixedTargets: 2, offerNew: false, moreConn: false },
   ];
   /* import runs per source: [runId, at, result, new, changed, gone, note] */
   const importRuns = {
@@ -98,7 +98,7 @@
     ch('telezueri', 7, 'TeleZüri', 'CH', ['de'], ['ch', 'regional'], 'Regional', { epg: 'none', epgKey: null, bitrate: 4.0, video: 'H.264 · 1280 × 720 · 50 Bilder/s', sources: [{ source: 'src-region', name: 'TeleZueri', url: 'https://region.example.net/tz/••••.m3u8', state: 'ok' }] }),
     ch('daserste', 10, 'Das Erste', 'DE', ['de'], ['de', 'full'], 'Vollprogramm', { reception: 'schedule', schedule: 'Abends', subs: ['Deutsch (Videotext)'], favCount: 7 }),
     ch('zdf', 11, 'ZDF', 'DE', ['de'], ['de', 'full'], 'Vollprogramm', { subs: ['Deutsch (DVB)'], sources: [{ source: 'src-kabel', name: 'ZDF HD', url: 'https://iptv.example.net/live/••••/zdf.m3u8', state: 'ok' }, XT('zdf')], favCount: 8 }),
-    ch('3sat', 12, '3sat', 'DE', ['de'], ['de', 'culture'], 'Kultur'),
+    ch('3sat', 12, '3sat', 'DE', ['de'], ['de', 'culture'], 'Kultur', { reception: 'permanent' }),
     ch('arte', 13, 'arte', 'DE', ['de', 'fr'], ['de', 'culture'], 'Kultur', { audio: ['Deutsch (AAC Stereo)', 'Französisch (AAC Stereo)'], favCount: 4 }),
     ch('zdfneo', 14, 'ZDFneo', 'DE', ['de'], ['de'], 'Unterhaltung'),
     ch('zdfinfo', 15, 'ZDFinfo', 'DE', ['de'], ['de', 'news'], 'Dokumentation', { state: 'disturbed', since: at(0, '20:12'), sources: [{ source: 'src-kabel', name: 'ZDFinfo HD', url: 'https://iptv.example.net/live/••••/zdfinfo.m3u8', state: 'fail' }, Object.assign(XT('zdfinfo'), { state: 'fail' })] }),
@@ -287,7 +287,7 @@
 
   /* ---------- administration: EPG, mapping, inputs, diagnostics, storage, accounts ---------- */
   const epgSources = [
-    { id: 'epg-xmltv', name: 'XMLTV Schweiz und Deutschland', kind: 'xmltv-url', address: 'https://epg.example.org/ch-de.xml.gz', interval: 12, last: at(0, '04:10'), lastOk: true, channels: 214, programmes: 48312, until: at(7, '00:00'), warnings: [], shift: 0 },
+    { id: 'epg-xmltv', name: 'XMLTV Schweiz und Deutschland', kind: 'xmltv-url', address: 'https://epg.example.org/ch-de.xml.gz', interval: 24, last: at(0, '04:10'), lastOk: true, channels: 214, programmes: 48312, until: at(7, '00:00'), warnings: [], shift: 0 },
     { id: 'epg-xtream', name: 'Programmdaten Xtream', kind: 'xtream', address: 'vom Xtream-Zugang «Xtream Beispielanbieter»', interval: 24, last: at(-1, '05:05'), lastOk: true, channels: 1840, programmes: 112004, until: at(5, '00:00'), warnings: ['312 Sendungen ohne Zeitzone, als Ortszeit gelesen'], shift: 0 },
   ];
   const epgRuns = { 'epg-xmltv': [[at(0, '04:10'), 'ok', '48 312 Sendungen'], [at(-1, '16:10'), 'ok', '47 980 Sendungen'], [at(-1, '04:10'), 'ok', '47 101 Sendungen'], [at(-2, '16:10'), 'warn', '41 Sendungen mit Ende vor Beginn übersprungen'], [at(-2, '04:10'), 'ok', '46 870 Sendungen']], 'epg-xtream': [[at(-1, '05:05'), 'warn', '312 Sendungen ohne Zeitzone'], [at(-2, '05:05'), 'ok', '111 820 Sendungen']] };
@@ -307,7 +307,7 @@
     { id: 'dup-2', channels: ['zdf', 'x-zdfhd'], names: ['ZDF', 'ZDF HD (Xtream)'], reason: 'Name gleich nach Bereinigung', keep: 'zdf' },
     { id: 'dup-3', channels: ['3sat', 'x-3sat'], names: ['3sat', '3sat HD (Senderliste Region)'], reason: 'gleiche Adresse', keep: '3sat' },
   ];
-  const totals = { imported: 10354, active: 584, available: 571, unavailable: 13, duplicates: 7 };
+  const totals = { imported: 10354, active: 584, available: 571, unavailable: 13, duplicates: 3 };
   /* active inputs right now (LA-12): reason viewer | recording | permanent | preload | schedule */
   const inputs = [
     { ch: 'srf1', source: 'src-kabel', backup: 0, state: 'running', reasons: ['permanent', 'viewer'], since: at(0, '00:00') - 3 * DAY, viewers: 2, recordings: 0, bitrate: 8.1, transcode: '1 direkt · 1 umgewandelt (Hardware QSV)', buffer: '12 MB', timeshift: '2.4 GB (2 Puffer)', recGB: 0, errors: null },
@@ -315,6 +315,8 @@
     { ch: 'zdf', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer'], since: at(0, '20:14'), viewers: 1, recordings: 0, bitrate: 8.3, transcode: '1 umgewandelt (Hardware QSV)', buffer: '11 MB', timeshift: '0.9 GB (1 Puffer)', recGB: 0, errors: null },
     { ch: 'srfinfo', source: 'src-kabel', backup: 0, state: 'running', reasons: ['preload'], since: at(0, '20:36'), viewers: 0, recordings: 0, bitrate: 5.2, transcode: '–', buffer: '9 MB', timeshift: '–', recGB: 0, errors: null },
     { ch: 'daserste', source: 'src-kabel', backup: 0, state: 'running', reasons: ['schedule'], schedule: 'Abends', since: at(0, '18:00'), viewers: 0, recordings: 0, bitrate: 8.0, transcode: '–', buffer: '12 MB', timeshift: '–', recGB: 0, errors: null },
+    /* 15 Fassung 2, 0.1: 3sat is received permanently but deferred since 20:31 (a viewer needed the place; upper limit 8 inputs) */
+    { ch: '3sat', source: 'src-kabel', backup: 0, state: 'deferred', reasons: ['permanent'], since: at(0, '20:31'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: null, deferredReason: 'Ein Zuschauer brauchte den Platz (höchstens 8 Eingänge).' },
     { ch: 'zdfinfo', source: 'src-xtream', backup: 2, state: 'reconnecting', attempt: [3, 5], reasons: ['viewer'], since: at(0, '20:12'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: 'alle Quellen fehlgeschlagen' },
   ];
   /* consumers of the inputs (LA-12 expanded): no titles, recordings only with the account */
@@ -349,8 +351,9 @@
     settings: { checkEvery: '6h', parallel: 2, retries: 5, notifyAfter: 15, onlyUsed: true },
   };
   const storage = [
-    { id: 'buffer', name: 'Startpuffer', path: '/live/buffer', kind: 'RAM-Disk (tmpfs)', usedGB: 0.4, totalGB: 2, state: 'ok' },
-    { id: 'timeshift', name: 'Timeshift', path: '/live/timeshift', kind: 'SSD (ext4)', usedGB: 18.4, freeGB: 256, limitGB: 64, state: 'ok' },
+    /* 15 Fassung 2, 0.1: start buffer in the server's memory (factory default, byte budget 512 MB, 96 MB used) */
+    { id: 'buffer', name: 'Startpuffer', path: 'Arbeitsspeicher des Servers', kind: 'Arbeitsspeicher (ab Werk)', usedGB: 0.096, totalGB: 0.512, state: 'ok' },
+    { id: 'timeshift', name: 'Timeshift', path: '<cache>/live/timeshift', kind: 'SSD (ext4)', usedGB: 18.4, freeGB: 256, limitGB: 50, state: 'ok' },
     { id: 'recordings', name: 'Aufnahmen', path: '/recordings', kind: 'Netzlaufwerk (NFS)', usedGB: 1200, totalGB: 4000, state: 'ok' },
   ];
   /* accounts for the admin (LA-16, LA-22): no titles, no profiles */
@@ -358,11 +361,13 @@
     { email: 'familie.keller@example.ch', quotaGB: 200, usedGB: 142, count: 31, plannedGB: 21, rights: { liveTv: true, recordings: true, timeshift: true } },
     { email: 'grosseltern@example.ch', quotaGB: 100, usedGB: 12, count: 4, plannedGB: 3, rights: { liveTv: true, recordings: true, timeshift: true } },
     { email: 'wg-langstrasse@example.ch', quotaGB: 100, usedGB: 97, count: 22, plannedGB: 9, rights: { liveTv: true, recordings: true, timeshift: false } },
-    { email: 'admin@example.ch', quotaGB: 0, usedGB: 0, count: 0, plannedGB: 0, rights: { liveTv: false, recordings: false, timeshift: false } },
+    { email: 'admin@example.ch', quotaGB: 100, usedGB: 0, count: 0, plannedGB: 0, rights: { liveTv: true, recordings: true, timeshift: true } },
   ];
+  /* upper limits of the inputs (15 Fassung 2, `04` 14.1): 8 inputs at once, 4 preloaded */
+  const limits = { inputs: 8, preloaded: 4 };
   const settings = {
     dvr: { padBefore: 2, padAfter: 10, keep: 'forever', instantMaxH: 4, followEpg: true, maxParallel: null },
-    timeshift: { maxMin: 120, defaultMin: 60, totalGB: 64 }, // factory default 60 min (03-fachkonzept), this sample server: 2 h
+    timeshift: { maxMin: 120, defaultMin: 60, totalGB: 50 }, // factory default 60 min (03-fachkonzept), this sample server: 2 h
     reception: { default: 'ondemand', neighbours: 1, keepHot: 3, favourites: true, stopAfterS: 60, recLeadS: 30 },
     schedules: [{ id: 'sch-abends', name: 'Abends', times: 'Mo–Fr 18:00–23:30, Sa–So 10:00–24:00', channels: ['daserste', 'zdf', 'srf1'] }],
     epg: { previewDays: 7 },
@@ -377,7 +382,7 @@
     channels, goneChannels, programs, seriesNames,
     favorites, recent, recordings, rules, warnings, reminders,
     epgSources, epgRuns, mappingCounts, mappings, duplicates, totals,
-    inputs, consumers, diagnostics, storage, accounts, settings, resources,
+    inputs, consumers, diagnostics, storage, accounts, settings, resources, limits,
     at, hm,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

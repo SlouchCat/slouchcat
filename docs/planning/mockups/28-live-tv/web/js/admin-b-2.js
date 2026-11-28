@@ -39,14 +39,15 @@ const abRank = (n) => (n.backup ? n.backup : 1);
 function abInfo(n) {
   const c = SIM.channel(n.ch); const vs = admViewers().filter((v) => v.ch === n.ch); const recs = abRecsOn(n.ch);
   const reconnecting = n.state === 'reconnecting'; const dist = SIM.chState(c) !== 'ok'; const busy = !!AB.busyIn[n.ch];
-  const status = busy ? ['Verbindet', 'info'] : reconnecting ? [`Wiederverbindet (Versuch ${n.attempt[0]} von ${n.attempt[1]})`, 'bad'] : dist ? ['Gestört', 'bad'] : ['Läuft', 'ok'];
+  const deferred = n.state === 'deferred';
+  const status = busy ? ['Verbindet', 'info'] : deferred ? [`Zurückgestellt seit ${fmt.time(n.since)}`, 'warn'] : reconnecting || dist ? ['Gestört', 'bad'] : ['Läuft', 'ok'];
   const direct = vs.filter((v) => !v.tr).length; const trans = vs.length - direct;
   const tsGB = Math.round(n.tsPer * vs.length * 10) / 10;
-  let err = n.errors || null;
+  let err = n.errors || null; if (reconnecting && err) err = `${err} · nächster Versuch ${fmt.time(SIM.now() + 2)}`; if (deferred) err = null;
   if (dist && !reconnecting && !err) err = 'Bild gestört (Zustand im Mockup)';
   if (recs.length && !reconnecting && ['full', 'unmounted'].includes(ui.abSto)) err = (err ? err + ' · ' : '') + 'Aufnahme: Speicherort nicht verfügbar';
   const srcIdx = c.sources.findIndex((s) => s.source === n.source);
-  return { n, c, vs, recs, status, bad: reconnecting || dist, direct, trans, tsGB, err, runMin: SIM.now() - n.since, srcName: abSrcName(n.source), rank: abRank(n), canSwitch: c.sources.length > 1, srcIdx,
+  return { n, c, vs, recs, status, deferred, bad: reconnecting || dist, direct, trans, tsGB, err, runMin: SIM.now() - n.since, srcName: abSrcName(n.source), rank: abRank(n), canSwitch: c.sources.length > 1, srcIdx,
     conv: vs.length ? `${direct} direkt · ${trans} umgewandelt${trans ? ' (Hardware QSV)' : ''}` : '–', br: reconnecting ? 0 : n.bitrate, reasons: n.reasons };
 }
 const abInReasons = (i) => i.reasons.map((r) => `<span class="chip info">${AB_REASON[r] || r}${r === 'schedule' && i.n.schedule ? ` «${esc(i.n.schedule)}»` : ''}</span>`).join(' ');
@@ -60,8 +61,8 @@ function abInFacts(i) {
 }
 function abInTakers(i) {
   const v = i.vs.map((x) => `<li>${icon('user', 16)}<span><b>${esc(x.acct)}</b> · ${esc(x.prof)} · ${esc(x.dev)}<small>${esc(x.mode)} · ${/zeitversetzt/.test(x.off) ? esc(x.off) : 'Live'}</small></span></li>`).join('');
-  const r = i.recs.map((x) => `<li>${icon('record', 16)}<span><b>Aufnahme</b> · Konto ${esc(x.acct)}<small>Titel und Profil siehst du nicht (Privatsphäre)</small></span></li>`).join('');
-  return `<h3 class="la02-h3">Abnehmer</h3>${v || r ? `<ul class="ab-takers">${v}${r}</ul>` : '<p class="muted">Kein Zuschauer und keine Aufnahme. Der Sender wird aus einem anderen Grund empfangen (siehe «Grund»).</p>'}`;
+  const r = i.recs.length ? `<li>${icon('record', 16)}<span><b>${abPl(i.recs.length, 'Aufnahme', 'Aufnahmen')}</b><small>Nur die Zahl: Konto, Profil und Titel einer Aufnahme siehst du nicht (Privatsphäre).</small></span></li>` : '';
+  return `<h3 class="la02-h3">Abnehmer</h3>${v || r ? `<ul class="ab-takers">${v}${r}</ul>` : (i.deferred ? `<p class="muted">Zurückgestellt: ${esc(i.n.deferredReason || 'Der Platz wurde gebraucht.')} Der Sender belegt keinen Platz und startet von selbst wieder, sobald 60 Sekunden lang Platz frei ist oder jemand ihn einstellt.</p>` : '<p class="muted">Kein Zuschauer und keine Aufnahme. Der Sender wird aus einem anderen Grund empfangen (siehe «Grund»).</p>')}`;
 }
 function abInActions(i) {
   const ch = i.n.ch; const busy = !!AB.busyIn[ch];
@@ -84,13 +85,14 @@ function abInRow(i) {
 ACT.abInView = (dd) => { ui.abIn.view = dd.v; render(); };
 ACT.abInF = (dd) => { ui.abIn.f = dd.k; render(); };
 ACT.abInSort = (dd) => { abSortToggle(AB.inSort, dd.k); render(); };
-const AB_INF = [['all', 'Alle'], ['viewer', 'Zuschauer'], ['recording', 'Aufnahme'], ['permanent', 'Permanent'], ['preload', 'Vorgeladen'], ['schedule', 'Zeitplan'], ['bad', 'Gestört']];
+const AB_INF = [['all', 'Alle'], ['viewer', 'Zuschauer'], ['recording', 'Aufnahme'], ['permanent', 'Permanent'], ['preload', 'Vorgeladen'], ['schedule', 'Zeitplan'], ['deferred', 'Zurückgestellt'], ['bad', 'Gestört']];
 function abStreams() {
-  const all = admInputs().map(abInfo); /* the same inputs as LA-01 (admin-core.js) */ const vs = admViewers(); const R = LIVE.resources;
+  const all = admInputs().map(abInfo); /* the same inputs as LA-01 (admin-core.js) */ const vs = admViewers(); const R = LIVE.resources; const I = aaInputStats(); const RS = aaRecStats();
   const trans = vs.filter((v) => v.tr).length; const bandOut = Math.round(vs.reduce((a, v) => a + v.br, 0) * 10) / 10;
-  const strip = `<div class="stats ab-strip" style="--n:6">${abStat('Eingänge', all.length, 'empfängt Slouchcat gerade', { href: '#/admin/live', fid: 'la12:s-in' })}${abStat('Zuschauer', vs.length, 'alle Eingänge zusammen')}${abStat('Aufnahmen', admRecRunning(), 'laufen gerade')}${abStat('Umwandlungen', trans, 'für einzelne Geräte')}${abStat('Bandbreite ein', `${abDe(R.bandIn, 1)}`, 'Mbit/s von den Quellen')}${abStat('Bandbreite aus', `${abDe(bandOut, 1)}`, 'Mbit/s zu den Geräten')}</div>`;
-  const cnt = (k) => k === 'all' ? all.length : k === 'bad' ? all.filter((i) => i.bad).length : all.filter((i) => i.reasons.includes(k)).length;
-  const f = ui.abIn.f; let list = all.filter((i) => f === 'all' || (f === 'bad' ? i.bad : i.reasons.includes(f)));
+  const strip = `<div class="stats ab-strip" style="--n:6">${abStat('Eingänge', `${I.n} von ${I.max}`, `empfängt Slouchcat gerade${I.def ? ` · ${I.def} zurückgestellt` : ''}`, { href: '#/admin/live', fid: 'la12:s-in' })}${abStat('Zuschauer', vs.length, 'alle Eingänge zusammen')}${abStat('Aufnahmen', RS.run, `laufen gerade auf ${abPl(RS.chs, 'Sender', 'Sendern')}`)}${abStat('Umwandlungen', trans, 'für einzelne Geräte')}${abStat('Bandbreite ein', `${abDe(R.bandIn, 1)}`, 'Mbit/s von den Quellen')}${abStat('Bandbreite aus', `${abDe(bandOut, 1)}`, 'Mbit/s zu den Geräten')}</div>`;
+  const match = (i, k) => (k === 'all' ? true : k === 'bad' ? i.bad : k === 'deferred' ? i.deferred : !i.deferred && i.reasons.includes(k));
+  const cnt = (k) => all.filter((i) => match(i, k)).length;
+  const f = ui.abIn.f; let list = all.filter((i) => match(i, f));
   const S = AB.inSort; const key = { ch: (i) => (i.c.no == null ? 9999 : i.c.no), src: (i) => i.srcName, st: (i) => i.status[0], run: (i) => i.runMin, v: (i) => i.vs.length, r: (i) => i.recs.length, br: (i) => i.br }[S.sort] || ((i) => i.c.no);
   list = list.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * S.dir);
   const filt = `<div class="ab-ftog" role="group" aria-label="Nach Grund filtern">${AB_INF.map(([k, t]) => `<button type="button" class="btn ${f === k ? 'secondary' : 'ghost'} sm" aria-pressed="${f === k}" data-act="abInF" data-k="${k}" data-fid="la12:f:${k}">${t} <span class="c">${cnt(k)}</span></button>`).join('')}</div>`;
@@ -99,7 +101,7 @@ function abStreams() {
     : `<div class="ab-grid" role="group" aria-label="Aktive Eingänge. Mit den Pfeiltasten wechselst du zwischen den Kacheln.">${list.map(abInTile).join('')}</div>`)
     : abEmptyBox(all.length ? 'Keine Treffer' : 'Gerade empfängt Slouchcat keinen Sender.', all.length ? 'Zu diesem Grund läuft gerade kein Eingang.' : 'Sobald jemand schaut, eine Aufnahme läuft oder ein Sender permanent empfangen wird, erscheint er hier.');
   const why = band('ab:in:why', 'Warum läuft ein Eingang?', 'Haltegründe: Zuschauer · Aufnahme · Permanent · Zeitplan · Vorgeladen · Automatisch', `<ul class="ab-list"><li><b>Zuschauer</b>: jemand schaut den Sender. Geschützt, wenn die Technik knapp wird.</li><li><b>Aufnahme</b>: eine Aufnahme braucht den Sender, auch im Vor- und Nachlauf. Geschützt.</li><li><b>Permanent</b>: der Sender ist auf «Permanent» gestellt und läuft rund um die Uhr, weicht bei Mangel aber Zuschauern.</li><li><b>Zeitplan</b>: der Sender läuft im Zeitfenster seines Zeitplans.</li><li><b>Vorgeladen</b>: Nachbar eines Senders, den jemand schaut. Fällt bei Mangel zuerst weg.</li><li><b>Automatisch</b>: einer der oft genutzten Sender, solange jemand Live-TV schaut.</li></ul><p class="muted">Ein Sender kann mehrere Gründe haben. Er endet, wenn der letzte Grund weg ist. Einzelne Wiedergaben je Gerät siehst du unter <a class="lnk" href="#/admin/streams" data-fid="la12:la21">Nutzer &amp; Geräte › Streams</a>.</p>`, { icon: 'info' });
-  const priv = band('ab:in:priv', 'Privatsphäre in dieser Ansicht', 'Aufnahmen nur mit Konto, ohne Titel und Profil', '<p>Bei Zuschauern siehst du Konto, Profil und Gerät, wie überall in der Verwaltung. Bei Aufnahmen siehst du nur «Aufnahme · Konto». Titel und Profil einer Aufnahme gehören dem Profil und bleiben dir verborgen. Du kannst fremde Aufnahmen weder abspielen noch löschen.</p>', { icon: 'lock' });
+  const priv = band('ab:in:priv', 'Privatsphäre in dieser Ansicht', 'Aufnahmen nur als Zahl, ohne Konto, Profil und Titel', '<p>Bei Zuschauern siehst du Konto, Profil und Gerät, wie überall in der Verwaltung. Bei Aufnahmen siehst du nur die Zahl je Sender. Ein Eingang ist ein Sender zu einer Zeit; mit dem Konto daneben verriete das öffentliche Programm den Titel. Du kannst fremde Aufnahmen weder abspielen noch löschen.</p>', { icon: 'lock' });
   return `${strip}<div class="ab-tools">${filt}<div class="seg" role="group" aria-label="Ansicht"><button type="button" aria-pressed="${ui.abIn.view === 'tiles'}" data-act="abInView" data-v="tiles" data-fid="la12:v:t">${icon('grid', 14)} Kacheln</button><button type="button" aria-pressed="${ui.abIn.view === 'table'}" data-act="abInView" data-v="table" data-fid="la12:v:r">${icon('list', 14)} Tabelle</button></div></div>${body}${why}${priv}`;
 }
 /* Pfeiltasten im Kachelraster */
@@ -117,7 +119,7 @@ ACT.abInRe = (dd) => {
   const n = LIVE.inputs.find((x) => x.ch === dd.ch); const c = SIM.channel(dd.ch); AB.busyIn[dd.ch] = true; render();
   setTimeout(() => {
     delete AB.busyIn[dd.ch];
-    if (n.state === 'reconnecting') { n.attempt = [Math.min(n.attempt[1], n.attempt[0] + 1), n.attempt[1]]; abLog(dd.ch, 'reconnect', `Wiederverbindung ${n.attempt[0]} von ${n.attempt[1]} (von Hand)`); abPc(dd.ch)[3]++; render(); toast(`${esc(c.name)}: Keine Quelle antwortet. Wiederverbindung ${n.attempt[0]} von ${n.attempt[1]}.`, 'warn', 6000); return; }
+    if (n.state === 'reconnecting') { n.attempt = [Math.min(n.attempt[1], n.attempt[0] + 1), n.attempt[1]]; abLog(dd.ch, 'reconnect', `Wiederverbindung ${n.attempt[0]} von ${n.attempt[1]} (von Hand)`); abPc(dd.ch)[3]++; render(); toast(`${esc(c.name)}: Keine Quelle antwortet. Nächster Versuch ${fmt.time(SIM.now() + 2)}.`, 'warn', 6000); return; }
     n.errors = null; n.since = SIM.now(); abLog(dd.ch, 'reconnect', 'Von Hand neu verbunden'); abPc(dd.ch)[3]++; render(); toast(`${esc(c.name)} ist neu verbunden.`);
   }, 1400);
 };
@@ -132,7 +134,7 @@ ACT.abInEnd = (dd) => openDialog('abInEnd', { ch: dd.ch });
 DIALOGS.abInEnd = (p) => {
   const n = LIVE.inputs.find((x) => x.ch === p.ch); const i = abInfo(n); const keep = n.reasons.some((r) => ['permanent', 'schedule'].includes(r));
   const parts = [i.vs.length ? `${abPl(i.vs.length, 'Zuschauer wird', 'Zuschauer werden')} unterbrochen` : '', i.recs.length ? `${abPl(i.recs.length, 'Aufnahme bekommt', 'Aufnahmen bekommen')} eine Lücke oder ${i.recs.length === 1 ? 'endet' : 'enden'}` : ''].filter(Boolean);
-  return { title: `${esc(i.c.name)} beenden?`, body: `<p class="lead">${parts.length ? parts.join(', ') + '.' : 'Niemand schaut zu und keine Aufnahme läuft.'} ${keep ? 'Permanente Sender und Sender nach Zeitplan startet Slouchcat danach wieder.' : i.recs.length ? 'Laufende Aufnahmen öffnen den Empfang danach wieder.' : ''}</p><p class="muted">Der Empfang wird sofort getrennt. Du siehst nicht, wer betroffen ist, ausser über Konto und Gerät in der Abnehmerliste.</p>`,
+  return { title: `${esc(i.c.name)} beenden?`, body: `<p class="lead">${parts.length ? parts.join(', ') + '.' : 'Niemand schaut zu und keine Aufnahme läuft.'} ${keep ? 'Permanente Sender und Sender nach Zeitplan startet Slouchcat danach wieder.' : i.recs.length ? 'Laufende Aufnahmen öffnen den Empfang danach wieder.' : ''}</p><p class="muted">Der Empfang wird sofort getrennt. Bei Aufnahmen siehst du nur die Zahl, nicht wessen Aufnahme es ist. Wer einen Sender ganz aus dem Angebot nehmen will, deaktiviert ihn unter «Sender».</p>`,
     actions: `<button type="button" class="btn secondary" data-act="close" data-fid="ine:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="abInEndOk" data-ch="${p.ch}" data-fid="ine:ok">${icon('x', 16)}Beenden</button>` };
 };
 ACT.abInEndOk = (dd) => {
@@ -158,7 +160,7 @@ route('/admin/live/streams', () => {
    ====================================================================================== */
 const AB_DGE = [['6h', 'alle 6 Stunden'], ['24h', 'täglich'], ['off', 'aus']];
 function abDiagNow() {
-  const L = LIVE.diagnostics.now.map((x) => Object.assign({}, x));
+  const L = LIVE.diagnostics.now.map((x) => Object.assign({}, x, { text: x.text.replace(/nächster Versuch \d\d:\d\d/, `nächster Versuch ${fmt.time(SIM.now() + 2)}`) })); /* relativ zur Mockup-Uhr */
   if (SIM.flags().disturbed) L.push({ ch: 'srf1', severity: 'bad', text: `seit ${fmt.time(SIM.now())} · Bild gestört (Zustand im Mockup)`, mock: true });
   return L.sort((a, b) => ['bad', 'warn'].indexOf(a.severity) - ['bad', 'warn'].indexOf(b.severity));
 }
@@ -196,15 +198,15 @@ ACT.abDgDisc = () => { delete ui.draft.dg; render(); };
 ACT.abDgSave = () => { LIVE.diagnostics.settings = abClone(ui.draft.dg); delete ui.draft.dg; render(); toast('Einstellungen der Überwachung gespeichert.'); };
 const AB_HELP = [
   ['Zeitüberschreitung', 'Die Quelle antwortet nicht in 10 Sekunden.', 'Prüfe, ob der Anbieter erreichbar ist (Quelle testen unter «Quellen»). Läuft der Sender nur zeitweise nicht, gleicht Slouchcat das mit Wiederverbindungen aus.'],
-  ['Anmeldung abgelehnt (403)', 'Der Anbieter lehnt die Zugangsdaten oder die Verbindung ab.', 'Prüfe Benutzer und Passwort der Quelle. Erlaubt dein Anbieter nur eine gleichzeitige Verbindung, kann eine zweite Verbindung (Zuschauer plus Vorladen) abgelehnt werden. Schalte dann «weitere gleichzeitige Verbindungen» unter «Empfang» aus.'],
+  ['Anmeldung abgelehnt (403)', 'Der Anbieter lehnt die Zugangsdaten oder die Verbindung ab.', 'Prüfe Benutzer und Passwort der Quelle. Erlaubt dein Anbieter nur eine gleichzeitige Verbindung, kann eine zweite Verbindung (Zuschauer plus Vorladen) abgelehnt werden. Schalte dann «Vorladen für Sender dieser Quelle» unter «Empfang» aus.'],
   ['Server antwortet 503', 'Der Dienst des Anbieters ist gerade überlastet oder in Wartung.', 'Meist vorübergehend. Slouchcat bleibt bei der bisherigen Liste und versucht es später wieder.'],
   ['Bild eingefroren', 'Daten kommen an, aber das Bild bewegt sich nicht.', 'Wechsle zur Ersatzquelle oder verbinde neu («Aktive Streams»). Tritt es immer wieder auf, melde es dem Anbieter.'],
   ['Kein Ton', 'Das Bild läuft, aber der Ton fehlt oder ist stumm.', 'Prüfe in «Jetzt prüfen», welche Tonspuren die Quelle liefert. Manchmal hilft die Ersatzquelle.'],
-  ['Ziel im Heimnetz nicht freigegeben', 'Eine Adresse im Heimnetz ist für die Quelle nicht freigegeben.', 'Gib das Ziel in der Quelle frei («Heimnetz erlauben»), aber nur für Geräte, die du kennst.'],
+  ['Ziel im Heimnetz nicht freigegeben', 'Eine Adresse im Heimnetz ist für die Quelle nicht freigegeben.', 'Bestätige das Ziel in der Quelle als festes Ziel im Heimnetz (Quelle ändern › Ziele im Heimnetz), aber nur für Geräte, die du kennst.'],
 ];
 function abDiagMain() {
   const now = abDiagNow(); const wk = abWeek(); const P = LIVE.diagnostics.perChannel; const S = AB.diag; const D = ui.draft;
-  const nowTbl = now.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Sender</th><th>Zustand</th><th>Meldung</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${now.map((x) => { const c = abChan(x.ch); const inp = LIVE.inputs.find((n) => n.ch === x.ch); return `<tr><td class="main" data-l="Sender">${abChLabel(c)}</td><td data-l="Zustand"><span class="chip ${x.severity === 'bad' ? 'bad' : 'warn'}">${x.severity === 'bad' ? 'Nicht erreichbar' : 'Fehlerhafter Stream'}</span>${inp && inp.state === 'reconnecting' ? `<span class="chip info">Wiederverbindung ${inp.attempt[0]} von ${inp.attempt[1]}</span>` : ''}</td><td data-l="Meldung">${esc(x.text)}</td>
+  const nowTbl = now.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Sender</th><th>Zustand</th><th>Meldung</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${now.map((x) => { const c = abChan(x.ch); const inp = LIVE.inputs.find((n) => n.ch === x.ch); return `<tr><td class="main" data-l="Sender">${abChLabel(c)}</td><td data-l="Zustand"><span class="chip ${x.severity === 'bad' ? 'bad' : 'warn'}">${x.severity === 'bad' ? 'Nicht erreichbar' : 'Fehlerhafter Stream'}</span>${inp && inp.state === 'deferred' ? '<span class="chip info">zurückgestellt</span>' : ''}</td><td data-l="Meldung">${esc(x.text)}</td>
       <td class="end"><div class="ta"><a class="btn secondary" href="#/admin/live/diagnostics?channel=${x.ch}" data-fid="la13:chk:${x.ch}">${icon('search', 16)}Prüfen</a><a class="btn quiet" href="#/admin/live/channels?tab=channels&edit=${x.ch}&open=sources" data-fid="la13:ed:${x.ch}">Sender bearbeiten</a></div></td></tr>`; }).join('')}</tbody></table></div>` : `<div class="notice ok"><span class="ic">${icon('check')}</span><div><b>Alles in Ordnung</b><p>Kein Sender ist gerade gestört.</p></div></div>`;
   const key = { ch: (r) => abChan(r[0]).name.toLowerCase(), out: (r) => r[1], dur: (r) => abParseDur(r[2]), rc: (r) => r[3], sw: (r) => r[4] }[S.sort] || ((r) => r[1]);
   const pc = P.slice().sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * S.dir);
@@ -319,9 +321,9 @@ function abAccTable(compact) {
   list.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * S.dir);
   const rec = abSto('recordings'); const sumQ = list.reduce((n, x) => n + x.a.quotaGB, 0); const sumU = list.reduce((n, x) => n + x.a.usedGB, 0);
   const rows = list.map((x) => { const a = x.a; return `<tr><td class="main" data-l="Konto">${esc(a.email)}</td><td class="end" data-l="Kontingent">${a.quotaGB ? abGB(a.quotaGB) : '–'}</td><td class="end" data-l="Belegt">${a.quotaGB ? abGB(a.usedGB) : '–'}</td>
-    <td data-l="Anteil">${a.quotaGB ? `<span class="ab-pct">${abMeter(a.usedGB, a.quotaGB, `${a.email}: Belegung des Kontingents`)}<b>${Math.round(x.pct)} %</b></span>` : '–'}</td><td class="end" data-l="Aufnahmen">${a.quotaGB ? fmt.num(a.count) : '–'}</td><td class="end" data-l="Geplant in 7 Tagen">${a.quotaGB ? `ca. ${abGB(a.plannedGB)}` : '–'}</td>
+    <td data-l="Anteil">${a.quotaGB ? `<span class="ab-pct">${abMeter(a.usedGB, a.quotaGB, `${a.email}: Belegung des Kontingents`)}<b>${Math.round(x.pct)} %</b></span>` : '–'}</td><td class="end" data-l="Gespeicherte Aufnahmen">${a.quotaGB ? fmt.num(a.count) : '–'}</td><td class="end" data-l="Geplant in 7 Tagen">${a.quotaGB ? `ca. ${abGB(a.plannedGB)}` : '–'}</td>
     <td data-l="Zustand"><span class="chip ${x.st[1]}">${x.st[0]}</span></td><td class="end"><button type="button" class="btn quiet" data-act="abQuota" data-email="${esc(a.email)}" data-fid="la16:q:${esc(a.email)}">Kontingent ändern …</button></td></tr>`; }).join('');
-  return `<div class="tblw ab-tbl"><table class="tbl"><thead><tr>${abSortHead(S, 'acc', 'Konto', 'abAqSort')}${abSortHead(S, 'q', 'Kontingent', 'abAqSort', 'end')}${abSortHead(S, 'used', 'Belegt', 'abAqSort', 'end')}${abSortHead(S, 'pct', 'Anteil', 'abAqSort')}${abSortHead(S, 'n', 'Aufnahmen', 'abAqSort', 'end')}${abSortHead(S, 'plan', 'Geplant in 7 Tagen', 'abAqSort', 'end')}<th>Zustand</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="tblw ab-tbl"><table class="tbl"><thead><tr>${abSortHead(S, 'acc', 'Konto', 'abAqSort')}${abSortHead(S, 'q', 'Kontingent', 'abAqSort', 'end')}${abSortHead(S, 'used', 'Belegt', 'abAqSort', 'end')}${abSortHead(S, 'pct', 'Anteil', 'abAqSort')}${abSortHead(S, 'n', 'Gespeicherte Aufnahmen', 'abAqSort', 'end')}${abSortHead(S, 'plan', 'Geplant in 7 Tagen', 'abAqSort', 'end')}<th>Zustand</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted aa-small">Zugeteilt ${abGB(sumQ)} von ${abGB(rec.totalGB)} · belegt ${abGB(sumU)}. Titel, Profile und Sender der Aufnahmen siehst du nicht (Privatsphäre).${sumQ > rec.totalGB ? ' <span class="ab-bad">Die Kontingente übersteigen den Speicher.</span>' : ''}</p>`;
 }
 ACT.abAqSort = (dd) => { abSortToggle(AB.aq, dd.k); render(); };
@@ -330,7 +332,7 @@ function abQuotaErr(d) { return !Number.isInteger(d.gb) || d.gb < 1 || d.gb > 20
 DIALOGS.abQuota = () => {
   const d = ui.draft.quota; const a = LIVE.accounts.find((x) => x.email === d.email); const e = d.tried ? abQuotaErr(d) : ''; const gb = Number.isInteger(d.gb) ? d.gb : a.quotaGB;
   const sum = abAcc().reduce((n, x) => n + (x.email === a.email ? gb : x.quotaGB), 0); const cap = abSto('recordings').totalGB;
-  return { title: `Kontingent von ${esc(a.email)}`, body: `<p class="lead">Aufnahmen belegen im Moment ${abGB(a.usedGB)} (${fmt.num(a.count)} Aufnahmen). Mehr siehst du als Administrator nicht.</p>
+  return { title: `Kontingent von ${esc(a.email)}`, body: `<p class="lead">Aufnahmen belegen im Moment ${abGB(a.usedGB)} (${abPl(a.count, 'gespeicherte Aufnahme', 'gespeicherte Aufnahmen')}). Mehr siehst du als Administrator nicht.</p>
     ${abFld('quota-gb', 'Kontingent für Aufnahmen', `<span class="ab-unit">${abInp('ui.draft.quota.gb', 'quota-gb', { num: true, min: 1, err: e, auto: true, enter: 'abQuotaSave', label: 'Kontingent in GB' })}<span>GB</span></span>`, { err: e, hint: 'Die Profile des Kontos teilen sich dieses Kontingent.' })}
     ${gb < a.usedGB ? notice('warn', 'Unter der heutigen Belegung', 'Slouchcat löscht nichts. Es nimmt aber keine neuen Aufnahmen an, bis die Belegung unter dem Kontingent liegt. Die Profile bekommen eine Meldung.') : ''}
     ${sum > cap ? notice('', 'Die Kontingente übersteigen den Speicher', `Zugeteilt wären ${abGB(sum)} bei ${abGB(cap)} Speicher. Das ist erlaubt, solange nicht alle Konten ihr Kontingent füllen.`) : ''}`,
@@ -352,7 +354,7 @@ function abRecProblems() {
 }
 function abDvrTab() {
   const base = abDvrBase(); const d = abDraft('dvr', base); const e = abDvrErr(d); const nerr = Object.keys(e).length; const dirty = abDirty('dvr', base); const P = 'ui.draft.dvr'; const R = LIVE.resources;
-  const run = admRecRunning(); const chs = LIVE.inputs.filter((n) => abRecsOn(n.ch).length).length;
+  const RS = aaRecStats(); const run = RS.run; const chs = RS.chs; /* dieselbe Zählung wie LA-01 und LA-12 */
   const rows = [
     abRow('Standard-Vorlauf', 'Wie früh vor dem Beginn die Aufnahme startet.', abSel(`${P}.padBefore`, 'la14-pb', [0, 1, 2, 5, 10, 15, 30].map((x) => [x, x ? `${x} ${x === 1 ? 'Minute' : 'Minuten'}` : 'keiner']), { num: true, label: 'Standard-Vorlauf' })),
     abRow('Standard-Nachlauf', 'Wie lange nach dem Ende die Aufnahme weiterläuft.', abSel(`${P}.padAfter`, 'la14-pa', [0, 5, 10, 15, 30, 60].map((x) => [x, x ? `${x} Minuten` : 'keiner']), { num: true, label: 'Standard-Nachlauf' })),
@@ -390,7 +392,7 @@ function abTimeshift() {
   return `${abMockSto()}${abStoBanner(['timeshift'])}${notice('', 'Jeder Zuschauer hat seinen eigenen Puffer', 'Der Puffer beginnt beim Einschalten. Beim Senderwechsel und am Ende der Wiedergabe wird er gelöscht. Es gibt keinen gemeinsamen Puffer und kein Archiv. Der kurze Startpuffer für schnelles Umschalten ist davon getrennt und nicht einstellbar.')}
     <div class="stats" style="--n:4">${abStat('Puffer jetzt', abPl(n, 'Puffer', 'Puffer'), 'einer je Zuschauer')}${abStat('Belegt', abGB(used), `von ${abGB(lim)} Grenze`, { cls: used >= lim ? 'bad' : used >= lim * 0.8 ? 'warn' : '' })}${abStat('Ein voller Puffer', `ca. ${abDe(bufGB, 1)} GB`, `bei 8 Mbit/s und ${abDur(d.maxMin)}`)}${abStat('Platz für', abPl(fit, 'volle Puffer', 'volle Puffer'), 'innerhalb der Grenze', { cls: fit < 4 ? 'warn' : '' })}</div>
     <section class="card"><div class="ch"><span class="ik">${icon('clock', 18)}</span><h2>Einstellungen</h2></div>
-      ${abRow('Höchstdauer je Zuschauer', `So weit kann ein Zuschauer höchstens zurückspulen. Vor das Einschalten geht es nie. Werksvorgabe ${abDur(LIVE.settings.timeshift.defaultMin || 60)}; auf diesem Server eingestellt: ${abDur(LIVE.settings.timeshift.maxMin)}.`, abSel(`${P}.maxMin`, 'la15-mm', [[15, '15 Minuten'], [30, '30 Minuten'], [60, '1 Stunde (Vorgabe)'], [120, '2 Stunden'], [240, '4 Stunden']], { num: true, label: 'Höchstdauer je Zuschauer' }))}
+      ${abRow('Höchstdauer je Zuschauer', `So weit kann ein Zuschauer höchstens zurückspulen. Vor das Einschalten geht es nie. Werksvorgabe ${abDur(LIVE.settings.timeshift.defaultMin || 60)}, auf diesem Server eingestellt ${abDur(LIVE.settings.timeshift.maxMin)}`, abSel(`${P}.maxMin`, 'la15-mm', [[15, '15 Minuten'], [30, '30 Minuten'], [60, '1 Stunde (Vorgabe)'], [120, '2 Stunden'], [240, '4 Stunden']], { num: true, label: 'Höchstdauer je Zuschauer' }))}
       ${abRow('Timeshift-Speicher insgesamt höchstens', `Alle Puffer zusammen. Auf dem Speicherort sind ${abGB(ts.freeGB)} frei.`, `<span class="ab-unit">${abInp(`${P}.totalGB`, 'la15-gb', { num: true, min: 1, err: e.gb, label: 'Timeshift-Speicher in GB' })}<span>GB</span></span>${abErr('la15-gb', e.gb)}`)}
       ${abRow('Wenn die Grenze erreicht ist', 'Nur Anzeige.', '<span>Slouchcat kürzt zuerst den ältesten Teil des grössten Puffers. Die betroffenen Zuschauer sehen die kürzere Rückspulgrenze.</span>')}
       ${abRow('Wer Timeshift nutzen darf', 'Das stellst du bei den Konten und Profilen ein.', `<span>${tsOn} von ${accN} Konten mit Live-TV</span><a class="lnk" href="#/admin/accounts" data-fid="la15:acc">Zu den Konten</a>`)}</section>
@@ -463,7 +465,7 @@ function abStorage() {
   const clean = `<p>Nach einem Absturz können Pufferdateien liegen bleiben. Slouchcat räumt sie beim Start und jede Nacht auf. Laufende Aufnahmen sind immer geschützt.</p><div class="row-gap"><button type="button" class="btn secondary" data-act="abClean" data-fid="la16:clean" ${AB.orphanBusy || !AB.orphan ? 'disabled' : ''}>${AB.orphanBusy ? '<span class="spin"></span>räumt auf …' : `${icon('trash', 16)}Jetzt aufräumen`}</button><span class="muted">${AB.orphan ? `Verwaiste Dateien: ${abDe(AB.orphan, 1)} GB` : 'Keine verwaisten Dateien.'}</span></div>`;
   return `${abMockSto()}${abStoBanner()}<div class="ab-locs">${cards}</div>
     <section class="card"><div class="ch"><span class="ik">${icon('settings', 18)}</span><h2>Grenzen</h2></div>${abLimits()}</section>
-    <section class="card"><div class="ch"><span class="ik">${icon('users', 18)}</span><h2>Belegung je Konto</h2></div>${abAccTable(false)}</section>
+    <section class="card"><div class="ch"><span class="ik">${icon('users', 18)}</span><h2>Belegung je Konto</h2></div>${abEmpty() ? abEmptyBox('Noch keine Aufnahmen', 'Sobald ein Konto mit dem Recht «Aufnahmen» aufnimmt, steht hier seine Belegung. Rechte und Kontingent stellst du bei den Konten ein.', `<a class="btn secondary" href="#/admin/accounts" data-fid="la16:acc0">Zu den Konten</a>`) : abAccTable(false)}</section>
     ${band('ab:sto:clean', 'Aufräumen', `Verwaiste Dateien: ${abDe(AB.orphan, 1)} GB · zuletzt ${abWhen(AB.orphanAt)}`, clean, { icon: 'trash' })}`;
 }
 /* Speicherort wechseln, Schritt für Schritt */

@@ -40,12 +40,12 @@
 .tvp-cap .lv-prog > i { background: var(--tx); }
 .tvp-bd { display: flex; gap: 14px; min-height: 28px; font-size: 24px; }
 .tvp-keep { color: var(--tx3) !important; }
-.tvp-card.more .tvp-im { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--s1); border: 3px solid var(--line); color: var(--tx2); font-size: var(--fs-l); font-weight: 600; }
+.tvp-card.more .tvp-im { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--s1); border: 3px solid var(--frame); color: var(--tx2); font-size: var(--fs-l); font-weight: 600; }
 .tvp-card.more { width: 280px; }
 .tvp-card.more.is-f .tvp-im { background: var(--tx); color: var(--bg); border-color: var(--tx); }
 .tvp-card.stack .tvp-im { box-shadow: 14px -10px 0 -2px var(--s3), 28px -20px 0 -4px var(--s2); }
 .tvp-card.stack.is-f .tvp-im { box-shadow: 0 0 0 4px var(--bg), 0 0 0 10px var(--tx), 0 26px 60px var(--shadow); }
-.tvp-link { display: flex; align-items: center; gap: 22px; padding: 18px 30px 18px 22px; min-width: 420px; border-radius: 24px; background: var(--s1); border: 3px solid var(--line); transition: background var(--t), color var(--t), transform var(--t); }
+.tvp-link { display: flex; align-items: center; gap: 22px; padding: 18px 30px 18px 22px; min-width: 420px; border-radius: 24px; background: var(--s1); border: 3px solid var(--frame); transition: background var(--t), color var(--t), transform var(--t); }
 .tvp-link b { display: block; font-size: var(--fs-l); font-weight: 600; }
 .tvp-link small { display: block; font-size: var(--fs-s); color: var(--tx3); }
 .tvp-link.is-f { background: var(--tx); color: var(--bg); border-color: var(--tx); transform: scale(1.03); }
@@ -125,7 +125,7 @@
 
 /* ---------- Programmraster ---------- */
 .tvp-guide { display: flex; flex-direction: column; gap: 14px; margin-bottom: -10px; }
-.tvg-pv { min-height: 124px; padding: 16px 26px; border-radius: 20px; background: var(--elev); border: 2px solid var(--line); }
+.tvg-pv { min-height: 124px; padding: 16px 26px; border-radius: 20px; background: var(--elev); border: 2px solid var(--frame); }
 .tvg-pv-h { display: flex; justify-content: space-between; gap: 24px; font-size: var(--fs-l); }
 .tvg-pv-h b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tvg-pv-h span { color: var(--tx3); font-variant-numeric: tabular-nums; }
@@ -151,7 +151,7 @@
 .tvg-cells { position: relative; flex: 1; overflow: hidden; }
 .tvg-c { position: absolute; top: 0; height: 64px; padding: 2px 12px; margin-left: 4px; border-radius: 12px; background: var(--s2); border: 2px solid var(--frame); overflow: hidden; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 0; transition: background var(--t); }
 .tvg-c b { font-size: var(--fs-s); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-.tvg-c small { display: flex; align-items: center; gap: 10px; font-size: 22px; color: var(--tx3); line-height: 1.2; white-space: nowrap; }
+.tvg-c small { display: flex; align-items: center; gap: 10px; font-size: 22px; color: var(--tx2); line-height: 1.2; white-space: nowrap; }
 .tvg-c.cur { background: var(--live-cur); }
 .tvg-c.past { background: var(--live-past); }
 .tvg-c.gap { justify-content: center; border-color: var(--frame); }
@@ -191,7 +191,7 @@
 .tvp-err h2 { font-size: var(--fs-h1); }
 .tvp-err p { font-size: var(--fs-l); color: var(--tx2); max-width: 1200px; }
 .tvp-err .ltv-acts { margin-top: 18px; }
-.tvp-banner { position: absolute; left: var(--safe-x); bottom: 70px; width: 1240px; padding: 24px 32px; border-radius: 26px; background: var(--elev); border: 2px solid var(--line); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px var(--shadow); animation: rise 0.2s var(--ease); }
+.tvp-banner { position: absolute; left: var(--safe-x); bottom: 70px; width: 1240px; padding: 24px 32px; border-radius: 26px; background: var(--elev); border: 2px solid var(--frame); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px var(--shadow); animation: rise 0.2s var(--ease); }
 .tvp-bn-h { display: flex; align-items: center; gap: 22px; }
 .tvp-bn-no { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; }
 .tvp-bn-nm { font-size: var(--fs-h2); font-weight: 700; }
@@ -203,7 +203,7 @@
 .tvp-bn-l { font-size: 22px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx3); }
 button.tvp-bn-b.is-f { background: var(--tx); color: var(--bg); } button.tvp-bn-b.is-f .tvp-bn-l { color: var(--bg); } button.tvp-bn-b.is-f .lv-prog { background: var(--glass2); } button.tvp-bn-b.is-f .lv-prog > i { background: var(--bg); }
 .tvp-bn-b .lv-prog { height: 6px; }
-.tvp-bar { position: absolute; left: var(--safe-x); right: var(--safe-x); bottom: 70px; padding: 22px 30px 26px; border-radius: 28px; background: var(--elev); border: 2px solid var(--line); box-shadow: 0 20px 60px var(--shadow); display: flex; flex-direction: column; gap: 14px; animation: rise 0.2s var(--ease); }
+.tvp-bar { position: absolute; left: var(--safe-x); right: var(--safe-x); bottom: 70px; padding: 22px 30px 26px; border-radius: 28px; background: var(--elev); border: 2px solid var(--frame); box-shadow: 0 20px 60px var(--shadow); display: flex; flex-direction: column; gap: 14px; animation: rise 0.2s var(--ease); }
 .tvp-seek { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px 18px 12px; border-radius: 18px; border: 3px solid transparent; transition: border-color var(--t); }
 .tvp-seek.is-f { border-color: var(--tx); background: var(--s1); }
 .tvp-sl { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: var(--fs-s); color: var(--tx2); font-variant-numeric: tabular-nums; }
@@ -216,8 +216,10 @@ button.tvp-bn-b.is-f { background: var(--tx); color: var(--bg); } button.tvp-bn-
 .tvp-pos { position: absolute; top: -9px; width: 10px; height: 34px; margin-left: -5px; border-radius: 5px; background: var(--tx); z-index: 2; box-shadow: 0 0 0 4px var(--elev); }
 .tvp-pos em { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: var(--fs-s); font-weight: 700; padding: 2px 14px; border-radius: 10px; background: var(--tx); color: var(--bg); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tvp-seek.ro .lv-prog { height: 12px; border-radius: 6px; } .tvp-seek.ro .tvp-trk { background: none; height: auto; margin: 6px 0; }
-.tvp-btns { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.tvp-sp { flex: 1; }
+/* one row: every button of the bar on the same line, so ←/→ reach all of them */
+.tvp-btns { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.tvp-btns .tvp-b { padding: 0 14px; gap: 8px; }
+.tvp-sp { flex: 1; min-width: 4px; }
 .tvp-b { display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: 76px; min-width: 76px; padding: 0 20px; border-radius: 38px; background: var(--glass); font-size: var(--fs-s); font-weight: 600; border: 3px solid transparent; white-space: nowrap; transition: transform var(--t), background var(--t), color var(--t); }
 .tvp-b.recon { color: var(--live-rec); border-color: var(--live-rec); }
 .tvp-b.sched { border-color: var(--frame); }
@@ -266,7 +268,7 @@ button.tvp-bn-b.is-f { background: var(--tx); color: var(--bg); } button.tvp-bn-
 .tvp-ml span { display: inline-flex; align-items: center; gap: 10px; }
 .tvp-ml i { width: 20px; height: 20px; border-radius: 6px; background: var(--s3); border: 2px solid var(--frame); }
 .tvp-ml i.me { background: var(--tx); } .tvp-ml i.ot { background: var(--tx3); }
-.tvp-fold { display: flex; align-items: center; gap: 22px; width: 100%; max-width: 1580px; min-height: 84px; padding: 0 28px; margin: 14px 0 0 0; border-radius: 22px; background: var(--s1); border: 3px solid var(--line); font-size: var(--fs-l); text-align: left; transition: background var(--t), color var(--t); }
+.tvp-fold { display: flex; align-items: center; gap: 22px; width: 100%; max-width: 1580px; min-height: 84px; padding: 0 28px; margin: 14px 0 0 0; border-radius: 22px; background: var(--s1); border: 3px solid var(--frame); font-size: var(--fs-l); text-align: left; transition: background var(--t), color var(--t); }
 .tvp-fold span { margin-left: auto; font-size: var(--fs-s); color: var(--tx3); }
 .tvp-fold.is-f { background: var(--tx); color: var(--bg); border-color: var(--tx); } .tvp-fold.is-f span { color: var(--bg); }
 .tvp-sec .tvp-fold { margin-left: var(--cx); width: calc(100% - var(--cx) - var(--safe-x)); }
@@ -288,7 +290,7 @@ button.tvp-bn-b.is-f { background: var(--tx); color: var(--bg); } button.tvp-bn-
 .tvp-dsub b { color: var(--tx); }
 .tvp-fields { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .tvp-fields .tsw { margin-top: 0; max-width: none; }
-.tvp-cyc { display: grid; grid-template-columns: 300px 1fr; align-items: center; gap: 0 24px; min-height: 78px; padding: 6px 30px; border-radius: 20px; background: var(--s1); border: 3px solid var(--line); font-size: var(--fs); text-align: left; transition: background var(--t), color var(--t); }
+.tvp-cyc { display: grid; grid-template-columns: 300px 1fr; align-items: center; gap: 0 24px; min-height: 78px; padding: 6px 30px; border-radius: 20px; background: var(--s1); border: 3px solid var(--frame); font-size: var(--fs); text-align: left; transition: background var(--t), color var(--t); }
 .tvp-cl { color: var(--tx2); font-weight: 600; }
 .tvp-cv { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .tvp-cv b { flex: 1; font-weight: 600; text-align: center; }
@@ -314,3 +316,5 @@ button.tvp-bn-b.is-f { background: var(--tx); color: var(--bg); } button.tvp-bn-
 .ov.dlg .ov-panel .acts { margin-top: 26px; }
 .tvp-fields .tsw { min-height: 78px; }
 .ov.dlg .ov-panel .tnote { margin-top: 12px; padding: 14px 22px; }
+/* the avatar keeps its own letter colour (the rule above for the summary must not reach it) */
+.tvp-fold .avatar, .tvp-fold.is-f .avatar { margin-left: 0; color: var(--bg); }

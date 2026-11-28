@@ -35,6 +35,9 @@
   .st { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 12px; font-weight: 700; border: 1px solid var(--frame); white-space: nowrap; }
   .st.gebaut { color: var(--ok); border-color: var(--ok); }
   .foot { font-size: 13px; color: var(--tx3); }
+  #imgsw { height: 40px; padding: 0 18px; border-radius: 9999px; border: 1px solid var(--frame); background: var(--s1); color: var(--tx); font: inherit; font-weight: 600; cursor: pointer; margin-top: 10px; }
+  #imgsw[aria-pressed='true'] { background: var(--tx); color: var(--bg); }
+  #imgsw:focus-visible { outline: 3px solid var(--tx); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -44,6 +47,11 @@
     <h1>Live-TV in Slouchcat</h1>
     <p>Beispieldaten, simulierte Wiedergabe: kein Server, kein Stream, keine Zugangsdaten. Uhr des Mockups: Samstag, 28. November 2026, ab 20:41. In jedem Mockup oben in der Leiste: «Zustände» (Profil, Rechte, leer, lädt, Fehler, ohne EPG, Sender gestört, Uhr) und das Sprungmenü mit allen Seiten.</p>
   </header>
+  <section aria-labelledby="h-img" class="imgsw">
+    <h2 id="h-img">Echte Logos und Bilder</h2>
+    <p>Senderlogos und Sendungsbilder liegen nur lokal in <code>shared/img/</code> (nicht im Repo). Ohne Schalter zeigen die Mockups Initialen und ruhige Flächen und fragen keine Bilddatei an. Hast du den Ordner, schalte sie hier ein; der Schalter gilt für alle drei Mockups und steht auch unter «Zustände».</p>
+    <p><button type="button" id="imgsw" aria-pressed="false">Echte Logos und Bilder: aus</button></p>
+  </section>
   <section aria-labelledby="h-in">
     <h2 id="h-in">Einstiege</h2>
     <div class="tiles">
@@ -91,6 +99,11 @@
       draw();
     });
     draw();
+    const sw = document.getElementById('imgsw');
+    const get = () => { try { return localStorage.getItem('sc28-img') === 'on'; } catch (e) { return false; } };
+    const show = () => { const on = get(); sw.setAttribute('aria-pressed', String(on)); sw.textContent = `Echte Logos und Bilder: ${on ? 'an' : 'aus'}`; };
+    sw.addEventListener('click', () => { try { localStorage.setItem('sc28-img', get() ? 'off' : 'on'); } catch (e) { /* private mode */ } show(); });
+    show();
   })();
 </script>
 </body>

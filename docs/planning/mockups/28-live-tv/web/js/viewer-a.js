@@ -72,7 +72,7 @@ function vaRow(id, title, lis, o) {
   const act = VA.rowAct[id]; const keys = lis.map((h) => (h.match(/data-k="([^"]+)"/) || [])[1]);
   const at = keys.includes(act) ? act : keys[0];
   const html = lis.map((h, i) => (keys[i] === at ? h.replace(/(class="va-main"[^>]*?) tabindex="-1"/, '$1 tabindex="0"') : h)).join('');
-  return `<section class="va-row" aria-labelledby="vh-${id}"><div class="va-rowhead"><h2 id="vh-${id}">${title}</h2>${o.meta ? `<span class="va-rmeta">${o.meta}</span>` : ''}${o.all ? `<a class="lnk va-all" href="${o.all[0]}" data-fid="va:all:${id}">${o.all[1]}</a>` : ''}<span class="va-paging"><button type="button" class="btn ghost icon sm" data-act="scrollRow" data-row="va-${id}" data-dir="prev" aria-label="${esc(title)}: zurückblättern" tabindex="-1" data-fid="va:pg:${id}:p">${icon('chevL', 18)}</button><button type="button" class="btn ghost icon sm" data-act="scrollRow" data-row="va-${id}" data-dir="next" aria-label="${esc(title)}: weiterblättern" tabindex="-1" data-fid="va:pg:${id}:n">${icon('chevR', 18)}</button></span></div><div class="va-scroll" data-keep="va-${id}"><ul class="va-cards" data-vrow="${id}" aria-label="${esc(title)}, Pfeiltasten wechseln">${html}</ul></div></section>`;
+  return `<section class="va-row" aria-labelledby="vh-${id}"><div class="va-rowhead"><h2 id="vh-${id}">${title}</h2>${o.meta ? `<span class="va-rmeta">${o.meta}</span>` : ''}${o.all ? `<a class="lnk va-all" href="${o.all[0]}" data-fid="va:all:${id}">${o.all[1]}</a>` : ''}${o.menu ? `<span class="va-rowmenu">${popMenu(`va:row:${id}`, icon('dots', 18), o.menu, { aria: `Menü der Reihe ${title}` })}</span>` : ''}<span class="va-paging"><button type="button" class="btn ghost icon sm" data-act="scrollRow" data-row="va-${id}" data-dir="prev" aria-label="${esc(title)}: zurückblättern" tabindex="-1" data-fid="va:pg:${id}:p">${icon('chevL', 18)}</button><button type="button" class="btn ghost icon sm" data-act="scrollRow" data-row="va-${id}" data-dir="next" aria-label="${esc(title)}: weiterblättern" tabindex="-1" data-fid="va:pg:${id}:n">${icon('chevR', 18)}</button></span></div><div class="va-scroll" data-keep="va-${id}"><ul class="va-cards" data-vrow="${id}" aria-label="${esc(title)}, Pfeiltasten wechseln">${html}</ul></div></section>`;
 }
 /** link card (LinkCard) */
 const vaLink = (href, ic, title, meta, fid) => `<a class="va-lc" href="${href}" data-fid="${fid}"><span class="va-lc-ic">${icon(ic, 22)}</span><span class="va-lc-t"><b>${title}</b>${meta ? `<span>${meta}</span>` : ''}</span><span class="va-lc-go">${icon('chevR', 18)}</span></a>`;
@@ -90,16 +90,17 @@ function vaRemBtn(p) {
   const on = !!SIM.reminderFor(p.id);
   return `<button type="button" class="btn ghost icon sm va-act va-rem${on ? ' on' : ''}" data-act="vaRem" data-id="${p.id}" aria-pressed="${on}" aria-label="${esc(on ? `Erinnerung an «${p.title}» ändern` : `An «${p.title}» erinnern`)}" title="${on ? 'Erinnerung gesetzt' : 'Erinnern'}" data-fid="rem:${p.id}" tabindex="-1">${icon('reminder', 18)}</button>`;
 }
-/** o: { noCh (hide channel), cur (mark as running line) } */
+/** o: { noCh (hide channel), cur (mark as running line), day (day before the time) } */
 function vaProgRow(p, o) {
   o = o || {}; const t = SIM.now(); const c = SIM.channel(p.ch); const running = p.start <= t && p.end > t; const past = p.end <= t;
+  const when = (o.day ? fmt.dayRel(p.start) + ', ' : '') + fmt.range(p.start, p.end);
   let badges = LU.programBadges(p, { text: false });
   /* skipped by a series rule: say why (Aufgenommen / Schon geplant), from the rule's list */
   if (SIM.rights().recordings && !SIM.recState(p.id) && !past) { const why = SIM.skippedWhy(p.id); if (why) badges += LU.badge('scheduled', { text: true, label: why === 'schon aufgenommen' ? 'Schon aufgenommen' : why === 'Wiederholung' ? 'Wiederholung übersprungen' : why === 'ausgelassen' ? 'Ausgelassen' : 'Schon geplant' }); }
   const play = running && SIM.chState(c) !== 'gone' ? `<button type="button" class="btn secondary sm va-act va-play" data-act="tune" data-ch="${c.id}" data-fid="play:${p.id}" tabindex="-1" aria-label="${esc(c.name)} einschalten">${icon('play', 14)}<span>Einschalten</span></button>` : '';
   return `<li class="va-prow${running ? ' now' : ''}${past ? ' past' : ''}" data-k="${p.id}"${running && o.cur ? ' aria-current="time"' : ''}>
-    <a class="va-pmain" href="#/live/programs/${p.id}" data-fid="pm:${p.id}" tabindex="-1" aria-label="${esc(`${fmt.range(p.start, p.end)}${o.noCh ? '' : ', ' + c.name}, ${p.title}${p.sub ? ', ' + p.sub : ''}${running ? ', läuft' : past ? ', vorbei' : ''}`)}">
-      <span class="va-time">${fmt.range(p.start, p.end)}${past ? '<span class="va-past">vorbei</span>' : ''}</span>
+    <a class="va-pmain" href="#/live/programs/${p.id}" data-fid="pm:${p.id}" tabindex="-1" aria-label="${esc(`${when}${o.noCh ? '' : ', ' + c.name}, ${p.title}${p.sub ? ', ' + p.sub : ''}${running ? ', läuft' : past ? ', vorbei' : ''}`)}">
+      <span class="va-time">${when}${past ? '<span class="va-past">vorbei</span>' : ''}</span>
       ${o.noCh ? '' : `<span class="va-ch">${LU.logo(c)}<span class="va-chn">${esc(c.name)}</span></span>`}
       <span class="va-pt"><b>${esc(p.title)}</b>${p.sub ? `<span class="va-ep">«${esc(p.sub)}»</span>` : ''}<span class="va-gn">${esc(p.genre)}${p.repeat ? ' · Wiederholung' : ''}</span>${running ? `<span class="va-pg">${LU.progress(p.start, p.end, { label: `Fortschritt von ${p.title}` })}<span class="va-m">${LU.nowText('left', p.end)}</span></span>` : ''}</span></a>
     <span class="va-bdg">${badges}</span><span class="va-acts">${play}${vaRecBtn(p)}${vaRemBtn(p)}</span></li>`;
@@ -123,7 +124,11 @@ ACT.vaRem = (d) => { if (SIM.program(d.id)) LiveDlg.reminder(d.id); };
 /* ======================================================================================
    LS-01 Live-TV-Start
    ====================================================================================== */
-const VA_GENRE_ORDER = ['Nachrichten', 'Sport', 'Spielfilm', 'Serie', 'Krimi', 'Dokumentation', 'Kinder', 'Musik', 'Show', 'Kultur', 'Magazin', 'Unterhaltung', 'Wissen', 'Talk', 'Politik', 'Religion'];
+/** one count of warnings for LS-01, LS-11 and LS-12: warnings of the profile plus «Kontingent voll» when a planned recording is affected */
+const vaWarnCount = () => SIM.warningCount(); /* core: the same count in all clients */
+const vaWarnText = (n) => LU.warnText(n);
+ACT.vaClearRecent = () => { SIM.clearRecent(); toast('Die Liste «Zuletzt gesehen» ist leer.'); };
+const VA_GENRE_ORDER =['Nachrichten', 'Sport', 'Spielfilm', 'Serie', 'Krimi', 'Dokumentation', 'Kinder', 'Musik', 'Show', 'Kultur', 'Magazin', 'Unterhaltung', 'Wissen', 'Talk', 'Politik', 'Religion'];
 route('/live', () => {
   const total = SIM.channels().length; const r = SIM.rights(); const t = SIM.now();
   const count = total ? `${total} Sender` : '';
@@ -132,15 +137,15 @@ route('/live', () => {
     if (!total) body = emptyState('Noch keine Sender', LU.TX.empty);
     else {
       const noEpg = SIM.flags().noEpg; const ordered = vaOrdered(); let h = '';
-      const attention = r.recordings ? [...new Set(SIM.warnings().filter((w) => w.severity !== 'info').flatMap((w) => w.rules))].length : 0;
-      if (attention) h += notice('warn', `${attention} geplante ${attention === 1 ? 'Aufnahme braucht' : 'Aufnahmen brauchen'} deine Aufmerksamkeit`, '', `<a class="btn secondary sm" href="#/live/scheduled/warnings" data-fid="ls01:warn">${icon('alert', 16)}Konflikte und Warnungen ansehen</a>`);
+      const attention = r.recordings ? vaWarnCount() : 0;
+      if (attention) h += notice('warn', vaWarnText(attention), '',`<a class="btn secondary sm" href="#/live/scheduled/warnings" data-fid="ls01:warn">${icon('alert', 16)}Konflikte und Warnungen ansehen</a>`);
       if (noEpg) h += notice('', 'Für die Sender gibt es gerade keine Programmdaten.', 'Fernsehen geht trotzdem.');
       const nowP = ordered.map((c) => SIM.nowNext(c.id).now).filter(Boolean);
       const soonP = ordered.map((c) => SIM.nowNext(c.id).next).filter((p) => p && p.start - t <= 60);
       if (nowP.length) { const ids = nowP.map((p) => p.ch); h += vaRow('now', 'Jetzt im Fernsehen', nowP.map((p) => vaProgCard(p, 'now', 'now', ids, 'now')), { meta: `${nowP.length} Sender` }); }
       if (soonP.length) h += vaRow('soon', 'Gleich im Fernsehen', soonP.map((p) => vaProgCard(p, 'soon', 'soon', [], 'soon')), { meta: 'in den nächsten 60 Minuten' });
-      const recent = SIM.recent().filter((x) => x.ch.active !== false && SIM.chState(x.ch) !== 'gone').slice(0, 12);
-      if (recent.length) { const ids = recent.map((x) => x.ch.id); h += vaRow('recent', 'Zuletzt gesehen', recent.map((x) => vaChanCard(x.ch, 'recent', ids, 'recent')), { meta: `zuletzt ${fmt.ago(recent[0].at)}` }); }
+      const recent = SIM.recent().filter((x) => x.ch.active !== false && SIM.chState(x.ch) !== 'gone').slice(0, 20);
+      if (recent.length) { const ids = recent.map((x) => x.ch.id); h += vaRow('recent', 'Zuletzt gesehen', recent.map((x) => vaChanCard(x.ch, 'recent', ids, 'recent')), { meta: `zuletzt ${fmt.ago(recent[0].at)}`, menu: [{ label: 'Liste leeren', act: 'vaClearRecent', icon: 'trash', danger: true }] }); }
       const favs = SIM.favorites().map(SIM.channel).filter(Boolean);
       h += favs.length ? vaRow('favs', 'Meine Sender', favs.map((c) => vaChanCard(c, 'favs', favs.map((x) => x.id), 'favorites')), { all: ['#/live/channels/favorites', 'Alle'], meta: `${favs.length} Sender` })
         : `<section class="va-row"><div class="va-rowhead"><h2>Meine Sender</h2></div>${emptyState('Noch keine Lieblingssender', 'Tippe in der Senderliste aufs Herz.', '<a class="btn secondary" href="#/live/channels" data-fid="ls01:tochan">Zu den Sendern</a>')}</section>`;

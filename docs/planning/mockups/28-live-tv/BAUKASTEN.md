@@ -149,8 +149,8 @@ route('/live/watch/:id', (p) => ({ full: true, rot: 'l', html: '…' }));   // P
 
 | Feld | Inhalt |
 |---|---|
-| `account` | Familie Keller, `quotaGB` 200, `usedGB` 142, `rights` (Deckel) |
-| `profiles[]` | `{ id: anna|luca|mia, name, primary, age (null|16|6), accent, rights, usedGB }` |
+| `account` | Familie Keller, `quotaGB` 200, `usedGB` (berechnet, 142), `rights` (Deckel) |
+| `profiles[]` | `{ id: anna|luca|mia, name, primary, age (null|16|6), accent, rights }` (Belegung über `usageOf`) |
 | `channels[]` | `{ id, no, name, slug, country, langs[], groups[], category, epg ('ok'|'none'|'partial'), epgKey, epgNote, reception, schedule, state ('ok'|'disturbed'), since, bitrate, video, audio[], subs[], sources[{source, name, url (maskiert), state}], favCount, active }`; `goneChannels[]` (TV24) |
 | `groups[]`, `countries`, `languages`, `categories[]` | Gruppen (Herkunft Quelle/eigene), Länder, Sprachen, Kategorien |
 | `programs[]` | `{ id ('p-<ch>-<start>'), ch, start, end, title, sub, genre, desc, series, seriesName, season, episode, repeat, firstRun, live, flags[], img (Datei in img/lib oder null), year, country, director }`; Sa 28.11. bis Fr 4.12.; TeleZüri ohne, phoenix nur bis Sa 20:00, KiKA bis 21:00 |
@@ -158,12 +158,13 @@ route('/live/watch/:id', (p) => ({ full: true, rot: 'l', html: '…' }));   // P
 | `recordings[]` | `{ id, profile, title, sub, ch, start, end, padBefore, padAfter, sizeGB, state (running|done|incomplete|failed|rejected), reason, gaps[[a,b]], fallbackAt, watchedPct, watched, resumeAt, keep {mode: 'forever'|'days', days, until}, origin (single|series|instant), rule, tracks }` |
 | `rules[]` | Planungen: `kind` single (program, start, end), series (series, channels 'all'|[], onlyNew, noDup, keepLast, skipped[[programId, grund]]), recurring (ch, from, to, weekdays[1..5]), manual (TV24, Warnung «Sender weg») |
 | `warnings[]`, `reminders[]` | Warnungen `{ id, kind, severity, rules[], text }`; Erinnerungen `{ program, lead }` |
-| `sources[]`, `importRuns{}`, `importResult` | Quellen (4, eine mit Heimnetz), letzte Läufe, Ergebnis des letzten Imports (neu, geändert, verschwunden, Duplikate, fehlerhaft) |
+| `sources[]`, `importRuns{}`, `importResult` | Quellen (4) mit `moreConn` (Einstellung «Vorladen für Sender dieser Quelle»; nie «Limit» oder eine Rechnung je Quelle) und `fixedTargets` (Multicast: feste Ziele im Heimnetz), letzte Läufe, Ergebnis des letzten Imports (neu, geändert, verschwunden, Duplikate 3, fehlerhaft) |
 | `epgSources[]`, `epgRuns{}`, `mappings[]`, `mappingCounts`, `duplicates[]`, `totals` | EPG und Zuordnungen, Duplikate, Zahlen (584 aktiv von 10'354) |
-| `inputs[]`, `consumers[]`, `diagnostics`, `resources` | aktive Eingänge, Abnehmer (ohne Titel), Diagnose (jetzt, Woche, Heatmap, Protokoll, Einstellungen), Kennzahlen |
+| `inputs[]`, `consumers[]`, `diagnostics`, `resources`, `limits` | aktive Eingänge (Zustand `'deferred'` mit `deferredReason`: zurückgestellt, z. B. 3sat), Abnehmer (ohne Titel), Diagnose, Kennzahlen; `limits` = `{ inputs: 8, preloaded: 4 }` |
 | `storage[]`, `accounts[]`, `settings` | drei Speicherorte, Belegung je Konto, Einstellungen (DVR, Timeshift, Empfang, Zeitpläne, EPG, Grenzen) |
 
-Bilder: `img` eines Programms zeigt auf ein Bild der Testbibliothek aus Mockup 27 als Stellvertreter (nur
+Bilder: Nur wenn `LIVE_UI.imagesOn()` (Schalter «Echte Logos und Bilder», `setImages(an)`, Schlüssel
+`sc28-img`) fragt ein Mockup überhaupt eine Bilddatei an; sonst Initialen und Flächen. `img` eines Programms zeigt auf ein Bild der Testbibliothek aus Mockup 27 als Stellvertreter (nur
 Filme und Serien; Nachrichten, Sport, Shows haben keines). Logos über den Slug.
 
 ## 5. Zustand und Aktionen `window.LIVE_SIM`
@@ -179,9 +180,10 @@ einer gedachten Quelle auf genau diesen Test.
 |---|---|---|
 | Uhr anhalten, +5 Min., +30 Min., +2 Std. | – | `now()`, Fortschritt, laufende Aufnahmen wachsen |
 | Wer schaut? Anna, Luca, Mia | – | `setProfile` |
-| Rechte des Profils / Deckel des Kontos | – | `rights()`; ohne Live-TV «Nicht gefunden» (404) |
+| Echte Logos und Bilder | `LIVE_UI.imagesOn()` | aus ab Werk: keine Bildanfrage |
+| Rechte des Profils / Deckel des Kontos | – | `rights()`; ohne Live-TV «Nicht gefunden» (404) und **kein Wort** vom Bereich auf anderen Seiten (Start, Suche, Glocke, Profil, Radio, Menü, Leiste), Tasten stumm |
 | Recht entzogen während der Wiedergabe | `revoked` | Recht weg; der Player zeigt «Live-TV ist für dieses Profil nicht mehr freigegeben.», alle anderen Adressen 404 |
-| Zustand der Seiten: Normal, Leer, Lädt, Fehler | `SIM.mode()` | jede Seite |
+| Zustand der Seiten: Normal, Leer, Lädt, Fehler | `SIM.mode()` | jede Seite; bei «Leer» liefern auch `recent()`, `recordings()`, `rules()`, `upcoming()`, `warnings()`, `reminders()`, `favorites()` nichts |
 | Ohne EPG | `noEpg` | kein Sender hat Programmdaten |
 | Sender gestört: zusätzlich SRF 1 | `disturbed` | `chState('srf1')` = disturbed |
 | Viele Sender | `many` | 2'000 Testsender zusätzlich im Raster (Web: Testzeilen von LS-04, TV: `gridChannels()`) |
@@ -192,14 +194,17 @@ einer gedachten Quelle auf genau diesen Test.
 
 **Player-Phasen** (gleich in allen Clients): `LIVE_UI.playerPhase(msSeitUmschalten, sender, { hot })` →
 `{ k: 'loading'|'slow'|'ok'|'error', spin, err, stall, fallback }`, Schwellen in `LIVE_UI.LOAD` (im Mockup
-verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s; Konzept 0.5 / 5 / 15 s),
+verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s; Konzept 14 Fassung 2: 0.5 / 3 / 15 s),
 Fehlertexte in `LIVE_UI.PLAYER_ERR`.
 
 **Zahlen:** Die Belegung eines Profils ist die Summe seiner Aufnahmen (`usageOf(id)`, `usage()` →
 `{ usedGB, count, byProfile }`); `LIVE.account.usedGB` und der Eintrag des Kontos in `LIVE.accounts` rechnen
-damit (142 GB, 31 Aufnahmen um 20:41). «Geplant · n» kommt immer aus `upcoming()`. Die Verwaltung zählt Sender,
+damit (142 GB, 31 Aufnahmen um 20:41). «Geplant · n» kommt immer aus `upcoming()`. Warnungen zählt jeder
+Client nur mit `SIM.warningCount()` und schreibt sie mit `LIVE_UI.warnText(n)` («n Warnungen zu geplanten
+Aufnahmen»). Die Verwaltung zählt Sender,
 Zuschauer, laufende Aufnahmen und Eingänge nur über `admCounts()`, `admViewers()`, `admRecRunning()`,
-`admRecSoon(min)`, `admInputs()` (`web/js/admin-core.js`), damit LA-01, LA-12, LA-16 und LA-21 gleich zeigen.
+`admRecSoon(min)`, `admInputs()` (`web/js/admin-core.js`; zurückgestellte Eingänge zählen getrennt), damit
+LA-01, LA-12, LA-14, LA-16 und LA-21 gleich zeigen.
 Zahlen immer im Format de-CH: Dezimalpunkt und Hochkomma (`4.1 GB`, `10'354`) über `fmt.dec`, `fmt.num`,
 `fmt.gb`; nie `toLocaleString` und nie ein Komma als Dezimalzeichen.
 
@@ -210,14 +215,15 @@ Zahlen immer im Format de-CH: Dezimalpunkt und Hochkomma (`4.1 GB`, `10'354`) ü
   timeshift }` (wirksam = Konto UND Profil), `rawRights('profile'|'account')`, `setRight(ebene, schlüssel,
   an)`. Ohne Recht gibt der Kern für `/live…` (bzw. Aufnahmeseiten) «Nicht gefunden» zurück; Knöpfe
   «Aufnehmen» und Timeshift lassen die Seiten selbst weg (`rights()` prüfen).
-- Mockup-Zustände: `mode()` → `'normal'|'empty'|'loading'|'error'`, `flags()` → `{ noEpg, disturbed }`.
+- Mockup-Zustände: `mode()` → `'normal'|'empty'|'loading'|'error'`, `flags()` → `{ noEpg, disturbed, many, quotaFull, fault, revoked, admStorage, epgFail }`.
   **Jede Seite zeigt alle vier Modi.**
 - Sender: `channels({ q, group ('fav' = Meine Sender), country, lang, category })` (sortiert, leer bei
   `empty`), `channel(id)`, `channelByNo(nr)`, `chState(c)` → `'ok'|'disturbed'|'gone'`, `epgOf(c)`.
 - Programm: `program(id)`, `programsOf(ch, von, bis)`, `programAt(ch, t)`, `nowNext(ch, t?)` → `{ now,
   next }`, `gapsOf(ch, von, bis)`, `genresSoon(stunden)`, `search(q, { when: now|today|tomorrow|week,
   genre, group })`.
-- Favoriten: `favorites()`, `isFav`, `toggleFav(ch)` → an?, `moveFav(ch, ±1)`, `recent()`.
+- Favoriten: `favorites()`, `isFav`, `toggleFav(ch)` → an?, `moveFav(ch, ±1)`, `recent()` (bis 20 Sender),
+  `clearRecent()` («Liste leeren»).
 - Aufnahmen: `recordings(profil?)` (laufende wachsen: `liveGB`), `recording(id)`, `deleteRecordings(ids)`,
   `stopRecording(id)`, `setKeep(id, keep)`, `setWatched(id, pct)`, `runningOn(ch)`, `childProfiles()`.
 - Planung: `rules()`, `rule(id)`, `upcoming()` → konkrete Termine `{ id, rule, kind, ch, title, sub,
@@ -272,7 +278,9 @@ Jeder Dialog hat zudem eine Vorschauseite `#/live/dialog/LD-xx`, die ihn mit Bei
    `--tx3`); Logos und Sendungsbilder **ohne Rahmen**; Anlegen und Ändern im selben Formular;
    Medienauswahl links.
 3. **Bilder:** Logos nur über `LIVE_UI.logo`, Sendungsbilder nur über `LIVE_UI.picture` oder die
-   Bildhelfer des Clients. Ohne `shared/img/` muss jede Seite vollständig und ansehnlich bleiben.
+   Bildhelfer des Clients (`pic`, `art`, `drawMini`); alle fragen nur bei `imagesOn()` an. Nie ein `<img>`
+   oder `url(…)` direkt in einer Seitendatei. Ohne `shared/img/` muss jede Seite vollständig und ansehnlich
+   bleiben. Echte Medienbilder nie in Git.
 4. **Beispieldaten kennzeichnen:** jede Seite trägt die Fussnote (`livePage` macht das), jede Wiedergabe
    den Vermerk «Beispieldaten, simulierte Wiedergabe» (`fakeVideo`). Keine echten Stream-Adressen, keine
    Zugangsdaten; Adressen nur `example.*`, maskiert.
@@ -297,4 +305,5 @@ Jeder Dialog hat zudem eine Vorschauseite `#/live/dialog/LD-xx`, die ihn mit Bei
 - [ ] Web: mit Tastatur bedienbar (Tab, Pfeile, Enter, Esc, sichtbarer Fokus, keine Fokusfalle).
       TV: nur mit Fernbedienung (Steuerkreuz, OK, Zurück; Kanal ±, Guide, Ziffern, wo die Seite sie nutzt).
 - [ ] Im Sprungmenü erreichbar (Registereintrag, Stand auf «gebaut»), Adresse fest (Hash-Route).
-- [ ] Ohne `shared/img/` geprüft: Initialen und Flächen statt Bilder, nichts kaputt.
+- [ ] Ohne `shared/img/` und mit Schalter aus geprüft: Initialen und Flächen statt Bilder, 0 Konsolenfehler.
+- [ ] Ohne Recht Live-TV (bzw. Aufnahmen, Timeshift): kein Wort vom Bereich auf anderen Seiten.

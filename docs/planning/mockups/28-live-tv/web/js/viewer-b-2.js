@@ -6,7 +6,7 @@
 
 /* ---------- helpers for recordings ---------- */
 function vbRecAccess(id) {
-  const r = SIM.recording(id); if (!r) return null;
+  const r = SIM.recording(id); if (!r || liveMode() === 'empty') return null; /* «Leer»: no recording exists */
   const me = SIM.profile();
   if (r.profile === me.id) return { r, own: true, prof: me };
   if (me.primary && SIM.childProfiles().some((p) => p.id === r.profile) && SIM.rights(r.profile).recordings) return { r, own: false, prof: SIM.profiles().find((p) => p.id === r.profile) };
@@ -162,7 +162,7 @@ route('/live/recordings/profiles', () => {
     else body = all.map(({ p, recs, up }) => {
       const gb = recs.reduce((s, r) => s + vbRecGB(r), 0);
       const ids = recs.map((r) => r.id);
-      const rows = recs.length ? `<ul class="vbk-list" data-vbrove="list" data-vbkey="vbk-${p.id}">${recs.map((r) => { const c = SIM.channel(r.ch) || { name: r.ch }; const ok = !vbFailed(r); return `<li class="vbk-row" data-vbrow="${esc(r.id)}"><a class="vbk-main" href="#/live/recordings/${esc(r.id)}" data-vbi tabindex="${vbTab('vbk-' + p.id, r.id, ids)}" data-fid="vbk:${esc(r.id)}"><span class="vbk-art">${LU.picture(vbRecPic(r), { fallback: 'logo' })}</span><span class="grow"><b>${esc(vbRecTitle(r))}</b><span class="muted">${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(vbRecDur(r))}${r.sizeGB ? ' · ' + fmt.gb(vbRecGB(r)) : ''}</span><span class="bdg">${r.state === 'done' ? (r.watched ? '<span class="chip ok">Gesehen</span>' : '') : LU.badge(r.state === 'running' ? 'recording' : r.state === 'incomplete' ? 'incomplete' : 'failed', { text: true, label: vbStateWord(r) })}${r.origin === 'series' ? '<span class="chip info">Serie</span>' : ''}</span></span></a>${ok ? `<a class="btn secondary sm" href="#/live/recordings/${esc(r.id)}/play" data-vbx tabindex="-1" data-fid="vbkp:${esc(r.id)}">${icon('play', 16)}Abspielen</a>` : ''}<button type="button" class="btn ghost sm danger" data-act="vbKidDel" data-id="${esc(r.id)}" data-vbx tabindex="-1" data-fid="vbkd:${esc(r.id)}">${icon('trash', 16)}Löschen</button></li>`; }).join('')}</ul>` : `<p class="muted">${esc(p.name)} hat keine Aufnahmen.</p>`;
+      const rows = recs.length ? `<ul class="vbk-list" data-vbrove="list" data-vbkey="vbk-${p.id}">${recs.map((r) => { const c = SIM.channel(r.ch) || { name: r.ch }; const ok = !vbFailed(r); return `<li class="vbk-row" data-vbrow="${esc(r.id)}"><a class="vbk-main" href="#/live/recordings/${esc(r.id)}" data-vbi tabindex="${vbTab('vbk-' + p.id, r.id, ids)}" data-fid="vbk:${esc(r.id)}"><span class="vbk-art">${LU.picture(vbRecPic(r), { fallback: 'logo' })}</span><span class="grow"><b>${esc(vbRecTitle(r))}</b><span class="muted">${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(vbRecDur(r))}${r.sizeGB ? ' · ' + fmt.gb(vbRecGB(r)) : ''}</span><span class="bdg">${r.state === 'done' ? '' : LU.badge(r.state === 'running' ? 'recording' : r.state === 'incomplete' ? 'incomplete' : 'failed', { text: true, label: vbStateWord(r) })}${r.origin === 'series' ? '<span class="chip info">Serie</span>' : ''}</span></span></a>${ok ? `<a class="btn secondary sm" href="#/live/recordings/${esc(r.id)}/play" data-vbx tabindex="-1" data-fid="vbkp:${esc(r.id)}">${icon('play', 16)}Abspielen</a>` : ''}<button type="button" class="btn ghost sm danger" data-act="vbKidDel" data-id="${esc(r.id)}" data-vbx tabindex="-1" data-fid="vbkd:${esc(r.id)}">${icon('trash', 16)}Löschen</button></li>`; }).join('')}</ul>` : `<p class="muted">${esc(p.name)} hat keine Aufnahmen.</p>`;
       const meta = `${recs.length === 1 ? '1 Aufnahme' : recs.length + ' Aufnahmen'} · ${fmt.gb(gb)} · ${up.length} geplant`;
       return band('vbk-' + p.id, `${avatarHtml(p, 'vbk-av')}<span>${esc(p.name)} <span class="muted vbk-age">ab ${p.age}</span></span>`, esc(meta), rows + `<p class="muted vbk-note">Geplante Termine von ${esc(p.name)} siehst du hier nur als Zahl. Ob du sie ändern darfst, ist noch offen (F-4).</p>`, { viewer: true });
     }).join('');
@@ -179,7 +179,7 @@ const vbrPos = (S) => (S.playing ? S.pos + (Date.now() - S.at) / 60000 : S.pos);
 function vbrSet(S, pos, m) { S.pos = Math.max(0, Math.min(m.dur, pos)); S.at = Date.now(); S.ended = false; }
 function vbrPic(r, paused) {
   const c = SIM.channel(r.ch) || { name: r.ch, slug: r.ch, id: r.ch }; const pic = vbRecPic(r);
-  return `<div class="lv-vid${paused ? ' paused' : ''}">${pic.img ? `<img class="lv-vid-pic" src="${LU.img}lib/${esc(pic.img)}" alt="" onerror="this.remove()">` : ''}<div class="lv-vid-move" aria-hidden="true"></div><div class="lv-vid-logo">${LU.logo(c)}</div><span class="lv-vid-tag">${esc(LU.TX.sample)} · Aufnahme</span></div>`;
+  return `<div class="lv-vid${paused ? ' paused' : ''}">${pic.img && LU.imagesOn() ? `<img class="lv-vid-pic" src="${LU.img}lib/${esc(pic.img)}" alt="" onerror="this.remove()">` : ''}<div class="lv-vid-move" aria-hidden="true"></div><div class="lv-vid-logo">${LU.logo(c)}</div><span class="lv-vid-tag">${esc(LU.TX.sample)} · Aufnahme</span></div>`;
 }
 function vbrHtml(a, S) {
   const r = a.r; const c = SIM.channel(r.ch) || { name: r.ch, no: '' }; const phone = vbIsPhone();
@@ -193,7 +193,7 @@ function vbrHtml(a, S) {
   const ended = S.ended ? `<div class="vbr-choice" role="status"><b>Ende der Aufnahme</b><div class="row-gap"><button type="button" class="btn primary" data-act="vbrFrom" data-f="start" data-fid="vbre:again">${icon('refresh', 18)}Nochmals</button><a class="btn secondary" href="#/live/recordings" data-fid="vbre:list">Zu meinen Aufnahmen</a></div></div>` : '';
   const gapAt = m.gaps.find(([x, y]) => pos >= x && pos < y);
   const sw = Date.now() < S.sw ? `<div class="vbp-load dim" role="status"><span class="spin lg"></span><b>${esc(S.swText)}</b></div>` : '';
-  const head = `<div class="vbp-head"><p class="t">${esc(r.title)}${r.sub ? ` · «${esc(r.sub)}»` : ''}</p><p class="d">${esc(c.name)} · ${fmt.day(r.start)}, ${fmt.range(r.start, r.end)} · Aufnahme${a.own ? '' : ` von ${esc(a.prof.name)}`}</p></div>`;
+  const head = `<div class="vbp-head"><p class="t">${esc(r.title)}${r.sub ? ` · «${esc(r.sub)}»` : ''}</p><p class="d">${esc(c.name)} · ${fmt.day(r.start)}, ${fmt.range(r.start, r.end)} · Aufnahme${a.own ? '' : ` von ${esc(a.prof.name)} · Fortschritt wird nicht gespeichert`}</p></div>`;
   const trk = vbRecTrack(r, m, pos, ` role="slider" tabindex="0" data-vbrtrk data-fid="vbr:seek" aria-label="Position in der Aufnahme, Pfeiltasten 10 Sekunden, 0 bis 9 springen in Prozent" aria-valuemin="0" aria-valuemax="${Math.round(m.dur * 60)}" aria-valuenow="${Math.round(pos * 60)}" aria-valuetext="${vbHms(pos)} von ${vbHms(m.dur)}"`);
   const play = vbpIb('vbrPlay', S.playing ? 'pause' : 'play', S.playing ? 'Anhalten' : 'Abspielen', { cls: phone ? 'lg' : 'mid', kbd: 'Leertaste', size: phone ? 30 : 24, fid: 'play' });
   const b10 = vbpIb('vbrSeek', 'vbBack', '10 Sekunden zurück', { data: 'data-s="-10"', fid: 'b10', n: '10', kbd: '←' });
@@ -216,7 +216,7 @@ route('/live/recordings/:id/play', (pm, q) => {
   const a = vbRecAccess(pm.id); if (!a) return notFoundView();
   const r = a.r; const S = vbrS(r.id); const m = vbRecModel(r);
   if (S.pos == null && !vbFailed(r)) {
-    const res = vbResumeAt(r);
+    const res = a.own ? vbResumeAt(r) : null; /* a child's recording played by the primary profile: no «Weiter ab», start at the programme (DR-21) */
     if (q.from === 'resume' && res != null) { vbrSet(S, res, m); S.playing = true; }
     else if (q.from === 'pre') { vbrSet(S, 0, m); S.playing = true; }
     else if (q.from === 'start' || res == null) { vbrSet(S, m.pre, m); S.playing = true; }
@@ -258,7 +258,7 @@ function vbrTick() {
   const g = $('[data-vbrgap]', root); if (g) g.classList.toggle('off', !m.gaps.some(([u, v]) => pos >= u && pos < v));
 }
 SIM.on((t) => { if (t === 'tick' && /^\/live\/recordings\/[^/]+\/play$/.test(parseHash().path)) vbrTick(); });
-/* progress per profile: saved when the player is left; a child's recording played by the primary profile counts only for the primary profile (F-5) */
+/* progress per profile: saved when the player is left; a child's recording played by the primary profile saves no progress at all (DR-21) */
 let vbrPrev = parseHash().path;
 window.addEventListener('hashchange', () => {
   const m = vbrPrev.match(/^\/live\/recordings\/([^/]+)\/play$/);
@@ -308,7 +308,7 @@ route('/live/recordings/:id', (pm) => {
   const r = a.r; const c = SIM.channel(r.ch) || { name: r.ch, no: '' }; const mode = liveMode();
   if (mode === 'loading') return { type: 'viewer', nav: 'live', title: 'Aufnahme', html: livePage({ tab: 'recordings', title: 'Aufnahme', html: skelRows(3, 120) }) };
   const dur = vbRecDur(r); const run = r.state === 'running'; const bad = vbFailed(r);
-  const res = vbResumeAt(r);
+  const res = a.own ? vbResumeAt(r) : null;
   const R = (href, act, ic, label, cls, data) => (href ? `<a class="round${cls ? ' ' + cls : ''}" href="${href}" data-fid="vbd:${esc(label)}"><span class="c">${icon(ic, 20)}</span>${esc(label)}</a>` : `<button type="button" class="round${cls ? ' ' + cls : ''}" data-act="${act}" ${data || ''} data-fid="vbd:${esc(label)}"><span class="c">${icon(ic, 20)}</span>${esc(label)}</button>`);
   const base = `#/live/recordings/${esc(r.id)}/play`;
   let rounds = '';
@@ -329,8 +329,8 @@ route('/live/recordings/:id', (pm) => {
   const origin = r.origin === 'series' ? `Aus der Serienaufnahme «${esc(rule ? rule.title : r.title)}» · <a class="lnk" href="#/live/scheduled?tab=series" data-fid="vbd:rule">Serienaufnahmen</a>` : r.origin === 'instant' ? 'Sofortaufnahme im Player' : 'Einzeln geplant';
   const facts = `<div class="facts"><div class="f">${icon('tv', 18)}<span>${c.no} ${esc(c.name)}</span></div><div class="f">${icon('calendar', 18)}<span>${fmt.dayLong(r.start)}, ${fmt.range(r.start, r.end)}</span></div><div class="f">${icon('clock', 18)}<span>${fmt.dur(dur)}${r.padBefore || r.padAfter ? `, davon Vorlauf ${r.padBefore || 0} Min. und Nachlauf ${r.padAfter || 0} Min.` : ''}</span></div>${!bad ? `<div class="f">${icon('database', 18)}<span>${fmt.gb(vbRecGB(r))}${run ? ' bisher' : ''}</span></div><div class="f">${icon('bookmark', 18)}<span>${esc(vbKeepText(r))}${a.own ? ` · <button type="button" class="lnk" data-act="vbKeep" data-id="${esc(r.id)}" data-fid="vbd:keep2">Ändern</button>` : ''}</span></div>` : ''}<div class="f">${icon('layers', 18)}<span>${origin}</span></div></div>`;
   const pic = vbRecPic(r);
-  const html = `${a.own ? '' : notice('', `Aufnahme von ${esc(a.prof.name)}`, `Du siehst sie als Hauptprofil. ${esc(a.prof.name)} sieht deine Aufnahmen nicht. Dein Wiedergabefortschritt zählt nur für dich.`)}
-    <div class="vbd"><div class="vbd-art">${LU.picture(pic, { fallback: 'logo' })}</div><div class="vbd-info"><p class="sec">${r.sub ? `«${esc(r.sub)}» · ` : ''}${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(dur)}</p><div class="bdg">${LU.badge(run ? 'recording' : bad ? 'failed' : r.state === 'incomplete' ? 'incomplete' : 'scheduled', { text: true, label: vbStateWord(r) })}${r.watched ? '<span class="chip ok">Gesehen</span>' : r.watchedPct ? `<span class="chip info">${r.watchedPct} % gesehen</span>` : ''}</div><div class="rounds" role="toolbar" aria-label="Aktionen">${rounds}</div></div></div>
+  const html = `${a.own ? '' : notice('', `Aufnahme von ${esc(a.prof.name)}`, `Du siehst sie als Hauptprofil. ${esc(a.prof.name)} sieht deine Aufnahmen nicht. Spielst du sie ab, wird kein Fortschritt gespeichert, weder bei ${esc(a.prof.name)} noch bei dir.`)}
+    <div class="vbd"><div class="vbd-art">${LU.picture(pic, { fallback: 'logo' })}</div><div class="vbd-info"><p class="sec">${r.sub ? `«${esc(r.sub)}» · ` : ''}${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(dur)}</p><div class="bdg">${LU.badge(run ? 'recording' : bad ? 'failed' : r.state === 'incomplete' ? 'incomplete' : 'scheduled', { text: true, label: vbStateWord(r) })}${!a.own ? '' : r.watched ? '<span class="chip ok">Gesehen</span>' : r.watchedPct ? `<span class="chip info">${r.watchedPct} % gesehen</span>` : ''}</div><div class="rounds" role="toolbar" aria-label="Aktionen">${rounds}</div></div></div>
     ${mode === 'error' ? liveError('Die Aufnahme konnte nicht geladen werden.') : ''}
     <section class="panel"><h2>Zustand</h2>${stateHtml}</section><section class="panel"><h2>Angaben</h2>${facts}</section>`;
   return { type: 'viewer', nav: 'live', title: r.title, html: livePage({ tab: 'recordings', title: esc(r.title), actions: `<a class="btn ghost" href="${a.own ? '#/live/recordings' : '#/live/recordings/profiles'}" data-fid="vbd:back">${icon('chevL', 18)}${a.own ? 'Meine Aufnahmen' : 'Aufnahmen meiner Profile'}</a>`, html }) };
@@ -393,9 +393,8 @@ function vbOccRow(u, ids, now) {
 route('/live/scheduled', (pm, q) => {
   const tab = ['series', 'recurring'].includes(q.tab) ? q.tab : 'upcoming'; const mode = liveMode(); const now = SIM.now();
   const up = vbUpcoming();
-  const warnOcc = up.filter((u) => vbOccState(u, now)[0] === 'warn' || vbOccState(u, now)[0] === 'bad').length;
-  const nW = SIM.warnings().filter((w) => !w.hidden).length + (VB.quotaFull ? 1 : 0);
-  const wn = nW ? notice('warn', `${warnOcc === 1 ? '1 Termin' : warnOcc + ' Termine'} mit Warnungen`, 'Sieh nach, was einer Aufnahme im Weg steht.', `<a class="btn secondary sm" href="#/live/scheduled/warnings" data-fid="vbs:warn">${icon('alert', 16)}Konflikte und Warnungen (${nW})</a>`) : '';
+  const nW = vaWarnCount(); /* same count and words as LS-01 and LS-12 */
+  const wn = nW ? notice('warn', vaWarnText(nW), 'Sieh nach, was einer Aufnahme im Weg steht.', `<a class="btn secondary sm" href="#/live/scheduled/warnings" data-fid="vbs:warn">${icon('alert', 16)}Konflikte und Warnungen ansehen</a>`) : '';
   let body;
   if (mode === 'loading') body = skelRows(5, 64);
   else if (mode === 'error') body = liveError('Die geplanten Aufnahmen konnten nicht geladen werden.');
@@ -413,7 +412,7 @@ route('/live/scheduled', (pm, q) => {
       body = `<ul class="vbt" data-vbrove="list" data-vbkey="vbts">${rs.map((r) => {
         const occ = up.filter((u) => u.rule.id === r.id); const recs = SIM.recordings().filter((x) => x.rule === r.id); const open = !!ui.open['ser:' + r.id];
         const chans = r.channels === 'all' ? 'alle Sender' : r.channels.map((id) => (SIM.channel(id) || { name: id }).name).join(', ');
-        const sum = [chans, r.onlyNew ? 'nur Erstausstrahlungen' : '', r.noDup ? 'Folgen nicht doppelt' : '', r.window ? `nur ${r.window[0]}–${r.window[1]}` : '', r.weekdays && r.weekdays.length ? vbWdText(r.weekdays) : '', r.keepLast ? `behalte ${r.keepLast}` : 'alle Folgen behalten', `${occ.length === 1 ? '1 Termin' : occ.length + ' Termine'} geplant`, `${recs.length === 1 ? '1 Aufnahme' : recs.length + ' Aufnahmen'}`].filter(Boolean).join(' · ');
+        const sum = [chans, r.onlyNew ? 'nur Erstausstrahlungen' : '',r.window ? `nur ${r.window[0]}–${r.window[1]}` : '', r.weekdays && r.weekdays.length ? vbWdText(r.weekdays) : '', r.keepLast ? `behalte ${r.keepLast}` : 'alle Folgen behalten', `${occ.length === 1 ? '1 Termin' : occ.length + ' Termine'} geplant`, `${recs.length === 1 ? '1 Aufnahme' : recs.length + ' Aufnahmen'}`].filter(Boolean).join(' · ');
         const skipped = (r.skipped || []).map(([pid, why]) => { const p = SIM.program(pid); return p ? `<li>${fmt.day(p.start)} ${fmt.time(p.start)} ${esc((SIM.channel(p.ch) || {}).name || '')}: ${esc(why)}</li>` : ''; }).join('') + (r.skip || []).map((id) => { const p = SIM.program(id.split(':').slice(1).join(':')); return p ? `<li>${fmt.day(p.start)} ${fmt.time(p.start)} ${esc((SIM.channel(p.ch) || {}).name || '')}: von dir ausgelassen</li>` : ''; }).join('');
         return `<li class="vbt-row${open ? ' open' : ''}" data-vbrow="${esc(r.id)}"><div class="vbt-line"><button type="button" class="vbt-main rule" data-vbi tabindex="${vbTab('vbts', r.id, ids)}" data-act="vbRowOpen" data-id="ser:${esc(r.id)}" aria-expanded="${open}" data-fid="vbts:${esc(r.id)}">${icon('recordSeries', 20)}<span class="ti"><b>${esc(r.title)}</b><span class="sec">${esc(sum)}</span></span>${SIM.warningsFor(r.id).length ? LU.badge('warning', { text: true }) : ''}</button>
           <span class="vbt-acts"><button type="button" class="btn secondary sm" data-act="vbEditSeries" data-rid="${esc(r.id)}" data-pid="${esc(occ[0] ? occ[0].program : '')}" data-vbx tabindex="-1" data-fid="vbtse:${esc(r.id)}">${icon('pen', 16)}Ändern</button><button type="button" class="btn ghost sm" data-act="vbCancelRule" data-kind="series" data-id="${esc(r.id)}" data-vbx tabindex="-1" data-fid="vbtsx:${esc(r.id)}">${icon('x', 16)}Beenden</button></span></div>
@@ -434,7 +433,7 @@ route('/live/scheduled', (pm, q) => {
 });
 const VB_WKIND = { quota: 'Kontingent', quotaFull: 'Kontingent voll', serverStorage: 'Speicher des Servers', overlap: 'Überschneidung', duplicate: 'Doppelt', channelGone: 'Sender weg', programGone: 'Sendung verschwunden', timeChanged: 'Zeit geändert', dst: 'Sommer-/Winterzeit' };
 function vbAllWarnings() {
-  const list = SIM.warnings().filter((w) => !w.hidden);
+  const list = SIM.warnings().slice(); /* the count is vaWarnCount() (viewer-a.js): keep both rules the same */
   if (VB.quotaFull) { const up = vbUpcoming().filter((u) => SIM.chState(u.ch) !== 'gone'); if (up.length) list.unshift({ id: 'w-quotafull', kind: 'quotaFull', severity: 'bad', rules: [...new Set(up.map((u) => u.rule.id))], text: `Im Speicher des Kontos ist kein Platz frei (${fmt.gb(vbQuota().usedGB)} von ${fmt.gb(vbQuota().totalGB)}). Ist das beim Start noch so, lehnt der Server die Aufnahme ab, und du und das Hauptprofil bekommt eine Meldung.` }); }
   return list;
 }
@@ -464,7 +463,7 @@ route('/live/scheduled/warnings', () => {
   else if (mode === 'error') body = liveError('Die Warnungen konnten nicht geladen werden.');
   else if (!list.length) body = emptyState('Alles in Ordnung.', 'Keine geplante Aufnahme hat eine Warnung.', `<a class="btn secondary" href="#/live/scheduled" data-fid="vbw:back2">Zu den geplanten Aufnahmen</a>`);
   else body = `<p class="muted">Slouchcat kennt keine Empfänger und kein Anbieterlimit. Darum gibt es keinen Kampf um einen Tuner, nur Warnungen mit Folgen.</p><div class="vbw-list">${list.map(vbWarnCard).join('')}</div>`;
-  return { type: 'viewer', nav: 'live', title: 'Konflikte und Warnungen', html: livePage({ tab: 'recordings', title: 'Konflikte und Warnungen', count: list.length ? `${list.length}` : '', actions: `<a class="btn ghost" href="#/live/scheduled" data-fid="vbw:back">${icon('chevL', 18)}Geplant</a>`, html: body }) };
+  return { type: 'viewer', nav: 'live', title: 'Konflikte und Warnungen', html: livePage({ tab: 'recordings', title: 'Konflikte und Warnungen', count: list.length && mode === 'normal' ? vaWarnText(list.length) : '', actions: `<a class="btn ghost" href="#/live/scheduled" data-fid="vbw:back">${icon('chevL', 18)}Geplant</a>`, html: body }) };
 });
 
 /* ======================================================================================
@@ -491,13 +490,14 @@ route('/live/reminders', () => {
 /* ======================================================================================
    Dialogs LD-01 to LD-11 (14 5): create and change in the same dialog; focus on the first field
    ====================================================================================== */
-const VB_PB = [0, 1, 2, 5, 10, 15, 30], VB_PA = [0, 5, 10, 15, 30, 60], VB_KEEP = [7, 14, 30, 90];
+const VB_PB = [0, 1, 2, 5, 10, 15, 30], VB_PA = [0, 5, 10, 15, 30, 60], VB_KEEP = [7, 14, 30, 90], VB_LEADS = [0, 5, 15, 30];
 const vbDP = (k) => `ui.dialog.props._d.${k}`;
 function vbSel(k, label, opts, cur, o) { o = o || {}; return `<div class="fld"><label for="vbf-${k}">${label}</label><select class="sel" id="vbf-${k}" data-bind="${vbDP(k)}" data-rerender data-fid="vbf:${k}"${o.auto ? ' data-autofocus' : ''}${o.dis ? ' disabled' : ''}>${opts.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>${o.hint ? `<span class="hint">${o.hint}</span>` : ''}</div>`; }
 function vbRadios(k, label, opts, cur) { return `<fieldset class="vb-fs"><legend>${label}</legend>${opts.map(([v, t, dis]) => `<label class="check"><input type="radio" name="vbr-${k}" value="${esc(v)}" data-bind="${vbDP(k)}" data-fid="vbf:${k}:${esc(v)}"${String(v) === String(cur) ? ' checked' : ''}${dis ? ' disabled' : ''}><span>${t}</span></label>`).join('')}</fieldset>`; }
 function vbChk(k, label, on, o) { o = o || {}; return `<label class="check"><input type="checkbox" data-bind="${vbDP(k)}" data-fid="vbf:${k}"${on ? ' checked' : ''}${o.dis ? ' disabled' : ''}><span>${label}${o.hint ? `<small>${o.hint}</small>` : ''}</span></label>`; }
 const vbPadOpts = (list, std) => [['std', `Standard (${std} Min.)`], ...list.map((n) => [String(n), `${n} Min.`])];
-const vbKeepOpts = (std) => [['std', `Standard (${std})`], ...VB_KEEP.map((n) => [String(n), `${n} Tage`]), ['forever', 'bis du löschst']];
+/* «bis du löschst» only once: when it is the standard, the standard entry stands for it (a stored 'forever' then selects the first entry) */
+const vbKeepOpts = (std) => [['std', `Standard (${std})`], ...VB_KEEP.map((n) => [String(n), `${n} Tage`]), ...(LIVE.settings.dvr.keep === 'forever' ? [] : [['forever', 'bis du löschst']])];
 const vbStdKeepText = () => (LIVE.settings.dvr.keep === 'forever' ? 'bis du löschst' : LIVE.settings.dvr.keep + ' Tage');
 const vbPadVal = (v, std) => (v === 'std' || v == null ? std : Number(v));
 function vbDlgHead(p) { const c = SIM.channel(p.ch) || { name: p.ch }; return `<div class="vb-dh">${LU.logo(c)}<div><b>${esc(p.title)}${p.sub ? ` · «${esc(p.sub)}»` : ''}</b><span class="muted">${esc(c.name)} · ${fmt.when(p.start)}–${fmt.time(p.end)}</span></div></div>`; }
@@ -581,17 +581,18 @@ registerLiveDialog('LD-02', (pr) => {
   const knowsRepeat = progs.some((x) => x.repeat || x.firstRun); const knowsEp = progs.some((x) => x.sub);
   const name = p.seriesName || (rule && rule.title) || p.title;
   const fut = progs.filter((x) => x.start >= now && (d.chans === 'all' || x.ch === d.ch) && (!d.onlyNew || !knowsRepeat || !x.repeat) && (!d.wd.length || d.wd.includes(vbWd(x.start))) && (d.win !== 'win' || (() => { const m = x.start % 1440; return m >= LIVE.hm(d.from) && m <= LIVE.hm(d.to); })())).sort((a, b) => a.start - b.start);
-  const seen = new Set(); const prev = fut.slice(0, 6).map((x) => { const dup = d.noDup && knowsEp && x.sub && seen.has(x.sub); if (x.sub) seen.add(x.sub); const done = d.noDup && x.sub && SIM.recordings().some((r) => r.sub === x.sub && r.title === x.title); return `<li${dup || done ? ' class="skip"' : ''}>${fmt.day(x.start)} ${fmt.time(x.start)} ${esc((SIM.channel(x.ch) || { name: x.ch }).name)}${x.sub ? ` · «${esc(x.sub)}»` : ''}${x.repeat ? ' · Wiederholung' : ''}${dup ? ' (gleiche Folge, wird übersprungen)' : done ? ' (schon aufgenommen, wird übersprungen)' : ''}</li>`; }).join('');
+  const seen = new Set(); const prev = fut.slice(0, 6).map((x) => { const dup = knowsEp && x.sub && seen.has(x.sub); if (x.sub) seen.add(x.sub); const done = knowsEp && x.sub && SIM.recordings().some((r) => r.sub === x.sub && r.title === x.title); return `<li${dup || done ? ' class="skip"' : ''}>${fmt.day(x.start)} ${fmt.time(x.start)} ${esc((SIM.channel(x.ch) || { name: x.ch }).name)}${x.sub ? ` · «${esc(x.sub)}»` : ''}${x.repeat ? ' · Wiederholung' : ''}${dup ? ' (gleiche Folge, wird übersprungen)' : done ? ' (schon aufgenommen, wird übersprungen)' : ''}</li>`; }).join('');
   const wdp = `<div class="vb-wd" role="group" aria-label="Wochentage (ohne Auswahl: alle)">${[1, 2, 3, 4, 5, 6, 0].map((n) => `<button type="button" class="pill vb-pill" aria-pressed="${d.wd.includes(n)}" data-act="vbWd" data-n="${n}" data-fid="vbwd:${n}">${vbWdNames[n]}</button>`).join('')}</div>`;
   const body = `<div class="vb-dh">${LU.logo(SIM.channel(p.ch))}<div><b>${esc(name)}</b><span class="muted">Ausgehend von ${esc(p.title)}${p.sub ? ` · «${esc(p.sub)}»` : ''}, ${fmt.when(p.start)}</span></div></div>
-    ${vbRadios('match', 'Serie erkennen', [['series', 'nach Serienkennung des Programms', !p.series], ['title', 'nach Titel']], d.match).replace(/(<input[^>]*checked)/, '$1 data-autofocus')}${d.match === 'title' ? '<p class="hint">Slouchcat erkennt die Serie am Titel. Ähnliche Titel können mitkommen.</p>' : ''}
-    ${vbRadios('chans', 'Sender', [['one', `nur ${esc((SIM.channel(d.ch) || { name: d.ch }).name)}`], ['all', `alle Sender, auf denen die Serie läuft (${esc(chNames.join(', '))})`]], d.chans)}
+    <p class="vb-small">Slouchcat nimmt jede Sendung mit dem Titel ‹${esc(name)}› auf.</p>
+    ${vbRadios('chans', 'Sender', [['one', `nur der Sender dieser Sendung (${esc((SIM.channel(d.ch) || { name: d.ch }).name)})`], ['all', `alle Sender, die du sehen kannst (gefunden: ${esc(chNames.join(', '))})`]], d.chans).replace(/(<input[^>]*checked)/, '$1 data-autofocus')}
+    <div class="fld"><span class="lbl">Folgen</span><p class="vb-small">${knowsEp ? 'Folgen werden erkannt (Staffel und Folge). Schon aufgenommene Folgen werden übersprungen.' : 'Folgen nicht identifizierbar: Wiederholungen werden mit aufgenommen.'}</p></div>
+    <div class="vb-grid3">${vbSel('keepLast', 'Behalten', [['all', 'alle Folgen'], ...[1, 2, 3, 5, 10, 20].map((n) => [String(n), `die letzten ${n}`])], d.keepLast)}${vbSel('pb', 'Vorlauf', vbPadOpts(VB_PB, dvr.padBefore), d.pb)}${vbSel('pa', 'Nachlauf', vbPadOpts(VB_PA, dvr.padAfter), d.pa)}${vbSel('keep', 'Aufbewahren', vbKeepOpts(vbStdKeepText()), d.keep)}</div>
+    ${d.keepLast !== 'all' ? '<p class="hint">Ist eine neue Folge fertig, löscht Slouchcat die älteste (nach Sendebeginn). Fehlgeschlagene zählen nicht.</p>' : ''}
+    <fieldset class="vb-fs vb-prop"><legend>Vorschlag, hängt an Frage F-23</legend><p class="muted vb-small">Diese Einschränkungen sind noch nicht entschieden.</p>
     ${vbRadios('win', 'Zeitfenster', [['any', 'jederzeit'], ['win', 'nur zu bestimmten Zeiten']], d.win)}${d.win === 'win' ? `<div class="vb-grid3"><div class="fld"><label for="vbf-from">Zwischen</label><input class="inp" type="time" step="900" id="vbf-from" value="${esc(d.from)}" data-bind="${vbDP('from')}" data-rerender data-fid="vbf:from"></div><div class="fld"><label for="vbf-to">und</label><input class="inp" type="time" step="900" id="vbf-to" value="${esc(d.to)}" data-bind="${vbDP('to')}" data-rerender data-fid="vbf:to"></div></div>` : ''}
     <div class="fld"><span class="lbl">Wochentage (freiwillig)</span>${wdp}</div>
-    ${vbChk('onlyNew', 'Nur Erstausstrahlungen', d.onlyNew && knowsRepeat, { dis: !knowsRepeat, hint: knowsRepeat ? '' : 'Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht.' })}
-    ${vbChk('noDup', 'Folgen nicht doppelt aufnehmen', d.noDup && knowsEp, { dis: !knowsEp, hint: knowsEp ? '' : 'Folgen sind hier nicht eindeutig erkennbar. Slouchcat nimmt jede passende Ausstrahlung auf.' })}
-    <div class="vb-grid3">${vbSel('keepLast', 'Behalten', [['all', 'alle Folgen'], ...[1, 2, 3, 5, 10, 20].map((n) => [String(n), `die letzten ${n}`])], d.keepLast)}${vbSel('pb', 'Vorlauf', vbPadOpts(VB_PB, dvr.padBefore), d.pb)}${vbSel('pa', 'Nachlauf', vbPadOpts(VB_PA, dvr.padAfter), d.pa)}${vbSel('keep', 'Aufbewahren', vbKeepOpts(vbStdKeepText()), d.keep)}</div>
-    ${d.keepLast !== 'all' ? '<p class="hint">Ist eine neue Folge fertig, löscht Slouchcat die älteste. Angesehene zuerst.</p>' : ''}
+    ${vbChk('onlyNew', 'Nur Erstausstrahlungen', d.onlyNew && knowsRepeat, { dis: !knowsRepeat, hint: knowsRepeat ? '' : 'Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht.' })}</fieldset>
     <div class="vb-prev"><b>Demnächst</b>${prev ? `<ul>${prev}</ul>` : '<p class="muted">Gerade keine passende Ausstrahlung im Programm. Die Serienaufnahme wartet auf neue Termine.</p>'}</div>
     ${vbQuotaNotes(null)}`;
   return { title: rule ? 'Serienaufnahme ändern' : 'Serie aufnehmen', wide: true, body, actions: `${rule ? `<button type="button" class="btn danger vb-left" data-act="vbLd02End" data-id="${esc(rule.id)}" data-fid="ld02:end">Serienaufnahme beenden</button>` : ''}<button type="button" class="btn secondary" data-act="close" data-fid="ld02:x">Abbrechen</button><button type="button" class="btn primary" data-act="vbLd02Save" data-fid="ld02:ok">${rule ? 'Speichern' : 'Serie aufnehmen'}</button>` };
@@ -600,7 +601,7 @@ ACT.vbWd = (d) => { const x = ui.dialog.props._d; const n = Number(d.n); const k
 ACT.vbLd02Save = () => {
   const pr = ui.dialog.props; const d = pr._d; const rule = pr.ruleId ? SIM.rule(pr.ruleId) : null; const pid = pr.programId || vbRuleProgram(rule); const p = SIM.program(pid); const dvr = LIVE.settings.dvr;
   const progs = vbSeriesProgs(p, d.match);
-  const opts = { match: d.match, channels: d.chans === 'all' ? 'all' : [d.ch], onlyNew: !!d.onlyNew && progs.some((x) => x.repeat || x.firstRun), noDup: !!d.noDup && progs.some((x) => x.sub), keepLast: d.keepLast === 'all' ? null : Number(d.keepLast), padBefore: vbPadVal(d.pb, dvr.padBefore), padAfter: vbPadVal(d.pa, dvr.padAfter), keep: vbKeepFrom(d.keep, p.start), window: d.win === 'win' ? [d.from, d.to] : null, weekdays: d.wd.length ? d.wd.slice() : null };
+  const opts = { match: d.match, channels: d.chans === 'all' ? 'all' : [d.ch], onlyNew: !!d.onlyNew && progs.some((x) => x.repeat || x.firstRun), noDup: progs.some((x) => x.sub), /* episode detection always works where it is reliable (11 2.4) */ keepLast: d.keepLast === 'all' ? null : Number(d.keepLast), padBefore: vbPadVal(d.pb, dvr.padBefore), padAfter: vbPadVal(d.pa, dvr.padAfter), keep: vbKeepFrom(d.keep, p.start), window: d.win === 'win' ? [d.from, d.to] : null, weekdays: d.wd.length ? d.wd.slice() : null };
   if (rule) SIM.updateRule(rule.id, opts); else SIM.planSeries(p.id, opts);
   closeDialog(); toast(`${rule ? 'Gespeichert' : 'Serienaufnahme angelegt'}: «${esc(p.seriesName || p.title)}». <a href="#/live/scheduled?tab=series">Serien</a>`);
 };
@@ -612,9 +613,9 @@ registerLiveDialog('LD-03', (pr) => {
   const rule = pr.ruleId ? SIM.rule(pr.ruleId) : null; const now = SIM.now(); const today = vbToday();
   if (!pr._d) {
     const q15 = Math.ceil(now / 15) * 15;
-    if (rule && rule.kind === 'recurring') { const w = rule.weekdays || []; pr._d = { ch: rule.ch, day: String(today), from: rule.from, to: rule.to, rep: w.length === 7 ? 'daily' : w.join() === '1,2,3,4,5' ? 'weekdays' : 'weekly', wd: w.slice(), ends: rule.endsAfter ? 'after' : rule.endsOn != null ? 'on' : 'never', endN: String(rule.endsAfter || 10), endDay: String(rule.endsOn != null ? rule.endsOn : vbMaxDay()), name: rule.title, named: true, keepLast: rule.keepLast ? String(rule.keepLast) : 'all', keep: vbKeepKey(rule.keep), q: '' }; }
-    else if (rule) pr._d = { ch: rule.ch, day: String(Math.floor(rule.start / 1440)), from: fmt.time(rule.start), to: fmt.time(rule.end), rep: 'once', wd: [], ends: 'never', endN: '10', endDay: String(vbMaxDay()), name: rule.title, named: true, keepLast: 'all', keep: vbKeepKey(rule.keep), q: '' };
-    else pr._d = { ch: pr.ch || '', day: String(pr.start != null ? Math.floor(pr.start / 1440) : today), from: fmt.time(pr.start != null ? pr.start : q15), to: fmt.time(pr.end != null ? pr.end : (pr.start != null ? pr.start : q15) + 60), rep: 'once', wd: [], ends: 'never', endN: '10', endDay: String(vbMaxDay()), name: '', named: false, keepLast: 'all', keep: 'std', q: '' };
+    if (rule && rule.kind === 'recurring') { const w = rule.weekdays || []; pr._d = { ch: rule.ch, day: String(today), from: rule.from, to: rule.to, rep: w.length === 7 ? 'daily' : w.join() === '1,2,3,4,5' ? 'weekdays' : 'weekly', wd: w.slice(), dur: String(rule.dur || ((LIVE.hm(rule.to) - LIVE.hm(rule.from) + 1440) % 1440) || 1440), name: rule.title, named: true, keepLast: rule.keepLast ? String(rule.keepLast) : 'all', keep: vbKeepKey(rule.keep), q: '' }; }
+    else if (rule) pr._d = { ch: rule.ch, day: String(Math.floor(rule.start / 1440)), from: fmt.time(rule.start), to: fmt.time(rule.end), rep: 'once', wd: [], dur: String(Math.round(rule.end - rule.start)), name: rule.title, named: true, keepLast: 'all', keep: vbKeepKey(rule.keep), q: '' };
+    else pr._d = { ch: pr.ch || '', day: String(pr.start != null ? Math.floor(pr.start / 1440) : today), from: fmt.time(pr.start != null ? pr.start : q15), to: fmt.time(pr.end != null ? pr.end : (pr.start != null ? pr.start : q15) + 60), rep: 'once', wd: [], dur: String(pr.start != null && pr.end != null ? Math.round(pr.end - pr.start) : 60), name: '', named: false, keepLast: 'all', keep: 'std', q: '' };
     pr._d.gone = SIM.chState(pr._d.ch) === 'gone' && pr._d.ch ? pr._d.ch : '';
     if (pr._d.gone) pr._d.ch = '';
   }
@@ -622,8 +623,10 @@ registerLiveDialog('LD-03', (pr) => {
   const q = d.q.trim().toLowerCase();
   const chans = SIM.channels().filter((c) => !q || c.name.toLowerCase().includes(q) || String(c.no).startsWith(q));
   const c = d.ch ? SIM.channel(d.ch) : null;
-  const day = Number(d.day); const a = day * 1440 + LIVE.hm(d.from || '00:00'); let b = day * 1440 + LIVE.hm(d.to || '00:00'); const next = b <= a; if (next) b += 1440;
-  const auto = c ? `${c.name}, ${fmt.day(a)}, ${fmt.time(a)}` : 'Manuelle Aufnahme';
+  const day = Number(d.day); const a = day * 1440 + LIVE.hm(d.from || '00:00'); const durN = vbDurN(d.dur);
+  let b = d.rep === 'once' ? day * 1440 + LIVE.hm(d.to || '00:00') : a + durN; const next = d.rep === 'once' && b <= a; if (next) b += 1440;
+  const repText = d.rep === 'daily' ? 'täglich' : d.rep === 'weekdays' ? 'Mo–Fr' : vbWdText(d.wd);
+  const auto = !c ? 'Manuelle Aufnahme' : d.rep === 'once' ? `${c.name}, ${fmt.day(a)}, ${fmt.time(a)}` : `${c.name}, ${repText} ${fmt.time(a)}`;
   if (!d.named) d.name = auto;
   const errs = []; if (!c) errs.push('Wähle einen Sender.'); if (d.rep === 'once' && b <= now) errs.push('Diese Zeit ist schon vorbei.'); if (d.rep === 'weekly' && !d.wd.length) errs.push('Wähle mindestens einen Wochentag.');
   const days = []; for (let x = today; x <= vbMaxDay(); x++) days.push([String(x), x === today ? 'Heute, ' + fmt.day(x * 1440) : x === today + 1 ? 'Morgen, ' + fmt.day(x * 1440) : fmt.day(x * 1440)]);
@@ -631,10 +634,11 @@ registerLiveDialog('LD-03', (pr) => {
   const ovl = c && d.rep === 'once' ? vbOverlaps(c.id, a, b, rule && rule.id) : [];
   const body = (d.gone ? notice('bad', `${esc((SIM.channel(d.gone) || { name: d.gone }).name)} ist nicht mehr im Angebot.`, 'Wähle einen anderen Sender. Die Zeit bleibt.') : '')
     + `<div class="vb-grid2"><div class="fld"><label for="vbf-q">Sender suchen</label><input class="inp" id="vbf-q" type="search" placeholder="Nummer oder Name" value="${esc(d.q)}" data-bind="${vbDP('q')}" data-live data-fid="vbf:q" data-autofocus></div>${vbSel('ch', 'Sender', [['', chans.length ? 'Sender wählen …' : 'Kein Sender passt'], ...chans.map((x) => [x.id, `${x.no} ${x.name}${SIM.epgOf(x) === 'none' ? ' (ohne Programmdaten)' : ''}`])].concat(c && !chans.includes(c) ? [[c.id, `${c.no} ${c.name}`]] : []), d.ch)}</div>
-    ${vbRadios('rep', 'Wiederholen', [['once', 'einmal'], ['daily', 'täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'wöchentlich an …']], d.rep)}
+    ${vbRadios('rep', 'Wiederholen', [['once', 'einmal'], ['daily', 'täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'an Wochentagen …']], d.rep)}
     ${d.rep === 'weekly' ? `<div class="vb-wd" role="group" aria-label="Wochentage">${[1, 2, 3, 4, 5, 6, 0].map((n) => `<button type="button" class="pill vb-pill" aria-pressed="${d.wd.includes(n)}" data-act="vbWd" data-n="${n}" data-fid="vbwd:${n}">${vbWdNames[n]}</button>`).join('')}</div>` : ''}
-    <div class="vb-grid3">${d.rep === 'once' ? vbSel('day', 'Datum', days, d.day) : ''}<div class="fld"><label for="vbf-from">Von</label><input class="inp" type="time" id="vbf-from" step="300" value="${esc(d.from)}" data-bind="${vbDP('from')}" data-rerender data-fid="vbf:from"></div><div class="fld"><label for="vbf-to">Bis</label><input class="inp" type="time" id="vbf-to" step="300" value="${esc(d.to)}" data-bind="${vbDP('to')}" data-rerender data-fid="vbf:to">${next ? '<span class="hint">endet am Folgetag</span>' : ''}</div></div>
-    ${d.rep !== 'once' ? `${vbRadios('ends', 'Wiederholung endet', [['never', 'nie'], ['on', 'am Datum'], ['after', 'nach Anzahl Aufnahmen']], d.ends)}${d.ends === 'on' ? vbSel('endDay', 'Letzter Tag', days, d.endDay) : ''}${d.ends === 'after' ? `<div class="fld"><label for="vbf-endN">Anzahl Aufnahmen</label><input class="inp" type="number" min="1" max="99" id="vbf-endN" value="${esc(d.endN)}" data-bind="${vbDP('endN')}" data-fid="vbf:endN"></div>` : ''}` : ''}
+    <div class="vb-grid3">${d.rep === 'once' ? vbSel('day', 'Datum', days, d.day) : ''}<div class="fld"><label for="vbf-from">Beginn</label><input class="inp" type="time" id="vbf-from" step="300" value="${esc(d.from)}" data-bind="${vbDP('from')}" data-rerender data-fid="vbf:from"></div>${d.rep === 'once' ? `<div class="fld"><label for="vbf-to">Ende</label><input class="inp" type="time" id="vbf-to" step="300" value="${esc(d.to)}" data-bind="${vbDP('to')}" data-rerender data-fid="vbf:to">${next ? '<span class="hint">endet am Folgetag</span>' : ''}</div>` : `<div class="fld"><label for="vbf-dur">Dauer in Minuten</label><input class="inp" type="number" min="5" max="1440" step="5" id="vbf-dur" value="${esc(d.dur)}" data-bind="${vbDP('dur')}" data-rerender data-fid="vbf:dur"><span class="hint">bis ${fmt.time(b)}${b >= (day + 1) * 1440 ? ', am Folgetag' : ''}</span></div>`}</div>
+    <p class="muted vb-small">Vor- und Nachlauf: 0 Minuten. Die Zeiten wählst du hier selbst.</p>
+    ${d.rep !== 'once' ? `<p class="vb-small">Eine wiederkehrende Aufnahme läuft, bis du sie beendest. Termine entstehen 14 Tage im Voraus.</p><fieldset class="vb-fs vb-prop"><legend>Vorschlag, hängt an Frage F-23</legend><p class="muted vb-small">Ein Ende der Wiederholung (an einem Datum oder nach einer Anzahl Aufnahmen) ist noch nicht entschieden. Bis dahin gibt es das Feld nicht.</p></fieldset>` : ''}
     <div class="fld"><label for="vbf-name">Name</label><input class="inp" id="vbf-name" value="${esc(d.name)}" data-bind="${vbDP('name')}" data-vbname data-fid="vbf:name"><span class="hint">Vorgabe: «${esc(auto)}»</span></div>
     <div class="vb-grid3">${d.rep !== 'once' ? vbSel('keepLast', 'Behalten', [['all', 'alle'], ...[1, 2, 3, 5, 10, 20].map((n) => [String(n), `die letzten ${n}`])], d.keepLast) : ''}${vbSel('keep', 'Aufbewahren', vbKeepOpts(vbStdKeepText()), d.keep)}</div>
     ${c ? `<p class="vb-sum"><b>${d.rep === 'once' ? `${fmt.dayRel(a)}, ${fmt.time(a)} bis ${fmt.time(b)}${next ? ' (Folgetag)' : ''}` : `${d.rep === 'daily' ? 'täglich' : d.rep === 'weekdays' ? 'Mo–Fr' : vbWdText(d.wd)}, ${fmt.time(a)} bis ${fmt.time(b)}`}</b> · ${est != null ? 'etwa ' + fmt.gb(est) + (d.rep === 'once' ? '' : ' je Aufnahme') : 'Grösse unbekannt'}</p>` : ''}
@@ -643,15 +647,17 @@ registerLiveDialog('LD-03', (pr) => {
     <p class="muted vb-small">Bei der Umstellung auf Sommerzeit gibt es 02:00 bis 02:59 nicht: Eine Aufnahme in dieser Stunde beginnt um 03:00.</p>`;
   return { title: rule ? 'Aufnahme ändern' : 'Neue Aufnahme', wide: true, body, actions: `${rule ? `<button type="button" class="btn danger vb-left" data-act="vbLd01Cancel" data-id="${esc(rule.id)}" data-fid="ld03:cancel">Aufnahme abbrechen</button>` : ''}<button type="button" class="btn secondary" data-act="close" data-fid="ld03:x">Abbrechen</button><button type="button" class="btn primary" data-act="vbLd03Save" data-fid="ld03:ok">${rule ? 'Speichern' : 'Aufnahme planen'}</button>` };
 });
+/** duration of a recurring recording in minutes (11 stores the duration, so the clock change neither lengthens nor shortens it) */
+function vbDurN(v) { return Math.max(5, Math.min(1440, Math.round(Number(v) || 60))); }
 document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('[data-vbname]') && ui.dialog && ui.dialog.props._d) ui.dialog.props._d.named = true; });
 ACT.vbLd03Save = () => {
   const pr = ui.dialog.props; const d = pr._d; const rule = pr.ruleId ? SIM.rule(pr.ruleId) : null; const now = SIM.now();
-  const c = d.ch ? SIM.channel(d.ch) : null; const day = Number(d.day); const a = day * 1440 + LIVE.hm(d.from || '00:00'); let b = day * 1440 + LIVE.hm(d.to || '00:00'); if (b <= a) b += 1440;
+  const c = d.ch ? SIM.channel(d.ch) : null; const day = Number(d.day); const a = day * 1440 + LIVE.hm(d.from || '00:00'); let b = d.rep === 'once' ? day * 1440 + LIVE.hm(d.to || '00:00') : a + vbDurN(d.dur); if (b <= a) b += 1440;
   if (!c || (d.rep === 'once' && b <= now) || (d.rep === 'weekly' && !d.wd.length)) { d.tried = true; renderOverlays(); const er = $('#ov-dialog .err'); if (er) er.scrollIntoView({ block: 'nearest' }); return; }
   const keep = vbKeepFrom(d.keep, a); const title = (d.name || '').trim() || `${c.name}, ${fmt.day(a)}, ${fmt.time(a)}`;
   let o;
   if (d.rep === 'once') o = { ch: c.id, title, start: a, end: b, keep };
-  else o = { ch: c.id, title, from: d.from, to: d.to, weekdays: d.rep === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : d.rep === 'weekdays' ? [1, 2, 3, 4, 5] : d.wd.slice(), repeat: d.rep, keepLast: d.keepLast === 'all' ? null : Number(d.keepLast), endsAfter: d.ends === 'after' ? Number(d.endN) || 1 : null, endsOn: d.ends === 'on' ? Number(d.endDay) : null, keep };
+  else o = { ch: c.id, title, from: d.from, to: fmt.time(b), dur: vbDurN(d.dur), weekdays: d.rep === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : d.rep === 'weekdays' ? [1, 2, 3, 4, 5] : d.wd.slice(), repeat: d.rep, keepLast: d.keepLast === 'all' ? null : Number(d.keepLast), padBefore: 0, padAfter: 0, keep };
   if (rule) {
     const kindNow = d.rep === 'once' ? 'manual' : 'recurring';
     if (rule.kind === kindNow) SIM.updateRule(rule.id, Object.assign({}, o, { warn: null }));
@@ -672,16 +678,17 @@ registerLiveDialog('LD-04', (pr) => {
       actions: `<a class="btn secondary" href="#/live/recordings?sort=size" data-act="close" data-fid="ld04:list">Meine Aufnahmen</a><button type="button" class="btn primary" data-act="close" data-fid="ld04:x" data-autofocus>Schliessen</button>` };
   }
   if (run) return { title: 'Nimmt auf', body: `<p class="lead">${esc(c.name)} wird seit ${fmt.time(run.start)} aufgenommen, bis ${fmt.time(run.end)}.</p>`, actions: `<button type="button" class="btn danger" data-act="vbLd01Stop" data-id="${esc(run.id)}" data-fid="ld04:stop">Aufnahme beenden</button><button type="button" class="btn primary" data-act="close" data-fid="ld04:x" data-autofocus>Schliessen</button>` };
-  if (!pr._d) pr._d = { until: nn ? 'end' : '60', keep: 'std' };
-  const d = pr._d;
-  const opts = [nn ? ['end', `Bis Sendungsende (${fmt.time(nn.end)}, mit Nachlauf bis ${fmt.time(nn.end + pa)})`] : null, ['30', '30 Minuten'], ['60', '1 Stunde'], ['stop', `Bis ich stoppe (höchstens ${LIVE.settings.dvr.instantMaxH} Stunden)`]].filter(Boolean);
+  if (!pr._d) pr._d = { until: nn ? 'end' : 'stop', keep: 'std' };
+  const d = pr._d; const shifted = !!(p && p.ch === c.id && p.offset >= 0.05);
+  if (!nn && d.until === 'end') d.until = 'stop';
+  const opts = [nn ? ['end', `Bis Sendungsende (${fmt.time(nn.end)}, mit Nachlauf bis ${fmt.time(nn.end + pa)})`] : null, ['stop', `Bis ich stoppe (höchstens ${LIVE.settings.dvr.instantMaxH} Stunden)`]].filter(Boolean);
   const body = `<p class="lead"><b>${esc(c.name)}</b>${nn ? ` · ${esc(nn.title)} (bis ${fmt.time(nn.end)})` : ` · ${esc(LU.TX.epgNone)}`}</p>${vbRadios('until', 'Wie lange', opts, d.until).replace('<input', '<input data-autofocus')}${vbSel('keep', 'Aufbewahren', vbKeepOpts(vbStdKeepText()), d.keep)}
-    <p>${esc(`Die Aufnahme beginnt jetzt (${fmt.time(SIM.now())}), nicht am Anfang der Sendung.`)}</p>${p && p.ch === c.id && p.offset >= 0.05 ? notice('', 'Du schaust zeitversetzt.', 'Aufgenommen wird ab dem Live-Zeitpunkt.') : ''}`;
-  return { title: 'Jetzt aufnehmen', body, actions: `<button type="button" class="btn secondary" data-act="close" data-fid="ld04:x">Abbrechen</button><button type="button" class="btn primary" data-act="vbLd04Go" data-fid="ld04:ok">${icon('record', 16)}Aufnehmen</button>` };
+    <p>${esc(`Die Aufnahme beginnt jetzt (${fmt.time(SIM.now())}), nicht am Anfang der Sendung.`)}</p>${shifted ? notice('', 'Du schaust zeitversetzt.', 'Aufgenommen wird ab dem Live-Zeitpunkt.') : ''}`;
+  return { title: 'Jetzt aufnehmen', body, actions: `<button type="button" class="btn secondary" data-act="close" data-fid="ld04:x">Abbrechen</button><button type="button" class="btn primary" data-act="vbLd04Go" data-fid="ld04:ok">${icon('record', 16)}${shifted ? 'Ab jetzt aufnehmen (live)' : 'Aufnehmen'}</button>` };
 });
 ACT.vbLd04Go = () => {
   const pr = ui.dialog.props; const d = pr._d; const t = SIM.now();
-  const res = SIM.startInstant(pr.ch, { until: d.until === 'end' || d.until === 'stop' ? d.until : Number(d.until), keep: vbKeepFrom(d.keep, t) });
+  const res = SIM.startInstant(pr.ch, { until: d.until === 'end' ? 'end' : 'stop', keep: vbKeepFrom(d.keep, t) });
   closeDialog();
   if (!res.ok) { toast('Im Speicher deines Kontos ist kein Platz frei.', 'bad'); return; }
   toast(`Aufnahme läuft bis ${fmt.time(res.end)}.`);
@@ -693,10 +700,10 @@ registerLiveDialog('LD-05', (pr) => {
   const c = SIM.channel(p.ch); const ex = SIM.reminderFor(p.id); const now = SIM.now();
   if (p.start <= now) return { title: 'Erinnern', body: vbDlgHead(p) + `<p class="lead">Die Sendung hat schon begonnen. Erinnern geht nur vor dem Beginn.</p>`, actions: `<button type="button" class="btn primary" data-act="close" data-fid="ld05:x" data-autofocus>Schliessen</button>` };
   if (!pr._d) pr._d = { lead: ex ? ex.lead : 5 };
-  const d = pr._d; const leads = [0, 2, 5, 10, 15].filter((l) => p.start - l > now || l === 0);
+  const d = pr._d; const leads = VB_LEADS.filter((l) => p.start - l > now || l === 0);
   const body = `<p class="lead">Erinnern an ‹${esc(p.title)}${p.sub ? ': ' + esc(p.sub) : ''}› · ${fmt.day(p.start)}, ${fmt.time(p.start)} · ${esc(c.name)}</p>
     <div class="fld"><span class="lbl" id="ld05-l">Zeitpunkt</span><div class="pills" role="radiogroup" aria-labelledby="ld05-l">${leads.map((l, i) => `<button type="button" class="pill" role="radio" aria-checked="${d.lead === l}" aria-pressed="${d.lead === l}" data-act="vbLead" data-l="${l}" data-fid="ld05:${l}"${(d.lead === l) || (!leads.includes(d.lead) && i === 0) ? ' data-autofocus' : ''}>${l ? `${l} Min. vorher` : 'zum Beginn'}</button>`).join('')}</div></div>
-    <p class="vb-sum">Erinnerung um <b>${fmt.time(p.start - d.lead)}</b></p><p class="muted">Du bekommst die Erinnerung in Slouchcat und als Mitteilung auf deinen Geräten.</p>`;
+    <p class="vb-sum">Erinnerung um <b>${fmt.time(p.start - d.lead)}</b></p><p class="muted">Du bekommst die Erinnerung in Slouchcat und über die Meldewege deines Kontos.</p>`;
   return { title: ex ? 'Erinnerung ändern' : 'Erinnern', body, actions: `${ex ? `<button type="button" class="btn danger vb-left" data-act="vbLd05Del" data-fid="ld05:del">Erinnerung entfernen</button>` : ''}<button type="button" class="btn secondary" data-act="close" data-fid="ld05:x">Abbrechen</button><button type="button" class="btn primary" data-act="vbLd05Save" data-fid="ld05:ok">${ex ? 'Speichern' : 'Erinnern'}</button>` };
 });
 ACT.vbLead = (d) => { ui.dialog.props._d.lead = Number(d.l); renderOverlays(); };

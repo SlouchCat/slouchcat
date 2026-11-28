@@ -1,6 +1,6 @@
 # Konzept 28 · Klickbare Mockups
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Review 3, nicht freigegeben
 
 Die Mockups zeigen alle Seiten und Dialoge aus `14-oberflaeche.md` (Zuschauer) und `15-administration.md`
 (Verwaltung) in drei Clients zum Anklicken: **Web-App** (Computer, Tablet, Handy-Browser, dazu die
@@ -21,8 +21,10 @@ Geräterahmen (Handy und Tablet, hoch und quer). Ordner: `docs/planning/mockups/
 - **Getrennt von der Anwendung:** Die Mockups teilen keinen Code mit `web/`, `android/` oder `server/`. Sie
   übernehmen nur das Aussehen der bestehenden Mockups 25 (Web), 26 (TV) und 27 (Handy).
 - **Bilder nur lokal:** Senderlogos und Sendungsbilder liegen in `shared/img/` und sind nicht im Repo
-  (Markenrechte). Ohne sie zeigen die Mockups Initialen auf heller Fläche und ruhige Flächen statt
-  Sendungsbildern; bedienbar bleibt alles.
+  (Markenrechte). Echte Logos und Bilder siehst du nur in diesem Arbeitsbaum und nur, wenn du den Schalter
+  «Echte Logos und Bilder» einschaltest (auf `index.html` oder unter «Zustände»). Ab Werk ist er aus: Dann
+  zeigen die Mockups Initialen auf heller Fläche und ruhige Flächen und fragen keine Bilddatei an, auch
+  nicht in einem Klon des Repos, wo die Bilder fehlen. Bedienbar bleibt alles.
 - **Gespielte Zahlen:** Was nicht aus dem Mockup-Zustand kommt (zum Beispiel 584 aktive Sender, 10'354
   importierte Einträge, CPU 31 %), sind feste Beispielwerte. Zeiten beim Umschalten im Player sind für die
   Vorführung verkürzt (Abschnitt 4).
@@ -32,20 +34,21 @@ Geräterahmen (Handy und Tablet, hoch und quer). Ordner: `docs/planning/mockups/
 1. Im Dateimanager den Ordner `docs/planning/mockups/28-live-tv/` des Arbeitsbaums öffnen.
 2. `index.html` doppelklicken. Der Browser zeigt vier Kacheln: **Web-App**, **Verwaltung**, **Fernseher**,
    **Handy und Tablet**, darunter die Liste aller 121 Seiten und Dialoge mit Kennung (LS-, LD-, LA-).
-3. Eine Kachel anklicken. Oben steht immer eine gelbliche Leiste, die nicht zur App gehört:
+3. Hast du den Ordner `shared/img/`: oben «Echte Logos und Bilder» einschalten (gilt für alle drei Mockups).
+4. Eine Kachel anklicken. Oben steht immer eine gelbliche Leiste, die nicht zur App gehört:
    - **Zustände** öffnet die Schalter des Mockups (Abschnitt 4).
    - **Seite** springt direkt zu einer Seite oder einem Dialog.
    - **Alle Einstiege** führt zurück zur Übersicht.
-4. Web-App: Mit **Desktop · Tablet · Handy** wechselst du die Breite. **Zuschauer · Verwaltung** wechselt
+5. Web-App: Mit **Desktop · Tablet · Handy** wechselst du die Breite. **Zuschauer · Verwaltung** wechselt
    zwischen App und Verwaltung.
-5. Fernseher: Bedienen mit der gezeichneten Fernbedienung oder der Tastatur: Pfeiltasten, Enter = OK,
+6. Fernseher: Bedienen mit der gezeichneten Fernbedienung oder der Tastatur: Pfeiltasten, Enter = OK,
    Backspace oder Esc = Zurück, Leertaste = Wiedergabe/Pause, Bild↑/Bild↓ = Kanal +/−, G = Guide,
    I = Info, R = Aufnahme, L = zuletzt gesehen, 0–9 = Ziffern.
-6. Handy: Mit **Handy · Tablet** und **Hochformat · Querformat** wechselst du den Rahmen. Das Menü links
+7. Handy: Mit **Handy · Tablet** und **Hochformat · Querformat** wechselst du den Rahmen. Das Menü links
    (Medienauswahl) öffnet der Knopf oben links oder Wischen vom linken Rand.
-7. Wer lieber einen kleinen Dateiserver nimmt: im Repo `python3 -m http.server 8728 --directory
+8. Wer lieber einen kleinen Dateiserver nimmt: im Repo `python3 -m http.server 8728 --directory
    docs/planning/mockups/28-live-tv` starten und `http://localhost:8728/` öffnen.
-8. Zurücksetzen: Neu laden setzt alles auf 20:41 zurück; in der Leiste gibt es auch «Alles zurücksetzen».
+9. Zurücksetzen: Neu laden setzt alles auf 20:41 zurück; in der Leiste gibt es auch «Alles zurücksetzen».
 
 ## 3. Rundgänge
 
@@ -144,11 +147,12 @@ darstellt und kein Zustand ist.
 
 | Schalter | Was du siehst |
 |---|---|
+| Echte Logos und Bilder | an: Logos und Bilder aus `shared/img/`; aus (ab Werk): Initialen und Flächen, keine Anfrage nach Bilddateien |
 | Uhr: Anhalten, +5 Min., +30 Min., +2 Std. | Fortschrittsbalken, laufende Aufnahme, Programm rücken vor |
 | Wer schaut? Anna, Luca, Mia | andere Favoriten, Aufnahmen, Rechte; LS-14 nur für Anna |
-| Rechte des Profils / Deckel des Kontos: Live-TV, Aufnahmen, Timeshift | ohne Live-TV fehlt der Bereich ganz (Adressen «Nicht gefunden»); ohne Aufnahmen fehlen alle Aufnahme-Knöpfe; ohne Timeshift fehlen Anhalten und Spulen |
+| Rechte des Profils / Deckel des Kontos: Live-TV, Aufnahmen, Timeshift | ohne Live-TV fehlt der Bereich ganz: kein Eintrag, kein Hinweis auf Start, Suche, Benachrichtigungen, Profilseite, Radio, im Menü oder in der Leiste; Adressen «Nicht gefunden»; die neuen Fernbedienungstasten tun nichts. Ohne Aufnahmen fehlen alle Aufnahme-Knöpfe und -Texte; ohne Timeshift fehlen Anhalten, Spulen und ihre Hinweise. Das Hauptprofil sieht in «Profile verwalten» weiter den Block «Live-TV», weil es dort die Rechte setzt |
 | Recht entzogen während der Wiedergabe | der Player zeigt «Live-TV ist für dieses Profil nicht mehr freigegeben.», alle anderen Live-TV-Adressen «Nicht gefunden» |
-| Zustand der Seiten: Normal, Leer, Lädt, Fehler | jede Seite zeigt ihren Leer-, Lade- (Skeleton) und Fehlerzustand mit «Erneut versuchen» |
+| Zustand der Seiten: Normal, Leer, Lädt, Fehler | jede Seite zeigt ihren Leer-, Lade- (Skeleton) und Fehlerzustand mit «Erneut versuchen». «Leer» heisst: keine Sender, keine Aufnahmen, keine Planungen, keine Erinnerungen, keine Favoriten, nichts zuletzt gesehen; so zeigen auch LS-08 bis LS-15 und die Tabellen der Verwaltung ihren eigenen Leerzustand. Einstellungsseiten der Verwaltung (LA-09, LA-14, LA-15) behalten ihre Felder |
 | Ohne EPG | kein Sender hat Programmdaten; Fernsehen geht trotzdem |
 | Sender gestört: zusätzlich SRF 1 | SRF 1 «Gerade nicht erreichbar» (ZDFinfo ist immer gestört) |
 | Viele Sender | 2'000 Testsender im Programmraster (Web und TV) |
@@ -157,11 +161,11 @@ darstellt und kein Zustand ist.
 | Verwaltung (nur Web): Speicher knapp, Speicher voll, Netzlaufwerk nicht eingehängt, EPG-Import fehlgeschlagen | Warnungen und Zustände in LA-01, LA-10, LA-12, LA-14 bis LA-16 |
 | Aktionen (je Client) | einmalige Vorführungen, zum Beispiel «Erinnerung jetzt zeigen» in der Web-App |
 
-**Ladezeiten im Player:** Das Konzept schlägt 0,5 s (Ladeanzeige), 5 s («Dauert länger als üblich …») und
-15 s (Fehlerbild) vor (14, 4.11). Damit man alles in wenigen Sekunden sieht, sind die Werte im Mockup
+**Ladezeiten im Player:** Das Konzept schlägt 0,5 s (Ladeanzeige), 3 s («Dauert länger als üblich …») und
+15 s (Fehlerbild) vor (14 Fassung 2, 4.11). Damit man alles in wenigen Sekunden sieht, sind die Werte im Mockup
 **verkürzt**: Ladeanzeige ab 0,5 s, «Dauert länger» ab 2,5 s, Fehlerbild nach 6 s. Ein schon empfangener
 Sender ist nach 0,6 s da, ein neuer nach 1,8 s, «Langsamer Start» nach 4,5 s. Die Werte gelten in allen
-drei Clients gleich (`LIVE_UI.LOAD`).
+drei Clients gleich (`LIVE_UI.LOAD`). Ein Fehlerschalter wirkt sofort auf den laufenden Sender.
 
 ## 5. Abdeckung des Auftrags (Abschnitt 13)
 
@@ -246,32 +250,33 @@ Abbrechen, LD-08 Tag und Uhrzeit, LD-09 Filterblatt (W, H), LD-11 Aufbewahrung.
 
 ## 6. Abweichungen vom Oberflächenkonzept
 
-| Client | Abweichung | Grund | 14/15 nachziehen? |
+Stand nach 14 Fassung 2 (Abschnitt 11) und 15 Fassung 2 (Abschnitt 8). «nachgezogen» heisst: 14/15 folgen
+jetzt dem Mockup; «Mockup nachgezogen» heisst: das Mockup folgt jetzt 14/15.
+
+| Client | Abweichung | Grund | Stand |
 |---|---|---|---|
-| Web | LS-21: Name und Altersgrenze im Formular änderbar; der Hinweis «Live-TV zeigt alles …» erscheint nur bei Profilen mit Altersgrenze | Das bestehende Profilformular hat diese Felder; der Hinweis ist nur bei begrenzten Profilen nötig (14, 1.3 sagt «bei jedem Profil mit Altersgrenze») | nein, entspricht 14 |
-| Web | LS-15: auch künftige Lücken ohne Programmdaten haben «Zeit aufnehmen» | konsequent zu «Ohne EPG» (LS-15), 14 nennt es nur für Sender ganz ohne Daten | ja, ein Satz in 3.15 |
-| Web | LS-25: Einschalten von Live-TV beendet Radio und Hörbuch vor dem Umschalten | so beschreibt es 14 (1.2, LS-25) | nein |
-| Web | LD-10 im Web-Player nicht-modal über der Leiste | wie 14 (5.10) | nein |
-| Web | Programm-Überlagerung im Player zeigt Details künftiger Sendungen als Seitenleiste | Einschalten geht nur für laufende Sendungen; Details ohne den Player zu verlassen | ja, 4.9 ergänzen |
-| Web | Bedienleiste des Players blendet nach 4 s aus | Verhalten des bestehenden Videoplayers | nein |
-| Web | «Recht entzogen» zeigt die eigene Adresse `#/player/revoked` | damit die Meldung bleibt, wenn der Bereich schon fehlt | nein (nur Mockup) |
-| Web | LS-14: geplante Termine eines Kinderprofils nur als Zahl | F-4 ist offen | hängt an F-4 |
-| Web | LD-09 bleibt die Grundform des Kerns | genügt für 5.9 | nein |
-| Verwaltung | LA-05: Gruppen unter dem Sendernamen statt als eigene Spalte | Platz in der kompakten Tabelle | ja, Spalte «Gruppen» in 3.5 als «unter dem Namen» |
-| Verwaltung | LA-01: Zustand «Eingeschränkt» statt «Bereit» | aus den gestörten Sendern berechnet, wie 15 (3.1) es vorsieht | nein |
-| Verwaltung | LA-05: Tabelle zeigt 16 Beispielsender plus sechs Einträge der Verwaltung, die Köpfe zählen auf 584 | nur die Beispielsender sind im Einzelnen erfasst | nein (nur Mockup) |
-| Verwaltung | LA-22 und LA-26: Konto-Detail und Meine Medien zeigen nur das Neue | der Rest bleibt unverändert | nein |
-| Verwaltung | LA-11: Zähler aus den Beispielzahlen (584), Tabelle nur mit Beispielsendern | wie LA-05 | nein (nur Mockup) |
-| Verwaltung | LA-09: Schalter je Quelle «vorsorglich zusätzliche Verbindungen öffnen» | entspricht T-18 in `04-architektur.md`; im Mockup ausdrücklich «kein Anbieterlimit» beschriftet | **hängt an offener Frage** (LTV-017, Werkszustand F-9) |
-| Verwaltung | LA-15: «Werksvorgabe 1 Stunde, eingestellt 2 Stunden» | Fachkonzept: Vorgabe 60 Min.; die Beispielinstanz hat 2 Std. | ja, Vorgabe in 15 (3.15) von 2 Std. auf 60 Min. angleichen |
-| TV | OK zeigt die Bedienleiste, ← die Senderliste | 14 F-7 Variante A | hängt an F-7 |
-| TV | Senderliste im Player folgt der Herkunftsliste, Favoriten nur mit Herz markiert | einfacher am TV | nein |
-| TV | Zeit im Raster zusätzlich über «2 h»-Knöpfe | viele Fernbedienungen haben keine Spultasten | ja, 4.3 ergänzen |
-| TV | kein LD-09 | Filter sind am TV ein Seitenmenü (14, 3.2) | nein |
-| TV | LS-21, LS-23, LS-24, LS-26 minimal | nur die Änderung wird gezeigt | nein |
-| Handy | «Programm» im Player als Blatt statt Überlagerung | Bildschirmgrösse | ja, 4.9 für die Handy-App |
-| Handy | «Details» im Player verlässt den Player und beendet die Wiedergabe | Grundsatz 6 in 14 (wer den Player verlässt, beendet die Wiedergabe) | nein |
-| alle | Ladezeiten im Player verkürzt (Abschnitt 4) | Vorführung | nein (nur Mockup) |
+| Web | LS-21: Hinweis «zeigt alles» nur bei Profilen mit Altersgrenze | wie 14 1.3 | entspricht 14 |
+| Web | LS-15: auch künftige Lücken ohne Programmdaten haben «Zeit aufnehmen» | konsequent zu «Ohne EPG» | in 14 nachgezogen |
+| Web | LS-25, LD-10 nicht-modal, LD-09 Grundform, Bedienleiste blendet nach 4 s aus | wie 14 | entspricht 14 |
+| Web | Programm-Überlagerung zeigt Details künftiger Sendungen als Seitenleiste | Details ohne den Player zu verlassen | in 14 nachgezogen (4.9) |
+| Web | «Recht entzogen» mit eigener Adresse `#/player/revoked`; die Meldung bleibt, bis man den Player verlässt | nur Mockup; im Produkt Fehlerbild im Player, danach 404 | nur Mockup |
+| Web | LS-14: geplante Termine eines Kinderprofils nur als Zahl | F-4 offen | in 14 als Zwischenstand; hängt an F-4 |
+| Verwaltung | LA-05: Gruppen unter dem Sendernamen | Platz | in 15 nachgezogen |
+| Verwaltung | LA-01: Zustand «Eingeschränkt» | aus den gestörten Sendern berechnet | entspricht 15 |
+| Verwaltung | LA-05, LA-11: Tabellen nur mit Beispielsendern, Köpfe zählen auf 584 | nur Beispielsender im Einzelnen erfasst | nur Mockup |
+| Verwaltung | LA-22, LA-26: nur das Neue gezeigt | der Rest bleibt | entspricht 15 |
+| Verwaltung | LA-09 und LA-03: Einstellung je Quelle **«Vorladen für Sender dieser Quelle: an/aus»** mit dem Satz «Vorladen öffnet zusätzliche Verbindungen zu dieser Quelle. Ob dein Anbieter das zulässt, verantwortest du.»; keine Rechnung je Quelle, kein «Limit»; die Obergrenze vorgeladener Sender insgesamt bleibt eine Einstellung des Empfangs | Review 3 RM-01 (LTV-017): nichts, was wie eine Verbindungsverwaltung je Anbieter aussieht. 15 Fassung 2 nennt den Schalter nach `04` T-18 «weitere gleichzeitige Verbindungen erlaubt»; das Mockup zeigt ihn enger als reine Vorlade-Einstellung | **hängt an offener Frage `04` F-3 und F-9**; 15 3.3 und 3.9 an den Wortlaut des Mockups angleichen oder Marco entscheidet |
+| Verwaltung | LA-15: «Werksvorgabe 1 Stunde, eingestellt 2 Stunden» | 04 14 | in 15 nachgezogen |
+| Verwaltung | LA-03: feste Ziele im Heimnetz statt Schalter, Adressen nur Schema · Host · Port, Kopfzeilen nur Name und «gesetzt», Quellentest ohne Hinweis aus dem Heimnetz; LA-10 ohne Heimnetz-Schalter und ohne Kopfzeilen | 15 Fassung 2 | Mockup nachgezogen |
+| Verwaltung | «Sofort beenden …» neben «Deaktivieren» (LA-05, LA-06); «zurückgestellt» (3sat) in LA-01, LA-09, LA-12; laufende Aufnahmen nur als Zahl | 15 Fassung 2, `04` T-29, T-17 | Mockup nachgezogen |
+| Verwaltung | «Neue Sender sofort anbieten»: Werksvorgabe an; die Beispielquelle «Kabelanbieter Schweiz» hat es auf aus, deshalb bleiben Blue Zoom, Kanal 9 und CNN inaktiv mit Filter «Neu» | so bleibt die Beispielzahl von 16 Sendern für Zuschauer | entspricht 15 (Einstellung bleibt wählbar) |
+| TV | OK zeigt die Bedienleiste, ← die Senderliste | Variante A | hängt an F-7 |
+| TV | Senderliste im Player folgt der Herkunftsliste; «2 h»-Knöpfe im Raster | | in 14 nachgezogen |
+| TV | kein LD-09; LS-21, LS-23, LS-24, LS-26 minimal | | entspricht 14 |
+| Handy | «Programm» im Player als Blatt; «Details» beendet die Wiedergabe | | in 14 nachgezogen bzw. Grundsatz 6 |
+| alle | LD-02/LD-03 ohne «ähnliche Titel», «Angesehene zuerst» und Schalter gegen doppelte Folgen; Zeitfenster, Wochentage, «nur Erstausstrahlungen», Ende der Wiederholung als «Vorschlag, hängt an Frage F-23»; LD-04 nur «Bis Sendungsende» und «Bis ich stoppe» (bei Zeitversatz «Ab jetzt aufnehmen (live)»); LD-05 Vorlauf 0, 5, 15, 30 Min.; Kinderaufnahme vom Hauptprofil abgespielt ohne Fortschritt | 14 Fassung 2, `03` DR-08, DR-21 | Mockup nachgezogen |
+| alle | «Zuletzt gesehen» bis 20 Sender, mit «Liste leeren» | 14 3.1, DR-15 | Mockup nachgezogen |
+| alle | Ladezeiten verkürzt (Abschnitt 4) | Vorführung | nur Mockup |
 
 ## 7. Bekannte Grenzen
 
@@ -283,29 +288,69 @@ Abbrechen, LD-08 Tag und Uhrzeit, LD-09 Filterblatt (W, H), LD-11 Aufbewahrung.
   wieder her, Änderungen der Verwaltung erst ein Neuladen.
 - Zahlen ohne Bezug zum Mockup-Zustand (Kennzahlen des Servers, Belegung anderer Konten) sind fest.
 - Spracheingabe am TV, Push-Mitteilungen und echte Tastenkürzel des Betriebssystems sind nicht gespielt.
+- Im Mockup-Ordner liegt ein Laufzeit-Ordner `.omc/` (Statusdateien der Agenten, git-ignoriert, nicht im Repo).
+  Vor dem Weitergeben des Ordners löschen; ich habe ihn nicht gelöscht, weil das Löschen Marco überlassen ist.
+- Echte Logos und Bilder sieht nur, wer den Ordner `shared/img/` hat (dieser Arbeitsbaum), nicht aus einem Klon.
 
 ## 8. Was geprüft wurde
 
-- **Syntax:** `node --check` für alle JavaScript-Dateien: ohne Fehler.
-- **Daten:** ein Skript lädt `shared/live-data.js` und `live-sim.js` mit Node und prüft Sender,
-  Programmpunkte aus 0.1, Lücken, Aufnahme- und Planungsarten, die Serie «Tatort», Rechte, Zustände und
-  Register: vollständig. Belegung: Anna 82 GB, Luca 56.7 GB, Mia 3.3 GB, zusammen 142 GB in 31 Aufnahmen.
-- **Doppelklick (`file://`, ohne Dateiserver):** Chromium ohne Kopf (Playwright aus dem Haupt-Checkout) öffnet
-  jede Register-Adresse aller vier Einstiege, die Web-App in Desktop- und Handy-Breite, die Handy-App als
-  Handy hoch und Tablet quer: 212 Adressen, 0 Konsolenfehler, 0 fehlgeschlagene Anfragen, 0 Seiten mit
-  waagrechtem Überlauf, 0 Mal «undefined», «NaN» oder «[object Object]». Derselbe Lauf mit umbenanntem
-  `shared/img/`: dieselben Werte; nur die Bilddateien fehlen (Rückfall auf Initialen und Flächen).
-- **Zustände:** ein zweites Skript schaltet auf 20 Player-, Aufnahme-, Programm- und Verwaltungsseiten aller
-  Clients 20 Schalter aus Abschnitt 4 nacheinander um (400 Wechsel): 0 Fehler; die Fehlerbilder «Grenze
-  erreicht», «Server ausgelastet», «Strom stockt» und «Recht entzogen» erscheinen in allen drei Playern. In der
-  Web-App bleibt nach dem Ausschalten von «Recht entzogen» die Meldung stehen, bis man den Player verlässt.
-- **Angesehen** (Bildschirmfoto, über einen Dateiserver): Web LS-02, LS-12 bis LS-14, LD-01, LD-03 bis
-  LD-11, LA-02, LA-05 in Handy-Breite; TV LS-02, LS-12 bis LS-14, LD-04, LD-06, LD-08, LD-11; Handy LS-02,
-  LS-08, LS-12, LS-21 bis LS-26 als Tablet quer.
-- **Tastatur in der Verwaltung:** LA-05/LA-06 (Dialog öffnet mit Enter, Fokus bleibt im Dialog, Esc schliesst,
-  Fokus zurück auf die Zeile), LA-11 und LA-16 (Dialog «Ändern …», Esc, Fokus zurück), LA-03 (Reihenfolge
-  der Tab-Halte folgt der Seite, alle Elemente beschriftet).
+Alle Läufe mit Chromium ohne Kopf (Playwright aus dem Haupt-Checkout), **ohne Dateiserver über `file://`**.
 
-**Nicht geprüft:** Firefox und Safari; ein echtes Android-Gerät; Bildschirmleser; Kontrastmessung (die Farben
-stammen aus den bestehenden Mockups); jede Seite in jeder Breite einzeln angesehen (nur die Liste oben und die
-Musterseiten); die Bedienung mit der Fernbedienung auf jeder TV-Seite von Hand.
+- **Syntax:** `node --check` für alle JavaScript-Dateien: ohne Fehler.
+- **Daten:** Node lädt `shared/live-data.js` und `live-sim.js` und prüft Programmpunkte aus 0.1, Lücken,
+  Aufnahme- und Planungsarten, die Serie «Tatort», Rechte, Zustände und Register. Belegung: Anna 82 GB,
+  Luca 56.7 GB, Mia 3.3 GB, zusammen 142 GB in 31 gespeicherten Aufnahmen.
+- **Alle Adressen:** jede Register-Adresse aller vier Einstiege, die Web-App in Desktop- und Handy-Breite, die
+  Handy-App als Handy hoch und Tablet quer (212 Adressen). Mit Bildern (Schalter an): 0 Konsolenfehler,
+  0 fehlgeschlagene Anfragen, 0 Seiten mit waagrechtem Überlauf, 0 Mal «undefined», «NaN» oder
+  «[object Object]». Ohne `shared/img/` (umbenannt, Schalter aus): dieselben Werte, auch 0 Konsolenfehler.
+- **Nichts vom Bereich ohne Recht:** Mit Luca und mit Anna, Recht «Live-TV» aus, prüft ein Skript Start,
+  Suche, Benachrichtigungen, Einstellungen, Profile, Radio, eine Bibliothek, das Menü der Handy-App und die
+  Leiste der TV-App in allen drei Clients auf die Wörter «Live-TV», «Aufnahme», «Sender», «Programm»,
+  «Fernseh…», «Erinnerung», «Timeshift» (Text und Namen für Bildschirmleser, ohne Mockup-Leiste): 0 Treffer.
+  Dasselbe ohne «Aufnahmen» (Wörter «Aufnahme», «aufnehmen») und ohne «Timeshift»: je 0 Treffer.
+  Ausgenommen ist nur «Profile verwalten» des Hauptprofils (dort setzt es die Rechte).
+- **Kontrast** (berechnete Farben auf dem tatsächlichen Grund, jede Register-Adresse): gedämpfter Text
+  (`--tx2`, `--tx3`) Web mindestens 8:1 ausser einem Messfehler an der Zeitachse von LS-04 (die Beschriftung
+  sitzt auf einem 1 px breiten Strich, gemessen wird der Strich), TV mindestens 8.91:1, Handy mindestens
+  8.60:1; Rahmen ringsum mindestens 3.28:1 in allen drei Clients. Angehoben: Zeiten im TV-Raster, Genre und
+  Restzeit der laufenden Zeile (Web), Tastenhinweis «Strg K», Rahmen von Karten, Menüs, Dialogen und
+  Schalterzeilen am TV und am Handy.
+- **Zustände:** 20 Seiten mit Player, Rastern, Aufnahmen und Verwaltung (Web, TV, Handy), je Seite jeder
+  Schalter der Leiste «Zustände» und die vier Seitenzustände ein und aus, zusammen 480 Wechsel: 0 Fehler in
+  der Konsole, 0 Mal «undefined» oder «NaN».
+- **Von Hand bzw. mit Skript durchgespielt** (die Wege, die Review 3 nicht geprüft hatte): Neuanlage
+  M3U-URL, Xtream und Einzelstrom (Multicast mit festen Zielen) in LA-03 bis «übernehmen» und Import; am TV
+  jede Seite und jeder Dialog nur mit Pfeilen, OK und Zurück (jedes Element erreichbar, Zurück führt hinaus
+  oder schliesst den Dialog; dabei behoben: Player-Leiste brach um, «Ton» und «Info» waren unerreichbar,
+  ←/→ in LD-03 warf einen Fehler); am Handy Wischen nach oben und unten im Player und Ziehen der Zeitleiste
+  (behoben: ein Wisch auf einem grossen Knopf wechselte den Sender nicht).
+- **Tastatur in der Verwaltung:** LA-03, LA-05/LA-06, LA-11, LA-16 (Fokus bleibt im Dialog, Esc schliesst,
+  Fokus zurück; Tab-Reihenfolge folgt der Seite).
+
+**Nicht geprüft:** Firefox und Safari; echte Geräte (Android-Handy, Android TV); Bildschirmleser.
+
+## 9. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Review 3 und Nachzug nach 14/15 Fassung 2, 28. November 2026):
+
+- **RM-01:** LA-09/LA-03 nur noch «Vorladen für Sender dieser Quelle» (Abschnitt 6).
+- **RM-02:** Ohne Recht nichts vom Bereich: Mockup-Vermerke aus dem App-Bild entfernt (Start, Suche,
+  Benachrichtigungen, Profile, Radio, unveränderte Seiten), Block «Live-TV» in LS-21 nur für das Hauptprofil,
+  Fernbedienungstasten ohne Recht stumm.
+- **RM-03:** «Leer» leert im Kern auch Aufnahmen, Planungen, Erinnerungen, Favoriten und «Zuletzt gesehen».
+- **RM-04:** Kontrast gemessen und angehoben (Abschnitt 8).
+- **RM-05:** LA-03 sagt nach fehlgeschlagenem Test, warum es nicht weitergeht, und führt zurück zu Schritt 2.
+- **RM-06:** «Liste leeren» in allen drei Clients. **RM-07:** LA-01 meldet «Speicher voll», «Netzlaufwerk
+  nicht eingehängt», «Speicher knapp» und «EPG-Import fehlgeschlagen»; die Pille der Seitenleiste folgt.
+- **RM-08:** Zahlen stimmig: Warnungen überall aus `SIM.warningCount()` mit demselben Wortlaut; laufende
+  Aufnahmen in LA-01, LA-12, LA-14 aus einer Funktion; Duplikate 3; Vorschau und Import gleich; LA-21
+  «Live-TV-Wiedergaben»; «31 gespeicherte Aufnahmen»; Bibliothekszahlen in allen Clients gleich (Filme 1'846,
+  Webradio 3).
+- **RM-09** bis **RM-11**, **RM-14** bis **RM-16:** behoben (Handy «Erinnern», Weitere Termine, Marke «NEU»,
+  Textfehler, gleiche Meldungen nur einmal, Meldungen am TV oben, Fehlerschalter wirken sofort).
+- **RM-12:** Bilder nur nach Schalter; ohne Bilder keine Anfrage und kein Konsolenfehler. **RM-13:** `.omc/`
+  nicht gelöscht (Abschnitt 7).
+- **Nachzug** nach `MOCKUP-NACHZUG.md` und 14/15 Fassung 2 (Abschnitt 6, Zeilen «Mockup nachgezogen»); neue
+  Beispieldaten: Startpuffer im Arbeitsspeicher, Timeshift-Deckel 50 GB, 3sat zurückgestellt, Obergrenze
+  8 Eingänge und 4 vorgeladene, EPG alle 24 Stunden, Konto des Administrators mit Live-TV.

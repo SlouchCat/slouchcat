@@ -6,7 +6,7 @@
 
 /* ---------- shared bits of the recording pages ---------- */
 /** private: own recordings, plus those of profiles with an age limit for the primary profile (LS-14) */
-const tvRecVisible = (r) => !!r && (r.profile === SIM.profile().id || (SIM.profile().primary && SIM.childProfiles().some((p) => p.id === r.profile)));
+const tvRecVisible = (r) => !!r && SIM.mode() !== 'empty' && (r.profile === SIM.profile().id || (SIM.profile().primary && SIM.childProfiles().some((p) => p.id === r.profile)));
 const tvKeepText = (r) => (r.keep && r.keep.mode === 'days' ? `Wird am ${fmt.day(r.keep.until)} gelöscht` : r.rule && SIM.rule(r.rule) && SIM.rule(r.rule).keepLast ? `Behalte die letzten ${SIM.rule(r.rule).keepLast} Folgen` : 'Behalten, bis du löschst');
 const tvrWatch = (pct) => `<span class="lv-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Wiedergabefortschritt"><i style="width:${pct}%"></i></span>`;
 function tvRecCard(r, f, def) {
@@ -74,7 +74,7 @@ route('/live/recordings/:id', (pm) => {
   const pct = (m) => (m / Math.max(1, D) * 100).toFixed(2);
   const btns = [];
   if (ok) {
-    if (r.watchedPct >= 1 && r.watchedPct < 95) { btns.push(tvBtn({ f: 'rd-res', ic: 'play', label: `Weiter ab ${tvrFmt(D * r.watchedPct / 100)}`, act: 'tvrPlay', data: { id: r.id, from: 'resume' }, cls: 'primary', def: true })); btns.push(tvBtn({ f: 'rd-start', ic: 'rew', label: 'Von vorne', act: 'tvrPlay', data: { id: r.id, from: 'start' } })); }
+    if (mine && r.watchedPct >= 1 && r.watchedPct < 95) { btns.push(tvBtn({ f: 'rd-res', ic: 'play', label: `Weiter ab ${tvrFmt(D * r.watchedPct / 100)}`, act: 'tvrPlay', data: { id: r.id, from: 'resume' }, cls: 'primary', def: true })); btns.push(tvBtn({ f: 'rd-start', ic: 'rew', label: 'Von vorne', act: 'tvrPlay', data: { id: r.id, from: 'start' } })); }
     else btns.push(tvBtn({ f: 'rd-play', ic: 'play', label: 'Abspielen', act: 'tvrPlay', data: { id: r.id, from: 'start' }, cls: 'primary', def: true }));
     btns.push(tvBtn({ f: 'rd-keep', ic: 'clock', label: 'Aufbewahrung', act: 'tvrKeep', data: { id: r.id } }));
   }
@@ -87,7 +87,7 @@ route('/live/recordings/:id', (pm) => {
       <h2 class="tvp-pi-t">${esc(r.title)}${r.sub ? `<span> «${esc(r.sub)}»</span>` : ''}</h2>
       ${ok ? `<p class="tvp-pi-m">${fmt.range(r.start, run ? r.end : r.end)} · ${fmt.dur(D)}${r.padBefore || r.padAfter ? `, davon Vorlauf ${r.padBefore} Min. und Nachlauf ${r.padAfter} Min.` : ''} · ${fmt.gb(run ? (r.liveGB || r.sizeGB) : r.sizeGB)}</p><p class="tvp-keep">${esc(tvKeepText(r))}</p>` : ''}
       ${state}${gaps.length ? `<div class="tvr-tl" aria-hidden="true">${gaps.map(([a, b]) => `<i class="lv-gap" style="left:${pct(a - r.start)}%;width:${pct(b - a)}%"></i>`).join('')}</div>` : ''}${fall}
-      ${ok ? `<p class="tvp-fact">${icon('audio', 28)}${esc(r.tracks || '')}</p>` : ''}<p class="tvp-fact">${icon('calendar', 28)}${origin}${rule && r.origin === 'series' ? ` <a class="tvp-inl" href="#/live/scheduled" data-f="rd-ser" data-act="tvGoSerien">Serien ansehen</a>` : ''}</p></div>
+      ${ok && !mine ? `<p class="tvp-fact">${icon('info', 28)}Fortschritt wird nicht gespeichert, wenn du die Aufnahme von ${esc(owner ? owner.name : '')} abspielst.</p>` : ''}${ok ? `<p class="tvp-fact">${icon('audio', 28)}${esc(r.tracks || '')}</p>` : ''}<p class="tvp-fact">${icon('calendar', 28)}${origin}${rule && r.origin === 'series' ? ` <a class="tvp-inl" href="#/live/scheduled" data-f="rd-ser" data-act="tvGoSerien">Serien ansehen</a>` : ''}</p></div>
       <div class="tvp-col tvp-acts">${btns.join('')}</div></div>` }) };
 });
 ACT.tvGoSerien = () => { TVS.ctab = 'series'; go('#/live/scheduled'); };
@@ -103,7 +103,7 @@ function tvProfilesPage() {
   if (st) body = st;
   else if (!kids.length) body = tvNote('info', 'Keine Profile mit Altersgrenze', 'Hier erscheinen Profile mit Altersgrenze und Aufnahmerecht.');
   else {
-    body = `<p class="tvp-lead">Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat.</p>` + (list.every((p) => !SIM.recordings(p.id).length) ? tvNote('info', `Die Profile ${kids.map((p) => esc(p.name)).join(' und ')} haben keine Aufnahmen.`, '') : '') +
+    body = `<p class="tvp-lead">Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat. Beim Abspielen wird kein Fortschritt gespeichert.</p>` + (list.every((p) => !SIM.recordings(p.id).length) ? tvNote('info', `Die Profile ${kids.map((p) => esc(p.name)).join(' und ')} haben keine Aufnahmen.`, '') : '') +
       list.map((p) => {
         const recs = SIM.recordings(p.id); const open = !!TVS.open['kid-' + p.id]; const gb = recs.reduce((s, r) => s + (r.sizeGB || 0), 0); const plan = SIM.upcoming(p.id).length;
         return `<section class="tvp-kid"><button type="button" class="tvp-fold" data-act="tvKid" data-p="${p.id}" data-f="kp-${p.id}" aria-expanded="${open}"${p === list[0] ? ' data-default' : ''}>${icon(open ? 'down' : 'right', 32)}<span class="avatar kp-av" style="background:var(--${AVC[p.id]})">${esc(p.name[0])}</span><b>${esc(p.name)}</b><span>${recs.length} Aufnahmen · ${fmt.gb(gb)}${plan ? ` · ${plan} geplant` : ''}</span></button>
@@ -136,9 +136,9 @@ ACT.tvWarn = (d) => LiveDlg.warning(d.id);
 
 route('/live/scheduled', () => {
   const tab = TVS.ctab; const st = tvStates({ n: 5, cls: 'ltv-skel' }); const empty = SIM.mode() === 'empty';
-  const warn = SIM.warnings().length; const tabs = [['upcoming', 'Termine'], ['series', 'Serien'], ['recurring', 'Wiederkehrend']];
+  const warn = SIM.warningCount(); const tabs = [['upcoming', 'Termine'], ['series', 'Serien'], ['recurring', 'Wiederkehrend']];
   const head = `<div class="ltv-tools">${tabs.map(([k, l]) => `<button type="button" class="tb sm ${k === tab ? 'primary' : 'ghost'}" data-act="tvTab" data-k="${k}" data-f="sc-${k}" aria-pressed="${k === tab}"><span>${l}</span></button>`).join('')}${tvBtn({ f: 'sc-new', ic: 'plus', label: 'Neue Aufnahme', act: 'tvNewRec', cls: 'ghost sm', sz: 28 })}</div>
-    ${warn && !empty ? `<a class="tnote warn tvp-alert" href="#/live/scheduled/warnings" data-f="sc-warn">${icon('alert', 36)}<div><b>${warn === 1 ? 'Ein Termin hat eine Warnung' : `${warn} Termine mit Warnungen`}</b><p>Ansehen</p></div></a>` : ''}`;
+    ${warn && !empty ? `<a class="tnote warn tvp-alert" href="#/live/scheduled/warnings" data-f="sc-warn">${icon('alert', 36)}<div><b>${esc(LU.warnText(warn))}</b><p>Ansehen</p></div></a>` : ''}`;
   let body;
   if (st) body = st;
   else if (tab === 'upcoming') {
@@ -149,7 +149,7 @@ route('/live/scheduled', () => {
   } else if (tab === 'series') {
     const rs = empty ? [] : SIM.rules().filter((r) => r.kind === 'series');
     body = rs.length ? `<div class="tvp-res">${rs.map((r, i) => { const n = SIM.upcoming().filter((u) => u.rule.id === r.id).length; const k = SIM.recordings().filter((x) => x.rule === r.id).length;
-      return `<div class="tvp-prw"><button type="button" class="tvp-pr" data-act="tvRule" data-id="${r.id}" data-f="sr-${r.id}"${i === 0 ? ' data-default' : ''}><span class="tvp-px wide"><b>${esc(r.title)}</b><small>${r.channels === 'all' ? 'alle Sender' : r.channels.map((id) => esc(SIM.channel(id).name)).join(', ')}${r.onlyNew ? ' · nur Erstausstrahlungen' : ''}${r.noDup ? ' · Folgen nicht doppelt' : ''}${r.keepLast ? ` · behalte ${r.keepLast}` : ''} · ${n} Termin${n === 1 ? '' : 'e'} geplant · ${k} Aufnahmen</small></span></button></div>`; }).join('')}</div>` : tvNote('info', 'Keine Serienaufnahmen.', 'Öffne eine Sendung und wähle «Serie aufnehmen».');
+      return `<div class="tvp-prw"><button type="button" class="tvp-pr" data-act="tvRule" data-id="${r.id}" data-f="sr-${r.id}"${i === 0 ? ' data-default' : ''}><span class="tvp-px wide"><b>${esc(r.title)}</b><small>${r.channels === 'all' ? 'alle Sender' : r.channels.map((id) => esc(SIM.channel(id).name)).join(', ')}${r.onlyNew ? ' · nur Erstausstrahlungen' : ''}${r.keepLast ? ` · behalte ${r.keepLast}` : ''} · ${n} Termin${n === 1 ? '' : 'e'} geplant · ${k} Aufnahmen</small></span></button></div>`; }).join('')}</div>` : tvNote('info', 'Keine Serienaufnahmen.', 'Öffne eine Sendung und wähle «Serie aufnehmen».');
   } else {
     const rs = empty ? [] : SIM.rules().filter((r) => r.kind === 'recurring' || r.kind === 'manual');
     body = rs.length ? `<div class="tvp-res">${rs.map((r, i) => { const c = SIM.channel(r.ch); const nx = SIM.upcoming().find((u) => u.rule.id === r.id); const w = SIM.warningsFor(r.id)[0];
@@ -206,7 +206,7 @@ const tvdSw = (f, label, on, key, help) => `<button type="button" class="tsw" ro
 const tvdBtns = (...b) => `<div class="acts">${b.filter(Boolean).join('')}</div>`;
 function tvdKey(name) {
   if (!TVD) return false; const el = F.el;
-  if (el && el.classList.contains('tvp-cyc') && (name === 'left' || name === 'right')) { tvdStep(el.dataset.k, name === 'left' ? -1 : 1); return true; }
+  if (el && el.classList.contains('tvp-cyc') && el.dataset.k && TVD.o[el.dataset.k] && (name === 'left' || name === 'right')) { tvdStep(el.dataset.k, name === 'left' ? -1 : 1); return true; }
   return false;
 }
 function tvdStep(k, dir) { const o = TVD.o[k]; o.i = (o.i + dir + o.list.length) % o.list.length; if (TVD.on) TVD.on(k); redrawMenu(TVD.html()); }
@@ -249,53 +249,73 @@ ACT.tvdPlanSave = (d) => {
 ACT.tvdPlanDel = (d) => { closeMenu(); LiveDlg.confirmDelete({ kind: 'occurrence', ids: [d.id] }); };
 ACT.tvdToSeries = (d) => { closeMenu(); LiveDlg.seriesRecording(d.pid); };
 
-/* ---- LD-02 Serienaufnahme ---- */
+/* ---- LD-02 Serienaufnahme (14 Fassung 2, 5.2: gleicher Titel; Zeitfenster, Wochentage, Erstausstrahlungen als Vorschlag F-23) ---- */
+const TV_F23 = 'Vorschlag, hängt an Frage F-23';
 registerLiveDialog('LD-02', (props) => {
   const p = SIM.program(props.programId) || LIVE.programs.find((x) => x.series === (SIM.rule(props.ruleId) || {}).series); const rule = props.ruleId ? SIM.rule(props.ruleId) : null;
   if (!p) return { dialog: true, html: `<h2>Serienaufnahme</h2><p>Zu dieser Sendung gibt es keine Serie.</p>${tvdBtns(tvBtn({ f: 'd-x', ic: 'close', label: 'Schliessen', act: 'close', def: true }))}` };
-  const chans = [...new Set(LIVE.programs.filter((x) => (p.series ? x.series === p.series : x.title === p.title) && x.start >= SIM.now()).map((x) => x.ch))].map((id) => SIM.channel(id).name);
+  const progs = LIVE.programs.filter((x) => x.title === p.title);
+  const chans = [...new Set(progs.filter((x) => x.start >= SIM.now()).map((x) => x.ch))].map((id) => SIM.channel(id).name);
+  const epKnown = progs.some((x) => x.season != null || x.episode != null); const marked = progs.some((x) => x.repeat || x.firstRun);
   const KL = [null, 1, 2, 3, 5, 10, 20];
-  const d = { o: { scope: { list: [['one', `Nur ${SIM.channel(p.ch).name}`], ['all', 'Alle Sender, auf denen die Serie läuft']], i: rule && rule.channels === 'all' ? 1 : 0 }, win: { list: [['any', 'jederzeit'], ['eve', 'nur zwischen 20:00 und 22:30']], i: 0 }, kl: { list: KL.map((k) => [k, k ? `die letzten ${k} Folgen` : 'alle Folgen']), i: Math.max(0, KL.indexOf(rule ? rule.keepLast : null)) }, pb: tvdPad(TV_PB, rule ? rule.padBefore : 2), pa: tvdPad(TV_PA, rule ? rule.padAfter : 10), keep: tvdKeep(rule && rule.keep) }, t: { onlyNew: rule ? !!rule.onlyNew : false, noDup: rule ? rule.noDup !== false : true } };
+  const WDS = [['all', 'alle Tage', null], ['wk', 'Mo–Fr', [1, 2, 3, 4, 5]], ['we', 'Sa und So', [6, 0]]];
+  const wdI = rule && rule.weekdays ? Math.max(0, WDS.findIndex((w) => w[2] && w[2].join() === rule.weekdays.join())) : 0;
+  const d = { o: { scope: { list: [['one', `Nur ${SIM.channel(p.ch).name}`], ['all', 'Alle Sender, die du sehen kannst']], i: rule && rule.channels === 'all' ? 1 : 0 }, win: { list: [['any', 'jederzeit'], ['eve', 'nur zwischen 20:00 und 22:30']], i: rule && rule.window ? 1 : 0 }, wd: { list: WDS, i: wdI }, kl: { list: KL.map((k) => [k, k ? `die letzten ${k}` : 'alle Folgen']), i: Math.max(0, KL.indexOf(rule ? rule.keepLast : null)) }, pb: tvdPad(TV_PB, rule ? rule.padBefore : LIVE.settings.dvr.padBefore), pa: tvdPad(TV_PA, rule ? rule.padAfter : LIVE.settings.dvr.padAfter), keep: tvdKeep(rule && rule.keep) }, t: { onlyNew: rule ? !!rule.onlyNew : false } };
   d.html = () => {
-    const all = tvdVal('scope')[0] === 'all'; const t = SIM.now();
-    const cand = LIVE.programs.filter((x) => (p.series ? x.series === p.series : x.title === p.title) && x.start >= t && (all || x.ch === p.ch) && (!d.t.onlyNew || !x.repeat)).sort((a, b) => a.start - b.start);
+    const all = tvdVal('scope')[0] === 'all'; const t = SIM.now(); const win = tvdVal('win')[0] === 'eve'; const wds = tvdVal('wd')[2];
+    const cand = progs.filter((x) => x.start >= t && (all || x.ch === p.ch) && (!d.t.onlyNew || !x.repeat) && (!win || (x.start % 1440 >= 1200 && x.start % 1440 <= 1350)) && (!wds || wds.includes((6 + Math.floor(x.start / 1440)) % 7))).sort((a, b) => a.start - b.start);
     const seen = new Set(); const prev = []; const skip = [];
-    cand.forEach((x) => { const key = x.sub || x.id; if (d.t.noDup && seen.has(key)) { skip.push(x); return; } seen.add(key); prev.push(x); });
-    return `<h2>${rule ? 'Serienaufnahme ändern' : 'Serie aufnehmen'}</h2><p class="tvp-dsub"><b>${esc(p.seriesName || p.title)}</b><br>Erkannt ${p.series ? 'nach Serienkennung des Programms' : 'nach Titel. Ähnliche Titel können mitkommen'} · läuft auf ${esc(chans.join(', ') || SIM.channel(p.ch).name)}</p>
-      <div class="tvp-fields">${tvdCyc('d-sc', 'Sender', tvdLab('scope'), 'scope')}${tvdCyc('d-win', 'Zeitfenster', tvdLab('win'), 'win')}${tvdSw('d-new', 'Nur Erstausstrahlungen', d.t.onlyNew, 'onlyNew')}${tvdSw('d-dup', 'Folgen nicht doppelt aufnehmen', d.t.noDup, 'noDup')}${tvdCyc('d-kl', 'Behalten', tvdLab('kl'), 'kl', tvdVal('kl')[0] ? 'Ist eine neue Folge fertig, löscht Slouchcat die älteste. Angesehene zuerst.' : '')}${tvdCyc('d-pb', 'Vorlauf', tvdLab('pb'), 'pb')}${tvdCyc('d-pa', 'Nachlauf', tvdLab('pa'), 'pa')}${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}</div>
+    cand.forEach((x) => { const key = epKnown && (x.season != null || x.episode != null) ? `${x.season}-${x.episode}` : null; if (key && seen.has(key)) { skip.push(x); return; } if (key) seen.add(key); prev.push(x); });
+    return `<h2>${rule ? 'Serienaufnahme ändern' : 'Serie aufnehmen'}</h2><p class="tvp-dsub"><b>${esc(p.seriesName || p.title)}</b><br>Slouchcat nimmt jede Sendung mit gleichem Titel auf · läuft auf ${esc(chans.join(', ') || SIM.channel(p.ch).name)}</p>
+      <p class="tvp-hint">${epKnown ? 'Folgen werden erkannt (Staffel und Folge). Schon aufgenommene Folgen werden übersprungen.' : 'Folgen nicht identifizierbar: Wiederholungen werden mit aufgenommen.'}</p>
+      <div class="tvp-fields">${tvdCyc('d-sc', 'Sender', tvdLab('scope'), 'scope')}${tvdCyc('d-kl', 'Behalten', tvdLab('kl'), 'kl', tvdVal('kl')[0] ? 'Ist eine neue Folge fertig, löscht Slouchcat die älteste (nach Sendebeginn). Fehlgeschlagene zählen nicht.' : '')}${tvdCyc('d-pb', 'Vorlauf', tvdLab('pb'), 'pb')}${tvdCyc('d-pa', 'Nachlauf', tvdLab('pa'), 'pa')}${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}
+      ${marked ? tvdSw('d-new', 'Nur Erstausstrahlungen', d.t.onlyNew, 'onlyNew', TV_F23) : `<button type="button" class="tsw" role="switch" aria-checked="false" aria-disabled="true" data-act="toast" data-msg="Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht." data-f="d-new"><span class="tsw-tx">Nur Erstausstrahlungen<small class="tvp-hint">${TV_F23}. Das Programm kennzeichnet Wiederholungen bei diesem Sender nicht.</small></span><span class="sw"></span></button>`}
+      ${tvdCyc('d-win', 'Zeitfenster', tvdLab('win'), 'win', TV_F23)}${tvdCyc('d-wd', 'Wochentage', tvdLab('wd'), 'wd', TV_F23)}</div>
       <p class="tvp-sum">Demnächst: ${prev.slice(0, 3).map((x) => `${fmt.day(x.start)} ${fmt.time(x.start)} ${esc(SIM.channel(x.ch).name)}`).join(' · ') || 'kein Termin'}${skip.length ? ` · (${skip.slice(0, 2).map((x) => `${fmt.time(x.start)} ${esc(SIM.channel(x.ch).name)}`).join(', ')}: gleiche Folge, wird übersprungen)` : ''}</p>
       ${tvdBtns(tvBtn({ f: 'd-no', ic: 'close', label: 'Abbrechen', act: 'close', cls: 'ghost' }), tvBtn({ f: 'd-ok', ic: 'recordSeries', label: rule ? 'Speichern' : 'Serie aufnehmen', act: 'tvdSerSave', data: { pid: p.id, rid: rule ? rule.id : '' }, cls: 'primary' }), rule ? tvBtn({ f: 'd-end', ic: 'close', label: 'Serienaufnahme beenden', act: 'tvdSerEnd', data: { id: rule.id }, cls: 'ghost' }) : '')}`;
   };
   return tvdBase('LD-02', d);
 });
 ACT.tvdSerSave = (d) => {
-  const o = { channels: tvdVal('scope')[0] === 'all' ? 'all' : [SIM.program(d.pid).ch], onlyNew: TVD.t.onlyNew, noDup: TVD.t.noDup, keepLast: tvdVal('kl')[0], padBefore: tvdVal('pb')[0], padAfter: tvdVal('pa')[0], keep: tvdKeepVal() };
+  const o = { channels: tvdVal('scope')[0] === 'all' ? 'all' : [SIM.program(d.pid).ch], onlyNew: TVD.t.onlyNew, keepLast: tvdVal('kl')[0], padBefore: tvdVal('pb')[0], padAfter: tvdVal('pa')[0], keep: tvdKeepVal(), window: tvdVal('win')[0] === 'eve' ? { from: '20:00', to: '22:30' } : null, weekdays: tvdVal('wd')[2] };
   if (d.rid) SIM.updateRule(d.rid, o); else SIM.planSeries(d.pid, o); closeMenu(); toast(d.rid ? 'Serienaufnahme geändert' : 'Serie wird aufgenommen');
 };
 ACT.tvdSerEnd = (d) => { closeMenu(); LiveDlg.confirmDelete({ kind: 'series', ids: [d.id] }); };
 
-/* ---- LD-03 Manuelle oder wiederkehrende Aufnahme ---- */
+/* ---- LD-03 Manuelle oder wiederkehrende Aufnahme (14 Fassung 2, 5.3: wiederkehrend mit Beginn und Dauer, Vorlauf 0, Ende nur durch das Profil) ---- */
 const tvT = (m) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((m % 60) + 60) % 60).padStart(2, '0')}`;
+const TV_WD = [[1, 'Montag'], [2, 'Dienstag'], [3, 'Mittwoch'], [4, 'Donnerstag'], [5, 'Freitag'], [6, 'Samstag'], [0, 'Sonntag']];
+const TV_DUR = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 240];
 registerLiveDialog('LD-03', (props) => {
   const rule = props.ruleId ? SIM.rule(props.ruleId) : null; const today = Math.floor(SIM.now() / 1440);
   const gone = rule && (!SIM.channel(rule.ch) || SIM.chState(rule.ch) === 'gone');
-  const t0 = rule ? (rule.kind === 'manual' ? rule.start : today * 1440 + LIVE.hm(rule.from)) : Math.ceil((SIM.now() + 30) / 15) * 15; const e0 = rule ? (rule.kind === 'manual' ? rule.end : today * 1440 + LIVE.hm(rule.to)) : t0 + 60;
+  const t0 = rule ? (rule.kind === 'manual' ? rule.start : today * 1440 + LIVE.hm(rule.from)) : props.start != null ? Math.floor(props.start / 15) * 15 : Math.ceil((SIM.now() + 30) / 15) * 15;
+  const e0 = rule ? (rule.kind === 'manual' ? rule.end : today * 1440 + LIVE.hm(rule.to)) : props.end != null ? Math.ceil(props.end / 15) * 15 : t0 + 60;
+  const dur0 = ((e0 - t0) % 1440 + 1440) % 1440 || 60;
   const days = []; for (let k = 0; k < 7; k++) days.push([today + k, k === 0 ? 'Heute' : k === 1 ? 'Morgen' : fmt.dayRel((today + k) * 1440)]);
   const times = []; for (let m = 0; m < 1440; m += 15) times.push([m, tvT(m)]);
-  const REP = [['once', 'einmal'], ['daily', 'täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'wöchentlich']];
-  const d = { ch: gone ? '' : (rule ? rule.ch : props.ch || ''), name: rule && !gone ? rule.title : null, o: { day: { list: days, i: Math.max(0, days.findIndex((x) => x[0] === Math.floor(t0 / 1440))) }, from: { list: times, i: (t0 % 1440) / 15 }, to: { list: times, i: (e0 % 1440) / 15 }, rep: { list: REP, i: rule && rule.kind === 'recurring' ? Math.max(0, REP.findIndex((x) => x[0] === (rule.repeat || 'weekdays'))) : 0 }, kl: { list: [null, 1, 3, 5, 10, 20].map((k) => [k, k ? `die letzten ${k}` : 'alle']), i: rule && rule.keepLast ? [null, 1, 3, 5, 10, 20].indexOf(rule.keepLast) : 0 }, keep: tvdKeep(rule && rule.keep) }, t: {} };
-  d.auto = () => `${d.ch ? SIM.channel(d.ch).name : 'Sender'}, ${tvdVal('rep')[0] === 'once' ? tvdLab('day') : tvdLab('rep')}, ${tvdLab('from')}`;
+  const REP = [['once', 'einmal'], ['daily', 'täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'an einem Wochentag']];
+  const repI = rule && rule.kind === 'recurring' ? (rule.weekdays && rule.weekdays.length === 7 ? 1 : rule.weekdays && rule.weekdays.join() === '1,2,3,4,5' ? 2 : 3) : 0;
+  const wd0 = rule && rule.weekdays && rule.weekdays.length ? rule.weekdays[0] : (6 + today) % 7;
+  const durI = TV_DUR.reduce((b, v, i) => (Math.abs(v - dur0) < Math.abs(TV_DUR[b] - dur0) ? i : b), 0);
+  const d = { ch: gone ? '' : (rule ? rule.ch : props.ch || ''), name: rule && !gone ? rule.title : null, fixed: rule && rule.kind === 'manual',
+    o: { day: { list: days, i: Math.max(0, days.findIndex((x) => x[0] === Math.floor(t0 / 1440))) }, from: { list: times, i: (((t0 % 1440) + 1440) % 1440) / 15 }, to: { list: times, i: (((e0 % 1440) + 1440) % 1440) / 15 }, dur: { list: TV_DUR.map((v) => [v, fmt.dur(v)]), i: durI }, rep: { list: REP, i: repI }, wd: { list: TV_WD, i: Math.max(0, TV_WD.findIndex((w) => w[0] === wd0)) },
+      pb: tvdPad(TV_PB, rule ? rule.padBefore || 0 : 0), pa: tvdPad(TV_PA, rule ? rule.padAfter || 0 : 0), kl: { list: [null, 1, 3, 5, 10, 20].map((k) => [k, k ? `die letzten ${k}` : 'alle']), i: rule && rule.keepLast ? Math.max(0, [null, 1, 3, 5, 10, 20].indexOf(rule.keepLast)) : 0 }, keep: tvdKeep(rule && rule.keep) }, t: {} };
+  d.auto = () => { const n = d.ch ? SIM.channel(d.ch).name : 'Sender'; const rep = tvdVal('rep')[0]; return rep === 'once' ? `${n}, ${fmt.day(tvdVal('day')[0] * 1440)}, ${tvdLab('from')}` : `${n}, ${rep === 'weekly' ? tvdLab('wd') : tvdLab('rep')} ${tvdLab('from')}`; };
   d.html = () => {
-    const f = tvdVal('from')[0]; const t = tvdVal('to')[0]; const next = t <= f; const rep = tvdVal('rep')[0]; const ch = d.ch && SIM.channel(d.ch);
-    const mins = (next ? t + 1440 : t) - f;
+    const rep = d.fixed ? 'once' : tvdVal('rep')[0]; const once = rep === 'once'; const f = tvdVal('from')[0]; const t = tvdVal('to')[0]; const next = once && t <= f; const ch = d.ch && SIM.channel(d.ch);
+    const mins = once ? (next ? t + 1440 : t) - f : tvdVal('dur')[0];
     return `<h2>${rule ? 'Aufnahme ändern' : 'Neue Aufnahme'}</h2>
       ${gone ? tvNote('alert', `${esc(rule.title.split(',')[0])} ist nicht mehr im Angebot.`, 'Wähle einen anderen Sender.', 'bad') : ''}
       <div class="tvp-fields"><button type="button" class="tvp-cyc" data-act="tvdPickCh" data-f="d-ch" aria-label="Sender: ${esc(ch ? ch.name : 'wählen')}"><span class="tvp-cl">Sender</span><span class="tvp-cv"><b>${ch ? `${ch.no} ${esc(ch.name)}` : 'Sender wählen …'}</b>${icon('right', 26)}</span></button>
-      ${tvdCyc('d-day', 'Datum', tvdLab('day'), 'day')}${tvdCyc('d-from', 'Von', tvdLab('from'), 'from')}${tvdCyc('d-to', 'Bis', tvdLab('to'), 'to', next ? 'endet am Folgetag' : '')}${tvdCyc('d-rep', 'Wiederholen', tvdLab('rep'), 'rep')}
+      ${d.fixed ? '' : tvdCyc('d-rep', 'Wiederholen', tvdLab('rep'), 'rep')}${once ? tvdCyc('d-day', 'Datum', tvdLab('day'), 'day') : rep === 'weekly' ? tvdCyc('d-wd', 'Wochentag', tvdLab('wd'), 'wd') : ''}
+      ${tvdCyc('d-from', 'Beginn', tvdLab('from'), 'from')}${once ? tvdCyc('d-to', 'Ende', tvdLab('to'), 'to', next ? 'endet am Folgetag' : '') : tvdCyc('d-dur', 'Dauer', tvdLab('dur'), 'dur', 'Die Dauer bleibt auch bei der Zeitumstellung gleich.')}
+      ${tvdCyc('d-pb', 'Vorlauf', tvdLab('pb'), 'pb')}${tvdCyc('d-pa', 'Nachlauf', tvdLab('pa'), 'pa')}
       <button type="button" class="tvp-cyc" data-act="tvdName" data-f="d-name" aria-label="Name: ${esc(d.name || d.auto())}"><span class="tvp-cl">Name</span><span class="tvp-cv"><b>${esc(d.name || d.auto())}</b>${icon('edit', 26)}</span></button>
-      ${rep !== 'once' ? tvdCyc('d-kl', 'Behalten', tvdLab('kl'), 'kl') : ''}${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}</div>
-      <p class="tvp-sum">Aufnahme von ${tvT(f)} bis ${tvT(t)}${next ? ' (Folgetag)' : ''} · etwa ${fmt.gb(Math.round(mins * 0.06 * 10) / 10)}</p>
-      ${tvdBtns(tvBtn({ f: 'd-no', ic: 'close', label: 'Abbrechen', act: 'close', cls: 'ghost' }), tvBtn({ f: 'd-ok', ic: 'record', label: rule ? 'Speichern' : 'Aufnahme planen', act: 'tvdManSave', data: { rid: rule ? rule.id : '' }, cls: 'primary' }), rule ? tvBtn({ f: 'd-del', ic: 'trash', label: 'Aufnahme abbrechen', act: 'tvdManDel', data: { id: rule.id }, cls: 'ghost' }) : '')}`;
+      ${once ? '' : tvdCyc('d-kl', 'Behalten', tvdLab('kl'), 'kl')}${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}</div>
+      <p class="tvp-sum">${once ? `Aufnahme von ${tvT(f)} bis ${tvT(t)}${next ? ' (Folgetag)' : ''}` : `${esc(rep === 'weekly' ? 'Jeden ' + tvdLab('wd') : tvdLab('rep'))} ab ${tvT(f)}, ${fmt.dur(mins)}`} · etwa ${fmt.gb(Math.round(mins * 0.06 * 10) / 10)}${once ? '' : ' je Termin'}</p>
+      ${once ? '' : `<p class="tvp-hint">Die Aufnahme wiederholt sich, bis du sie beendest. Termine entstehen 14 Tage im Voraus. «Ende der Wiederholung» (am Datum, nach N Aufnahmen): ${TV_F23}.</p>`}
+      ${tvdBtns(tvBtn({ f: 'd-no', ic: 'close', label: 'Abbrechen', act: 'close', cls: 'ghost' }), tvBtn({ f: 'd-ok', ic: 'record', label: rule ? 'Speichern' : 'Aufnahme planen', act: 'tvdManSave', data: { rid: rule ? rule.id : '' }, cls: 'primary' }), rule ? tvBtn({ f: 'd-del', ic: 'trash', label: 'Aufnahme beenden', act: 'tvdManDel', data: { id: rule.id }, cls: 'ghost' }) : '')}`;
   };
   return tvdBase('LD-03', d);
 });
@@ -307,38 +327,47 @@ ACT.tvdSetCh = (d) => { TVD.ch = d.ch; closeMenu(); };
 ACT.tvdName = () => { const d = TVD; keyboard({ value: d.name || d.auto(), label: 'Name der Aufnahme', onDone: (v) => { d.name = v.trim() || null; if (TVD === d) redrawMenu(d.html()); } }); };
 ACT.tvdManSave = (a) => {
   const d = TVD; if (!d.ch) { toast('Wähle zuerst einen Sender'); return; }
-  const f = tvdVal('from')[0]; const t = tvdVal('to')[0]; const day = tvdVal('day')[0]; const rep = tvdVal('rep')[0]; const title = d.name || d.auto();
+  const f = tvdVal('from')[0]; const t = tvdVal('to')[0]; const day = tvdVal('day')[0]; const rep = d.fixed ? 'once' : tvdVal('rep')[0]; const title = d.name || d.auto();
+  const pads = { padBefore: tvdVal('pb')[0], padAfter: tvdVal('pa')[0] };
   if (a.rid) SIM.removeRule(a.rid);
-  if (rep === 'once') SIM.planManual({ ch: d.ch, title, start: day * 1440 + f, end: day * 1440 + (t <= f ? t + 1440 : t), keep: tvdKeepVal() });
-  else { const wdOf = (dd) => (6 + dd) % 7; const wds = rep === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : rep === 'weekdays' ? [1, 2, 3, 4, 5] : [wdOf(day)]; const id = SIM.planManual({ ch: d.ch, title, from: tvT(f), to: tvT(t), weekdays: wds, repeat: rep, keepLast: tvdVal('kl')[0], keep: tvdKeepVal() }); void id; }
+  if (rep === 'once') SIM.planManual({ ch: d.ch, title, start: day * 1440 + f, end: day * 1440 + (t <= f ? t + 1440 : t), keep: tvdKeepVal(), ...pads });
+  else { const wds = rep === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : rep === 'weekdays' ? [1, 2, 3, 4, 5] : [tvdVal('wd')[0]]; SIM.planManual({ ch: d.ch, title, from: tvT(f), to: tvT(f + tvdVal('dur')[0]), weekdays: wds, repeat: rep, keepLast: tvdVal('kl')[0], keep: tvdKeepVal(), ...pads }); }
   closeMenu(); toast(a.rid ? 'Aufnahme geändert' : 'Aufnahme geplant');
 };
 ACT.tvdManDel = (d) => { closeMenu(); LiveDlg.confirmDelete({ kind: 'rule', ids: [d.id] }); };
 
-/* ---- LD-04 Sofortaufnahme im Player ---- */
+/* ---- LD-04 Sofortaufnahme im Player (14 Fassung 2, 5.4: bis Sendungsende oder bis ich stoppe; bei Zeitversatz ab jetzt live) ---- */
 registerLiveDialog('LD-04', (props) => {
   const c = SIM.channel(props.ch); const nn = SIM.nowNext(c.id).now; const q = SIM.quota(); const pl = SIM.player();
-  const d = { o: { keep: tvdKeep(null) }, t: {} };
+  const pa = LIVE.settings.dvr.padAfter; const maxH = LIVE.settings.dvr.instantMaxH || 4;
+  const opts = [nn ? ['end', `Bis Sendungsende (${fmt.time(nn.end)}, mit Nachlauf bis ${fmt.time(nn.end + pa)})`] : null, ['stop', `Bis ich stoppe (höchstens ${maxH} Stunden)`]].filter(Boolean);
+  const shifted = !!(pl && pl.ch === c.id && (pl.offset > 0.05 || pl.paused));
+  const d = { o: { keep: tvdKeep(null), until: { list: opts, i: 0 } }, t: {} };
   d.html = () => {
     if (q.freeGB <= 0) return `<h2>Jetzt aufnehmen</h2><p class="tvp-dsub"><b>${esc(c.name)}</b></p>${tvNote('alert', `Im Speicher deines Kontos ist kein Platz frei (${Math.round(q.usedGB)} von ${q.totalGB} GB).`, 'Lösche Aufnahmen, um aufzunehmen.', 'bad')}${tvdBtns(tvBtn({ f: 'd-mine', ic: 'film', label: 'Meine Aufnahmen', act: 'tvdToMine', cls: 'primary', def: true }), tvBtn({ f: 'd-x', ic: 'close', label: 'Schliessen', act: 'close', cls: 'ghost' }))}`;
-    const opts = [nn ? ['end', `Bis Sendungsende (${fmt.time(nn.end)}, mit Nachlauf bis ${fmt.time(nn.end + 10)})`] : null, [30, '30 Minuten'], [60, '1 Stunde'], ['stop', 'Bis ich stoppe (höchstens 4 Stunden)']].filter(Boolean);
-    return `<h2>Jetzt aufnehmen</h2><p class="tvp-dsub"><b>${esc(c.name)}</b>${nn ? ` · ${esc(nn.title)} (bis ${fmt.time(nn.end)})` : ''}</p>
+    const head = `<h2>Jetzt aufnehmen</h2><p class="tvp-dsub"><b>${esc(c.name)}</b>${nn ? ` · ${esc(nn.title)} (bis ${fmt.time(nn.end)})` : ''}</p>`;
+    const noEpg = nn ? '' : ' Ohne Programmdaten gibt es nur «Bis ich stoppe».';
+    if (shifted) return `${head}${tvNote('info', 'Du schaust zeitversetzt. Aufgenommen wird ab dem Live-Zeitpunkt.', '')}
+      <div class="tvp-fields">${tvdCyc('d-until', 'Dauer', tvdLab('until'), 'until')}${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}</div>${noEpg ? `<p class="tvp-hint">${noEpg.trim()}</p>` : ''}
+      ${tvdBtns(tvBtn({ f: 'd-no', ic: 'close', label: 'Abbrechen', act: 'close', cls: 'ghost' }), tvBtn({ f: 'd-live', ic: 'record', label: 'Ab jetzt aufnehmen (live)', act: 'tvdInstantLive', data: { ch: c.id }, cls: 'primary', def: true }))}`;
+    return `${head}
       <div class="mlist">${opts.map(([v, t], i) => `<button type="button" class="mi" data-act="tvdInstant" data-v="${v}" data-ch="${c.id}" data-f="in-${i}"${i === 0 ? ' data-default' : ''}><span class="mi-ic">${icon('record', 36)}</span><span class="mi-tx"><b>${esc(t)}</b></span></button>`).join('')}</div>
       <div class="tvp-fields">${tvdCyc('d-keep', 'Aufbewahren', tvdLab('keep'), 'keep')}</div>
-      <p class="tvp-hint">Die Aufnahme beginnt jetzt (${fmt.time(SIM.now())}), nicht am Anfang der Sendung.${pl && pl.offset > 1 ? ' Du schaust zeitversetzt. Aufgenommen wird ab dem Live-Zeitpunkt.' : ''}${nn ? '' : ' Ohne Programmdaten gibt es kein «Bis Sendungsende».'}</p>
+      <p class="tvp-hint">Die Aufnahme beginnt jetzt (${fmt.time(SIM.now())}), nicht am Anfang der Sendung.${noEpg}</p>
       ${tvdBtns(tvBtn({ f: 'd-no', ic: 'close', label: 'Abbrechen', act: 'close', cls: 'ghost' }))}`;
   };
   return tvdBase('LD-04', d);
 });
-ACT.tvdInstant = (d) => { const v = d.v === 'end' || d.v === 'stop' ? d.v : Number(d.v); const res = SIM.startInstant(d.ch, { until: v, keep: tvdKeepVal() }); closeMenu(); if (res.ok) toast(`Aufnahme läuft bis ${fmt.time(res.end)}.`); else toast('Im Speicher deines Kontos ist kein Platz frei.'); };
+ACT.tvdInstant = (d) => { const res = SIM.startInstant(d.ch, { until: d.v, keep: tvdKeepVal() }); closeMenu(); if (res.ok) toast(`Aufnahme läuft bis ${fmt.time(res.end)}.`); else toast('Im Speicher deines Kontos ist kein Platz frei.'); };
+ACT.tvdInstantLive = (d) => ACT.tvdInstant({ ch: d.ch, v: tvdVal('until')[0] });
 ACT.tvdToMine = () => { closeAll(); go('#/live/recordings'); };
 
-/* ---- LD-05 Erinnerung ---- */
+/* ---- LD-05 Erinnerung (Vorlauf 0, 5, 15, 30 Minuten, 03 DR-08) ---- */
 registerLiveDialog('LD-05', (props) => {
   const p = SIM.program(props.programId);
   if (!p || tvStat(p) !== 'future') return { dialog: true, html: `<h2>Erinnern</h2><p>${p ? 'Diese Sendung hat schon begonnen.' : 'Diese Sendung steht nicht mehr im Programm.'} Erinnerungen gibt es nur für künftige Sendungen.</p>${tvdBtns(tvBtn({ f: 'd-x', ic: 'close', label: 'Schliessen', act: 'close', def: true }))}` };
-  const ex = SIM.reminderFor(p.id); const L = [0, 2, 5, 10, 15];
-  const d = { o: { lead: { list: L.map((v) => [v, v ? `${v} Min. vorher${v === 5 ? ' (Standard)' : ''}` : 'zum Beginn']), i: ex ? L.indexOf(ex.lead) : 2 } }, t: {} };
+  const ex = SIM.reminderFor(p.id); const L = [0, 5, 15, 30];
+  const d = { o: { lead: { list: L.map((v) => [v, v ? `${v} Min. vorher${v === 5 ? ' (Standard)' : ''}` : 'zum Beginn']), i: ex ? Math.max(0, L.indexOf(ex.lead)) : 1 } }, t: {} };
   d.html = () => `<h2>${ex ? 'Erinnerung ändern' : 'Erinnern'}</h2><p class="tvp-dsub"><b>${esc(p.title)}</b>${tvSub(p)}<br>${esc(tvWhen(p))} · ${esc(SIM.channel(p.ch).name)}</p>
     <div class="tvp-fields">${tvdCyc('d-lead', 'Erinnern', tvdLab('lead'), 'lead', `um ${fmt.time(p.start - tvdVal('lead')[0])}`)}</div>
     <p class="tvp-hint">Du bekommst die Erinnerung in Slouchcat und als Mitteilung auf deinen Geräten.</p>
@@ -436,14 +465,17 @@ ACT.tvdKeepSave = (d) => { const r = SIM.recording(d.id); r.keepAlways = TVD.t.a
 route('/settings/profiles', () => {
   const me_ = SIM.profile(); const sel = SIM.profiles().find((p) => p.id === (TVS.pf || me_.id)) || me_; TVS.pf = sel.id; const open = !!TVS.open.pfLive;
   const raw = SIM.rawRights('profile', sel.id); const acc = SIM.rawRights('account'); const prim = me_.primary;
+  const rr = SIM.rights(); const kidsRec = prim && rr.liveTv && SIM.childProfiles().some((p) => SIM.recordings(p.id).length);
   const sum = `Live-TV: ${raw.liveTv ? 'an' : 'aus'} · Aufnahmen: ${raw.recordings ? 'an' : 'aus'} · Timeshift: ${raw.timeshift ? 'an' : 'aus'}`;
   const row = (k, label, help, needs) => { const capped = !acc[k]; const dep = needs && !raw[needs]; const dis = capped || dep || !prim; const on = raw[k] && acc[k];
     return `<button type="button" class="tsw" role="switch" aria-checked="${on}"${dis ? ' aria-disabled="true"' : ''} data-act="tvPfSw" data-k="${k}" data-f="pf-${k}"><span class="tsw-tx">${label}<small class="tvp-hint">${capped ? esc(LU.TX.capped) : dep ? 'Zuerst Live-TV einschalten.' : !prim ? 'Nur das Hauptprofil ändert Profile.' : help}</small></span><span class="sw"></span></button>`; };
   return { nav: '', html: `<div class="page"><div class="ltv-h"><h1>Profile verwalten</h1></div>
     <div class="ltv-tools tvp-pfs">${SIM.profiles().map((p) => `<button type="button" class="tb ${p.id === sel.id ? 'primary' : 'ghost'}" data-act="tvPfSel" data-id="${p.id}" data-f="pf-p-${p.id}" aria-pressed="${p.id === sel.id}"><span class="avatar" style="background:var(--${AVC[p.id]});width:44px;height:44px;font-size:20px">${esc(p.name[0])}</span><span>${esc(p.name)}${p.age ? ` · ab ${p.age}` : ''}</span></button>`).join('')}</div>
-    <button type="button" class="tvp-fold" data-act="tvPfOpen" data-f="pf-live" aria-expanded="${open}" data-default>${icon(open ? 'down' : 'right', 32)}<b>Live-TV</b><span>${sum}</span></button>
+    ${prim ? `<button type="button" class="tvp-fold" data-act="tvPfOpen" data-f="pf-live" aria-expanded="${open}" data-default>${icon(open ? 'down' : 'right', 32)}<b>Live-TV</b><span>${sum}</span></button>
     ${open ? `<div class="tvp-fields">${row('liveTv', 'Live-TV', 'Fernsehen schauen und das Programm sehen.')}${row('recordings', 'Aufnahmen', 'Sendungen aufnehmen. Aufnahmen belegen Speicher des Kontos.', 'liveTv')}${row('timeshift', 'Timeshift', 'Live-TV anhalten und zurückspulen, bis zum eigenen Einschalten.', 'liveTv')}${sel.age ? tvNote('info', esc(LU.TX.noAgeCheck), '') : ''}</div>` : ''}
-    <p class="ltv-sample">${esc(LU.TX.sample)}</p></div>` };
+    ${kidsRec ? `<a class="tvp-link" href="#/live/recordings/profiles" data-f="pf-kids"><span class="mi-ic">${icon('users', 36)}</span><span><b>Aufnahmen meiner Profile</b><small>${SIM.childProfiles().filter((p) => SIM.recordings(p.id).length).map((p) => esc(p.name)).join(', ')}</small></span></a>` : ''}`
+    : tvNote('info', 'Nur das Hauptprofil ändert Profile.', '')}
+    <p class="ltv-sample">${esc(LU.TX.sample)}</p></div>`, key: tvKeyGuard };
 });
 ACT.tvPfSel = (d) => { TVS.pf = d.id; render(); };
 ACT.tvPfOpen = () => { TVS.open.pfLive = !TVS.open.pfLive; render(); };
@@ -460,13 +492,13 @@ route('/notifications', () => {
   const r = SIM.rights(); const items = [];
   if (r.liveTv) SIM.reminders().forEach((m) => { const p = SIM.program(m.program); items.push({ ic: 'reminder', t: `${p.title} beginnt ${m.lead ? `in ${m.lead} Min.` : 'jetzt'} auf ${SIM.channel(p.ch).name}`, s: fmt.when(p.start - m.lead), to: p.start <= SIM.now() ? '#/live/watch/' + p.ch : '#/live/programs/' + p.id }); });
   if (r.recordings) SIM.recordings().forEach((x) => { if (x.state === 'done' && x.id === 'rec-arena') items.push({ ic: 'record', t: `Aufnahme fertig: ${x.title}`, s: fmt.ago(x.end), to: '#/live/recordings/' + x.id }); if (x.state === 'incomplete') items.push({ ic: 'record', t: `Aufnahme unvollständig: ${x.title}`, s: fmt.ago(x.end), to: '#/live/recordings/' + x.id }); if (x.state === 'failed') items.push({ ic: 'alert', t: `Aufnahme fehlgeschlagen: ${x.title}`, s: fmt.ago(x.end), to: '#/live/recordings/' + x.id }); if (x.state === 'rejected') items.push({ ic: 'alert', t: `Aufnahme nicht möglich: ${x.title} (Speicher des Kontos voll)`, s: fmt.ago(x.end), to: '#/live/recordings/' + x.id }); });
-  return { nav: '', html: `<div class="page"><div class="ltv-h"><h1>Benachrichtigungen</h1><span class="ltv-count">Mockup-Auszug: nur Live-TV</span></div><div class="tvp-res">${items.length ? items.map((n, i) => `<div class="tvp-prw"><a class="tvp-pr" href="${n.to}" data-f="nt-${i}"${i === 0 ? ' data-default' : ''}><span class="tvp-pc">${icon(n.ic, 44)}</span><span class="tvp-px wide"><b>${esc(n.t)}</b><small>${esc(n.s)}</small></span></a></div>`).join('') : tvNote('info', 'Keine Benachrichtigungen.', '')}</div><p class="ltv-sample">${esc(LU.TX.sample)}</p></div>` };
+  return { nav: '', html: `<div class="page"><div class="ltv-h"><h1>Benachrichtigungen</h1></div><div class="tvp-res">${items.length ? items.map((n, i) => `<div class="tvp-prw"><a class="tvp-pr" href="${n.to}" data-f="nt-${i}"${i === 0 ? ' data-default' : ''}><span class="tvp-pc">${icon(n.ic, 44)}</span><span class="tvp-px wide"><b>${esc(n.t)}</b><small>${esc(n.s)}</small></span></a></div>`).join('') : tvNote('info', 'Keine Benachrichtigungen.', '')}</div><p class="ltv-sample">${esc(LU.TX.sample)}</p></div>`, key: tvKeyGuard };
 });
 route('/search', (pm, query) => {
   const q = query.q || TVS.sq2 || ''; TVS.sq2 = q; const r = SIM.rights();
   return { nav: 'search', html: `<div class="page"><div class="ltv-h"><h1>Suche</h1></div><button type="button" class="tf ltv-search" data-act="tvSearchKb" data-f="se-q" data-default>${icon('search', 36)}${q ? `<span class="tf-v">${esc(q)}</span>` : '<span class="tf-ph">Titel suchen</span>'}</button>
-    ${q ? `<p class="tvp-lead">Treffer aus den Bibliotheken zeigt das Mockup von Konzept 26. Hier ist nur der neue Verweis zu sehen.</p>` : ''}
-    ${q && r.liveTv ? `<a class="tvp-link" href="#/live/guide/search?q=${encodeURIComponent(q)}" data-f="se-live"><span class="mi-ic">${icon('live', 40)}</span><span><b>Im TV-Programm suchen: «${esc(q)}»</b><small>Nur Live-TV, keine Aufnahmen</small></span></a>` : ''}<p class="ltv-sample">${esc(LU.TX.sample)}</p></div>` };
+    ${q ? `<p class="tvp-lead">Die Treffer aus den Bibliotheken bleiben, wie sie sind.</p>` : ''}
+    ${q && r.liveTv ? `<a class="tvp-link" href="#/live/guide/search?q=${encodeURIComponent(q)}" data-f="se-live"><span class="mi-ic">${icon('live', 40)}</span><span><b>Im TV-Programm suchen: «${esc(q)}»</b><small>Sendungen der nächsten 7 Tage</small></span></a>` : ''}<p class="ltv-sample">${esc(LU.TX.sample)}</p></div>`, key: tvKeyGuard };
 });
 ACT.tvSearchKb = () => keyboard({ value: TVS.sq2 || '', label: 'Suchen', placeholder: 'zum Beispiel Tatort', onDone: (v) => { TVS.sq2 = v.trim(); go('#/search?q=' + encodeURIComponent(TVS.sq2), { replace: true }); } });
-route('/', () => ({ nav: 'start', html: `<div class="page soon"><span class="soon-ic">${icon('home', 88)}</span><h1>Startseite (unverändert)</h1><p>Diese Seite ändert sich durch Konzept 28 «Live-TV» nicht (Mockup Konzept 26). Aufnahmen erscheinen nie auf der Startseite.</p>${SIM.rights().liveTv ? `<button type="button" class="tb primary" data-act="go" data-to="#/live" data-f="home-live" data-default>${icon('live', 32)}<span>Zu Live-TV</span></button>` : ''}</div>` }));
+route('/', () => ({ nav: 'start', html: `<div class="page soon"><span class="soon-ic">${icon('home', 88)}</span><h1>Startseite</h1><p>Diese Seite bleibt, wie sie ist.</p>${SIM.rights().liveTv ? `<button type="button" class="tb primary" data-act="go" data-to="#/live" data-f="home-live" data-default>${icon('live', 32)}<span>Zu Live-TV</span></button>` : ''}</div>`, key: tvKeyGuard }));

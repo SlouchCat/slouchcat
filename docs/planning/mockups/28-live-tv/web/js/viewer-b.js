@@ -543,7 +543,9 @@ function vbZap(dir, via) {
 }
 /** loading phases after a switch (14 4.11): switching (0 s) · connecting (0.5 s) · slow (5 s) · ready */
 function vbpLoadState(p) {
-  const P = vbpS(); const key = `${p.ch}@${p.joinedAt}#${P.retry}`;
+  /* «Langsamer Start» and «Sender nicht erreichbar» of the bar «Zustände» restart the loading phases at once on the running channel (RM-16);
+     the other faults come straight from LIVE_UI.playerPhase on the next drawing */
+  const f = SIM.flags().fault; const P = vbpS(); const key = `${p.ch}@${p.joinedAt}#${P.retry}~${f === 'slow' || f === 'unreachable' ? f : ''}`;
   if (!P.load || P.load.key !== key) {
     const recv = LIVE.inputs.some((i) => i.ch === p.ch && i.state === 'running');
     const L = LU.LOAD; const dur = VB.slow ? L.slowReadyMs : recv ? L.hotReadyMs : L.coldReadyMs; /* thresholds of the core, shortened in the mockup */
@@ -601,7 +603,7 @@ function vbpSeekPatch(el, p) {
 /** program progress instead of the seek bar (no timeshift right, 14 4.7) */
 function vbpProgHtml(p) {
   const nn = SIM.nowNext(p.ch).now;
-  return `<div class="vbs ro" data-vbseekro><div class="vbs-lbls"><span class="l">${nn ? `${esc(nn.title)} · ${fmt.range(nn.start, nn.end)}` : esc(LU.TX.epgNone)}</span><span class="r">Ohne Timeshift: nur live</span></div>${nn ? LU.progress(nn.start, nn.end, { cls: 'vbs-prog', label: 'Fortschritt der Sendung' }) : ''}</div>`;
+  return `<div class="vbs ro" data-vbseekro><div class="vbs-lbls"><span class="l">${nn ? `${esc(nn.title)} · ${fmt.range(nn.start, nn.end)}` : esc(LU.TX.epgNone)}</span><span class="r"></span></div>${nn ? LU.progress(nn.start, nn.end, { cls: 'vbs-prog', label: 'Fortschritt der Sendung' }) : ''}</div>`;
 }
 function vbpInd(p) {
   if (!p) return '';
@@ -685,6 +687,7 @@ function vbpHtml(c, p) {
   const ready = phase === 'ready' && !err;
   const stall = ready && VB.perr === 'stall';
   const fb = ready && VB.fallback;
+  if (!VB.fallback) VB.fbShown = false;
   if (fb && !VB.fbShown) { VB.fbShown = true; setTimeout(() => toast(esc(LU.TX.fallback), 'ok'), 0); }
   const nn = SIM.nowNext(c.id);
   const sw = Date.now() < P.sw;

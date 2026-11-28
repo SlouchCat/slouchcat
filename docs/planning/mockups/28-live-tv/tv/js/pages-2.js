@@ -50,7 +50,7 @@ function tvgSkel() { return `<div class="tvg-axis"><span class="tvg-corner"></sp
 function tvgPreviewHtml(el) {
   const c = SIM.channel(el.dataset.ch); if (!c) return '';
   const p = el.dataset.pid ? SIM.program(el.dataset.pid) : null; const st = SIM.chState(c);
-  if (!p) return `<div class="tvg-pv-h"><b>${esc(c.name)}</b><span>${esc(LU.TX.epgNone)}${SIM.epgOf(c) === 'none' ? ' · Sender läuft trotzdem' : ''}</span></div><p class="tvg-pv-d">OK schaltet ein, über das Senderprogramm lässt sich eine Zeit aufnehmen.</p>`;
+  if (!p) return `<div class="tvg-pv-h"><b>${esc(c.name)}</b><span>${esc(LU.TX.epgNone)}${SIM.epgOf(c) === 'none' ? ' · Sender läuft trotzdem' : ''}</span></div><p class="tvg-pv-d">${SIM.rights().recordings ? 'OK schaltet ein, über das Senderprogramm lässt sich eine Zeit aufnehmen.' : 'OK schaltet ein.'}</p>`;
   const s = tvStat(p);
   return `<div class="tvg-pv-h"><b>${esc(p.title)}${p.sub ? ` · «${esc(p.sub)}»` : ''}</b><span>${fmt.time(SIM.now())}</span></div>
     <p class="tvg-pv-m">${esc(c.name)} · ${fmt.range(p.start, p.end)} · ${esc(p.genre)} · ${s === 'now' ? `läuft, noch ${fmt.left(p)} Min.` : s === 'past' ? 'vorbei' : `${fmt.dayRel(p.start)}, ${fmt.dur(p.end - p.start)}`}${st !== 'ok' && s === 'now' ? ' · gerade nicht erreichbar' : ''}${LU.programBadges(p, { text: true })}</p>
@@ -119,7 +119,7 @@ function tvgCommonKey(g, px, name, onTune, onRec) {
   const p = el.dataset.pid ? SIM.program(el.dataset.pid) : null;
   if (name === 'play') { if (p && tvStat(p) === 'now' || (!p && !el.dataset.k)) onTune(el.dataset.ch); else if (p) toast('Diese Sendung läuft noch nicht. OK zeigt die Details'); else onTune(el.dataset.ch); return true; }
   if (name === 'info') { if (p) tvProgramMenu(p.id); else toast('Keine Programmdaten'); return true; }
-  if (name === 'rec') { if (!SIM.rights().recordings) toast('Aufnahmen sind für dieses Profil nicht freigegeben'); else if (p && tvStat(p) !== 'past') LiveDlg.planRecording(p.id); else toast('Aufnehmen geht bei laufenden und künftigen Sendungen'); return true; }
+  if (name === 'rec') { if (!SIM.rights().recordings) { /* without the right nothing about recordings (14, 0.1) */ } else if (p && tvStat(p) !== 'past') LiveDlg.planRecording(p.id); else toast('Aufnehmen geht bei laufenden und künftigen Sendungen'); return true; }
   return false;
 }
 function tvgPreviewBoxHtml(px) { return `<div class="tvg-pv" id="${px}prev" aria-live="polite"></div>`; }
@@ -144,6 +144,7 @@ route('/live/guide', () => {
     onFocus(el) { if (el.closest('#g-grid')) { tvgFocus(g, el); const pv = $('#g-prev'); if (pv) pv.innerHTML = tvgPreviewHtml(el); } },
     key(name) {
       if (tvgKey(g, 'g-', name)) return true;
+      if (tvKeyGuard(name)) return true;
       return tvgCommonKey(g, 'g-', name, (ch) => liveTune(ch, chs.map((c) => c.id)), null);
     },
   };
@@ -200,8 +201,11 @@ document.addEventListener('focusin', (e) => { const el = e.target.closest && e.t
 /* =====================================================================================================
    LS-07 Live-Player
    ===================================================================================================== */
-const PL = { id: null, t0: 0, info: false, infoUntil: 0, infoFocus: false, bar: false, barUntil: 0, list: false, guide: false, force: '', pend: null, leaving: false, fb: false, tsoff: false, shown: '', step: 0, lastSeek: 0, listKind: '' };
+const PL = { id: null, fault: '', t0: 0, info: false, infoUntil: 0, infoFocus: false, bar: false, barUntil: 0, list: false, guide: false, force: '', pend: null, leaving: false, fb: false, tsoff: false, shown: '', step: 0, lastSeek: 0, listKind: '' };
 RESETS.push(() => { Object.assign(PL, { id: null, info: false, infoFocus: false, bar: false, list: false, guide: false, force: '', pend: null, leaving: false, fb: false, tsoff: false, shown: '', listKind: '' }); });
+/** RM-16: a fault switched in the mockup bar acts on the running channel; unreachable and slow start load
+    again, leaving an error loads again, the others (stall, fallback, limit, busy, not playable) show at once */
+const tvpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'notPlayable', 'unreachable'].includes(was);
 const tvpIsPlayer = () => /^\/live\/watch\//.test(curPath());
 const tvpPl = () => SIM.player();
 const tvpInput = (id) => LIVE.inputs.some((i) => i.ch === id && i.state === 'running');
@@ -236,13 +240,14 @@ function tvpErrHtml(c, kind) {
 function tvpBannerHtml(c, pl) {
   const nn = SIM.nowNext(c.id); const st = SIM.chState(c); const r = SIM.rights();
   const rec = r.recordings && SIM.runningOn(c.id);
-  const badges = (nn.now ? LU.programBadges(nn.now, { text: true }) : '') + (PL.fb ? `<span class="lv-badge"><span class="sym">↻</span><span>Ersatzquelle</span></span>` : '');
+  const pb = nn.now ? LU.programBadges(nn.now, { text: true }) : '';
+  const badges = (rec && !pb.includes('lv-badge recording') ? LU.badge('recording', { text: true }) : '') + pb + (PL.fb ? `<span class="lv-badge"><span class="sym">↻</span><span>Ersatzquelle</span></span>` : '');
   const blk = (f, lbl, p, nowP) => {
     const inner = p ? `<span class="tvp-bn-l">${lbl}</span><b>${fmt.range(p.start, p.end)} ${esc(p.title)}</b>${nowP ? LU.progress(p.start, p.end) : ''}` : `<span class="tvp-bn-l">${lbl}</span><b class="none">${esc(LU.TX.epgNone)}</b>`;
     return PL.infoFocus && p ? `<button type="button" class="tvp-bn-b" data-act="tvDetail" data-pid="${p.id}" data-f="${f}">${inner}</button>` : `<div class="tvp-bn-b">${inner}</div>`;
   };
   const after = nn.next && nn.now && nn.next.start === nn.now.end ? nn.next : (!nn.now ? nn.next : null);
-  return `<div class="tvp-banner" role="status"><div class="tvp-bn-h"><b class="tvp-bn-no">${c.no}</b>${LU.logo(c)}<b class="tvp-bn-nm">${esc(c.name)}</b><span class="tvp-bn-bd">${rec ? LU.badge('recording', { text: true }) : ''}${badges}</span>${st !== 'ok' ? `<span class="tvp-bad">${icon('alert', 26)}${esc(LU.TX.unavailable)}</span>` : ''}</div>
+  return `<div class="tvp-banner" role="status"><div class="tvp-bn-h"><b class="tvp-bn-no">${c.no}</b>${LU.logo(c)}<b class="tvp-bn-nm">${esc(c.name)}</b><span class="tvp-bn-bd">${badges}</span>${st !== 'ok' ? `<span class="tvp-bad">${icon('alert', 26)}${esc(LU.TX.unavailable)}</span>` : ''}</div>
     <div class="tvp-bn-g">${blk('pl-now', 'Jetzt', nn.now, true)}${blk('pl-next', 'Danach', after, false)}</div></div>`;
 }
 function tvpBarHtml(c, pl) {
@@ -283,13 +288,15 @@ function tvpListHtml(pl) {
 
 route('/live/watch/:id', (pm) => {
   if (!/^\/live\/watch\//.test(lastPath || '')) PL.leaving = false;
+  if (SIM.mode() === 'empty') return { nav: '', html: `<div class="page soon"><span class="soon-ic">${icon('live', 88)}</span><h1>Noch keine Sender</h1><p>${esc(LU.TX.empty)}</p><button type="button" class="tb primary" data-act="back" data-f="pl-empty" data-default>${icon('back', 32)}<span>Zurück</span></button></div>` };
   const c = SIM.channel(pm.id);
   if (!c || SIM.chState(c) === 'gone') {
     const g = { id: pm.id, name: 'Dieser Sender', no: '', slug: 'x' };
     return { nav: '', full: true, html: `<div class="tvp-pl">${tvpErrHtml(c || g, 'gone')}</div>` };
   }
-  const now = Date.now();
-  if (PL.id !== pm.id) Object.assign(PL, { id: pm.id, t0: now, info: true, infoUntil: now + 5000, infoFocus: false, bar: false, list: false, guide: false, force: '', pend: null, fb: false });
+  const now = Date.now(); const fault = SIM.flags().fault;
+  if (PL.id !== pm.id) Object.assign(PL, { id: pm.id, t0: now, info: true, infoUntil: now + 5000, infoFocus: false, bar: false, list: false, guide: false, force: '', pend: null, fb: false, fault });
+  else if (PL.fault !== fault) { if (tvpFaultRestart(PL.fault, fault)) { PL.t0 = now; PL.bar = false; PL.list = false; } PL.fault = fault; PL.fb = false; }
   const pl = SIM.player(); const synced = !!pl && pl.ch === pm.id; const ph = tvpPhase(c);
   PL.shown = ph.k + (ph.spin ? '+' : '') + (PL.bar ? 'b' : '') + (PL.info ? 'i' : '');
   const err = ph.k === 'forced' ? ph.err : null;
@@ -356,17 +363,17 @@ function tvpShowInfo(focus) { PL.info = true; PL.infoUntil = Date.now() + 5000; 
 const focus_ = (el) => focus(el, { instant: true });
 function tvpPlayPause() {
   const r = SIM.rights(); const pl = tvpPl();
-  if (!r.timeshift) { toast('Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); return; }
+  if (!r.timeshift) return;
   if (pl && pl.paused) SIM.resume(); else { SIM.pause(); PL.bar = true; PL.barUntil = Date.now() + 8000; }
 }
 function tvpSeekBy(sec) {
   const r = SIM.rights(); const pl = tvpPl();
-  if (!r.timeshift) { toast('Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); return; }
+  if (!r.timeshift) return;
   if (!pl || pl.max < 0.05) { toast('Noch nichts zum Zurückspulen: die Leiste beginnt bei deinem Einschalten.'); return; }
   SIM.seek(pl.offset - sec / 60);
 }
 function tvpRecAct() {
-  const r = SIM.rights(); if (!r.recordings) { toast('Aufnahmen sind für dieses Profil nicht freigegeben'); return; }
+  const r = SIM.rights(); if (!r.recordings) return;
   const c = SIM.channel(PL.id); const run = SIM.runningOn(c.id); const nn = SIM.nowNext(c.id).now; const rs = nn ? SIM.recState(nn.id) : null;
   if (run) {
     menu(`<h2>Nimmt auf</h2><p>${esc(run.title)} · seit ${fmt.time(run.start)}, bis ${fmt.time(run.end)}</p><div class="mlist">
@@ -483,18 +490,19 @@ function tvrFmt(min) { const s = Math.max(0, Math.round(min * 60)); const h = Ma
 route('/live/recordings/:id/play', (pm, q) => {
   const r = SIM.recording(pm.id);
   if (!tvRecVisible(r) || !['done', 'incomplete', 'running'].includes(r.state)) return { nav: '', html: livePage({ tab: 'recordings', title: 'Nicht gefunden', html: `${tvNote('info', 'Diese Aufnahme lässt sich nicht abspielen.', '')}<div class="ltv-acts"><button type="button" class="tb primary" data-act="go" data-to="#/live/recordings" data-f="rp-nf" data-default>${icon('film', 32)}<span>Zu meinen Aufnahmen</span></button></div>` }) };
+  /* a recording of a profile with an age limit, played by the primary profile: no progress, start at the programme (14, 3.10) */
+  const mine = r.profile === SIM.profile().id;
   if (PLR.id !== pm.id) {
     const D = tvrDur(r); const resume = D * (r.watchedPct || 0) / 100;
-    Object.assign(PLR, { id: pm.id, bar: false, step: 0, paused: false, ask: false });
-    if (q.from === 'full') PLR.pos = 0; else if (q.from === 'resume') PLR.pos = resume; else if (q.from === 'start') PLR.pos = r.padBefore;
+    Object.assign(PLR, { id: pm.id, mine, bar: false, step: 0, paused: false, ask: false });
+    if (q.from === 'full') PLR.pos = 0; else if (q.from === 'resume' && mine) PLR.pos = resume; else if (q.from === 'start' || !mine) PLR.pos = r.padBefore;
     else if (r.watchedPct >= 1 && r.watchedPct < 95) { PLR.pos = resume; PLR.paused = true; PLR.ask = true; } else PLR.pos = r.padBefore;
   }
   const c = SIM.channel(r.ch); const D = tvrDur(r); PLR.pos = Math.max(0, Math.min(PLR.pos, D));
-  const mine = r.profile === SIM.profile().id;
   return {
     nav: '', full: true,
     html: `<div class="tvp-pl" data-rp>${LU.fakeVideo(c, { paused: PLR.paused })}<i class="tvp-scrim" aria-hidden="true"></i>${PLR.paused ? `<span class="tvp-pause" aria-hidden="true">${icon('pause', 120)}</span>` : ''}
-      <div class="tvr-top"><b>${esc(r.title)}${r.sub ? ` · «${esc(r.sub)}»` : ''}</b><span>${esc(c.name)} · ${esc(fmt.when(r.start))}</span>${r.state === 'running' ? `<span class="tvr-run">${LU.badge('recording', { text: true, label: 'Aufnahme läuft' })}</span>` : ''}${!mine ? `<span class="tvr-run">${esc(SIM.profiles().find((x) => x.id === r.profile).name)}: Aufnahme des Profils</span>` : ''}</div>
+      <div class="tvr-top"><b>${esc(r.title)}${r.sub ? ` · «${esc(r.sub)}»` : ''}</b><span>${esc(c.name)} · ${esc(fmt.when(r.start))}</span>${r.state === 'running' ? `<span class="tvr-run">${LU.badge('recording', { text: true, label: 'Aufnahme läuft' })}</span>` : ''}${!mine ? `<span class="tvr-run">Aufnahme von ${esc(SIM.profiles().find((x) => x.id === r.profile).name)} · Fortschritt wird nicht gespeichert</span>` : ''}</div>
       ${PLR.bar ? tvrBarHtml(r, D) : ''}<p class="tvp-sample">${esc(LU.TX.sample)}</p></div>`,
     after() {
       tvrPaint();
@@ -525,7 +533,7 @@ setInterval(() => {
   tvrPaint();
 }, 1000);
 const PLRactive = () => !!PLR.id;
-function tvrLeave() { const r = SIM.recording(PLR.id); if (r) { const pct = Math.round(PLR.pos / tvrDur(r) * 100); SIM.setWatched(r.id, pct >= 98 ? 100 : pct); } PLR.id = null; navBack(); }
+function tvrLeave() { const r = SIM.recording(PLR.id); if (r && PLR.mine !== false) { const pct = Math.round(PLR.pos / tvrDur(r) * 100); SIM.setWatched(r.id, pct >= 98 ? 100 : pct); } PLR.id = null; navBack(); }
 function tvrAsk(r, D) {
   menu(`<h2>Weiter schauen?</h2><div class="mlist">
     <button type="button" class="mi" data-act="tvrFrom" data-from="resume" data-f="ra-r" data-default><span class="mi-ic">${icon('play', 36)}</span><span class="mi-tx"><b>Weiter ab ${tvrFmt(D * r.watchedPct / 100)}</b><small>${r.watchedPct} % gesehen</small></span></button>

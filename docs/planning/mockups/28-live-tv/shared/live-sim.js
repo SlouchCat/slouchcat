@@ -157,10 +157,14 @@
   }
 
   /* ---------- favourites and history ---------- */
+  /** «Liste leeren» of the row «Zuletzt gesehen» (LS-01) */
+  function clearRecent() { st.recent[st.profileId] = []; emit('change'); }
   function toggleFav(id) { const f = favs(); const k = f.indexOf(id); if (k < 0) f.push(id); else f.splice(k, 1); emit('change'); return k < 0; }
   function moveFav(id, dir) { const f = favs(); const k = f.indexOf(id); const j = k + dir; if (k < 0 || j < 0 || j >= f.length) return false; [f[k], f[j]] = [f[j], f[k]]; emit('change'); return true; }
   const isFav = (id) => favs().includes(id);
-  const recent = () => (st.recent[st.profileId] || []).map(([id, t]) => ({ ch: channel(id), at: t })).filter((x) => x.ch);
+  /* mockup state «Leer»: no channels, no recordings, no planning, no reminders, no history (every page shows its empty state) */
+  const isEmpty = () => st.mode === 'empty';
+  const recent = () => (isEmpty() ? [] : st.recent[st.profileId] || []).map(([id, t]) => ({ ch: channel(id), at: t })).filter((x) => x.ch);
 
   /* ---------- recordings ---------- */
   function live(r) {
@@ -171,7 +175,7 @@
     }
     return r;
   }
-  const recordings = (pid) => st.recordings.filter((r) => r.profile === (pid || st.profileId)).map(live).sort((a, b) => b.start - a.start);
+  const recordings = (pid) => (isEmpty() ? [] : st.recordings).filter((r) => r.profile === (pid || st.profileId)).map(live).sort((a, b) => b.start - a.start);
   const recording = (id) => { const r = st.recordings.find((x) => x.id === id); return r ? live(r) : null; };
   function deleteRecordings(ids) { ids = [].concat(ids); st.recordings = st.recordings.filter((r) => !ids.includes(r.id)); emit('change'); }
   function stopRecording(id) { const r = recording(id); if (!r || r.state !== 'running') return; r.sizeGB = r.liveGB || r.sizeGB; r.end = now(); r.state = 'done'; emit('change'); }
@@ -183,7 +187,7 @@
   const childProfiles = () => (profile().primary ? L.profiles.filter((p) => p.age != null && p.age < 18 && p.id !== st.profileId) : []);
 
   /* ---------- planning ---------- */
-  const rules = (pid) => st.rules.filter((r) => r.profile === (pid || st.profileId));
+  const rules = (pid) => (isEmpty() ? [] : st.rules).filter((r) => r.profile === (pid || st.profileId));
   const rule = (id) => st.rules.find((r) => r.id === id) || null;
   const nid = (p) => `${p}-${st.seq++}`;
   const wd = (t) => (6 + Math.floor(t / 1440)) % 7; // 0 = Sunday; day 0 is a Saturday
@@ -276,14 +280,17 @@
 
   /* ---------- warnings ---------- */
   function warnings(pid) {
+    if (isEmpty()) return [];
     const list = L.warnings.filter((w) => w.profile === (pid || st.profileId) && !w.hidden && !st.dismissed.includes(w.id) && w.rules.some((id) => rule(id)));
     return list;
   }
+  /** number of warnings shown on LS-01, LS-11, LS-12 in every client: warnings plus «Kontingent voll» when a planned recording is affected */
+  const warningCount = () => warnings().length + (quota().full && upcoming().some((u) => chState(u.ch) !== 'gone') ? 1 : 0);
   const warningsFor = (ruleId) => warnings().filter((w) => w.rules.includes(ruleId));
   function dismissWarning(id) { st.dismissed.push(id); emit('change'); }
 
   /* ---------- reminders ---------- */
-  const reminders = (pid) => st.reminders.filter((r) => r.profile === (pid || st.profileId) && program(r.program) && program(r.program).start > now() - 1).sort((a, b) => program(a.program).start - program(b.program).start);
+  const reminders = (pid) => (isEmpty() ? [] : st.reminders).filter((r) => r.profile === (pid || st.profileId) && program(r.program) && program(r.program).start > now() - 1).sort((a, b) => program(a.program).start - program(b.program).start);
   const reminderFor = (programId) => reminders().find((r) => r.program === programId) || null;
   function setReminder(programId, lead) { const r = reminderFor(programId); if (r) r.lead = lead; else st.reminders.push({ id: nid('rem'), profile: st.profileId, program: programId, lead }); emit('change'); }
   function removeReminder(programId) { st.reminders = st.reminders.filter((r) => !(r.program === programId && r.profile === st.profileId)); emit('change'); }
@@ -355,10 +362,10 @@
     mode: () => st.mode, setMode, flags, setFlag, setRevoked,
     channels, channel, channelByNo, chState, epgOf, allChannels, viewerChannel, gridChannels, testChannels,
     program, programsOf, programAt, nowNext, gapsOf, genresSoon, search,
-    favorites: () => favs().slice(), isFav, toggleFav, moveFav, recent,
+    favorites: () => (isEmpty() ? [] : favs().slice()), isFav, toggleFav, moveFav, recent, clearRecent,
     recordings, recording, deleteRecordings, stopRecording, setKeep, setWatched, runningOn, childProfiles,
     rules, rule, upcoming, recState, skippedWhy, ruleForProgram, planRecording, planSeries, planManual, updateRule, removeRule, skipOccurrence, startInstant,
-    warnings, warningsFor, dismissWarning,
+    warnings, warningCount, warningsFor, dismissWarning,
     reminders, reminderFor, setReminder, removeReminder,
     quota, usage, usageOf, rejectForQuota, notices,
     tune, zap, lastChannel, pause, resume, seek, toLive, stop, player,

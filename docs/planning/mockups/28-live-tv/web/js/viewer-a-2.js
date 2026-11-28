@@ -50,13 +50,13 @@ route('/live/programs/:id', (pm) => {
     const long = p.desc && p.desc.length > 200; const openD = isOpen('va-desc:' + p.id);
     const desc = p.desc ? `<div class="va-descw"><p class="va-desc${long && !openD ? ' clamp' : ''}">${esc(p.desc)}</p>${long ? `<button type="button" class="lnk" data-act="open" data-id="va-desc:${p.id}" aria-expanded="${openD}" data-fid="ls06:more">${openD ? 'Weniger' : 'Mehr'}</button>` : ''}</div>` : '';
     const facts = [p.season && p.episode ? ['Folge', `Staffel ${p.season}, Folge ${p.episode}`] : null, p.year ? ['Jahr', p.year] : null, p.country ? ['Land', p.country] : null, p.director ? ['Regie', p.director] : null, p.cast && p.cast.length ? ['Mitwirkende', p.cast.join(', ')] : null].filter(Boolean);
-    const more = LIVE.programs.filter((x) => x.id !== p.id && x.end > t && x.start < t + 7 * 1440 && ((p.series && x.series === p.series) || x.title === p.title) && SIM.epgOf(x.ch) !== 'none').sort((a, b) => a.start - b.start).slice(0, 8);
+    const more = LIVE.programs.filter((x) => x.id !== p.id && x.start !== p.start && x.end > t && x.start < t + 7 * 1440 && ((p.series && x.series === p.series) || x.title === p.title) && SIM.epgOf(x.ch) !== 'none').sort((a, b) => a.start - b.start).slice(0, 8);
     const bad = SIM.chState(c) === 'disturbed' && running ? notice('warn', `${esc(c.name)}: ${esc(LU.TX.unavailable)}`, 'Einschalten ist trotzdem möglich. Der Player zeigt dann den Zustand.') : '';
     body = `${bad}<div class="va-det"><div class="va-detpic">${LU.picture(p)}</div><div class="va-detinfo">
       <p class="va-meta"><a class="va-metach" href="#/live/guide/channel/${c.id}" data-fid="ls06:ch">${LU.logo(c)}<b>${esc(c.name)}</b></a><span>${fmt.dayRel(p.start)}, ${fmt.range(p.start, p.end)}</span><span>${fmt.dur(p.end - p.start)}</span></p>
       <div class="va-chips">${chips}</div>${status}${vaRounds(p)}${desc}</div></div>
       ${facts.length ? `<section class="va-sec" aria-labelledby="ls06-facts"><h2 class="st" id="ls06-facts">Angaben</h2><dl class="va-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(String(v))}</dd></div>`).join('')}</dl></section>` : ''}
-      ${more.length ? `<section class="va-sec" aria-labelledby="ls06-more"><h2 class="st" id="ls06-more">Weitere Termine</h2>${vaList('ls06', more.map((x) => vaProgRow(x)), 'Weitere Termine, Pfeiltasten wechseln')}</section>` : ''}`;
+      ${more.length ? `<section class="va-sec" aria-labelledby="ls06-more"><h2 class="st" id="ls06-more">Weitere Termine</h2>${vaList('ls06', more.map((x) => vaProgRow(x, { day: true })),'Weitere Termine, Pfeiltasten wechseln')}</section>` : ''}`;
   }
   return { type: 'viewer', nav: 'live', title: p.title, html: livePage({ tab: 'guide', title: esc(p.title), sub: p.sub ? `«${esc(p.sub)}»` : '', actions: back, html: body + vaDock() }) };
 });
@@ -80,6 +80,8 @@ document.addEventListener('keydown', (e) => {
    ====================================================================================== */
 route('/live/guide/channel/:id', (pm, query) => {
   const c = SIM.channel(pm.id);
+  /* mockup state «Leer»: no channel in the offer, so no channel programme either */
+  if (liveMode() === 'empty') return { type: 'viewer', nav: 'live', title: 'Senderprogramm', html: livePage({ tab: 'guide', title: 'Senderprogramm', html: emptyState('Noch keine Sender', LU.TX.empty, `<a class="btn secondary" href="#/live/channels" data-fid="ls15:empty">${icon('tv', 18)}Zu den Sendern</a>`) }) };
   if (!c || SIM.chState(c) === 'gone' || c.active === false) return vaNotFound('Nicht gefunden', 'Diesen Sender gibt es nicht.', `<a class="btn secondary" href="#/live/channels" data-fid="ls15:nf">${icon('tv', 18)}Zu den Sendern</a>`);
   const t = SIM.now(); const today = Math.floor(t / 1440);
   const di = Math.max(0, Math.min(6, Number(query.day) || 0)); const from = (today + di) * 1440; const to = from + 1440;
@@ -142,7 +144,7 @@ function vaPfSwitch(d, pid, k, label, help) {
 }
 route('/settings/profiles', () => {
   const me = SIM.profile(); const frame = (h) => ({ type: 'viewer', nav: 'profiles', title: 'Profile', html: `<div class="page"><div class="head"><h1>Profile</h1><p class="sub">Profile deines Kontos «Familie Keller». Nur das Hauptprofil ändert Profile.</p></div>${h}${LU.sampleNote()}</div>` });
-  if (!me.primary) return frame(notice('', 'Nur das Hauptprofil ändert Profile.', `Du bist als ${esc(me.name)} angemeldet. Wechsle zum Hauptprofil, um Live-TV für Profile ein- oder auszuschalten.`) + `<ul class="stack">${LIVE.profiles.map((x) => `<li class="lrow"><span class="av ${esc(x.accent)}">${esc(x.name[0])}</span><div class="bd2"><span class="ttl">${esc(x.name)}</span><span class="ln">${esc(roleLabel(x))}</span></div></li>`).join('')}</ul>`);
+  if (!me.primary) return frame(notice('', 'Nur das Hauptprofil ändert Profile.', `Du bist als ${esc(me.name)} angemeldet. Wechsle zum Hauptprofil, um Profile zu ändern.`) + `<ul class="stack">${LIVE.profiles.map((x) => `<li class="lrow"><span class="av ${esc(x.accent)}">${esc(x.name[0])}</span><div class="bd2"><span class="ttl">${esc(x.name)}</span><span class="ln">${esc(roleLabel(x))}</span></div></li>`).join('')}</ul>`);
   let sel = VA.pf.sel; if (!LIVE.profiles.some((x) => x.id === sel)) sel = VA.pf.sel = 'anna';
   const pr = LIVE.profiles.find((x) => x.id === sel); const d = vaPfDraft(sel); const dirty = vaPfDirty(d);
   const eff = Object.fromEntries(VA_RIGHTS.map(([k]) => [k, vaPfEff(d, sel, k)]));
@@ -198,15 +200,16 @@ const VA_GROUPS = [['wish', 'Wünsche', 'wish'], ['lib', 'Bibliothek', 'film'], 
 VA.nt = VA.nt || Object.fromEntries(VA_EVENTS.map((e) => [e.id, e.def.map(Boolean)]));
 route('/settings/notifications', (pm, query) => {
   const r = SIM.rights();
-  const groups = VA_GROUPS.map(([g, title, ic]) => {
+  const groups = VA_GROUPS.map(([g, title0, ic]) => {
     const evs = VA_EVENTS.filter((e) => e.g === g && (!e.need || r[e.need]));
     if (!evs.length) return '';
+    const title = g === 'live' && !r.recordings ? 'Live-TV' : title0;
     const on = evs.reduce((n, e) => n + VA.nt[e.id].filter(Boolean).length, 0); const all = evs.length * 3;
     const rows = evs.map((e) => `<li class="va-ev"><div class="va-evt"><b>${esc(e.t)}</b><span>${esc(e.d)}</span></div><div class="va-evc">${VA_CH.map(([ck, cl], i) => `<span class="va-nc"><span class="va-ncl" aria-hidden="true">${cl}</span>${sw(`ui.va.nt.${e.id}.${i}`, `${e.t}: ${cl}`)}</span>`).join('')}</div></li>`).join('');
     return band('va-nt:' + g, title, `<span>${on} von ${all} an</span>`, `<div class="va-evh" aria-hidden="true"><span></span><span>${VA_CH.map(([, l]) => `<span>${l}</span>`).join('')}</span></div><ul class="va-evl">${rows}</ul>`, { viewer: true, icon: ic, open: query.open === g });
   }).join('');
   const html = `<div class="page"><div class="head"><h1>Benachrichtigungen</h1><p class="sub">Wähle, worüber und wie du benachrichtigt wirst. Die Glocke findest du oben rechts. Push kommt auf Geräte mit der App.</p><div class="acts"><a class="btn secondary" href="#/notifications" data-fid="ls22:inbox">${icon('bell', 18)}Zur Glocke</a><button type="button" class="btn ghost" data-act="vaNtTest" data-fid="ls22:test">${icon('send', 18)}Testmeldung senden</button></div></div>
-    ${groups}${r.liveTv ? '' : ''}${LU.sampleNote()}</div>`;
+    ${groups}${LU.sampleNote()}</div>`;
   return { type: 'viewer', nav: 'notif', title: 'Benachrichtigungen einstellen', html };
 });
 ACT.vaNtTest = () => toast('Testmeldung gesendet. Sie erscheint in der Glocke.', 'mail');
@@ -245,7 +248,7 @@ route('/notifications', () => {
       return `<li class="va-in${un ? ' unread' : ''}"><a class="va-inmain" href="${i.href}" data-act="vaRead" data-id="${i.id}" data-fid="in:${i.id}"><span class="va-inic${i.ic === 'alert' ? ' warn' : ''}">${icon(i.ic, 20)}</span><span class="va-int"><b>${esc(i.title)}${un ? '<span class="vh"> (ungelesen)</span>' : ''}</b><span>${esc(i.line)}</span></span><time class="va-intime">${fmt.ago(i.t)}</time></a>${i.tune ? `<span class="va-inacts"><button type="button" class="btn secondary sm" data-act="vaNtTune" data-id="${i.id}" data-ch="${i.tune}" data-fid="in:tune:${i.id}">${icon('play', 14)}Einschalten</button></span>` : ''}</li>`;
     }).join('')}</ul>` : emptyState('Keine Benachrichtigungen', 'Sobald etwas passiert, erscheint es hier.');
   }
-  return { type: 'viewer', nav: '', title: 'Benachrichtigungen', html: `<div class="page"><div class="head"><h1>Benachrichtigungen</h1><p class="sub">Erinnerungen und Aufnahmen betreffen nur dich. Sie erscheinen nirgends sonst.</p>${acts ? `<div class="acts">${acts}</div>` : ''}</div>${body}${LU.sampleNote()}</div>` };
+  return { type: 'viewer', nav: '', title: 'Benachrichtigungen', html: `<div class="page"><div class="head"><h1>Benachrichtigungen</h1>${acts ? `<div class="acts">${acts}</div>` : ''}</div>${body}${LU.sampleNote()}</div>` };
 });
 ACT.vaRead = (d) => { VA.read[d.id] = true; };
 ACT.vaReadAll = () => { vaInboxItems().forEach((i) => { VA.read[i.id] = true; }); render(); };
@@ -261,8 +264,7 @@ route('/search', (pm, query) => {
   const grid = res.length ? `<section aria-labelledby="ls24-res"><h2 class="st" id="ls24-res">In deiner Bibliothek · ${res.length}</h2><ul class="grid">${res.map(([t, k, y]) => `<li class="pc"><a class="pl" href="#/unchanged/${encodeURIComponent(t.toLowerCase())}" data-fid="ls24:r:${esc(t)}"><span class="frame">${img(null, t)}</span><span class="cap"><b>${esc(t)}</b><span>${k} · ${y}</span></span></a></li>`).join('')}</ul></section>`
     : q ? emptyState('Nichts in deiner Bibliothek gefunden', `Zu «${esc(q)}» gibt es keinen Titel in deinen Bibliotheken.`) : emptyState('Suche in deiner Bibliothek', 'Gib einen Titel, einen Namen oder ein Stichwort ein.');
   const tv = r.liveTv && q ? `<a class="va-lc va-tvlink" href="#/live/guide/search?q=${encodeURIComponent(q)}" data-fid="ls24:tv"><span class="va-lc-ic">${icon('live', 22)}</span><span class="va-lc-t"><b>Im TV-Programm suchen: ‹${esc(q)}›</b><span>Sendungen der nächsten 7 Tage auf allen Sendern</span></span><span class="va-lc-go">${icon('chevR', 18)}</span></a>` : '';
-  const html = `<div class="page"><div class="head"><h1>Suche</h1><div class="va-tools" role="search"><label class="fld fsearch va-sbig"><span class="vh">Suchen</span><span class="sic">${icon('search', 18)}</span><input class="inp" type="search" placeholder="Titel, Namen, Stichwörter" value="${esc(q)}" data-vaq="search" data-fid="ls24:q" aria-label="Suchen"></label></div></div>${grid}${tv}
-    <p class="va-fine">${r.recordings ? 'Aufnahmen sind privat. Sie erscheinen in der Suche nie, nur unter Live-TV › Aufnahmen.' : 'Aufnahmen sind privat und erscheinen in der Suche nie.'}</p>${LU.sampleNote()}</div>`;
+  const html = `<div class="page"><div class="head"><h1>Suche</h1><div class="va-tools" role="search"><label class="fld fsearch va-sbig"><span class="vh">Suchen</span><span class="sic">${icon('search', 18)}</span><input class="inp" type="search" placeholder="Titel, Namen, Stichwörter" value="${esc(q)}" data-vaq="search" data-fid="ls24:q" aria-label="Suchen"></label></div></div>${grid}${tv}${LU.sampleNote()}</div>`;
   return { type: 'viewer', nav: 'search', title: 'Suche', html };
 });
 
@@ -296,8 +298,8 @@ ACT.vaRadioStop = () => { const s = VA.radio; VA.radio = null; if (s) toast(`${e
    ====================================================================================== */
 const VA_HOME = [['Weiterschauen', [['Der Marsianer', 'Film'], ['Der Bestatter', 'S06 E02'], ['Tatort: Spur im Nebel', 'Film'], ['Die Alpen von oben', 'Doku'], ['Arena', 'Sendung']]], ['Neu in deiner Bibliothek', [['Dune: Teil zwei', 'Film'], ['Wilde Schweiz', 'Doku'], ['Kassensturz', 'Serie'], ['Checker Tobi', 'Kinder'], ['Terra X', 'Doku'], ['Der Schwarm', 'Hörbuch']]]];
 route('/', () => {
-  const r = SIM.rights(); const p = SIM.profile();
+  const p = SIM.profile();
   const rows = VA_HOME.map(([title, list], k) => `<section><div class="rowhead"><h2>${title}</h2></div><div class="scroller"><ul>${list.map(([t, s]) => `<li class="pc"><a class="pl" href="#/unchanged/${encodeURIComponent(t.toLowerCase())}" data-fid="ls26:${k}:${esc(t)}"><span class="frame">${img(null, t)}</span><span class="cap"><b>${esc(t)}</b><span>${esc(s)}</span></span></a></li>`).join('')}</ul></div></section>`).join('');
-  const hint = `<div class="va-homenote">${notice('', 'Unverändert durch Konzept 28 (Frage F-2)', `Auf der Startseite erscheint nichts aus Live-TV und nie eine Aufnahme. ${r.liveTv ? `Live-TV erreichst du über «Meine Medien» in der Seitenleiste oder <a class="lnk" href="#/live" data-fid="ls26:live">hier</a>.` : 'Dieses Profil hat kein Live-TV, es gibt keinen Eintrag.'}`)}</div>`;
-  return { type: 'viewer', nav: 'start', title: 'Start', html: `<div class="home"><div class="hero va-hero"><h1>Hallo ${esc(p.name)}</h1><p class="sub">Das ist die Startseite der Bibliothek, wie sie heute ist.</p></div>${rows}${hint}<div class="va-homefoot">${LU.sampleNote()}</div></div>` };
+  /* unchanged by concept 28 (DR-23): nothing from Live-TV and never a recording; the explanation is in 14 1.2, not in the picture */
+  return { type: 'viewer', nav: 'start', title: 'Start', html: `<div class="home"><div class="hero va-hero"><h1>Hallo ${esc(p.name)}</h1><p class="sub">Das ist die Startseite der Bibliothek, wie sie heute ist.</p></div>${rows}<div class="va-homefoot">${LU.sampleNote()}</div></div>` };
 });

@@ -90,7 +90,7 @@ const icon = (name, size) => `<svg width="${size || 24}" height="${size || 24}" 
 /* ---------- pictures ---------- */
 const dur = min => (min >= 60 ? `${Math.floor(min / 60)} Std. ${min % 60} Min.` : `${min} Min.`);
 /** picture from ../shared/img/lib/ (only local); a missing file becomes a calm field with the alt text */
-const pic = (file, alt, cls) => `<img src="../shared/img/lib/${file}" alt="${esc(alt || '')}" loading="lazy"${cls ? ` class="${cls}"` : ''} onerror="this.outerHTML='&lt;div class=&quot;ph&quot;&gt;${esc(esc(alt || ''))}&lt;/div&gt;'">`;
+const pic = (file, alt, cls) => (!LIVE_UI.imagesOn() ? `<div class="ph">${esc(alt || '')}</div>` : `<img src="../shared/img/lib/${file}" alt="${esc(alt || '')}" loading="lazy"${cls ? ` class="${cls}"` : ''} onerror="this.outerHTML='&lt;div class=&quot;ph&quot;&gt;${esc(esc(alt || ''))}&lt;/div&gt;'">`);
 /* media of the drawer: the libraries stay unchanged (Konzept 27); Live-TV is new, after the web radio */
 const LIBS = [
   { key: 'films', name: 'Filme', icon: 'film', count: 1846 }, { key: 'series', name: 'Serien', icon: 'tv', count: 505 },
@@ -229,7 +229,7 @@ const bar = (title, opts) => { const o = opts || {}; return `<header class="bar$
 const li = (ic, title, sub, end, attrs) => `<${attrs && attrs.includes('href=') ? 'a' : 'button type="button"'} class="li" ${attrs || ''}><span class="lead">${typeof ic === 'string' && ic.startsWith('<') ? ic : icon(ic, 22)}</span><span class="tx"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="end">${end ?? icon('right', 18)}</span></${attrs && attrs.includes('href=') ? 'a' : 'button'}>`;
 const sw = (scope, path, label, sub) => { const p = path.split('.'); let t = scope === 'S' ? S : ui; for (const k of p) t = t ? t[k] : undefined; return `<button type="button" class="li" role="switch" aria-checked="${!!t}" data-act="toggle" data-scope="${scope}" data-path="${path}" data-fid="sw-${path}"><span class="tx"><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="sw" aria-checked="${!!t}"></span></button>`; };
 const avatar = (p, size) => `<span class="avatar" style="background:${p.color};${size ? `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px` : ''}">${esc(p.name[0])}</span>`;
-function drawMini() { const m = $('#mini'); if (!m) return; if (!S.playing || document.body.classList.contains('full')) { m.innerHTML = ''; return; } const p = S.playing; m.innerHTML = `<div class="minip"><a href="${p.href}" style="display:contents"><img src="../shared/img/lib/${p.img}" alt=""><span class="tx"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></a><button type="button" class="ib" data-act="miniToggle" aria-label="${p.paused ? 'Weiter' : 'Pause'}">${icon(p.paused ? 'play' : 'pause')}</button><button type="button" class="ib" data-act="miniStop" aria-label="Beenden">${icon('close')}</button></div>`; }
+function drawMini() { const m = $('#mini'); if (!m) return; if (!S.playing || document.body.classList.contains('full')) { m.innerHTML = ''; return; } const p = S.playing; m.innerHTML = `<div class="minip"><a href="${p.href}" style="display:contents">${LIVE_UI.imagesOn() ? `<img src="../shared/img/lib/${p.img}" alt="">` : ''}<span class="tx"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></a><button type="button" class="ib" data-act="miniToggle" aria-label="${p.paused ? 'Weiter' : 'Pause'}">${icon(p.paused ? 'play' : 'pause')}</button><button type="button" class="ib" data-act="miniStop" aria-label="Beenden">${icon('close')}</button></div>`; }
 ACT.miniToggle = () => { S.playing.paused = !S.playing.paused; save(); drawMini(); };
 ACT.miniStop = () => { S.playing = null; save(); drawMini(); };
 
@@ -262,5 +262,5 @@ window.addEventListener('resize', fit);
 const PAGES = [];
 /** pages the concept does not change (libraries, settings …): reachable, explained */
 function unchangedPage(path) {
-  return { nav: path === '/' ? 'start' : '', html: `${bar('Unverändert', { back: false })}<div class="empty">${icon('info', 40)}<b>Diese Seite ändert sich nicht</b><p>Konzept 28 «Live-TV» lässt sie, wie sie im Mockup von Konzept 27 ist.</p><p class="hint">${esc(path)}</p><p style="margin-top:16px"><a class="btn ghost" href="#/live" data-fid="un-live">Zu Live-TV</a></p></div>` };
+  return { nav: path === '/' ? 'start' : '', html: `${bar('Unverändert', { back: false })}<div class="empty">${icon('info', 40)}<b>Diese Seite ändert sich nicht</b><p>Sie bleibt, wie sie ist.</p><p class="hint">${esc(path)}</p></div>` };
 }

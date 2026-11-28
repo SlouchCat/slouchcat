@@ -78,7 +78,7 @@ function hpProgSheet(pid) {
     ${li('info', 'Details', p.sub || '', null, `href="#/live/programs/${p.id}" data-fid="ps-det"`)}
     ${r.recordings && !past ? li(rs === 'recording' ? 'record' : 'recordHollow', rs === 'recording' ? 'Nimmt auf' : rs ? 'Aufnahme ändern' : 'Aufnehmen', rs ? LU.TX[rs === 'series' ? 'series' : rs === 'recording' ? 'recording' : 'scheduled'] : '', '', `data-act="hpRecClose" data-p="${p.id}" data-fid="ps-rec"`) : ''}
     ${r.recordings && !past && hpSerial(p) ? li('recordSeries', 'Serie aufnehmen', '', '', `data-act="hpSeries" data-p="${p.id}" data-fid="ps-ser"`) : ''}
-    ${!past ? li('reminder', rem ? 'Erinnerung ändern' : 'Erinnern', rem ? `${rem.lead ? rem.lead + ' Min. vorher' : 'Zum Beginn'}` : '', '', `data-act="hpRemClose" data-p="${p.id}" data-fid="ps-rem"`) : ''}
+    ${!past && !run ? li('reminder', rem ? 'Erinnerung ändern' : 'Erinnern', rem ? `${rem.lead ? rem.lead + ' Min. vorher' : 'Zum Beginn'}` : '', '', `data-act="hpRemClose" data-p="${p.id}" data-fid="ps-rem"`) : ''}
     ${li('calendar', 'Senderprogramm', 'Tagesprogramm als Liste', null, `href="#/live/guide/channel/${c.id}" data-fid="ps-prog"`)}
     <div class="acts"><button type="button" class="btn ghost" data-act="close" data-fid="ps-x">Schliessen</button></div>`);
 }
@@ -147,16 +147,16 @@ route('/live', () => {
       const ids = order.map((c) => c.id);
       const nowList = order.map((c) => SIM.nowNext(c.id).now).filter(Boolean);
       const soon = order.map((c) => SIM.programsOf(c.id, t, t + 60).find((p) => p.start > t)).filter(Boolean);
-      const recent = SIM.recent().slice(0, 12).map((x) => x.ch).filter((c) => SIM.chState(c) !== 'gone');
+      const recent = SIM.recent().slice(0, 20).map((x) => x.ch).filter((c) => SIM.chState(c) !== 'gone');
       const genres = SIM.genresSoon(3).sort((a, b) => b.n - a.n);
-      const bad = r.recordings ? new Set(SIM.warnings().flatMap((w) => w.rules)).size : 0;
+      const bad = r.recordings ? SIM.warningCount() : 0;
       const run = r.recordings ? SIM.recordings().filter((x) => x.state === 'running').length : 0; const up = r.recordings ? SIM.upcoming().length : 0; const rem = SIM.reminders().length;
       const rowH = (title, link) => `<div class="rowh"><h2>${esc(title)}</h2>${link || ''}</div>`;
-      body = `${bad ? `<a class="note warn hp-link" href="#/live/scheduled/warnings" data-fid="ls01-warn">${icon('alert', 20)}<div><b>${bad} geplante Aufnahmen brauchen deine Aufmerksamkeit</b><br>Warnungen ansehen</div></a>` : ''}
+      body = `${bad ? `<a class="note warn hp-link" href="#/live/scheduled/warnings" data-fid="ls01-warn">${icon('alert', 20)}<div><b>${esc(LU.warnText(bad))}</b><br>Warnungen ansehen</div></a>` : ''}
         ${noEpg ? `<div class="note">${icon('info', 20)}<div>Für die Sender gibt es gerade keine Programmdaten. Fernsehen geht trotzdem.</div></div>` : ''}
         ${!noEpg && nowList.length ? `${rowH('Jetzt im Fernsehen')}<div class="hrow" role="list" aria-label="Jetzt im Fernsehen">${nowList.map((p) => hpProgCard(p, ids, 'now', 'n')).join('')}</div>` : ''}
         ${!noEpg && soon.length ? `${rowH('Gleich im Fernsehen')}<div class="hrow" role="list" aria-label="Gleich im Fernsehen">${soon.map((p) => hpProgCard(p, ids, 'soon', 's')).join('')}</div>` : ''}
-        ${recent.length ? `${rowH('Zuletzt gesehen')}<div class="hrow" role="list" aria-label="Zuletzt gesehen">${recent.map((c) => hpChCard(c, recent.map((x) => x.id), 'z')).join('')}</div>` : ''}
+        ${recent.length ? `${rowH('Zuletzt gesehen', `<button type="button" class="ib" data-act="hpRecentMenu" aria-label="Menü der Reihe «Zuletzt gesehen»" data-fid="ls01-recent-menu">${icon('dots', 20)}</button>`)}<div class="hrow" role="list" aria-label="Zuletzt gesehen">${recent.map((c) => hpChCard(c, recent.map((x) => x.id), 'z')).join('')}</div>` : ''}
         ${favs.length ? `${rowH('Meine Sender', `<a href="#/live/channels/favorites" data-fid="ls01-favall" aria-label="Alle Meine Sender">Alle ${icon('right', 16)}</a>`)}<div class="hrow" role="list" aria-label="Meine Sender">${favs.map((c) => hpChCard(c, favs.map((x) => x.id), 'f')).join('')}</div>` : ''}
         ${!noEpg && genres.length ? `${rowH('Nach Genre')}<div class="chips" role="list" aria-label="Nach Genre">${genres.map((g) => `<a class="chip" role="listitem" href="#/live/guide/search?genre=${encodeURIComponent(g.genre)}&when=now" data-fid="ls01-g-${esc(g.genre)}">${esc(g.genre)}</a>`).join('')}</div>` : ''}
         <div class="hp-tiles">
@@ -168,6 +168,9 @@ route('/live', () => {
   }
   return { nav: '', html: livePage({ tab: 'start', title: 'Live-TV', html: body }) };
 });
+
+ACT.hpRecentMenu = () => sheet(`<h2>Zuletzt gesehen</h2>${li('trash', 'Liste leeren', 'Die Sender bleiben, nur die Reihe wird leer.', null, 'data-act="hpRecentClear" data-fid="rc-clear"')}<div class="acts"><button type="button" class="btn ghost" data-act="close" data-fid="rc-x">Schliessen</button></div>`);
+ACT.hpRecentClear = () => { closeSheet(true); SIM.clearRecent(); toast('Die Liste «Zuletzt gesehen» ist leer'); };
 
 /* ============================================================ LS-03 Meine Sender */
 route('/live/channels/favorites', () => {
@@ -313,6 +316,7 @@ route('/live/programs/:id', (pm) => {
   const p = SIM.program(pm.id); const m = SIM.mode();
   if (m === 'loading') return { nav: '', html: `${hpBackBar('Sendung')}<div class="pad hp-skel"><span class="lv-skel" style="height:200px"></span><span class="lv-skel" style="height:34px"></span><span class="lv-skel" style="height:60px"></span><span class="lv-skel" style="height:120px"></span></div>` };
   if (m === 'error') return { nav: '', html: `${hpBackBar('Sendung')}${hpState()}` };
+  if (m === 'empty') return { nav: '', html: `${hpBackBar('Sendung')}${hpEmptyBox('live', 'Noch keine Sender', LU.TX.empty)}` };
   if (!p || SIM.epgOf(p.ch) === 'none') return hpNotFound('Diese Sendung steht nicht mehr im Programm.', p ? `#/live/guide/channel/${p.ch}` : '#/live/guide', 'Zum Senderprogramm');
   const c = SIM.channel(p.ch); const r = SIM.rights(); const t = SIM.now(); const run = hpIsNow(p); const past = p.end <= t;
   const rs = r.recordings && !past ? SIM.recState(p.id) : null; const rem = SIM.reminderFor(p.id);
@@ -330,7 +334,7 @@ route('/live/programs/:id', (pm) => {
       ${run ? ra('play', 'Einschalten', 'hpTune', `data-ch="${c.id}"`, false, 'd-tune') : ''}
       ${r.recordings && !past ? ra(rs === 'recording' ? 'record' : 'recordHollow', rs === 'recording' ? 'Nimmt auf' : rs ? (rs === 'series' ? 'Serie geplant' : 'Aufnahme geplant') : 'Aufnehmen', 'hpRec', `data-p="${p.id}"`, !!rs, 'd-rec') : ''}
       ${r.recordings && !past && hpSerial(p) ? ra('recordSeries', 'Serie aufnehmen', 'hpSeries', `data-p="${p.id}"`, rs === 'series', 'd-ser') : ''}
-      ${!past ? ra('reminder', rem ? `Erinnerung um ${fmt.time(p.start - rem.lead)}` : 'Erinnern', 'hpRem', `data-p="${p.id}"`, !!rem, 'd-rem') : ''}
+      ${!past && !run ? ra('reminder', rem ? `Erinnerung um ${fmt.time(p.start - rem.lead)}` : 'Erinnern', 'hpRem', `data-p="${p.id}"`, !!rem, 'd-rem') : ''}
       <a class="hp-ra" href="#/live/guide/channel/${c.id}" data-fid="d-prog"><span class="hp-ra-i">${icon('calendar', 24)}</span><span>Senderprogramm</span></a></div>
     ${p.desc ? `<div class="pad"><p class="hp-desc">${esc(p.desc)}</p></div>` : ''}
     ${facts.length ? `<div class="sec">Angaben</div><dl class="hp-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
@@ -342,6 +346,7 @@ route('/live/programs/:id', (pm) => {
 /* ============================================================ LS-15 Senderprogramm */
 route('/live/guide/channel/:id', (pm) => {
   const c = SIM.channel(pm.id); const m = SIM.mode();
+  if (m === 'empty') return { nav: '', html: `${hpBackBar('Senderprogramm')}${hpEmptyBox('live', 'Noch keine Sender', LU.TX.empty)}` };
   if (!c || SIM.chState(c) === 'gone') return hpNotFound('Diesen Sender gibt es nicht mehr.', '#/live/channels', 'Zu den Sendern');
   const key = pm.id; if (HP.cd.key !== key) HP.cd = { day: 0, key };
   const day = HP.cd.day; const from = day * 1440; const to = from + 1440; const r = SIM.rights(); const t = SIM.now(); const st = SIM.chState(c);

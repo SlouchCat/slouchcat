@@ -171,3 +171,4 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .ph-page h1 { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .ph-page p { color: var(--tx2); }
 .ph-props { white-space: pre-wrap; background: var(--s1); border: 1px solid var(--frame); border-radius: 8px; padding: 8px 12px; max-height: 200px; overflow: auto; color: var(--tx2); }
+.hd.admin .finder kbd { color: var(--tx2); border-color: var(--ctl); } /* 8:1 for muted text (RM-04) */

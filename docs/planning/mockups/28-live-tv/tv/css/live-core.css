@@ -62,7 +62,7 @@
 .ltv-heart.on { color: var(--live-rec); }
 .ltv-heart.is-f { background: var(--tx); color: var(--bg); border-color: var(--tx); transform: scale(1.1); }
 .ltv-heart.on.is-f { color: var(--live-rec); }
-.ltv-prev { position: sticky; top: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 30px 34px; border-radius: 28px; background: var(--elev); border: 2px solid var(--line); }
+.ltv-prev { position: sticky; top: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 30px 34px; border-radius: 28px; background: var(--elev); border: 2px solid var(--frame); }
 .ltv-pv-top { display: flex; align-items: center; gap: 26px; }
 .ltv-pv-top > span > b { display: block; font-size: var(--fs-h2); }
 .ltv-pv-top > span > small { display: block; font-size: var(--fs-s); color: var(--tx3); }
@@ -82,3 +82,9 @@
 #ltv-num.on { display: flex; }
 #ltv-num b { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 120px; text-align: right; }
 #ltv-num.err { border-color: var(--danger); }
+
+/* messages appear at the top centre so they never cover the help line at the foot of the guide or the player bar (RM-15) */
+#toast { top: calc(var(--safe-y) + 6px); bottom: auto; transform: translate(-50%, -30px); }
+#toast.on { transform: translate(-50%, 0); }
+.ov-panel { border-color: var(--frame); } /* frames of menus and dialogs at least 3:1 (RM-04) */
+.tsw:not(.is-f), .tc.more .im { border-color: var(--frame); } /* switch rows and «Alle anzeigen» tiles: frames at least 3:1 */

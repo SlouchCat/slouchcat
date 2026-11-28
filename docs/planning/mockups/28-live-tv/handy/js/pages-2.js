@@ -23,6 +23,9 @@ function hpPhase(c) {
   if (ph.k === 'ok') return 'play';
   return ph.spin ? ph.k : 'start';
 }
+/** RM-16: a fault switched in the mockup bar acts on the running channel; unreachable and slow start load
+    again, leaving an error loads again, the others (stall, fallback, limit, busy, not playable) show at once */
+const hpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'notPlayable', 'unreachable'].includes(was);
 const hpErrKind = (c) => { const e = HP.p.coreErr || (SIM.chState(c) === 'gone' ? 'gone' : 'unreach'); return HP_ERRMAP[e] || e; };
 const HP_ERR = {
   unreach: (c) => ({ t: `${c.name} ist gerade nicht erreichbar. Slouchcat versucht es weiter.`, w: true, b: [['hpRetryPl', 'Erneut versuchen'], ['hpOther', 'Anderer Sender']] }),
@@ -69,13 +72,16 @@ function hpChRow(c, cur, k) {
 }
 
 route('/live/watch/:id', (pm) => {
-  const id = pm.id; const c = SIM.channel(id); const r = SIM.rights(); const m = SIM.mode();
+  const id = pm.id; const m = SIM.mode(); const c = m === 'empty' ? null : SIM.channel(id); const r = SIM.rights();
+  if (m === 'empty') return { nav: '', html: `${hpBackBar('Live-TV')}${hpEmptyBox('live', 'Noch keine Sender', LU.TX.empty)}` };
   if (!c) return hpNotFound('Diesen Sender gibt es nicht mehr.', '#/live/channels', 'Zu den Sendern');
   if (!HP.p) HP.p = hpPlInit(); const P = HP.p;
   let pl = SIM.player();
   if (!pl || pl.ch !== id) { setTimeout(() => { const q = SIM.player(); if (!q || q.ch !== id) SIM.tune(id, {}); }, 0); pl = { ch: id, joinedAt: SIM.now(), offset: 0, paused: false, list: SIM.channels().map((x) => x.id), prev: null, max: 0, position: SIM.now(), live: true, pending: true }; }
   const key = pl.pending ? 'pending' : `${pl.ch}@${pl.joinedAt}`;
-  if (P.key !== key && !pl.pending) { Object.assign(P, { key, tuneAt: Date.now(), ctl: true, ctlUntil: Date.now() + 4500, infoUntil: Date.now() + 5000, force: null, stall: 0, reload: 0 }); }
+  const fault = SIM.flags().fault;
+  if (P.key !== key && !pl.pending) { Object.assign(P, { key, fault, tuneAt: Date.now(), ctl: true, ctlUntil: Date.now() + 4500, infoUntil: Date.now() + 5000, force: null, stall: 0, reload: 0 }); }
+  else if (P.fault !== fault) { if (hpFaultRestart(P.fault, fault)) { P.tuneAt = Date.now(); P.reload = 0; } P.fault = fault; P.fb = false; P.stall = 0; }
   const nn = SIM.nowNext(id); const list = hpList(pl).map(SIM.channel).filter(Boolean); const phase = pl.pending ? 'start' : m === 'loading' ? 'loading' : hpPhase(c); const ts = r.timeshift;
   const ek = hpErrKind(c); const eo = (HP_ERR[ek] || HP_ERR.unreach)(c);
   const sub = (ss) => ({ unreach: 'Nächster Versuch in <b data-hp-retry>20</b> s' }[ss] || '');
@@ -151,8 +157,8 @@ ACT.hpPrev = () => hpZap(-1);
 ACT.hpNext = () => hpZap(1);
 ACT.hpPick = (d) => { closeSheet(true); if (HP.p) HP.p.listOpen = false; hpSwitch(d.ch); };
 ACT.hpStageTap = () => { const P = HP.p; if (Date.now() - P.swiped < 400) return; P.ctl = !P.ctl; P.ctlUntil = Date.now() + 4500; const st = $('.hp-stage'); if (st) st.classList.toggle('ctl-on', P.ctl); };
-ACT.hpPlPP = () => { const pl = SIM.player(); if (!pl) return; if (!SIM.rights().timeshift) return toast(LU.TX.noTimeshift || 'Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); if (pl.paused) SIM.resume(); else SIM.pause(); };
-ACT.hpSeekRel = (d) => { const pl = SIM.player(); if (!pl) return; SIM.seek(pl.offset - Number(d.s) / 60); };
+ACT.hpPlPP = () => { const pl = SIM.player(); if (!pl) return; if (!SIM.rights().timeshift) return; if (pl.paused) SIM.resume(); else SIM.pause(); };
+ACT.hpSeekRel = (d) => { const pl = SIM.player(); if (!pl || !SIM.rights().timeshift) return; SIM.seek(pl.offset - Number(d.s) / 60); };
 ACT.hpToLive = () => SIM.toLive();
 ACT.hpList = () => { HP.p.listOpen = !HP.p.listOpen; render(); };
 ACT.hpListClose = () => { HP.p.listOpen = false; render(); };
@@ -197,7 +203,9 @@ ACT.hpSetPick = (d) => {
   document.addEventListener('pointerdown', (e) => {
     const trk = e.target.closest('[data-hp-trk]');
     if (trk) { const pl = SIM.player(); if (!pl || !SIM.rights().timeshift) return; dr = { trk, pl }; hpPlTick.drag = true; hpPlSeekTo(e, dr); trk.setPointerCapture(e.pointerId); return; }
-    const st = e.target.closest('.hp-stage'); if (!st || e.target.closest('button:not(.hp-tapzone), a, .hp-side')) return;
+    /* a swipe may start anywhere on the picture, also on the big buttons in the middle (they cover much of a small
+       picture); the top row, the bar and the channel list keep their own gestures */
+    const st = e.target.closest('.hp-stage'); if (!st || e.target.closest('.hp-top, .hp-bot, .hp-side, .hp-err, a')) return;
     sw = { x: e.clientX, y: e.clientY };
   });
   document.addEventListener('pointermove', (e) => { if (dr) hpPlSeekTo(e, dr); });
@@ -207,6 +215,8 @@ ACT.hpSetPick = (d) => {
     if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) { HP.p.swiped = Date.now(); hpZap(dy < 0 ? 1 : -1); }
   };
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', () => { sw = null; if (dr) { dr = null; hpPlTick.drag = false; } });
+  /* the click that ends a swipe does not press the button under the finger */
+  document.addEventListener('click', (e) => { if (HP.p && Date.now() - HP.p.swiped < 400 && e.target.closest && e.target.closest('.hp-stage')) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   document.addEventListener('focusin', (e) => { if (e.target.closest && e.target.closest('.hp-ctl') && HP.p) { HP.p.ctl = true; HP.p.ctlUntil = Date.now() + 4500; const st = $('.hp-stage'); if (st) st.classList.add('ctl-on'); } });
 })();
 function hpPlSeekTo(e, d) {
@@ -219,7 +229,7 @@ function hpPlSeekTo(e, d) {
 document.addEventListener('keydown', (e) => {
   if (!hpPlOn() || !e.target.closest || e.target.closest('input, select, textarea') || $('#overlays .scrim') || e.ctrlKey || e.metaKey || e.altKey) return;
   const pl = SIM.player(); if (!pl) return; const k = e.key; let used = true;
-  if (k === 'ArrowLeft' || k === 'ArrowRight') { if (!SIM.rights().timeshift) toast('Anhalten und Zurückspulen sind für dieses Profil nicht freigegeben.'); else SIM.seek(pl.offset + (k === 'ArrowLeft' ? 1 : -1) * (e.shiftKey ? 1 : 1 / 6)); }
+  if (k === 'ArrowLeft' || k === 'ArrowRight') { if (SIM.rights().timeshift) SIM.seek(pl.offset + (k === 'ArrowLeft' ? 1 : -1) * (e.shiftKey ? 1 : 1 / 6)); }
   else if (k === 'PageUp' || k === 'n' || k === 'N') hpZap(1); else if (k === 'PageDown' || k === 'p' || k === 'P') hpZap(-1);
   else if (k === ' ' || k === 'k' || k === 'K') { if (e.target.closest('button, a')) return; ACT.hpPlPP(); }
   else if (k === 'l' || k === 'L' || k === 'End') SIM.toLive();
@@ -327,7 +337,7 @@ ACT.hpRecSel = (d, el) => { const i = HP.rec.sel.indexOf(d.id); if (el.checked &
 ACT.hpRecDelSel = () => LiveDlg.confirmDelete({ kind: 'recordings', ids: HP.rec.sel.slice(), onDone: () => { HP.rec.sel = []; HP.rec.select = false; } });
 
 /* ============================================================ LS-09 Aufnahme-Detail */
-const hpOwnRec = (id) => { const r = SIM.recording(id); if (!r) return null; const p = SIM.profile(); if (r.profile === p.id) return r; if (p.primary && SIM.childProfiles().some((x) => x.id === r.profile)) return r; return null; };
+const hpOwnRec = (id) => { const r = SIM.mode() === 'empty' ? null : SIM.recording(id); if (!r) return null; const p = SIM.profile(); if (r.profile === p.id) return r; if (p.primary && SIM.childProfiles().some((x) => x.id === r.profile)) return r; return null; };
 route('/live/recordings/:id', (pm) => {
   const m = SIM.mode(); const r = hpOwnRec(pm.id);
   if (m === 'loading') return { nav: '', html: `${hpBackBar('Aufnahme')}<div class="pad hp-skel"><span class="lv-skel" style="height:200px"></span><span class="lv-skel" style="height:34px"></span><span class="lv-skel" style="height:90px"></span></div>` };
@@ -336,9 +346,9 @@ route('/live/recordings/:id', (pm) => {
   const c = SIM.channel(r.ch); const own = r.profile === SIM.profile().id; const bad = r.state === 'failed' || r.state === 'rejected'; const rule = r.rule ? SIM.rule(r.rule) : null;
   const gapMin = r.gaps.reduce((a, g) => a + (g[1] - g[0]), 0); const dur = r.end - r.start;
   const ra = (ic, label, act, extra, fid, cls) => `<button type="button" class="hp-ra${cls ? ' ' + cls : ''}" data-act="${act}" ${extra} data-fid="${fid}"><span class="hp-ra-i">${icon(ic, 24)}</span><span>${esc(label)}</span></button>`;
-  const resume = r.watchedPct > 0 && r.watchedPct < 95 && !bad && r.state !== 'running';
+  const resume = own && r.watchedPct > 0 && r.watchedPct < 95 && !bad && r.state !== 'running';
   const resTxt = r.resumeAt || hpMMSS(dur * r.watchedPct / 100);
-  const kids = !own ? `<div class="note">${icon('info', 20)}<div>Aufnahme von ${esc(hpProfName(r.profile))}. Du siehst sie, weil ${esc(hpProfName(r.profile))} eine Altersgrenze hat.</div></div>` : '';
+  const kids = !own ? `<div class="note">${icon('info', 20)}<div>Aufnahme von ${esc(hpProfName(r.profile))}. Du siehst sie, weil ${esc(hpProfName(r.profile))} eine Altersgrenze hat. Fortschritt wird nicht gespeichert.</div></div>` : '';
   const from = `${r.origin === 'series' && rule ? `Aus der Serienaufnahme «${esc(rule.title)}»` : r.origin === 'instant' ? 'Sofortaufnahme' : rule ? `Einzeln geplant am ${fmt.day(rule.created)}` : 'Einzeln geplant'}`;
   const tl = !bad ? `<div class="hp-tl" role="img" aria-label="Zeitleiste der Aufnahme, ${r.gaps.length} Lücken">${r.padBefore ? `<i class="pad" style="left:0;width:${(r.padBefore / dur * 100).toFixed(1)}%"></i>` : ''}${r.padAfter ? `<i class="pad" style="right:0;width:${(r.padAfter / dur * 100).toFixed(1)}%"></i>` : ''}${r.gaps.map((g) => `<i class="lv-gap gp" style="left:${((g[0] - r.start) / dur * 100).toFixed(1)}%;width:${Math.max(1.5, (g[1] - g[0]) / dur * 100).toFixed(1)}%"></i>`).join('')}</div>` : '';
   const html = `${hpBackBar('Aufnahme')}${kids}
@@ -375,11 +385,11 @@ route('/live/recordings/:id/play', (pm, q) => {
   if (m === 'loading') return { full: true, nav: '', html: `<div class="hp-pl"><section class="hp-stage ctl-on" data-phase="loading"><div class="hp-ov hp-load"><span class="hp-spin">${icon('loadspin', 36)}</span><b>Aufnahme wird geladen</b></div><div class="hp-ctl"><div class="hp-top"><button type="button" class="ib back" data-act="back" aria-label="Zurück" data-fid="rp-back">${icon('back')}</button></div></div></section></div>` };
   if (m === 'error') return { full: true, nav: '', html: `<div class="hp-pl"><div class="hp-top"><button type="button" class="ib back" data-act="back" aria-label="Zurück" data-fid="rp-back">${icon('back')}</button></div>${hpState()}</div>` };
   if (!r || r.state === 'failed' || r.state === 'rejected') return hpNotFound(r ? 'Diese Aufnahme lässt sich nicht abspielen. ' + (LU.REASON[r.reason] || '') : 'Diese Aufnahme gibt es nicht.', '#/live/recordings', 'Zu meinen Aufnahmen');
-  const c = SIM.channel(r.ch); const key = r.id;
+  const c = SIM.channel(r.ch); const key = r.id; const own = r.profile === SIM.profile().id;
   const first = !HP.rp || HP.rp.id !== key;
   if (first) {
-    const ra = r.resumeAt ? r.resumeAt.split(':').map(Number) : null; const pctMin = (r.watchedPct > 0 && r.watchedPct < 95) ? (ra ? ra[0] + (ra[1] || 0) / 60 : hpRpAvail(r) * r.watchedPct / 100) : 0;
-    HP.rp = { id: key, pos: q.from === 'start' ? r.padBefore : (pctMin ? pctMin : r.padBefore), playing: !pctMin || q.from === 'start', ctl: true, ctlUntil: Date.now() + 4500, asked: q.from === 'start' || !pctMin, resume: pctMin, audio: 0, subs: 0, last: Date.now() };
+    const ra = r.resumeAt ? r.resumeAt.split(':').map(Number) : null; const pctMin = (own && r.watchedPct > 0 && r.watchedPct < 95) ? (ra ? ra[0] + (ra[1] || 0) / 60 : hpRpAvail(r) * r.watchedPct / 100) : 0;
+    HP.rp = { id: key, pos: q.from === 'start' ? r.padBefore : (pctMin ? pctMin : r.padBefore), playing: !pctMin || q.from === 'start', ctl: true, ctlUntil: Date.now() + 4500, asked: q.from === 'start' || !pctMin, resume: pctMin, own, audio: 0, subs: 0, last: Date.now() };
   }
   const P = HP.rp; const dur = hpRpAvail(r); P.pos = Math.min(P.pos, dur);
   const live = r.state === 'running' && P.pos >= dur - 0.1;
@@ -391,7 +401,7 @@ route('/live/recordings/:id/play', (pm, q) => {
       <div class="hp-mid"><button type="button" class="ib hp-bigb" data-act="hpRpSeek" data-s="-10" aria-label="10 Sekunden zurück" data-fid="rp-rew">${icon('rew', 28)}</button><button type="button" class="ib hp-bigb hp-pp" data-act="hpRpPP" aria-label="${P.playing ? 'Pause' : 'Wiedergabe'}" data-fid="rp-pp">${icon(P.playing ? 'pause' : 'play', 32)}</button><button type="button" class="ib hp-bigb" data-act="hpRpSeek" data-s="10" aria-label="10 Sekunden vor" data-fid="rp-fwd">${icon('fwd', 28)}</button></div>
       <div class="hp-bot"><div class="hp-seekrow">${trk}</div><div class="hp-lbls"><span data-hp-rpos>${hpMMSS(P.pos)}</span><span data-hp-rdur>${hpMMSS(dur)}</span></div>
         <div class="hp-brow">${r.state === 'running' ? (live ? `<span class="hp-pill live"><i aria-hidden="true"></i>Aufnahme läuft</span>` : `<button type="button" class="hp-pill shift" data-act="hpRpLive" data-fid="rp-live">Aufnahme läuft · Zum aktuellen Stand</button>`) : `<span class="hp-pos">Ganze Aufnahme ${hpMMSS(dur)}</span>`}</div></div></div></section>`;
-  const html = `<div class="hp-pl" data-rp>${stage}<section class="hp-below"><div class="hp-info"><b class="hp-it">${esc(r.title)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}<small>${hpRecMeta(r)}</small><div class="hp-btnrow"><a class="btn ghost sm" href="#/live/recordings/${r.id}" data-fid="rp-det">${icon('info', 18)}Details</a><button type="button" class="btn ghost sm" data-act="hpRpTracks" data-fid="rp-tracks2">${icon('subs', 18)}Ton und Untertitel</button></div>
+  const html = `<div class="hp-pl" data-rp>${stage}<section class="hp-below"><div class="hp-info"><b class="hp-it">${esc(r.title)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}<small>${hpRecMeta(r)}</small>${own ? '' : `<small>Aufnahme von ${esc(hpProfName(r.profile))} · Fortschritt wird nicht gespeichert</small>`}<div class="hp-btnrow"><a class="btn ghost sm" href="#/live/recordings/${r.id}" data-fid="rp-det">${icon('info', 18)}Details</a><button type="button" class="btn ghost sm" data-act="hpRpTracks" data-fid="rp-tracks2">${icon('subs', 18)}Ton und Untertitel</button></div>
     ${r.state === 'incomplete' ? `<div class="note warn" style="margin:12px 0 0">${icon('alert', 20)}<div>Unvollständig: ${r.gaps.length} Lücken (schraffiert in der Leiste).</div></div>` : ''}</div><p class="lh-sample">${esc(LU.TX.sample)}</p></section></div>`;
   return { full: true, nav: '', html, after: () => { if (!P.asked) { P.asked = true; hpRpAsk(r); } } };
 });
@@ -417,7 +427,7 @@ function hpRpUpd() {
 setInterval(() => {
   const P = HP.rp; if (!P || !$('[data-rp]')) return; const r = SIM.recording(P.id); if (!r) return; const now = Date.now(); const dt = (now - P.last) / 1000 / 60; P.last = now;
   if (P.playing && !$('#overlays .scrim')) { const dur = hpRpAvail(r); P.pos = Math.min(dur, P.pos + dt); if (P.pos >= dur && r.state !== 'running') { P.playing = false; render(); return; } }
-  hpRpUpd(); if (!hpPlTick.drag) { const dur = hpRpAvail(r); r.watchedPct = Math.min(100, Math.round(P.pos / dur * 100)); }
+  hpRpUpd(); if (!hpPlTick.drag && P.own) { const dur = hpRpAvail(r); r.watchedPct = Math.min(100, Math.round(P.pos / dur * 100)); }
   if (P.ctl && P.playing && now > P.ctlUntil) { P.ctl = false; const st = $('.hp-stage'); if (st) st.classList.remove('ctl-on'); }
 }, 250);
 /* drag on the recording bar */
@@ -429,5 +439,5 @@ setInterval(() => {
   ['pointerup', 'pointercancel'].forEach((n) => document.addEventListener(n, () => { dr = null; }));
 })();
 window.addEventListener('hashchange', (e) => {
-  if (/\/play/.test(e.oldURL) && !/\/play/.test(e.newURL) && HP.rp) { const r = SIM.recording(HP.rp.id); if (r) SIM.setWatched(r.id, r.watchedPct || 0); HP.rp = null; }
+  if (/\/play/.test(e.oldURL) && !/\/play/.test(e.newURL) && HP.rp) { const r = SIM.recording(HP.rp.id); if (r && HP.rp.own) SIM.setWatched(r.id, r.watchedPct || 0); HP.rp = null; }
 });

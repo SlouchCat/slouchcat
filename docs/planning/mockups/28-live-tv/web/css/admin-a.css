@@ -175,3 +175,23 @@ button.stat[aria-pressed='true'] { background: var(--s3); border-color: var(--tx
   .aa-ch .tbl td { padding-top: 2px; padding-bottom: 2px; }
   .aa-ch .tbl td.aa-cb { width: auto; text-align: left; }
 }
+
+/* Nachzug 15 Fassung 2 (Review 3 der Mockups) */
+.aa-mock { border: 1px dashed var(--frame); border-radius: 8px; padding: 4px 8px; flex-wrap: wrap; }
+.aa-why { margin-top: 0; }
+.aa-why:focus { outline: 3px solid var(--tx); outline-offset: 2px; }
+.btn.primary.aa-blocked { opacity: 0.7; }
+.aa-shp { gap: 6px; }
+.aa-hset { grid-template-columns: 1fr auto auto; align-items: center; padding: 4px 0; }
+.aa-trow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.aa-trow .aa-err { grid-column: 1 / -1; }
+.aa-2a { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.aa-confirm span { font-size: 14px; }
+.aa-origs { display: flex; flex-direction: column; }
+.aa-origs li { display: flex; gap: 10px; align-items: center; padding: 4px 0; }
+.aa-origin { max-width: 260px; }
+.aa-rowlink { position: relative; cursor: pointer; }
+.aa-rowlink td.main a::after { content: ''; position: absolute; inset: 0; }
+.aa-rowlink:hover td { background: var(--s1); }
+/* LA-26: Marke «NEU» in einer Einstellungszeile (.srow .st span färbt sonst grau) */
+.srow .st .newtag { color: var(--on-accent); font-size: 10px; }

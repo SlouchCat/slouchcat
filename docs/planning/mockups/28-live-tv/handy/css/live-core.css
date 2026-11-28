@@ -50,3 +50,4 @@
   .lh-heart, .lh-more { margin-top: 0; align-self: center; }
   .lv-logo { width: 56px; height: 34px; }
 }
+.card { border-color: var(--frame); } /* frames at least 3:1 (RM-04) */

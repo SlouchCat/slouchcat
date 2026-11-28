@@ -10,6 +10,9 @@
 .va-all { margin-left: auto; font-size: 14px; }
 .va-paging { margin-left: auto; display: none; gap: 4px; }
 .va-all + .va-paging { margin-left: 8px; }
+.va-rowmenu { margin-left: auto; display: inline-flex; }
+.va-rowhead:has(.lmenu) { position: relative; z-index: 5; }
+.va-all + .va-rowmenu, .va-rowmenu + .va-paging { margin-left: 4px; }
 @container app (min-width: 768px) { .va-paging { display: inline-flex; } }
 /* the scroller carries empty space below the cards so a card menu is not cut off; the next section paints above it */
 .va-scroll { margin: 0 calc(var(--gut) * -1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-behavior: smooth; padding-bottom: 150px; margin-bottom: -150px; scroll-padding: 0 var(--gut); }
@@ -61,7 +64,6 @@
 .va-dock-t span { font-size: 12px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .va-pgbody { min-width: 0; }
 .va-hint { color: var(--tx2); font-size: 14px; max-width: 70ch; }
-.va-fine { font-size: 13px; color: var(--tx3); }
 
 /* card menu: opens inside the scroller's free space */
 .va-card .lmenu { top: calc(100% + 2px); min-width: 220px; }
@@ -115,7 +117,7 @@
 .va-pt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 100%; }
 .va-pt b { font-size: 15px; font-weight: 600; }
 .va-ep { font-size: 14px; color: var(--tx2); }
-.va-gn { font-size: 12px; color: var(--tx3); }
+.va-gn { font-size: 12px; color: var(--tx2); }
 .va-pg { display: flex; align-items: center; gap: 10px; max-width: 320px; margin-top: 4px; }
 .va-pg .lv-prog { flex: 1; }
 .va-prow > .va-bdg { grid-column: 1; grid-row: 2; padding: 0 8px 8px; align-items: center; }
@@ -239,6 +241,8 @@
 .va-hero { padding: 0 var(--gut); }
 .va-hero h1 { font-size: 36px; font-weight: 700; line-height: 1.1; }
 @container app (min-width: 768px) { .va-hero h1 { font-size: 52px; } }
-.va-homenote, .va-homefoot { padding: 0 var(--gut); }
+.va-homefoot { padding: 0 var(--gut); }
 
 /* the Live-TV tab bar shrinks to the page width on a phone: in core.css (.lhead, .ltabs) */
+/* muted text on the highlighted running row: tx2 keeps 8:1 on live-cur (RM-04) */
+.va-prow.now .va-m, .va-prow.now .va-gn, .va-prow.now [data-lv-now] { color: var(--tx2); }

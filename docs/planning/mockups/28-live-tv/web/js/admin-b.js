@@ -122,7 +122,7 @@ function abSyncInput(c) {
 /* ======================================================================================
    LA-09 Empfang: Strategie · Zeitpläne · Ausnahmen je Sender
    ====================================================================================== */
-const abRcBase = () => Object.assign({}, abClone(LIVE.settings.reception), { more: Object.fromEntries(LIVE.sources.map((s) => [s.id, !!s.moreConn])) });
+const abRcBase = () => Object.assign({}, abClone(LIVE.settings.reception), { preloadMax: LIVE.limits.preloaded, more: Object.fromEntries(LIVE.sources.map((s) => [s.id, !!s.moreConn])) });
 function abRcErrors(d) {
   const e = {};
   if (!Number.isInteger(d.recLeadS) || d.recLeadS < 10 || d.recLeadS > 120) e.lead = 'Gib eine ganze Zahl von 10 bis 120 ein.';
@@ -136,23 +136,24 @@ function abStrategyTab() {
   const defWarn = d.default === 'permanent'
     ? notice('warn', `Standard «Permanent» für alle Sender: ${fmt.num(cnt.total)} dauerhafte Verbindungen`, 'Jeder permanent empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer. Wie viele gleichzeitige Verbindungen dein Anbieter erlaubt, musst du selbst im Blick behalten.') : '';
   const schedSel = d.default === 'schedule' ? abFld('la09-defsch', 'Zeitplan für alle Sender', abSel(`${P}.schedule`, 'la09-defsch', [['', 'Zeitplan wählen …'], ...LIVE.settings.schedules.map((s) => [s.name, `${s.name} (${s.times})`])], { err: e.sched, label: 'Zeitplan für alle Sender' }), { err: e.sched }) : '';
-  const extraPerSession = 2 * d.neighbours + d.keepHot;
-  const srcTable = `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Art</th><th>Darf vorsorglich zusätzliche Verbindungen öffnen (Vorladen, Bereithalten)</th></tr></thead><tbody>${LIVE.sources.map((s) => `<tr><td class="main" data-l="Quelle">${esc(s.name)}</td><td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td><td data-l="Weitere Verbindungen">${s.kind === 'single' && s.localNet ? '<span class="muted">Einzelstrom im Heimnetz: wird nie vorsorglich geöffnet</span>' : `<span class="ab-swl">${sw(`${P}.more.${s.id}`, `${s.name}: vorsorglich zusätzliche Verbindungen öffnen`)}<span>${d.more[s.id] ? 'erlaubt' : 'aus'}</span></span>`}</td></tr>`).join('')}</tbody></table></div><p class="muted aa-small">Kein Anbieterlimit: Slouchcat zählt keine Verbindungen je Anbieter (LTV-017). Der Schalter sagt nur, ob Slouchcat für diese Quelle über das Schauen und Aufnehmen hinaus Verbindungen öffnen darf. Der Schalter (T-18 in 04-architektur.md) hängt an einer offenen Frage an Marco (LTV-017, Werkszustand F-9).</p>`;
-  return `${notice('', 'Wie der Empfang arbeitet', 'Laufende Wiedergaben und Aufnahmen sind immer geschützt: Keine Einstellung beendet sie. Nach einem Neustart nimmt der Server permanente Sender wieder auf. Slouchcat zählt keine Verbindungen je Anbieter. Jeder permanent, vorgeladen oder nach Zeitplan empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer.')}
+  /* Vorladen je Quelle: reine Vorlade-Einstellung (Datenfeld moreConn, dieselbe wie LA-03 «Vorladen für Sender dieser Quelle») */
+  const srcList = abEmpty() ? [] : LIVE.sources;
+  const srcTable = srcList.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Art</th><th>Vorladen für Sender dieser Quelle</th></tr></thead><tbody>${srcList.map((s) => `<tr><td class="main" data-l="Quelle"><a class="lnk" href="#/admin/live/sources/${s.id}" data-fid="la09:src:${s.id}">${esc(s.name)}</a></td><td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td><td data-l="Vorladen"><span class="ab-swl">${sw(`${P}.more.${s.id}`, `Vorladen für Sender der Quelle ${s.name}`)}<span>${d.more[s.id] ? 'an' : 'aus'}</span></span></td></tr>`).join('')}</tbody></table></div><p class="muted aa-small">Vorladen öffnet zusätzliche Verbindungen zu dieser Quelle. Ob dein Anbieter das zulässt, verantwortest du.</p>`
+    : abEmptyBox('Noch keine Quelle', 'Sobald eine Quelle besteht, stellst du hier ein, ob ihre Sender vorgeladen werden.', `<a class="btn primary" href="#/admin/live/sources/new" data-fid="la09:addsrc0">${icon('plus', 16)}Quelle hinzufügen</a>`);
+  return `${notice('', 'Wie der Empfang arbeitet', 'Laufende Wiedergaben und Aufnahmen sind immer geschützt: Keine Einstellung beendet sie. Nach einem Neustart nimmt der Server dauerhaft und nach Zeitplan empfangene Sender von selbst wieder auf. Jeder dauerhaft, vorgeladen oder nach Zeitplan empfangene Sender belegt eine Verbindung zur Quelle, auch ohne Zuschauer.')}
     <section class="card"><div class="ch"><span class="ik">${icon('wifi', 18)}</span><h2>Strategie für alle Sender</h2></div>
-      <p class="muted aa-small">Die Werte sind Vorschläge. Was ab Werk eingeschaltet ist, steht noch offen (Frage F-9 in der Architektur).</p>
       <div class="srow-wrap">
         ${abRow('Standard für alle Sender', 'Einzelne Sender kannst du im Reiter «Ausnahmen je Sender» abweichend einstellen.', `<div class="ab-cards" role="radiogroup" aria-label="Standard für alle Sender">${defOpts}</div>${schedSel}${defWarn}`, { col: true })}
-        ${abRow('Benachbarte Sender vorladen', 'Beim Umschalten öffnet Slouchcat die Nachbarn in der Senderliste im Voraus.', `${abSel(`${P}.neighbours`, 'la09-nb', [[0, 'aus'], [1, '1 Sender davor und danach'], [2, '2 Sender davor und danach']], { num: true, label: 'Benachbarte Sender vorladen' })}<span class="muted aa-small ab-full">Vorladen öffnet nur den Empfang. Eine Umwandlung für ein Gerät startet erst, wenn jemand schaut.</span>`)}
+        ${abRow('Benachbarte Sender vorladen', 'Beim Umschalten öffnet Slouchcat die Nachbarn in der Senderliste im Voraus.', `${abSel(`${P}.neighbours`, 'la09-nb', [[0, 'aus'], [1, '1 Sender davor und danach'], [2, '2 Sender davor und danach']], { num: true, label: 'Benachbarte Sender vorladen' })}<span class="muted aa-small ab-full">Wirkt nur bei Quellen, bei denen «Vorladen für Sender dieser Quelle» an ist (unten). Vorladen öffnet nur den Empfang. Eine Umwandlung für ein Gerät startet erst, wenn jemand schaut.</span>`)}
+        ${abRow('Vorgeladene Sender insgesamt', 'Obergrenze für alle Zuschauer zusammen. Benachbarte und oft genutzte Sender zählen beide dazu.', `${abSel(`${P}.preloadMax`, 'la09-pm', Array.from({ length: 17 }, (_, i) => [i, i === 0 ? 'keine' : `höchstens ${i}`]), { num: true, label: 'Vorgeladene Sender insgesamt' })}<span class="muted aa-small ab-full">Vorschlag: höchstens 4.</span>`)}
         ${abRow('Oft genutzte Sender bereithalten', `Gilt für Sender mit der Art «Automatisch» (derzeit ${abPl(cnt.by.auto, 'Sender', 'Sender')}).`, `${abSel(`${P}.keepHot`, 'la09-kh', Array.from({ length: 11 }, (_, i) => [i, i === 0 ? 'keinen' : `höchstens ${i}`]), { num: true, label: 'Oft genutzte Sender bereithalten' })}<span class="muted aa-small ab-full">Solange jemand Live-TV schaut und noch 10 Minuten danach.</span>`)}
         ${abRow('Lieblingssender der Zuschauer berücksichtigen', 'Die Favoriten der Profile, die gerade schauen, stehen in der Liste zuerst.', sw(`${P}.favourites`, 'Lieblingssender der Zuschauer berücksichtigen'))}
         ${abRow('Nicht mehr gebrauchten Empfang beenden nach', 'Wartezeit, nachdem der letzte Zuschauer weg ist.', abSel(`${P}.stopAfterS`, 'la09-st', [[15, '15 s'], [30, '30 s'], [60, '60 s'], [120, '2 Min.'], [300, '5 Min.']], { num: true, label: 'Empfang beenden nach' }))}
         ${abRow('Empfang für Aufnahmen vorher starten', 'Zusätzlich zum Vorlauf der Aufnahme.', `<span class="ab-unit">${abInp(`${P}.recLeadS`, 'la09-lead', { num: true, min: 10, max: 120, err: e.lead, label: 'Sekunden vor dem Vorlauf' })}<span>s vor dem Vorlauf</span></span>${abErr('la09-lead', e.lead)}`)}
       </div>
-      <p class="ab-calc">${icon('info', 16)}<span>Mit diesen Werten öffnet Slouchcat je Zuschauer bis zu <b>${abPl(2 * d.neighbours, 'Nachbarsender', 'Nachbarsender')}</b> und hält bis zu <b>${abPl(d.keepHot, 'weiteren Sender', 'weitere Sender')}</b> bereit, zusammen höchstens <b>${abPl(extraPerSession, 'Verbindung', 'Verbindungen')}</b> über das Nötige hinaus.</span></p>
     </section>
-    <section class="card"><div class="ch"><span class="ik">${icon('link', 18)}</span><h2>Vorsorglicher Empfang je Quelle</h2></div>
-      <p class="muted">Ist der Schalter einer Quelle aus, öffnet Slouchcat zu ihr nichts vorsorglich: kein Vorladen, kein «Automatisch», keine Prüfung ruhender Sender neben einem laufenden Empfang. Permanent und nach Zeitplan sind ausdrückliche Aufträge und hängen nicht daran. Der Schalter ist keine Zahl und keine Verwaltung von Anbieterlimits.</p>
+    <section class="card"><div class="ch"><span class="ik">${icon('link', 18)}</span><h2>Vorladen je Quelle</h2></div>
+      <p class="muted">Ist «Vorladen» einer Quelle aus, lädt Slouchcat ihre Sender nicht vor und hält sie bei «Automatisch» nicht bereit. Dauerhaft und nach Zeitplan sind ausdrückliche Aufträge und hängen nicht daran.</p>
       ${srcTable}</section>
     ${dirty ? abSaveBar('abRcSave', 'abRcDisc', 'la09', nerr) : ''}`;
 }
@@ -161,7 +162,7 @@ ACT.abRcSave = () => {
   const d = ui.draft.rc; if (!d || Object.keys(abRcErrors(d)).length) return;
   if (d.default === 'permanent' && LIVE.settings.reception.default !== 'permanent' && !ui.draft.rcOk) { openDialog('abRcConfirm', {}); return; }
   ui.draft.rcOk = false;
-  const { more, ...rest } = d; LIVE.settings.reception = abClone(rest);
+  const { more, preloadMax, ...rest } = d; LIVE.settings.reception = abClone(rest); LIVE.limits.preloaded = preloadMax;
   LIVE.sources.forEach((s) => { if (s.id in more) s.moreConn = !!more[s.id]; });
   delete ui.draft.rc; render();
   toast('Empfang gespeichert. Laufende Wiedergaben und Aufnahmen bleiben unberührt.');
@@ -244,11 +245,20 @@ ACT.abSchedDelOk = () => {
 };
 
 /* ---------- Ausnahmen je Sender ---------- */
+/** Zustand eines Senders mit eigener Empfangsart: läuft · zurückgestellt seit … · gestört · nicht empfangen */
+function abOvState(c) {
+  const n = LIVE.inputs.find((x) => x.ch === c.id);
+  if (n && n.state === 'deferred') return `<span class="chip warn" title="${esc(n.deferredReason || '')}">zurückgestellt seit ${fmt.time(n.since)}</span>`;
+  if ((n && n.state === 'reconnecting') || SIM.chState(c) !== 'ok') return '<span class="chip bad">gestört</span>';
+  if (n) return '<span class="chip ok">läuft</span>';
+  return '<span class="muted">nicht empfangen</span>';
+}
 const AB_OVF = [['', 'Alle Arten'], ['permanent', 'Permanent'], ['auto', 'Automatisch'], ['ondemand', 'Bei Bedarf'], ['schedule', 'Nach Zeitplan']];
 function abOverridesTab() {
   const cnt = abStratCounts(); const q = (ui.draft.ovq || '').toLowerCase(); const f = ui.draft.ovf || '';
   const inputsFor = (k) => LIVE.inputs.filter((n) => n.reasons.includes(k)).length;
-  const tiles = `<div class="stats" style="--n:4">${abStat('Permanent', abPl(cnt.by.permanent, 'Sender', 'Sender'), `belegt dauerhaft ${abPl(cnt.by.permanent, 'Eingang', 'Eingänge')}`, { cls: cnt.by.permanent ? 'warn' : '' })}${abStat('Nach Zeitplan', abPl(cnt.by.schedule, 'Sender', 'Sender'), `derzeit ${abPl(inputsFor('schedule'), 'Eingang', 'Eingänge')} im Zeitfenster`)}${abStat('Automatisch', abPl(cnt.by.auto, 'Sender', 'Sender'), `davon höchstens ${LIVE.settings.reception.keepHot} bereit`)}${abStat('Bei Bedarf', abPl(cnt.by.ondemand, 'Sender', 'Sender'), 'ohne Zuschauer kein Empfang')}</div>`;
+  const nDef = LIVE.inputs.filter((n) => n.state === 'deferred').length;
+  const tiles = `<div class="stats" style="--n:5">${abStat('Permanent', abPl(cnt.by.permanent, 'Sender', 'Sender'), `belegt dauerhaft ${abPl(cnt.by.permanent - nDef, 'Eingang', 'Eingänge')} von ${LIVE.limits.inputs}`, { cls: cnt.by.permanent ? 'warn' : '' })}${abStat('Zurückgestellt', abPl(nDef, 'Sender', 'Sender'), nDef ? 'belegt keinen Platz, startet von selbst wieder' : 'keiner', { cls: nDef ? 'warn' : '' })}${abStat('Nach Zeitplan', abPl(cnt.by.schedule, 'Sender', 'Sender'), `derzeit ${abPl(inputsFor('schedule'), 'Eingang', 'Eingänge')} im Zeitfenster`)}${abStat('Automatisch', abPl(cnt.by.auto, 'Sender', 'Sender'), `davon höchstens ${LIVE.settings.reception.keepHot} bereit`)}${abStat('Bei Bedarf', abPl(cnt.by.ondemand, 'Sender', 'Sender'), 'ohne Zuschauer kein Empfang')}</div>`;
   let list = cnt.explicit.filter((c) => (!f || c.reception === f) && (!q || c.name.toLowerCase().includes(q) || String(c.no) === q));
   const s = AB.ov; const key = { name: (c) => c.name.toLowerCase(), strat: (c) => abStratName(c.reception), sched: (c) => c.schedule || '' }[s.sort];
   list = list.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * s.dir);
@@ -261,9 +271,10 @@ function abOverridesTab() {
     ${a.strat === 'schedule' ? abFld('la09-asc', 'Zeitplan', abSel('ui.draft.ovAdd.sched', 'la09-asc', [['', 'Zeitplan wählen …'], ...LIVE.settings.schedules.map((x) => [x.name, x.name])], { label: 'Zeitplan', err: aerr && !a.sched }), { err: aerr && !a.sched ? 'Wähle einen Zeitplan.' : '' }) : ''}
     <button type="button" class="btn primary" data-act="abOvAdd" data-fid="la09:oadd">${icon('plus', 16)}Hinzufügen</button></div>
     ${a.strat === 'permanent' ? '<p class="muted aa-small">Ein permanent empfangener Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer.</p>' : ''}</section>`;
-  const tbl = list.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr>${abSortHead(s, 'name', 'Sender', 'abOvSort')}${abSortHead(s, 'strat', 'Strategie', 'abOvSort')}${abSortHead(s, 'sched', 'Zeitplan', 'abOvSort')}<th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${list.map((c) => `<tr><td class="main" data-l="Sender">${abChLabel(c)}</td>
+  const tbl = list.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr>${abSortHead(s, 'name', 'Sender', 'abOvSort')}${abSortHead(s, 'strat', 'Strategie', 'abOvSort')}${abSortHead(s, 'sched', 'Zeitplan', 'abOvSort')}<th>Zustand</th><th class="end"><span class="vh">Aktionen</span></th></tr></thead><tbody>${list.map((c) => `<tr><td class="main" data-l="Sender">${abChLabel(c)}</td>
     <td data-l="Strategie">${abSel('ui.draft.ovx', `la09-ov-${c.id}`, AB_STRAT.map(([k, t]) => [k, t]), { label: `Strategie für ${c.name}`, after: 'abOvStrat', data: `data-ch="${c.id}"`, cur: c.reception })}</td>
     <td data-l="Zeitplan">${c.reception === 'schedule' ? abSel('ui.draft.ovx', `la09-ovs-${c.id}`, LIVE.settings.schedules.map((x) => [x.name, x.name]).concat(abSched(c.schedule) ? [] : [['', 'Zeitplan wählen …']]), { label: `Zeitplan für ${c.name}`, after: 'abOvSched', data: `data-ch="${c.id}"`, cur: c.schedule || '' }) : '<span class="muted">–</span>'}</td>
+    <td data-l="Zustand">${abOvState(c)}</td>
     <td class="end"><button type="button" class="btn quiet" data-act="abOvReset" data-ch="${c.id}" data-fid="la09:ores:${c.id}">${icon('undo', 16)}Auf Standard zurück</button></td></tr>`).join('')}</tbody></table></div>`
     : abEmptyBox(cnt.explicit.length ? 'Keine Treffer' : 'Keine Ausnahmen', cnt.explicit.length ? 'Passe Suche oder Filter an.' : `Alle Sender folgen dem Standard «${abStratName(LIVE.settings.reception.default)}».`);
   return `${tiles}${addForm}
@@ -368,7 +379,7 @@ const abIsPrivate = (h) => /^(10\.|192\.168\.|127\.|172\.(1[6-9]|2\d|3[01])\.|lo
 function abEpgErrors(d) {
   const e = {}; const name = d.name.trim();
   if (!name) e.name = 'Gib der Quelle einen Namen.'; else if (LIVE.epgSources.some((x) => x.id !== d.id && x.name.toLowerCase() === name.toLowerCase())) e.name = 'Diesen Namen gibt es schon.';
-  if (d.kind === 'xmltv-url') { if (!/^https?:\/\/[^\s/]+/i.test(d.address.trim())) e.address = 'Gib eine Adresse mit http:// oder https:// ein.'; else if (abIsPrivate(abHostOf(d.address)) && !d.localNet) e.address = 'Die Adresse liegt im Heimnetz. Erlaube das Heimnetz für diese Quelle oder nimm eine öffentliche Adresse.'; }
+  if (d.kind === 'xmltv-url') { if (!/^https?:\/\/[^\s/]+/i.test(d.address.trim())) e.address = 'Gib eine Adresse mit http:// oder https:// ein.'; else if (abIsPrivate(abHostOf(d.address))) e.address = 'Adressen im Heimnetz gibt es für Programmdaten noch nicht (offene Frage 09 F-4). Nimm eine öffentliche Adresse.'; }
   if (d.kind === 'xmltv-file' && !d.file) e.file = 'Wähle eine XMLTV-Datei.';
   if (d.kind === 'xtream' && !d.xsrc) e.xsrc = 'Es gibt noch keine Xtream-Quelle. Lege zuerst unter «Quellen» eine an.';
   if (!Number.isInteger(d.shift) || d.shift < -12 || d.shift > 12) e.shift = 'Gib eine ganze Zahl von −12 bis +12 ein.';
@@ -390,8 +401,7 @@ DIALOGS.abEpgForm = () => {
       ${fields}
       <div class="aa-two">${abFld('epgf-i', 'Aktualisieren', abSel(`${P}.interval`, 'epgf-i', AB_EINT, { num: true, label: 'Aktualisieren' }))}${abFld('epgf-c', 'Kompression', abSel(`${P}.comp`, 'epgf-c', AB_COMP, { label: 'Kompression' }))}
       ${abFld('epgf-z', 'Zeitzone für Zeiten ohne Angabe', abSel(`${P}.tz`, 'epgf-z', AB_TZ, { label: 'Zeitzone' }))}${abFld('epgf-s', 'Zeitkorrektur', `<span class="ab-unit">${abInp(`${P}.shift`, 'epgf-s', { num: true, min: -12, max: 12, err: e.shift, label: 'Zeitkorrektur in Stunden' })}<span>Stunden</span></span>`, { err: e.shift, hint: 'Nur für Quellen mit falschen Zeiten. −12 bis +12.' })}</div>
-      <div class="srow-wrap">${abRow('Heimnetz erlauben', 'Für Quellen auf einem Gerät im Heimnetz.', sw(`${P}.localNet`, 'Heimnetz erlauben'))}${d.localNet ? notice('', 'Zugriff auf das Heimnetz', 'Mit dieser Freigabe darf Slouchcat für diese Quelle Adressen in deinem Heimnetz aufrufen (zum Beispiel 192.168.x.x oder Multicast 239.x.x.x). Schalte sie nur für Geräte ein, die du kennst. Andere Teile von Slouchcat bleiben vom Heimnetz getrennt.') : ''}</div>
-      ${band('ab:epgf:hdr', 'Kopfzeilen und User-Agent', d.hdr.length || d.ua ? `${abPl(d.hdr.length, 'Kopfzeile', 'Kopfzeilen')}${d.ua ? ' · eigener User-Agent' : ''}` : 'keine', hdr, { open: !!(e.h0 || e.h1 || e.h2) })}</div>`,
+      <p class="muted aa-small">Die Adresse ist nach dem Speichern nur schreibbar; angezeigt werden Schema, Host und Port. Kopfzeilen und User-Agent gibt es für Programmdaten nicht.</p></div>`,
     actions: `<button type="button" class="btn secondary" data-act="close" data-fid="epgf:x">Abbrechen</button><button type="button" class="btn primary" data-act="abEpgSave" data-fid="epgf:ok">${d.id ? 'Speichern' : 'Quelle anlegen'}</button>` };
 };
 ACT.abEpgFile = () => { const d = ui.draft.epgf; d.file = 'programm-beispiel.xml.gz'; d.fileSize = '18 MB'; render(); };
@@ -417,7 +427,7 @@ function abEpgRow(e) {
   const cover = abEpgCover(e); const short = cover < LIVE.settings.epg.previewDays && e.channels;
   const rr = { ok: ['ok', 'in Ordnung'], warn: ['warn', 'mit Hinweis'], bad: ['bad', 'fehlgeschlagen'] };
   return `<tr class="${open ? 'open' : ''}"><td class="main" data-l="Name"><span class="ab-name"><button type="button" class="tog" data-act="band" data-def="${e.lastOk ? 0 : 1}" data-id="ab:epg:${e.id}" aria-expanded="${open}" aria-label="${esc(e.name)}: Einzelheiten ${open ? 'zuklappen' : 'aufklappen'}" data-fid="la10:tog:${e.id}">${icon('chevR', 14)}</button><button type="button" class="lnk" data-act="abEpgEdit" data-id="${e.id}" data-fid="la10:name:${e.id}"><b>${esc(e.name)}</b></button>${fresh ? '<span class="chip ok">Neu angelegt</span>' : ''}</span></td>
-    <td data-l="Art">${AB_EKIND[e.kind]}${e.localNet ? ` <span class="chip blue">${icon('home2', 14)}Heimnetz</span>` : ''}</td><td data-l="Intervall">${e.interval ? `alle ${e.interval} Std.` : 'nur von Hand'}</td><td data-l="Letzter Import">${st}</td>
+    <td data-l="Art">${AB_EKIND[e.kind]}</td><td data-l="Intervall">${e.interval ? `alle ${e.interval} Std.` : 'nur von Hand'}</td><td data-l="Letzter Import">${st}</td>
     <td class="end" data-l="Kanäle">${e.channels ? fmt.num(e.channels) : '–'}</td><td class="end" data-l="Sendungen">${e.programmes ? fmt.num(e.programmes) : '–'}</td><td data-l="Reicht bis">${e.channels ? `${fmt.day(e.until)}${short ? ` <span class="chip warn">nur ${cover} Tage</span>` : ''}` : '–'}</td>
     <td class="end"><div class="ta"><button type="button" class="btn quiet" data-act="abEpgLoad" data-id="${e.id}" data-fid="la10:load:${e.id}" ${b ? 'disabled' : ''}>${icon('refresh', 16)}Jetzt laden</button><button type="button" class="btn quiet" data-act="abEpgTest" data-id="${e.id}" data-fid="la10:test:${e.id}">Testen</button>${menu}</div></td></tr>
     ${open ? `<tr class="sub"><td colspan="8"><div class="ab-det"><dl class="kv"><dt>Adresse</dt><dd>${e.kind === 'xmltv-file' ? `Datei <span class="mono">${esc(e.file)}</span> (${esc(e.fileSize)})` : `<span class="mono">${esc(e.address)}</span>`}</dd><dt>Kompression</dt><dd>${abEpgComp(e)}</dd><dt>Zeitzone</dt><dd>${esc(e.tz)} · Zeitkorrektur ${abEpgShift(e)}</dd><dt>Nächster Import</dt><dd>${abEpgNext(e)}</dd></dl>

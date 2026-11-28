@@ -31,7 +31,7 @@ select.inp { appearance: auto; }
 .hp-wl { padding-bottom: 6px; }
 
 /* ---------- LS-01 ---------- */
-.hp-cc { flex: none; width: 214px; display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--s1); border: 1px solid var(--line); border-radius: 12px; scroll-snap-align: start; min-width: 0; }
+.hp-cc { flex: none; width: 214px; display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--s1); border: 1px solid var(--frame); border-radius: 12px; scroll-snap-align: start; min-width: 0; }
 .hp-cc-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hp-cc-h .lh-no { width: 18px; }
 .hp-cc-n { flex: 1; min-width: 0; font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -142,9 +142,9 @@ body[data-rot='p'] .hp-gscroll { max-height: 860px; }
 .hp-state { padding-top: 12px; padding-bottom: 4px; font-size: 14.5px; color: var(--tx2); display: flex; flex-direction: column; gap: 8px; }
 .hp-state p { margin: 0; }
 .hp-state b { color: var(--tx); }
-.hp-ras { display: flex; gap: 6px; overflow-x: auto; padding: 8px var(--gut) 12px; scrollbar-width: none; }
-.hp-ras::-webkit-scrollbar { display: none; }
-.hp-ra { flex: none; min-width: 84px; max-width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; font-size: 12.5px; line-height: 1.25; text-align: center; color: var(--tx2); }
+/* the action row wraps instead of running out of the screen (RM-09) */
+.hp-ras { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px 6px; padding: 8px var(--gut) 12px; }
+.hp-ra { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; font-size: 12.5px; line-height: 1.25; text-align: center; color: var(--tx2); }
 .hp-ra-i { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--frame); display: grid; place-items: center; background: var(--s1); color: var(--tx); }
 .hp-ra.on .hp-ra-i { background: var(--live-rec); color: var(--live-rec-on); border-color: var(--live-rec); }
 .hp-desc { font-size: 15px; color: var(--tx2); line-height: 1.5; padding-top: 6px; }

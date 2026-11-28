@@ -47,13 +47,20 @@
 
   /* ---------- logo with fallback (no logos in the repository) ---------- */
   const initials = (name) => { const w = String(name).replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/); return (w.length > 1 ? w[0][0] + (w[1][0] || '') : w[0].slice(0, 3)).toUpperCase(); };
+  /* Logos and pictures live only locally in shared/img/ (not in the repository). A browser logs every missing
+     file as a console error and no script can tell beforehand whether the folder is there; so pictures are
+     loaded only after the switch «Echte Logos und Bilder» (index.html or bar «Zustände») was turned on once.
+     It is remembered in localStorage (key sc28-img). Off: initials and calm surfaces, no request at all. */
+  const IMGKEY = 'sc28-img';
+  const imagesOn = () => { try { return localStorage.getItem(IMGKEY) === 'on'; } catch (e) { return false; } };
+  const setImages = (on) => { try { localStorage.setItem(IMGKEY, on ? 'on' : 'off'); } catch (e) { /* private mode */ } if (SIM) SIM.emit('change'); };
   /* only these 16 logos exist (locally in shared/img/logos/); other channels (TV24, new, test) show initials */
   const LOGOS = new Set(['srf1', 'srfzwei', 'srfinfo', 'rts1', 'rsila1', 'telezueri', 'daserste', 'zdf', '3sat', 'arte', 'zdfneo', 'zdfinfo', 'tagesschau24', 'phoenix', 'kika', 'orf2']);
   /** channel logo on a light neutral plate (logos are dark, black or tall); falls back to initials.
       o: { cls, label } — size comes from the client's CSS (.lv-logo width/height). */
   function logo(c, o) {
     o = o || {}; c = typeof c === 'string' ? SIM.channel(c) : c; if (!c) return '';
-    const ini = esc(initials(c.name)); const has = LOGOS.has(c.slug);
+    const ini = esc(initials(c.name)); const has = LOGOS.has(c.slug) && imagesOn();
     return `<span class="lv-logo${has ? '' : ' no-img'}${o.cls ? ' ' + o.cls : ''}" data-ini="${ini}"${o.label ? ` role="img" aria-label="${esc(c.name)}"` : ' aria-hidden="true"'}>${has ? `<img src="${UI.img}logos/${esc(c.slug)}.png" alt="" loading="lazy" onerror="LIVE_UI.logoFail(this)">` : ''}<b>${ini}</b></span>`;
   }
   function logoFail(im) { const s = im.parentNode; if (s) s.classList.add('no-img'); im.remove(); }
@@ -64,7 +71,7 @@
     if (!p) return fb === 'none' ? '' : `<span class="lv-pic lv-pic-empty"></span>`;
     const alt = esc(p.title);
     const fallback = fb === 'none' ? '' : fb === 'title' ? `<span class="lv-pic-fb title"><b>${alt}</b></span>` : `<span class="lv-pic-fb">${logo(p.ch)}</span>`;
-    if (!p.img) return fb === 'none' ? '' : `<span class="lv-pic no-img${o.cls ? ' ' + o.cls : ''}">${fallback}</span>`;
+    if (!p.img || !imagesOn()) return fb === 'none' ? '' : `<span class="lv-pic no-img${o.cls ? ' ' + o.cls : ''}">${fallback}</span>`;
     return `<span class="lv-pic${o.cls ? ' ' + o.cls : ''}"><img src="${UI.img}lib/${esc(p.img)}" alt="" loading="lazy" onerror="LIVE_UI.picFail(this)">${fallback}</span>`;
   }
   function picFail(im) { const s = im.parentNode; if (s) s.classList.add('no-img'); im.remove(); }
@@ -96,7 +103,7 @@
     empty: 'Noch keine Sender. Sobald der Server-Admin Sender einrichtet, erscheinen sie hier.',
   };
   const REC_STATE = { running: 'Läuft', done: 'Fertig', incomplete: 'Unvollständig', failed: 'Fehlgeschlagen', rejected: 'Nicht aufgenommen' };
-  const REASON = { unreachable: 'Der Sender war nicht erreichbar.', quota: 'Der Speicher des Kontos war voll.', serverDown: 'Der Server lief zu dieser Zeit nicht.', storage: 'Auf dem Server war kein Speicher frei.', channelGone: 'Den Sender gab es nicht mehr.' };
+  const REASON = { unreachable: 'Der Sender war nicht erreichbar.', quota: 'Der Speicher des Kontos war voll.', serverDown: 'Der Server lief zu dieser Zeit nicht.', storage: 'Auf dem Server war kein Speicher frei.', channelGone: 'Den Sender gab es nicht mehr.', channelOff: 'Der Sender wurde deaktiviert.' };
   const RULE_KIND = { single: 'Einzeln', series: 'Serie', recurring: 'Wiederkehrend', manual: 'Manuell' };
   const RECEPTION = { default: 'Standard (bei Bedarf)', permanent: 'Permanent', auto: 'Automatisch', ondemand: 'Bei Bedarf', schedule: 'Nach Zeitplan' };
   const SOURCE_KIND = { 'm3u-url': 'M3U-URL', 'm3u-file': 'M3U-Datei', xtream: 'Xtream', single: 'Einzelstrom' };
@@ -118,22 +125,24 @@
     return h;
   }
   /** short line «Beispieldaten, simulierte Wiedergabe» for the foot of every Live-TV page */
+  /** «4 Warnungen zu geplanten Aufnahmen» (the same words in every client) */
+  const warnText = (n) => `${n} ${n === 1 ? 'Warnung' : 'Warnungen'} zu geplanten Aufnahmen`;
   const sampleNote = (cls) => `<p class="lv-sample${cls ? ' ' + cls : ''}">${esc(TX.sample)} · Konzept 28, Mockup · Uhr des Mockups: ${nowText('time')}</p>`;
 
   /** simulated picture of a running channel: calm surface, moving shimmer, logo, label «simuliert» */
   function fakeVideo(c, o) {
     o = o || {}; c = typeof c === 'string' ? SIM.channel(c) : c;
     const st = SIM.chState(c); const n = SIM.nowNext(c.id).now;
-    const pic = n && n.img ? `<img class="lv-vid-pic" src="${UI.img}lib/${esc(n.img)}" alt="" onerror="this.remove()">` : '';
+    const pic = n && n.img && imagesOn() ? `<img class="lv-vid-pic" src="${UI.img}lib/${esc(n.img)}" alt="" onerror="this.remove()">` : '';
     return `<div class="lv-vid${o.paused ? ' paused' : ''}${st !== 'ok' ? ' bad' : ''}" data-ch="${esc(c.id)}">${pic}<div class="lv-vid-move" aria-hidden="true"></div>
       <div class="lv-vid-logo">${logo(c)}</div><span class="lv-vid-tag">${esc(TX.sample)}</span></div>`;
   }
 
   /* ---------- player: switching phases, the same in all three clients ----------
-     The concept proposes 0.5 s (calm loading sign), 5 s («Dauert länger als üblich …») and 15 s (error) (14, 4.11).
+     The concept proposes 0.5 s (calm loading sign), 3 s («Dauert länger als üblich …») and 15 s (error) (14 Fassung 2, 4.11).
      The mockup shortens 5 s and 15 s so that every state can be shown in a few seconds; LOAD.note says so. */
   const LOAD = { spinnerMs: 500, hotReadyMs: 600, coldReadyMs: 1800, slowAfterMs: 2500, slowReadyMs: 4500, giveUpMs: 6000,
-    note: 'Im Mockup verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s (Konzept: 0.5 / 5 / 15 s).' };
+    note: 'Im Mockup verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehlerbild nach 6 s (Konzept 14 Fassung 2: 0.5 / 3 / 15 s).' };
   /** phase of the player elapsedMs after switching to channel c (o.hot: input already received or preloaded).
       → { k: 'loading'|'slow'|'ok'|'error', spin, err ('unreachable'|'limit'|'busy'|'notPlayable'|'revoked'|'gone'), stall, fallback }.
       Reads the mockup states (LIVE_SIM.flags().fault, .revoked) and the channel state. */
@@ -158,6 +167,6 @@
     notPlayable: () => 'Dieser Sender lässt sich auf diesem Gerät nicht abspielen.',
   };
 
-  const UI = { LOAD, playerPhase, PLAYER_ERR, img: '../shared/img/', esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
+  const UI = { warnText, imagesOn, setImages, LOAD, playerPhase, PLAYER_ERR, img: '../shared/img/', esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
   g.LIVE_UI = UI;
 })(typeof window !== 'undefined' ? window : globalThis);

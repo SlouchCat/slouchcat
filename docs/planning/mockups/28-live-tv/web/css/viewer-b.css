@@ -417,6 +417,9 @@ a.vbn-p:hover { background: var(--s1); }
 .vb-fs { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .vb-fs legend { padding: 0; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--tx2); }
 .vb-fs .check { min-height: 40px; }
+/* fields that are a proposal behind question F-23 (14 5.2, 5.3) */
+.vb-fs.vb-prop { border: 1px dashed var(--ctl); border-radius: 12px; padding: 8px 12px 12px; gap: 8px; }
+.vb-fs.vb-prop > legend { padding: 0 6px; margin: 0; color: var(--tx); font-weight: 600; }
 .vb-alt { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; }
 .vb-alt svg { color: var(--live-rec); }
 .dlg .dlg-acts .vb-left { margin-right: auto; }

@@ -270,11 +270,14 @@ function renderToasts() {
 }
 let toastId = 0;
 function toast(html, kind = 'ok', ms = 5200) {
+  /* the same message twice (for example repeated rewinding before the start) is shown once */
+  const same = ui.toasts.find((x) => x.html === html);
+  if (same) { clearTimeout(same.t); same.t = setTimeout(() => { ui.toasts = ui.toasts.filter((x) => x !== same); renderToasts(); }, ms); return; }
   const id = ++toastId;
-  ui.toasts.push({ id, html, kind });
+  const entry = { id, html, kind }; ui.toasts.push(entry);
   if (ui.toasts.length > 3) ui.toasts.shift();
   renderToasts();
-  setTimeout(() => { ui.toasts = ui.toasts.filter((x) => x.id !== id); renderToasts(); }, ms);
+  entry.t = setTimeout(() => { ui.toasts = ui.toasts.filter((x) => x.id !== id); renderToasts(); }, ms);
 }
 
 /* ---------- actions (event delegation) ---------- */

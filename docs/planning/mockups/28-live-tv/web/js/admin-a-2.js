@@ -12,7 +12,35 @@ const AA_MAPL = { ok: 'zugeordnet', unsure: 'unsicher', missing: 'fehlt', withou
 const AA_RECL = Object.assign({}, LU.RECEPTION, { default: 'Standard (bei Bedarf)' });
 const aaNum = (c) => (c.no == null ? '–' : c.no);
 const aaDupList = () => (aaEmpty() ? [] : LIVE.duplicates.filter((d) => !AA2.dupDone[d.id] && d.channels.every((id) => SIM.channel(id))));
-const aaDupCount = () => (aaEmpty() ? 0 : Math.max(0, LIVE.totals.duplicates - (LIVE.duplicates.length - aaDupList().length)));
+const aaDupCount = () => aaDupList().length; /* Reiter «Duplikate n» = Zahl der Zeilen */
+/* Was läuft gerade auf einem Sender (nur Zahlen) und «Sofort beenden» (15 Grundsatz 6, 3.5, 3.6; `04` T-29) */
+if (!LU.REASON.channelOff) LU.REASON.channelOff = 'Der Sender wurde deaktiviert.'; /* fehlt im Kern (shared/live-ui.js) */
+const aaRunningOn = (id) => ({ v: admViewersOf(id), r: aaRecsOn(id) });
+const aaRunText = (x) => [x.v ? aaPl(x.v, 'Zuschauer', 'Zuschauer') : '', x.r ? aaPl(x.r, 'Aufnahme', 'Aufnahmen') : ''].filter(Boolean).join(' und ');
+function aaStopNow(id) {
+  const c = SIM.channel(id); const x = aaRunningOn(id);
+  LIVE.consumers.forEach((k) => { if (k[0] === id && (k[1] === 'viewer' || k[1] === 'recording')) k[1] = 'ended'; });
+  LIVE.profiles.forEach((p) => SIM.recordings(p.id).filter((r) => r.state === 'running' && r.ch === id).forEach((r) => { SIM.stopRecording(r.id); const rr = SIM.recording(r.id); if (rr) { rr.state = 'incomplete'; rr.reason = 'channelOff'; } }));
+  const pl = SIM.player(); if (pl && pl.ch === id) SIM.stop();
+  const k = LIVE.inputs.findIndex((n) => n.ch === id); if (k >= 0) { const [n] = LIVE.inputs.splice(k, 1); LIVE.resources.bandIn = Math.max(0, Math.round((LIVE.resources.bandIn - (n.bitrate || 0)) * 10) / 10); }
+  if (c) c.active = false;
+  return x;
+}
+DIALOGS.aaOffAsk = (p) => {
+  const c = SIM.channel(p.id); const x = aaRunningOn(p.id);
+  return { title: `${esc(c.name)} ausblenden?`, body: `<p class="lead">${aaRunText(x)} ${x.v + x.r === 1 ? 'läuft' : 'laufen'} weiter bis zu ${x.v + x.r === 1 ? 'seinem' : 'ihrem'} Ende.</p><p class="muted">Deaktivieren macht den Sender sofort für alles Neue unsichtbar und beendet nichts Laufendes.</p>`,
+    actions: `<button type="button" class="btn secondary" data-act="close" data-fid="off:x" data-autofocus>Abbrechen</button><button type="button" class="btn primary" data-act="aaOffOk" data-id="${p.id}" data-fid="off:ok">Ausblenden</button><button type="button" class="btn danger" data-act="aaStopAsk" data-id="${p.id}" data-fid="off:stop">Ausblenden und sofort beenden …</button>` };
+};
+ACT.aaOffOk = (d) => { const c = SIM.channel(d.id); c.active = false; closeDialog(); toastUndo(`«${esc(c.name)}» ist inaktiv. Was läuft, läuft weiter bis zum Ende.`, 'aaChActive', { id: c.id }); render(); };
+ACT.aaStopAsk = (d) => openDialog('aaStopC', { id: d.id, back: ui.dialog && ui.dialog.name === 'aaChEd' });
+DIALOGS.aaStopC = (p) => {
+  const c = SIM.channel(p.id); const x = aaRunningOn(p.id);
+  const parts = [x.v ? `${aaPl(x.v, 'Zuschauer sieht', 'Zuschauer sehen')} «Sender nicht verfügbar»` : '', x.r ? `${aaPl(x.r, 'Aufnahme endet', 'Aufnahmen enden')} als «unvollständig, Sender deaktiviert»` : ''].filter(Boolean);
+  return { title: `Alles Laufende auf ${esc(c.name)} sofort beenden?`, body: `<p class="lead">${parts.length ? parts.join(', ') + '.' : 'Gerade läuft nichts auf diesem Sender.'}</p><p class="muted">Der Sender wird dabei deaktiviert.</p>`,
+    actions: `<button type="button" class="btn secondary" data-act="${p.back ? 'aaStopBack' : 'close'}" data-fid="stop:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="aaStopOk" data-id="${p.id}" data-fid="stop:ok">Sofort beenden</button>` };
+};
+ACT.aaStopBack = () => openDialog('aaChEd', {});
+ACT.aaStopOk = (d) => { const c = SIM.channel(d.id); const x = aaStopNow(d.id); closeDialog(); if (/[?&]edit=/.test(location.hash)) go('#/admin/live/channels?tab=channels'); toast(`«${esc(c.name)}» ist deaktiviert. ${aaRunText(x) || 'Nichts'} sofort beendet.`, 'ok'); render(); };
 function aaChState(c) {
   const s = SIM.chState(c);
   if (s === 'gone') return `${aaDot('bad')}Verschwunden seit ${fmt.day(c.since)}`;
@@ -112,6 +140,7 @@ function aaChannelsTab(q) {
       <button type="button" class="btn secondary aa-fbtn" data-act="open" data-id="aa:facets" aria-expanded="${isOpen('aa:facets')}" data-fid="la05:fbtn">${icon('filter', 16)}Filter${nf ? ` (${nf})` : ''}</button></div>
       <div class="aa-facets${isOpen('aa:facets') ? ' on' : ''}">${facets}</div>
       ${chips || f.q ? `<div class="afilters" aria-label="Aktive Filter">${chips}${chips ? '<button type="button" class="btn quiet sm" data-act="aaFClearAll" data-fid="la05:fall">Alle Filter entfernen</button>' : ''}</div>` : ''}
+      ${f.state === 'new' ? LIVE.sources.filter((s) => !s.offerNew && aaNewOf(s.id).length).map((s) => `<p class="muted aa-small">«Neue Sender sofort anbieten» ist ab Werk an. In der Quelle <a class="lnk" href="#/admin/live/sources/${s.id}" data-fid="la05:offer:${s.id}">«${esc(s.name)}»</a> ist es auf aus gestellt; deshalb ${aaNewOf(s.id).length === 1 ? 'ist' : 'sind'} ${aaNewOf(s.id).map((c) => esc(c.name)).join(', ')} inaktiv.</p>`).join('') : ''}
       ${rows.length ? aaChTable(rows) : aaEmptyBox('Kein Sender passt', 'Ändere oder entferne die Filter.', '<button type="button" class="btn secondary" data-act="aaFClearAll" data-fid="la05:fall2">Filter zurücksetzen</button>')}
       <p class="muted aa-small">${rows.length} von ${fmt.num(c.active)} aktiven Sendern gezeigt (Beispielausschnitt der Senderliste). Die Reihenfolge richtet sich nach der Kanalnummer; ohne Nummer folgen die Sender alphabetisch.</p>${aaBulkBar(rows)}`;
   }, { rows: 8, h: 48 });
@@ -126,6 +155,7 @@ ACT.aaSelClear = () => { AA.sel = {}; AA.selAll = false; render(); };
 ACT.aaChActive = (d) => {
   const c = SIM.channel(d.id); if (!c) return;
   if (!c.sources.length || c.state === 'gone') { toast(`«${esc(c.name)}» hat keine Quelle und kann nicht aktiv sein.`, 'warn'); return; }
+  if (c.active) { const x = aaRunningOn(c.id); if (x.v + x.r) { openDialog('aaOffAsk', { id: c.id }); return; } }
   c.active = !c.active; if (c.active) c.isNew = false; toastUndo(`«${esc(c.name)}» ist ${c.active ? 'aktiv' : 'inaktiv'}.`, 'aaChActive', { id: c.id }); render();
 };
 route('/admin/live/channels', (pm, q) => {
@@ -171,6 +201,7 @@ DIALOGS.aaBulk = () => {
     ex = plan.length ? `<p class="muted aa-small">In der aktuellen Sortierung: ${plan.slice(0, 3).map(([c, n]) => `${esc(c.name)} → ${n}`).join(', ')}${plan.length > 3 ? ' …' : ''}</p>` : '';
     err = errs.length ? `<div class="notice bad" role="alert"><span class="ic">${icon('alert')}</span><div><b>Doppelte Nummern verhindert das Formular.</b><ul class="aa-list">${errs.slice(0, 4).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : '';
   }
+  if (b.op === 'off') { const run = t.reduce((a, c) => { const x = aaRunningOn(c.id); return { v: a.v + x.v, r: a.r + x.r }; }, { v: 0, r: 0 }); ex = `<p class="muted">Deaktivieren macht die Sender sofort für alles Neue unsichtbar und beendet nichts Laufendes.${run.v + run.r ? ` ${aaRunText(run)} ${run.v + run.r === 1 ? 'läuft' : 'laufen'} weiter bis zu ihrem Ende. Sofort beenden kannst du im einzelnen Sender («Sofort beenden …»).` : ''}</p>`; }
   const n = aaSelCount() || t.length; const bad = b.op === 'numbers' && aaNumberPlan(b).errs.length;
   return { title: AA_BULK[b.op], body: `<div class="stack">${field}${ex}${err}<p class="lead">Gilt für ${aaPl(n, 'Sender', 'Sender')}${aaSelCount() ? '' : ' (alle in der Liste)'}.</p></div>`, actions: `<button type="button" class="btn secondary" data-act="close" data-fid="bk:x">Abbrechen</button><button type="button" class="btn primary" data-act="aaBulkOk" data-fid="bk:ok" ${bad ? 'aria-disabled="true"' : ''}>${b.op === 'numbers' ? 'Nummern vergeben' : 'Anwenden'}</button>` };
 };
@@ -213,9 +244,9 @@ const aaCeSum = (ce) => {
   };
 };
 function aaCeSources(ce) {
-  const rows = ce.sources.map((s, i) => `<li class="aa-rank"><span class="aa-rk">${i + 1}</span><span class="aa-rt"><b>${esc(s.name)}</b><small>${esc(aaSrcName(s.source))} · ${i === 0 ? 'Hauptquelle' : 'Ersatzquelle ' + (i + 1)}</small><small class="mono">${esc(s.url)}</small><small>${aaDot(s.state === 'fail' ? 'bad' : 'ok')} ${s.state === 'fail' ? 'nicht erreichbar' : 'in Ordnung'} · zuletzt geprüft ${fmt.ago(SIM.now() - (3 + i * 4))}</small></span>
+  const rows = ce.sources.map((s, i) => `<li class="aa-rank"><span class="aa-rk">${i + 1}</span><span class="aa-rt"><b>${esc(s.name)}</b><small>${esc(aaSrcName(s.source))} · ${i === 0 ? 'Hauptquelle' : 'Ersatzquelle ' + (i + 1)}</small><small class="mono">${esc(aaSHP(s.url))}</small><small>${aaDot(s.state === 'fail' ? 'bad' : 'ok')} ${s.state === 'fail' ? 'nicht erreichbar' : 'in Ordnung'} · zuletzt geprüft ${fmt.ago(SIM.now() - (3 + i * 4))}</small></span>
     <span class="aa-rb"><button type="button" class="btn quiet sm" data-act="aaCeSrc" data-op="test" data-i="${i}" data-fid="lae:t${i}">Testen</button><button type="button" class="btn quiet icon sm" data-act="aaCeSrc" data-op="up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="${esc(s.name)} nach oben" data-fid="lae:u${i}">${icon('arrowUp', 16)}</button><button type="button" class="btn quiet icon sm" data-act="aaCeSrc" data-op="down" data-i="${i}" ${i === ce.sources.length - 1 ? 'disabled' : ''} aria-label="${esc(s.name)} nach unten" data-fid="lae:d${i}">${icon('arrowDown', 16)}</button>${ce.sources.length > 1 ? `<button type="button" class="btn quiet sm" data-act="aaCeSrc" data-op="split" data-i="${i}" data-fid="lae:s${i}">Als eigenen Sender abtrennen</button>` : ''}</span></li>`).join('');
-  const singles = LIVE.sources.filter((s) => s.kind === 'single').flatMap((s) => s.streams.map((u) => ({ v: s.id + '|' + u, t: `${s.name}: ${u}` }))).filter((o) => !ce.sources.some((x) => x.source === o.v.split('|')[0] && x.url === o.v.split('|')[1]));
+  const singles = LIVE.sources.filter((s) => s.kind === 'single').flatMap((s) => s.streams.map((u) => ({ v: s.id + '|' + u, t: `${s.name}: ${aaSHP(u)}` }))).filter((o) => !ce.sources.some((x) => x.source === o.v.split('|')[0] && x.url === o.v.split('|')[1]));
   return `<p class="muted">Fällt die erste Quelle aus, wechselt Slouchcat zur nächsten.</p><ol class="aa-ranks">${rows || '<li class="muted">Dieser Sender hat keine Quelle.</li>'}</ol>
     ${ce.addOpen ? `<div class="aa-add">${singles.length ? aaF('lae-add', 'Einzelstrom als Ersatzquelle', selectEl('ui.draft.ce.addVal', [{ v: '', t: 'Bitte wählen' }].concat(singles), { label: 'Einzelstrom' }).replace('<select ', '<select id="lae-add" ')) : '<p class="muted">Es gibt keine freien Einzelströme.</p>'}
       <div class="row-gap"><button type="button" class="btn primary sm" data-act="aaCeAdd" data-fid="lae:addok">Hinzufügen</button><button type="button" class="btn ghost sm" data-act="aaCeAddMerge" data-fid="lae:addmerge">Anderen Sender zusammenführen …</button><button type="button" class="btn ghost sm" data-act="aaCeAddToggle" data-fid="lae:addx">Abbrechen</button></div></div>` : `<div><button type="button" class="btn secondary sm" data-act="aaCeAddToggle" data-fid="lae:add">${icon('plus', 16)}Quelle hinzufügen</button></div>`}`;
@@ -235,8 +266,8 @@ DIALOGS.aaChEd = () => {
   const epg = `<div class="stack">${aaF('lae-epg', 'Zuordnung', selectEl('ui.draft.ce.epgSel', aaEpgOptions(), { label: 'Programmdaten-Zuordnung' }).replace('<select ', '<select id="lae-epg" '), { hint: ce.epgSel === 'without' ? 'Dieser Sender hat bewusst keine Programmdaten.' : 'Eine Zuordnung von Hand übersteht jede Aktualisierung.' })}
     ${ce.epgSel && ce.epgSel !== 'without' ? `<div class="fld"><span class="lbl">Die nächsten drei Sendungen</span>${next.length ? `<ul class="aa-next">${next.map((p) => `<li><b>${fmt.time(p.start)}</b> ${esc(p.title)}</li>`).join('')}</ul>` : '<p class="muted">Keine Programmdaten in dieser Zeit.</p>'}</div>` : ''}</div>`;
   const rec = `<div class="stack">${Object.entries(AA_RECL).map(([k, t]) => aaRadio('ui.draft.ce.reception', 'laerc', k, k === 'default' ? 'Standard des Servers (bei Bedarf)' : t, 'lae:rc:' + k)).join('')}${ce.reception === 'schedule' ? aaF('lae-sch', 'Zeitplan', selectEl('ui.draft.ce.schedule', LIVE.settings.schedules.map((s) => ({ v: s.name, t: `${s.name} (${s.times})` })), { label: 'Zeitplan' }).replace('<select ', '<select id="lae-sch" ')) : ''}
-    <div class="srow"><div class="st"><b>Darf vorgeladen werden</b></div><div class="sc">${sw('ui.draft.ce.preload', 'Darf vorgeladen werden')}</div></div>
-    ${['permanent', 'schedule'].includes(ce.reception) || ce.preload ? notice('', 'Dauerhafte Verbindung', 'Jeder permanent, vorgeladen oder nach Zeitplan empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer.') : ''}</div>`;
+    <p class="muted aa-small">Ob dieser Sender vorgeladen wird, regelt die Einstellung «Vorladen für Sender dieser Quelle» der Quelle (${ce.sources.length ? ce.sources.map((s) => { const q = LIVE.sources.find((x) => x.id === s.source); return q ? `${esc(q.name)}: ${q.moreConn ? 'an' : 'aus'}` : ''; }).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') : 'keine Quelle'}). Einen Schalter je Sender gibt es nicht. <a class="lnk" href="#/admin/live/reception?tab=strategy" data-act="close" data-fid="lae:rcp">Zum Empfang</a></p>
+    ${['permanent', 'schedule'].includes(ce.reception) ? notice('', 'Dauerhafter Empfang', 'Jeder dauerhaft, vorgeladen oder nach Zeitplan empfangene Sender belegt eine Verbindung zur Quelle, auch ohne Zuschauer.') : ''}</div>`;
   const tech = `<dl class="kv"><dt>Bild</dt><dd>${esc(ce.video)}</dd><dt>Ton</dt><dd>${ce.audio.map(esc).join('<br>')}</dd><dt>Untertitel</dt><dd>${ce.subs.length ? ce.subs.map(esc).join(', ') : 'keine'}</dd><dt>Bitrate</dt><dd>${fmt.dec(ce.bitrate, 1, 1)} Mbit/s</dd><dt>Gemessen</dt><dd>${aaWhen(SIM.now() - 6)}</dd></dl>
     <div class="srow"><div class="st"><b>Sender hat keinen Ton</b><span>Die Überwachung meldet fehlenden Ton dann nicht als Fehler.</span></div><div class="sc">${sw('ui.draft.ce.noAudio', 'Sender hat keinen Ton')}</div></div>
     <div class="srow"><div class="st"><b>Sender hat kein Bild</b><span>Reiner Tonsender.</span></div><div class="sc">${sw('ui.draft.ce.noVideo', 'Sender hat kein Bild')}</div></div>`;
@@ -248,7 +279,7 @@ DIALOGS.aaChEd = () => {
     body: `<div class="aa-chead"><div class="row-gap"><span class="aa-st2">${aaChState(c)}</span>${ce.isNew ? '<span class="chip blue">Neu</span>' : ''}</div><div class="row-gap"><span>Aktiv</span>${sw('ui.draft.ce.active', 'Sender aktiv')}</div></div>
       ${Object.keys(e).length ? notice('bad', 'Bitte korrigiere die markierten Angaben.', '') : ''}
       <div class="stack">${B('general', 'Allgemein', 'tv', gen)}${B('logo', 'Logo', 'eye', logo)}${B('groups', 'Gruppen', 'layers', grp)}${B('epg', 'Programmdaten', 'calendar', epg)}${B('sources', 'Quellen', 'list', aaCeSources(ce))}${B('reception', 'Empfang', 'wifi', rec)}${B('tech', 'Technik', 'settings', tech)}${B('avail', 'Verfügbarkeit', 'alert', avail)}${B('use', 'Nutzung', 'heart', use)}</div>`,
-    actions: `${del ? `<button type="button" class="btn quiet dq aa-left" data-act="aaChDel" data-fid="lae:del">${icon('trash', 16)}Sender löschen</button>` : ''}<button type="button" class="btn secondary" data-act="aaChClose" data-fid="lae:x">Abbrechen</button><button type="button" class="btn primary" data-act="aaChSave" data-fid="lae:save">Speichern</button>` };
+    actions: `${del ? `<button type="button" class="btn quiet dq aa-left" data-act="aaChDel" data-fid="lae:del">${icon('trash', 16)}Sender löschen</button>` : ''}${aaRunningOn(ce.id).v + aaRunningOn(ce.id).r ? `<button type="button" class="btn quiet dq aa-left" data-act="aaStopAsk" data-id="${ce.id}" data-fid="lae:stop">${icon('x', 16)}Sofort beenden …</button>` : ''}<button type="button" class="btn secondary" data-act="aaChClose" data-fid="lae:x">Abbrechen</button><button type="button" class="btn primary" data-act="aaChSave" data-fid="lae:save">Speichern</button>` };
 };
 ACT.aaChClose = () => { closeDialog(); if (/[?&]edit=/.test(location.hash)) go('#/admin/live/channels?tab=channels'); };
 ACT.aaCeLang = (d) => { const ce = ui.draft.ce; ce.langs = ce.langs.includes(d.v) ? ce.langs.filter((x) => x !== d.v) : ce.langs.concat(d.v); if (!ce.langs.length) ce.langs = [d.v]; renderOverlays(); };
@@ -263,7 +294,7 @@ ACT.aaCeSrc = (d) => {
   const ce = ui.draft.ce; const i = Number(d.i); const s = ce.sources[i];
   if (d.op === 'up' && i > 0) { [ce.sources[i - 1], ce.sources[i]] = [s, ce.sources[i - 1]]; toast(`«${esc(s.name)}» ist jetzt Quelle ${i}.`, 'ok'); }
   else if (d.op === 'down' && i < ce.sources.length - 1) { [ce.sources[i + 1], ce.sources[i]] = [s, ce.sources[i + 1]]; toast(`«${esc(s.name)}» ist jetzt Quelle ${i + 2}.`, 'ok'); }
-  else if (d.op === 'test') { if (s.state === 'fail') toast(`«${esc(s.name)}»: nicht erreichbar (Zeitüberschreitung nach 10 s).`, 'bad'); else toast(`«${esc(s.name)}»: in Ordnung, erstes Bild nach 1,4 s.`, 'ok'); }
+  else if (d.op === 'test') { if (s.state === 'fail') toast(`«${esc(s.name)}»: nicht erreichbar (Zeitüberschreitung nach 10 s).`, 'bad'); else toast(`«${esc(s.name)}»: in Ordnung, erstes Bild nach 1.4 s.`, 'ok'); }
   else if (d.op === 'split') {
     const c = SIM.channel(ce.id); const id = 'split-' + (LIVE.channels.length + 1); const nc = Object.assign(aaClone(c), { id, no: null, name: s.name, nameInSource: s.name, sources: [s], active: false, favCount: 0, isNew: false, groups: [] });
     ce.sources.splice(i, 1); c.sources = c.sources.filter((x) => !(x.source === s.source && x.url === s.url)); LIVE.channels.push(nc); toast(`«${esc(s.name)}» ist jetzt ein eigener Sender (inaktiv, ohne Nummer).`, 'ok');
@@ -275,8 +306,9 @@ ACT.aaChSave = () => {
   if (!String(ce.name).trim()) e.name = 'Gib dem Sender einen Namen.';
   if (ce.no !== '' && ce.no != null) { const n = Number(ce.no); if (!(n >= 1 && n <= 9999)) e.no = 'Die Nummer liegt zwischen 1 und 9999.'; else { const o = aaChAll().find((x) => x.id !== c.id && x.no === n); if (o) e.no = `Nummer ${n} hat schon ${o.name}.`; } }
   ce.errors = e; if (Object.keys(e).length) { ui.open['lae:general'] = true; renderOverlays(); return; }
+  const offRun = c.active && !ce.active && aaRunningOn(c.id).v + aaRunningOn(c.id).r > 0;
   Object.assign(c, { name: ce.name.trim(), no: ce.no === '' || ce.no == null ? null : Number(ce.no), country: ce.country, langs: ce.langs, category: ce.category, groups: ce.groups, reception: ce.reception, schedule: ce.reception === 'schedule' ? ce.schedule : undefined, preload: ce.preload, sources: ce.sources, noAudio: ce.noAudio, noVideo: ce.noVideo, active: ce.active && !!ce.sources.length && c.state !== 'gone' });
-  if (c.active) c.isNew = false; aaMapSet(c, ce.epgSel); closeDialog(); if (/[?&]edit=/.test(location.hash)) go('#/admin/live/channels?tab=channels'); toast(`«${esc(c.name)}» gespeichert.`, 'ok'); render();
+  if (c.active) c.isNew = false; aaMapSet(c, ce.epgSel); closeDialog(); if (/[?&]edit=/.test(location.hash)) go('#/admin/live/channels?tab=channels'); toast(`«${esc(c.name)}» gespeichert.${offRun ? ' Der Sender ist inaktiv; was läuft, läuft weiter bis zum Ende.' : ''}`, 'ok'); render();
 };
 ACT.aaChDel = () => { openDialog('aaChDelC', { id: ui.draft.ce.id }); };
 DIALOGS.aaChDelC = (p) => { const c = SIM.channel(p.id); const rec = aaPlannedOn(c.id); return { title: `Sender «${esc(c.name)}» löschen?`, body: `<p class="lead">${aaPl(c.favCount, 'Favorit', 'Favoriten')} und ${aaPl(rec, 'geplante Aufnahme', 'geplante Aufnahmen')} sind betroffen. Geplante Aufnahmen dieses Senders werden abgesagt; die Profile bekommen eine Warnung.</p>`, actions: `<button type="button" class="btn secondary" data-act="aaChDelBack" data-fid="lae:dx" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="aaChDelOk" data-id="${c.id}" data-fid="lae:dok">${icon('trash', 16)}Löschen</button>` }; };
@@ -418,7 +450,7 @@ function aaPlayTile(p) {
 function aaStreamsView() {
   const f = ui.draft.stf || 'Alle'; const all = aaPlays(); const list = f === 'Alle' ? all : all.filter((p) => p.type === f); const bw = Math.round(all.reduce((a, p) => a + p.br, 0) * 10) / 10; const tr = all.filter((p) => /umgewandelt/.test(p.mode)).length;
   const bar = `<div class="subtabs" role="group" aria-label="Art der Wiedergabe">${AA_TYPES.map((t) => `<button type="button" aria-pressed="${f === t}" data-act="aaStF" data-t="${t}" data-fid="la21:f:${t}">${t}<span class="c">${t === 'Alle' ? all.length : all.filter((p) => p.type === t).length}</span></button>`).join('')}</div>`;
-  const strip = `<div class="stats" style="--n:4">${aaStat('Wiedergaben', all.length, `davon Live-TV: ${all.filter((p) => p.type === 'Live-TV').length}`, {})}${aaStat('Bandbreite', aaMbit(bw), 'enthält Live-TV', {})}${aaStat('Umwandlungen', tr, 'laufen gerade', {})}${aaStat('Live-TV', all.filter((p) => p.type === 'Live-TV').length, 'Zuschauer und Aufnahmen', {})}</div>`;
+  const strip = `<div class="stats" style="--n:4">${aaStat('Wiedergaben', all.length, `davon Live-TV: ${all.filter((p) => p.type === 'Live-TV').length}`, {})}${aaStat('Bandbreite', aaMbit(bw), 'enthält Live-TV', {})}${aaStat('Umwandlungen', tr, 'laufen gerade', {})}${aaStat('Live-TV-Wiedergaben', all.filter((p) => p.type === 'Live-TV').length, `${aaPl(all.filter((p) => p.type === 'Live-TV' && !p.priv).length, 'Zuschauer live', 'Zuschauer live')} · ${aaPl(all.filter((p) => p.priv).length, 'Aufnahme wird abgespielt', 'Aufnahmen werden abgespielt')}`, {})}</div>`;
   return `${strip}${bar}${list.length ? `<div class="tiles">${list.map(aaPlayTile).join('')}</div>` : aaEmptyBox(f === 'Alle' ? 'Gerade schaut niemand' : `Gerade läuft kein ${f}`, 'Sobald jemand etwas startet, erscheint es hier.')}<p class="muted aa-small">Für Live-TV zeigt die Verwaltung wie bei Videos Konto, Profil, Gerät und laufende Sendung. Bei der Wiedergabe einer Aufnahme steht nur «Private Aufnahme»: ohne Titel, ohne Sender.</p>`;
 }
 ACT.aaStF = (d) => { ui.draft.stf = d.t; render(); };
@@ -445,7 +477,7 @@ function aaAccList(q) {
   if (tab === 'invites') return tabs + (AA.invites.length ? `<div class="tblw aa-tbl"><table class="tbl"><thead><tr><th>E-Mail</th><th>Gültig bis</th><th>Live-TV</th></tr></thead><tbody>${AA.invites.map((i) => `<tr><td class="main" data-l="E-Mail">${esc(i.email)}</td><td data-l="Gültig bis">${fmt.day(i.until)}</td><td data-l="Live-TV"><span class="chip ${i.live ? 'ok' : 'info'}">${i.live ? 'an' : 'aus'}</span></td></tr>`).join('')}</tbody></table></div>` : aaEmptyBox('Keine offenen Einladungen', 'Lade jemanden ein, damit er ein Konto bekommt.'));
   const rows = LIVE.accounts.filter((a) => f === 'Alle' || aaAccR(a).liveTv);
   return `${tabs}<div class="subtabs" role="group" aria-label="Filter">${['Alle', 'Mit Live-TV'].map((t) => `<button type="button" aria-pressed="${f === t}" data-act="aaAccF" data-t="${t}" data-fid="la22:f:${t}">${t}</button>`).join('')}</div>
-    <div class="tblw aa-tbl"><table class="tbl"><thead><tr><th>Konto</th><th>Rolle</th><th>Live-TV</th><th>Aufnahmen</th></tr></thead><tbody>${rows.map((a) => { const r = aaAccR(a); return `<tr><td class="main" data-l="Konto"><a class="lnk" href="#/admin/accounts/${encodeURIComponent(a.email)}" data-fid="la22:a:${a.email}">${esc(a.email)}</a></td><td data-l="Rolle">${a.email.startsWith('admin') ? 'Server-Admin' : 'Konto'}</td><td data-l="Live-TV"><span class="chip ${r.liveTv ? 'ok' : 'info'}">${r.liveTv ? 'an' : 'aus'}</span></td><td data-l="Aufnahmen">${r.liveTv && r.recordings ? `${fmt.num(a.usedGB)} von ${fmt.num(a.quotaGB || aaDefQ())} GB · ${aaPl(a.count, 'Aufnahme', 'Aufnahmen')}` : '–'}</td></tr>`; }).join('') || '<tr><td colspan="4" class="muted">Kein Konto mit Live-TV.</td></tr>'}</tbody></table></div>`;
+    <div class="tblw aa-tbl"><table class="tbl"><thead><tr><th>Konto</th><th>Rolle</th><th>Live-TV</th><th>Aufnahmen</th></tr></thead><tbody>${rows.map((a) => { const r = aaAccR(a); return `<tr class="aa-rowlink"><td class="main" data-l="Konto"><a class="lnk" href="#/admin/accounts/${encodeURIComponent(a.email)}" data-fid="la22:a:${a.email}">${esc(a.email)}</a></td><td data-l="Rolle">${a.email.startsWith('admin') ? 'Server-Admin' : 'Konto'}</td><td data-l="Live-TV"><span class="chip ${r.liveTv ? 'ok' : 'info'}">${r.liveTv ? 'an' : 'aus'}</span></td><td data-l="Aufnahmen">${r.liveTv && r.recordings ? `${fmt.num(a.usedGB)} von ${fmt.num(a.quotaGB || aaDefQ())} GB · ${aaPl(a.count, 'gespeicherte Aufnahme', 'gespeicherte Aufnahmen')}` : '–'}</td></tr>`; }).join('') || '<tr><td colspan="4" class="muted">Kein Konto mit Live-TV.</td></tr>'}</tbody></table></div>`;
 }
 ACT.aaAccF = (d) => { ui.draft.accf = d.t; render(); };
 route('/admin/accounts', (pm, q) => aaView({ area: 'people', page: 'accounts', title: 'Konten', intro: 'Wer deinen Server nutzt, mit welchen Rechten und welchem Kontingent.', actions: `<button type="button" class="btn primary" data-act="aaInviteOpen" data-fid="la22:inv">${icon('mail', 16)}Einladung erstellen</button>`, html: aaGate(null, () => aaAccList(q), { rows: 4, h: 56 }) }));
@@ -457,7 +489,7 @@ route('/admin/accounts/:id', (pm) => {
   if (!a) html = notice('warn', 'Dieses Konto gibt es nicht.', '', '<a class="btn secondary" href="#/admin/accounts" data-fid="la22:nf">Zu den Konten</a>');
   else html = aaGate(null, () => {
     const d = ui.draft.acc; const dirty = aaAccKey(d) !== AA.accSnap; const r = aaAccR(a);
-    return `<section class="card"><div class="ch"><span class="ik">${icon('user', 18)}</span><h2>Konto</h2></div><dl class="kv"><dt>E-Mail</dt><dd>${esc(a.email)}</dd><dt>Rolle</dt><dd>${a.email.startsWith('admin') ? 'Server-Admin' : 'Konto'}</dd>${r.liveTv && r.recordings ? `<dt>Aufnahmen</dt><dd>${fmt.num(a.usedGB)} von ${fmt.num(a.quotaGB || aaDefQ())} GB · ${aaPl(a.count, 'Aufnahme', 'Aufnahmen')}</dd>` : ''}</dl><p class="muted aa-small">Als Server-Admin siehst du nur Belegung und Anzahl, nie die Titel der Aufnahmen.</p></section>
+    return `<section class="card"><div class="ch"><span class="ik">${icon('user', 18)}</span><h2>Konto</h2></div><dl class="kv"><dt>E-Mail</dt><dd>${esc(a.email)}</dd><dt>Rolle</dt><dd>${a.email.startsWith('admin') ? 'Server-Admin' : 'Konto'}</dd>${r.liveTv && r.recordings ? `<dt>Aufnahmen</dt><dd>${fmt.num(a.usedGB)} von ${fmt.num(a.quotaGB || aaDefQ())} GB · ${aaPl(a.count, 'gespeicherte Aufnahme', 'gespeicherte Aufnahmen')}</dd>` : ''}</dl><p class="muted aa-small">Als Server-Admin siehst du nur Belegung und Anzahl, nie die Titel der Aufnahmen.</p></section>
       ${band('la22:live', 'Live-TV', esc(aaLiveSum(d)), aaLiveBlock('ui.draft.acc', { id: 'la22', used: r.recordings ? a.usedGB : null, wasLive: d.wasLive }), { icon: 'live' })}
       ${band('la22:limits', 'Grenzen', 'gleichzeitige Streams, Bitrate, Auflösung, Umwandlung', '<p class="muted">Diese bestehenden Grenzen gelten auch für Live-TV. Es gibt dafür kein eigenes Feld.</p>', { icon: 'settings' })}
       ${dirty ? `<div class="savebar" role="region" aria-label="Änderungen speichern"><span class="grow">Ungespeicherte Änderungen</span><button type="button" class="btn ghost" data-act="aaAccDiscard" data-fid="la22:disc">Verwerfen</button><button type="button" class="btn primary" data-act="aaAccSave" data-fid="la22:save">Speichern</button></div>` : ''}`;

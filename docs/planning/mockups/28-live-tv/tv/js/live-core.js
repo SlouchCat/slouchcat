@@ -64,6 +64,7 @@ function drawNumber(err) {
 
 /** what the new keys do where a page does not handle them (14-oberflaeche.md 4.13) */
 function liveKeyDefault(name) {
+  const r = SIM.rights(); if (!r.liveTv || (name === 'rec' && !r.recordings)) return; /* without the right the keys do nothing (14, 0 Grundsatz 1) */
   if (name === 'last') { const p = SIM.player(); if (p && p.prev) { SIM.lastChannel(); go('#/live/watch/' + SIM.player().ch); } else toast('Kein zuletzt gesehener Sender'); return; }
   if (/^d\d$/.test(name)) { liveNumber(name, (c) => liveTune(c.id)); return; }
   if (name === 'rec') { toast(SIM.rights().recordings ? 'Aufnehmen geht im Player und im Programm' : 'Aufnahmen sind für dieses Profil nicht freigegeben'); return; }
