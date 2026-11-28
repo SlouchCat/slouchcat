@@ -167,8 +167,8 @@ jobs:
           create-storage-record: false
 
       # The updater companion (ADR 0024) is released with the server, from the same commit, but
-      # it is a separate image: only it gets the Docker socket. Its own cache scope keeps the two
-      # builds from overwriting each other's cache.
+      # it is a separate image: only it gets the Docker socket. Built without cache, like the server
+      # image above.
       - name: Build and push the updater image for linux/amd64 and linux/arm64
         id: build-updater
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
