@@ -1,6 +1,6 @@
 # Konzept 28 · Oberfläche für Zuschauer
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 Dieses Dokument beschreibt jede Seite, jeden Dialog und jeden Zustand des Live-TV-Bereichs für
 Zuschauer in den drei Clients **Web-App** (Computer, Tablet, Handy-Browser), **Handy-App** (Android,
@@ -15,7 +15,13 @@ festlegen; Zielzeiten sind zu prüfende Grössen, keine Zusage. Offene Weichen s
 Abschnitt 9. Die Nummern F-1 bis F-12 und F-23 gehören zu diesem Dokument; `15-administration.md`
 führt F-13 bis F-22. `20-offene-entscheidungen.md` übernimmt sie als «`14` F-n».
 
-**Massgeblich** sind für Zahlen `04-architektur.md` Abschnitt 14, für fachliche Regeln `03-fachkonzept.md`
+**Grundregel für offene Fragen** (Entscheid des Koordinators nach Review 4): Solange Marco eine Frage nicht
+beantwortet hat, gilt die **wortlauttreue Vorgabe** aus `20-offene-entscheidungen.md`, bei Sicherheitsfragen die
+sichere; eine Empfehlung gilt erst mit seiner Antwort. Jede Frage hier nennt ihre Nummer in `20` (E-28-nn).
+«Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei verschiedene Schritte.
+
+**Massgeblich** sind für Zahlen `04-architektur.md` (Fassung 4) Abschnitt 14, für Sicherheit `12-sicherheit.md`
+(Fassung 3; wo es strenger ist als `04`, gilt `12`), für fachliche Regeln `03-fachkonzept.md`
 (DR-nn), für Aufnahmen `11-dvr.md`, für Timeshift `10-timeshift.md`, für die Stufen `18-umsetzungsplan.md`.
 Die klickbaren Mockups sind gebaut (`19-mockups.md`); wo sie von diesem Dokument abweichen, steht es an der
 Stelle als «Im Mockup anders, weil …» oder ist hier nachgezogen (Abschnitt 11).
@@ -39,7 +45,10 @@ heisst schnell von Sender zu Sender schalten.
    für das Recht «Aufnahmen» (alle Aufnahme-Knöpfe, Seiten LS-08 bis LS-12 und LS-14 fehlen; vorhandene
    Aufnahmen sind dann 404 und bleiben gespeichert, Planungen ruhen, `03` F-7 (a) bis zu Marcos Antwort)
    und das Recht «Timeshift» (Anhalten und Zurückspulen fehlen, Abschnitt 4.7). Timeshift und Aufnahmen
-   setzen Live-TV voraus (`03` DR-22).
+   setzen Live-TV voraus (`03` DR-22). Ausnahme A-12 (`12` 1.1): Das Hauptprofil sieht und löscht die
+   Aufnahmen seiner Profile mit Altersgrenze auch ohne eigenes Live-TV-Recht (LS-14). Der Server prüft in
+   fester Reihenfolge (`12` 9.3): Anmeldung, Recht, Objekt, erst dann Grenzen und Zustände; ein Profil ohne
+   Recht sieht darum nie «ausgelastet», «zu schnell» oder «Sehzeit aufgebraucht», sondern nur «Nicht gefunden».
 2. **Kein Altersfilter.** Live-TV zeigt allen freigegebenen Profilen alle Sender des Angebots. Es gibt
    keine Sperre nach Sender, Sendung oder Programmdaten (LTV-015, benannte Ausnahme vom Altersmodell).
 3. **Aufnahmen sind privat.** Sie erscheinen nur in «Meine Aufnahmen» des eigenen Profils, nie auf der
@@ -186,6 +195,16 @@ den Eintrag ebenfalls nicht (`08` 7.2).
 Dokument liest das so: Der eine Eintrag steht in der Seitenleiste (der Hauptnavigation) im Band «Meine
 Medien», wie Webradio heute; so ist auch das Mockup gebaut. Ob zusätzlich ein Eintrag in der oberen Gruppe
 (neben Start und Suche) gemeint ist, bleibt F-12. Die Startseite bekommt keine Live-TV-Reihe (DR-23).
+
+**Weitere Clients** (Auslegungen des Koordinators, keine Entscheide Marcos; Fragen in `20`):
+
+- **Fire TV** wird nach LTV-014 «berücksichtigt»: kein eigener Client und keine Zusage. Die TV-App ist
+  eine Android-TV-App; ob sie auf Fire OS läuft und was dafür nötig wäre (Fernbedienung ohne Kanal- und
+  Zifferntasten, kein Google-TV-Rahmen), prüft `16`. Die TV-Bedienung dieses Dokuments geht ohnehin mit
+  Steuerkreuz, OK und Zurück allein (4.13), passt also auch zu Fire-TV-Fernbedienungen.
+- **Safari, iPhone und iPad** sind Web-Clients und gehören zum Umfang (Smartphone, Tablet): **vorgesehen
+  wie die übrigen Browser, ungeprüft, solange kein Gerät da ist** (`20` E-28-12). Die Seiten dieses
+  Dokuments sind dieselben; Unterschiede zeigt nur der Player (4.10).
 
 **Innerhalb des Bereichs** führt eine Reiterleiste oben durch die Hauptseiten. Sie erscheint auf allen
 Live-TV-Seiten ausser dem Player:
@@ -669,6 +688,10 @@ wie LS-08 (Karten oder Zeilen) mit Abspielen und Löschen, ohne Fortschritt und 
 und das Mockup); ob mehr, ist F-4. Löschen geht auch, wenn das Recht «Aufnahmen» des Profils oder des
 Kontos aus ist, damit Platz frei wird; Abspielen setzt «Live-TV» beim Hauptprofil voraus (`03` DR-03).
 
+**Ohne eigenes Live-TV-Recht** des Hauptprofils (Ausnahme A-12, `12` 1.1): Der Live-TV-Bereich fehlt, aber
+LS-14 bleibt über die Profilverwaltung erreichbar, mit Sehen und Löschen; «Abspielen» fehlt dann (`03` DR-03),
+mit dem Satz «Zum Abspielen braucht dein Profil selbst Live-TV.» So kann das Hauptprofil Speicher freigeben.
+
 **Erreichbar** aus der Profilverwaltung (LS-21, Link «Aufnahmen meiner Profile», Ort nach `03` DR-02),
 aus LS-08 (Karte) und über die Reiterleiste «Aufnahmen › Profile»; die Aufnahmen stehen nie vermischt mit
 den eigenen. Fehlt ganz, wenn das Konto keine Profile mit Altersgrenze hat, die Aufnahmen haben. Welche
@@ -920,7 +943,8 @@ Lieblingssender sind darin nur mit dem Herz markiert (wie im Mockup).
 Hintergrund oder geht der Bildschirm aus, hält der Player an und die App beendet die Sitzung. Es gibt keinen
 Ton im Hintergrund und kein Bild-im-Bild des Systems. Kommt man zurück, stellt die App denselben Sender neu
 ein; der Zeitversatz ist dann weg, und die Leiste beginnt neu (Hinweis `toast` «Neu eingeschaltet»). Eine
-kurze Unterbrechung unter 60 Sekunden (Anruf, Blick in eine andere App) übersteht die Sitzung. Für einen
+kurze Unterbrechung unter 30 Sekunden (Anruf, Blick in eine andere App) übersteht die Sitzung; nach 30
+Sekunden im Hintergrund beendet die App sie (`04` 14.4). Für einen
 Browser-Tab im Hintergrund ist das Verhalten offen (`04` O-25, zu messen M-3/M-5); die Oberfläche zeigt
 dort nichts Eigenes.
 
@@ -976,7 +1000,12 @@ Bauteil `LiveSeekBar` (neu, 6.5; baut auf den Spuren von `SeekBar`, `state.track
   `toast` «Die älteste Minute ist weggefallen. Weiter ab 18:41.»
 - **Speicherort «Timeshift» voll oder weg:** Live läuft weiter, nur Zurückspulen fehlt, mit Hinweis
   «Zurückspulen ist gerade nicht möglich.» (`18` 4.7 Prüfliste 5).
-- **Pause und Schauzeit:** Eine Pause zählt nicht zur täglichen Schauzeit (`03` DR-12).
+- **Pause und Schauzeit:** Die tägliche Schauzeit zählt, was der Server **ausliefert** (jedes ausgelieferte
+  Segment mit seiner Dauer), nicht die Angabe «Pause» des Players (`12` 10.3, SM-50, Regel 12). Eine Pause, in der
+  der Player nichts mehr holt, zählt also nicht; holt er noch Vorlauf, zählen diese Sekunden mit. Die Anzeige
+  «Pausiert» bleibt. Holt eine Sitzung 15 Minuten lang kein Segment (mit Zeitversatz: Höchstdauer plus 15
+  Minuten), endet sie (`04` 14.4); beim Weiterdrücken stellt der Player neu ein und zeigt `toast` «Die
+  Wiedergabe war zu lange angehalten und wurde neu gestartet.»
 
 ### 4.8 Senderwechsel im Player
 
@@ -1079,12 +1108,25 @@ Aufnahmen anderer Profile sind nirgends zu sehen.
 
 **Ton, Untertitel, Qualität:** bestehende Menüs (`panels/TrackPanels.tsx`, `panels/SettingsPanel.tsx`,
 `ui/PlayerPanel.tsx`; TV `PlayerMenus.kt`; Handy `PlayerSheets.kt`). Beispiel Ton: «Deutsch» ·
-«Deutsch (Audiodeskription)» · «Englisch (Originalton)». Untertitel: «Aus» · «Deutsch (Videotext)» ·
-«Deutsch für Hörgeschädigte». Qualität: «Automatisch» · «Original (1080i)» · «720p» · «480p». Gibt es
-keine Untertitel: Knopf ausgegraut (`aria-disabled`) mit Hinweis «Dieser Sender sendet keine
-Untertitel». Ein Wechsel, der den Strom neu aufbaut, zeigt kurz den Ladezustand «Wechsle Tonspur …».
-Was davon technisch je Client geht, legt `16-client-kompatibilitaet.md` fest; die Oberfläche zeigt nur,
-was der Server als Spur meldet.
+«Deutsch (Audiodeskription)» · «Englisch (Originalton)». Qualität: «Automatisch» · «Original (1080i)» ·
+«720p» · «480p». Ein Wechsel, der den Strom neu aufbaut, zeigt kurz den Ladezustand «Wechsle Tonspur …».
+Was technisch je Client geht, legt `16-client-kompatibilitaet.md` fest; die Oberfläche zeigt nur, was der
+Server als Spur meldet.
+
+**Untertitel, ehrlich je Client und Stufe** (`16` Matrix E, `04` F-15 → `20` E-28-56). LTV-004 verlangt
+«individuelle Untertitelauswahl» ohne Stufe; vor Stufe E ist das im Browser nicht erfüllt und für
+Teletext-Untertitel in keinem Client. Vorgabe bis zur Antwort: Untertitel gehören zum Umfang, im Browser und
+für Teletext ab Stufe E.
+
+| Client | Stufen 1a bis vor E | ab Stufe E |
+|---|---|---|
+| Handy- und TV-App (Media3) | Menü «Untertitel» mit «Aus» und den Spuren, die Media3 liest: Untertitel im Bildstrom (CEA-608/708, belegt), DVB-Untertitel (Annahme, Stufe 1a prüft es), z. B. «Deutsch für Hörgeschädigte» | dazu Teletext-Untertitel als WebVTT, z. B. «Deutsch (Videotext 777)» |
+| Browser (Chrome, Edge, Firefox) | **keine wählbaren Untertitel:** Knopf «Untertitel» ausgegraut (`aria-disabled`, fokussierbar) mit Hinweis «Untertitel gibt es im Browser noch nicht. Die Apps zeigen sie.» Ob Untertitel im Bildstrom trotzdem erscheinen, misst M-3; die Oberfläche verspricht nichts | Menü wie in den Apps, Teletext als WebVTT |
+| Safari, iPhone, iPad (vorgesehen, ungeprüft) | wie Browser | wie Browser |
+| Sender hat Untertitel nur als Teletext | in **keinem** Client wählbar; Knopf ausgegraut mit «Dieser Sender sendet Untertitel nur als Videotext. Slouchcat zeigt sie noch nicht an.» | wählbar |
+| Sender ohne Untertitel | Knopf ausgegraut, «Dieser Sender sendet keine Untertitel.» | gleich |
+
+Aufnahmen behalten alle empfangenen Untertitelspuren (LTV-020); im Aufnahme-Player gilt dieselbe Tabelle.
 
 **Umwandlung im Browser:** Sender mit HEVC-Bild oder mit AC-3-, E-AC-3- oder LATM-Ton laufen im Browser über
 eine Umwandlung je Zuschauer, weil der schlanke Bau von hls.js sie nicht abspielt (`05` 5.3, `04` 15.1, belegt
@@ -1092,7 +1134,12 @@ nach der Nachprüfung). Die Oberfläche zeigt das nur an zwei Stellen: im Qualit
 «umgewandelt» an der gewählten Stufe (Ton «Stereo, umgewandelt», wo der Sender 5.1 sendet), und beim
 Umschalten über die längere Ladezeit (Zielwert unter 5 Sekunden statt unter 3, LTV-010). Am TV und am Handy
 (Media3) entfällt das meist; die Grenze legt die Fähigkeitsabfrage fest (`16`). Eine Umwandlung gibt es nur,
-wenn das Profil Umwandlung darf (bestehendes Recht); sonst Fehlerbild «nicht abspielbar» (4.12).
+wenn das Profil Umwandlung darf (bestehendes Recht) **und** der Server sie für Live-TV anbietet: Die
+Umwandlung für Live-TV läuft nur mit wirksamer Sperre von FFmpeg (`12` SM-22, `04` T-27; Vorgabe bis zur
+Antwort `20` E-28-04 ist die sichere). Fehlt die Sperre auf dem Server, gibt es nur den Direktweg; Sender, die
+das Gerät nur mit Umwandlung abspielen kann, zeigen dann das Fehlerbild «Umwandlung nicht verfügbar» (4.12).
+Dasselbe gilt für Sender mit sehr langen Bildgruppen ohne Zeitversatz (Segmente über 10 Sekunden, `04` 14.4,
+`05` 3.6): Sie laufen nur über eine Umwandlung und starten langsamer («kein schneller Start»).
 
 **Vollbild:** wie heute (F, Doppelklick, Knopf). Am Handy quer = Vollbild.
 
@@ -1109,7 +1156,7 @@ stateDiagram-v2
   Verbindet --> Laeuft: erstes Bild
   Verbindet --> Langsam: nach 3 s
   Langsam --> Laeuft: erstes Bild
-  Langsam --> Fehler: nach 15 s ohne Segment oder Meldung des Servers
+  Langsam --> Fehler: Server meldet eine überschrittene Startfrist, spätestens nach 90 s
   Laeuft --> Unterbrochen: Strom stockt
   Unterbrochen --> Laeuft: weiter
   Unterbrochen --> Fehler: Server meldet «gestört»
@@ -1120,15 +1167,20 @@ stateDiagram-v2
 |---|---|
 | 0 s | altes Bild verschwindet sofort (schwarz, `media.backdrop`), **nie** ein stehendes Bild des alten Senders; `NowNextBanner` des **neuen** Senders sofort sichtbar; Leiste zeigt Live-Anzeige leer |
 | ab 0,5 s | zusätzlich ruhige Ladeanzeige in der Mitte (kein Zucken bei schnellem Start) mit «SRF info wird geladen» |
-| ab 3 s | Text «Dauert länger als üblich …» |
-| ab 15 s ohne Segment oder Fehlermeldung | Fehlerbild (unten) |
+| ab 3 s | Text «Dauert länger als üblich …» und, sobald der Server ihn meldet (Zustand «startet» mit Grund, `04` 15.3), der Grund: «Verbindung zur Quelle wird aufgebaut», «Warte auf den Bildanfang (lange Bildgruppen)», «Umwandlung startet» |
+| überschrittene Startfrist (Meldung des Servers), spätestens 90 s | Fehlerbild (unten) |
 | Strom stockt im Lauf | letztes Bild bleibt stehen, darüber Ladeanzeige «Verbindung wird wiederhergestellt …»; der Server verbindet nach der festen Leiter 1, 2, 5, 10, 20 s neu und meldet `retryInSeconds` (`04` 14.1, `08`) |
 
-Die Schwellen und woher sie kommen: **15 s** = Startversuch endet ohne Segment (`04` 14.1, Vorgabe);
-**3 s** = die Antwort auf «einstellen» wartet bis zu 3 s auf das erste Segment (`04` 14.1, Annahme M-1) und
+Die Schwellen und woher sie kommen (`04` 14.1): Der Server führt **drei Startfristen**. Frist 1: bis zum ersten
+Byte der Quelle 15 s je Verbindungsversuch. Frist 2: vom ersten Byte bis «läuft» die gespeicherte Bildgruppe
+plus 5 s, mindestens 15 s, höchstens 45 s (ohne gespeicherte Bildgruppe 30 s). Frist 3: bis zum ersten Segment
+der Sitzung (Direktweg: Segmentdauer plus 5 s, mindestens 10 s; mit Umwandlung bis zu 10 s Warten auf
+Einheiten plus 10 s). Alles zusammen höchstens **90 s**. Der Player zeigt das Fehlerbild erst, wenn der Server
+eine Frist als überschritten meldet; einen eigenen Zeitgeber für den Fehler hat er nicht. **3 s** = die Antwort auf «einstellen» wartet bis zu 3 s auf das erste Segment (`04` 14.1, Annahme M-1) und
 der Zielwert «noch nicht empfangener Sender unter 3 s» (LTV-010); **0,5 s** ist ein Vorschlag dieses
-Dokuments gegen Flackern bei schnellem Start. Ein Stillstand gilt nach 10 s ohne Daten als Abbruch
-(`04` 14.1); bis dahin bleibt das Bild stehen. Mit Umwandlung (4.10) gilt der Zielwert unter 5 s; die
+Dokuments gegen Flackern bei schnellem Start. Ein Stillstand gilt nach 10 s ohne Daten als Abbruch (bei
+HLS-Quellen nach dem grösseren Wert aus 10 s und dem Anderthalbfachen der Zieldauer, `04` 14.1); bis dahin bleibt
+das Bild stehen. Mit Umwandlung (4.10) gilt der Zielwert unter 5 s; die
 Anzeige «dauert länger» kommt dann trotzdem nach 3 s. Schnelles Zappen zeigt nur den Banner des zuletzt
 gewählten Senders (4.8). *Im Mockup* sind die Ladezeiten zur Vorführung verkürzt (`19` 4).
 
@@ -1148,9 +1200,11 @@ Fokus liegt am TV auf dem ersten Knopf.
 | Recht entzogen (während des Schauens) | «Live-TV ist für dieses Profil nicht mehr freigegeben.» | «Zur Startseite» |
 | Timeshift nicht erlaubt | kein Fehlerbild; 4.7 | – |
 | Sender nicht mehr im Angebot (beim Einstellen) | «Diesen Sender gibt es nicht mehr.» | «Anderer Sender» |
-| Sender vom Administrator «sofort beendet» (`04` T-29; ohne diesen Befehl läuft die Wiedergabe weiter, bis man geht) | «Dieser Sender ist nicht mehr verfügbar.» | «Anderer Sender» |
+| Sender vom Administrator deaktiviert (`04` T-29) | während der Wiedergabe nichts: sie läuft weiter, höchstens bis das Token abläuft (12 Stunden); danach und beim nächsten Einstellen «Dieser Sender ist nicht mehr verfügbar.» | «Anderer Sender» |
+| Administrator «sofort beendet», Quelle entfernt oder geändert (Empfänger enden innert 5 s, `04` 14.1) | «Dieser Sender ist nicht mehr verfügbar.» | «Anderer Sender» |
+| Umwandlung nicht verfügbar (Sperre fehlt auf dem Server, `12` SM-22) und das Gerät braucht sie | «Dieser Sender lässt sich auf diesem Gerät nur mit Umwandlung abspielen, und die Umwandlung ist auf diesem Server gerade aus.» | «Anderer Sender» |
 | Auf diesem Gerät nicht abspielbar (Format, keine Umwandlung erlaubt) | «Dieser Sender lässt sich auf diesem Gerät nicht abspielen.» | «Anderer Sender» |
-| Server überlastet (Obergrenze der Eingänge oder Live-Sitzungen, `04` 14.1, 14.4) | «Der Server ist gerade ausgelastet. Versuche es gleich nochmals.» | «Erneut versuchen» |
+| Server ausgelastet (Obergrenze der Eingänge oder Live-Sitzungen, `04` 14.1, 14.4), auch wenn dauerhaft empfangene Sender die Plätze halten: ein laufender Dauersender weicht keinem neuen Zuschauer (Vorgabe nach LTV-002, `20` E-28-30) | «Der Server ist gerade ausgelastet. Versuche es gleich nochmals.» (die Ursache nennt der Player nicht) | «Erneut versuchen» |
 | Quelle lehnt weitere Verbindung ab (`04` 5.3) | «Für diesen Sender ist gerade keine weitere Verbindung möglich. Versuche einen anderen Sender.» | «Anderer Sender» · «Erneut versuchen» |
 | Sender ohne Ton (vom Admin so gekennzeichnet) | kein Fehler; Info «Dieser Sender hat keinen Ton.» | – |
 | Netz langsam | bestehendes `useSlowConnection` | – |
@@ -1516,63 +1570,63 @@ Xtream-Bibliotheken.
 
 Erledigte oder in ein anderes Dokument gewanderte Fragen bleiben mit ihrer Nummer stehen.
 
-**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.** → `20` E-28-09 Teilweise erledigt
+**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.** → `20` E-28-09; Vorgabe bis zur Antwort: (a) mit (i). Teilweise erledigt
 durch `03` DR-01 (Profile mit Altersgrenze ab Werk aus); der Rest ist **siehe `03` F-1** (Empfehlung dort (a),
 deckt sich mit der früheren Empfehlung hier).
 
-**F-2 Live-TV auf der Startseite der App.** → `20` erledigt (Anhang A) **Erledigt durch `03` DR-23:** keine Live-TV-Reihe auf der
+**F-2 Live-TV auf der Startseite der App.** → `20` erledigt (Anhang A). **Erledigt durch `03` DR-23:** keine Live-TV-Reihe auf der
 Startseite (LS-26).
 
-**F-3 Live-TV in der allgemeinen Suche.** → `20` E-28-23 **Siehe `03` F-5** (Empfehlung dort (a): nur im Live-TV-Bereich,
+**F-3 Live-TV in der allgemeinen Suche.** → `20` E-28-23; Vorgabe bis zur Antwort: (a). **Siehe `03` F-5** (Empfehlung dort (a): nur im Live-TV-Bereich,
 weil die allgemeine Suche altersgefiltert ist, `02` A-2). Die frühere Empfehlung «nur ein Verweis» ist
 zurückgezogen; wählt Marco `03` F-5 (b), wird LS-24 entsprechend gebaut.
 
-**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** → `20` E-28-43 Festgelegt ist
+**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** → `20` E-28-43; Vorgabe bis zur Antwort: geplante Termine nur als Zahl, sonst (A). Festgelegt ist
 «sehen, löschen, abspielen» der Aufnahmen (E-3, `03` DR-02). Offen: (A) nur Aufnahmen; (B) dazu die
 geplanten Termine und Regeln nur lesend; (C) geplante auch abbrechen und ändern. Dazu: Bekommt das Profil
 eine Meldung, wenn das Hauptprofil eine seiner Aufnahmen löscht? **Empfehlung B** mit Meldung an das Profil.
 Bis zur Antwort zeigt LS-14 die geplanten Termine nur als Zahl (wie `08` und das Mockup).
 
-**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** → `20` erledigt (Anhang A) **Erledigt durch
+**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** → `20` erledigt (Anhang A). **Erledigt durch
 `03` DR-21 und `11` 6.3:** kein Fortschritt, weder beim Profil noch beim Hauptprofil (LS-10).
 
-**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** → `20` E-28-22 **Siehe `03` F-3** (Empfehlung dort (a):
+**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** → `20` E-28-22; Vorgabe bis zur Antwort: (a). **Siehe `03` F-3** (Empfehlung dort (a):
 Posteingang des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile ohne Titel nach DR-05). Die
 frühere Empfehlung hier (Erinnerungen nur im Posteingang und auf Geräten des Profils) bleibt als Hinweis
 für Marco: Bei gemeinsamer E-Mail sehen andere Profile, dass eine Erinnerung kam.
 
-**F-7 Bedienung des TV-Players mit Steuerkreuz.** → `20` E-28-57 (A) OK = Bedienleiste, ← = Senderliste links, → =
+**F-7 Bedienung des TV-Players mit Steuerkreuz.** → `20` E-28-57; Vorgabe bis zur Antwort: (A). (A) OK = Bedienleiste, ← = Senderliste links, → =
 Info, ↑/↓ ohne sichtbare Bedienung = Sender ±, Pause über die Pausetaste (wie verbreitete Live-TV-Apps;
 **so ist das TV-Mockup gebaut**); (B) wie der Videoplayer: OK = Pause, ←/→ spulen, ↑ = Bedienung, ↓ =
 Senderliste, Senderwechsel nur über Liste, Kanaltasten und Ziffern. **Empfehlung A:** Schnelles Zappen ist
 Priorität (LTV-010), und viele Fernbedienungen haben keine Kanaltasten. Spulen bleibt in der Bedienleiste
 mit ←/→. Hängt mit `03` F-6 zusammen (wann die TV-App Live-TV bekommt, `18` 5).
 
-**F-8 Altersangaben der Programmdaten anzeigen?** → `20` E-28-28 (A) nie anzeigen, weil Slouchcat sie nicht prüft und die
+**F-8 Altersangaben der Programmdaten anzeigen?** → `20` E-28-28; Vorgabe bis zur Antwort: (A). (A) nie anzeigen, weil Slouchcat sie nicht prüft und die
 Anzeige Schutz vortäuschen könnte; (B) als reine Information auf der Detailseite mit dem Satz «Angabe des
 Senders, Slouchcat prüft sie nicht». **Empfehlung A.** Gefiltert wird in keiner Variante (LTV-015).
 
-**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** → `20` E-28-38 (A) immer fragen; (B) erst ab 60 s Abstand zu
+**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** → `20` E-28-38; Vorgabe bis zur Antwort: (B). (A) immer fragen; (B) erst ab 60 s Abstand zu
 Live oder bei Pause, mit «Nicht mehr fragen»; (C) nie fragen, nur danach `toast` «Zeitversatz verworfen».
 **Empfehlung B.** Stufe 4 (`18` 4.7).
 
-**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** → `20` E-28-41 **Siehe `03` F-7.**
+**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** → `20` E-28-41; Vorgabe bis zur Antwort: (a). **Siehe `03` F-7.**
 Dort gilt in allen Varianten: vorhandene Aufnahmen sind für das Profil 404 und bleiben gespeichert;
 Planungen ruhen nach (a). Die frühere Empfehlung hier (Aufnahmen bleiben sichtbar und löschbar) ist
 zurückgezogen, weil sie «ohne Recht unsichtbar» widerspricht. Freigeben von Speicher geht über das
 Hauptprofil (`03` DR-03) oder nach Rückgabe des Rechts. Ob das Hauptprofil auch löschen darf, wenn das Konto
 gar kein Live-TV mehr hat: `08` F-1.
 
-**F-11 Sendungsbilder im Raster.** → `20` E-28-27 (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine Bilder
+**F-11 Sendungsbilder im Raster.** → `20` E-28-27; Vorgabe bis zur Antwort: (A). (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine Bilder
 in breiten Zellen. **Empfehlung A**; Bilder in Fokus-Vorschau, Karten und Detailseite.
 
-**F-12 Live-TV-Eintrag in der Web-Navigation.** → `20` E-28-16 Grundsatz durch `03` DR-23 (Annahme) festgelegt: Eintrag in
+**F-12 Live-TV-Eintrag in der Web-Navigation.** → `20` E-28-16; Vorgabe bis zur Antwort: (A). Grundsatz durch `03` DR-23 (Annahme) festgelegt: Eintrag in
 der Hauptnavigation und in «Meine Medien». Offen bleibt nur die Auslegung: (A) ein Eintrag im Band «Meine
 Medien» der Seitenleiste wie Webradio (so das Mockup); (B) zusätzlich ein Eintrag in der oberen Gruppe
 neben Start und Suche. **Empfehlung A** (Medienauswahl links, eine Stelle, ordnet und versteckt der
 Administrator).
 
-**F-23 Zusätzliche Felder für Serien- und wiederkehrende Aufnahmen.** → `20` E-28-53 Der Auftrag verlangt (LTV-008)
+**F-23 Zusätzliche Felder für Serien- und wiederkehrende Aufnahmen.** → `20` E-28-53; Vorgabe bis zur Antwort: (A); die Felder werden nicht gebaut. Der Auftrag verlangt (LTV-008)
 Serienaufnahmen, wiederkehrende Aufnahmen, Vor- und Nachlauf, Aufbewahrung und das Erkennen schon
 aufgenommener Folgen «sofern zuverlässig identifizierbar». Das deckt `11` ab. Die Mockups und Fassung 1
 dieses Dokuments zeigen darüber hinaus: Zeitfenster und Wochentage als Filter einer **Serienregel**, «nur
@@ -1622,7 +1676,9 @@ selten eine Folgenkennung tragen. Bis zur Antwort gilt A; die Felder stehen in L
 | LTV-014 Meine Aufnahmen: privat, laufend, abgeschlossen, fehlgeschlagen, Fortschritt, Wiedergabe, Löschen, Aufbewahrung | LS-08, LS-09, LS-10, LD-06, LD-11 |
 | LTV-014 Geplante Aufnahmen: Einzel, Serie, wiederkehrend, Bearbeiten, Abbrechen, Konflikte, Vor-/Nachlauf, Zeitpunkt, Zustand | LS-11, LS-12, LD-01–03, LD-06 |
 | LTV-014 Desktop, Smartphone, Tablet, Android TV, Google TV | je Seite «Geräte»; 1.1; 4.2, 4.3, 4.5 |
-| LTV-014 Fire TV | Nicht-Ziel dieses Repos (Leitplanken 3.4) |
+| LTV-014 Fire TV | «berücksichtigt», kein eigener Client, keine Zusage (Auslegung des Koordinators, Frage in `20`); 1.1, 4.13 |
+| LTV-014 Smartphone, Tablet mit Safari/iPhone/iPad | vorgesehen, ungeprüft ohne Gerät (`20` E-28-12); 1.1 |
+| LTV-014 und LTV-004 Untertitelauswahl | 4.10 Tabelle je Client und Stufe; Abweichung in der Zeit als Frage `20` E-28-56 |
 | LTV-014 kein neues Designsystem | Grundsatz 8, Abschnitt 6 |
 | LTV-005 Programmsuche, Erinnerungen, Aufnahme aus EPG, unvollständige Daten ehrlich, Ausfall stoppt TV nicht | LS-05, LS-13, 4.1, 4.4, Grundsatz 4 |
 | LTV-007 Timeshift ab Einschalten, pausieren, zurück, vor, zu Live, Senderwechsel löscht, nicht vor Einschalten | 4.6, 4.7, 4.8, LD-10 |
@@ -1707,3 +1763,41 @@ Fassung 1 → 2 (Konsolidierung 1, 28. November 2026):
 - **Mockups:** Abschnitt 11 mit einem Entscheid je Abweichung (`19` 6).
 - **Beispieldaten** an das Mockup angeglichen (Belegung 82 / 56,7 / 3,3 GB in 31 Aufnahmen).
 - Restebereinigung nach Konsolidierung 1: Fragen mit Verweis auf `20` (Zuordnung im Anhang von `20`).
+
+---
+
+## 13. Mockup zieht nach
+
+Was sich an den Seiten sichtbar ändert und im Mockup (`19`) nachzuziehen ist:
+
+- **Player im Browser:** Knopf «Untertitel» ausgegraut mit Hinweis bis Stufe E; Teletext-Sender mit eigenem
+  Hinweis in allen Clients (4.10).
+- **Player, Ladezustand:** Grund des Zustands «startet» nach 3 s; Fehlerbild erst auf Meldung des Servers
+  (4.11).
+- **Neue Fehlerbilder:** «Umwandlung nicht verfügbar»; «ausgelastet» auch bei belegten Plätzen durch
+  Dauersender; deaktivierter Sender läuft weiter (kein Fehlerbild mitten in der Wiedergabe) (4.12).
+- **Pause:** Hinweis «zu lange angehalten, neu gestartet» nach 15 Minuten ohne Abruf (4.7).
+- **Apps im Hintergrund:** Sitzung endet nach 30 s, `toast` «Neu eingeschaltet» bei der Rückkehr (4.5).
+- **LS-14 ohne eigenes Live-TV-Recht:** über die Profilverwaltung erreichbar, ohne «Abspielen» (3.14).
+- **Aus der Konsolidierung 1, noch offen im Mockup:** LD-04 ohne feste Dauern, LD-05 mit 0/5/15/30 Minuten,
+  LD-02 ohne «ähnliche Titel» und «Angesehene zuerst» (Abschnitt 11).
+
+## 14. Änderungen gegenüber Fassung 2
+
+Fassung 2 → 3 (Schlussbereinigung nach Review 4, 5, 6; 29. November 2026):
+
+- Kopf: Grundregel «ohne Antwort gilt die wortlauttreue Vorgabe»; `04` Fassung 4 und `12` Fassung 3 als massgeblich;
+  jede Frage mit Verweis `20` E-28-nn und Vorgabe bis zur Antwort (Koordinator, RG-01, RG-04).
+- Grundsatz 1: Ausnahme A-12 und feste Reihenfolge der Prüfungen (`12` 1.1, 9.3; RT-09, RT-12).
+- 1.1: Fire TV «berücksichtigt», Safari/iPhone/iPad «vorgesehen, ungeprüft ohne Gerät» als Auslegungen des
+  Koordinators (RG-08; Review 4, Tabelle LTV-014).
+- 3.14: Hauptprofil ohne eigenes Live-TV-Recht erreicht LS-14 (A-12).
+- 4.5: Hintergrund der Apps nach 30 s (`04` 14.4).
+- 4.7: Schauzeit nach dem, was der Server ausliefert; Sitzungsende nach 15 Minuten ohne Abruf (`12` SM-50, RT-04).
+- 4.10: Untertitel je Client und Stufe ehrlich, Teletext in keinem Client vor Stufe E (RG-05, `16` Matrix E);
+  Umwandlung nur mit Sperre, lange Bildgruppen (RT-01, `05` 3.6).
+- 4.11: drei Startfristen, Gesamtfrist 90 s, Zustand «startet» mit Grund, Stillstand bei HLS (`04` 14.1, 15.3).
+- 4.12: «Umwandlung nicht verfügbar»; «ausgelastet» bei Dauersendern, die nicht weichen (RG-02); T-29 mit
+  12 Stunden und «Quelle entfernt oder geändert» innert 5 s (RB-05, RT-06).
+- Abdeckung: Zeilen zu Fire TV, Safari/iPhone/iPad und Untertitel neu.
+- Abschnitt 13 «Mockup zieht nach» neu.
