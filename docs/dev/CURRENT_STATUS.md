@@ -1,5 +1,21 @@
 # Aktueller Stand
 
+## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026)
+
+Marcos Auftrag vom 28. November 2026: die Übersetzungen aus PR #234 veröffentlichen. Reiner Versions-PR
+nach dem Weg für Patches (Versionscommit ohne eigenen Fix, weil der Inhalt mit PR #234 schon in main
+liegt, Merge `be977fb5`).
+
+- **Inhalt:** Die neun Texte zum Recht «Darf Titel anfordern» (sieben neue, zwei geänderte Hilfetexte)
+  in den 20 übrigen Sprachen. Seit `v1.44.0` kam sonst nur Doku (PR #233) und eine Aktualisierung von
+  `actions/setup-node` in der CI dazu. Kein Code in Server, Web-App oder App geändert, keine Migration,
+  Vertrag unverändert 1.44.0.
+- **Versionen:** Server und Updater 1.44.1 (`deploy/`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  Handy-App 1.0.5 (`versionCode` 6). Die TV-App bleibt bei 1.0.1; sie trägt die Texte nicht.
+- **Geprüft:** `node scripts/i18n/check.ts --all --strict` ohne Fehler; die GitHub-CI von PR #234 hat
+  den Inhalt vollständig geprüft (Lauf 45977212910, Gate `ci` grün, Emulator-Lauf grün).
+- **Offen:** Tags `v1.44.1` und `app-v1.0.5` nach dem Merge, Marco signiert die App und hebt CT 190 selbst.
+
 ## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, PR #232)
 
 PR #232, gemergt am 26. November 2026 (`a2162e73`). Veröffentlicht am selben Tag: Server **1.44.0** (Tag
