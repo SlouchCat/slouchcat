@@ -152,8 +152,11 @@ dunklem, kinoartigem, ordentlichem Design. Go-Server mit SQLite (goose, sqlc, ei
 Playwright mit stummem Firefox), OpenAPI-Vertrag mit Codegen für Go und TypeScript, ein Docker-Container
 mit jellyfin-ffmpeg. Version 1 umfasst Filme, Serien, Hörbücher, Podcasts; Netflix-artige Profile mit
 Altersstufen und PIN; Cat's Empfehlungen (Admin-Kuratierung); Transcoding mit GPU; Offline-Wiedergabe;
-Integrationen lesend (Radarr/Sonarr, Seerr, Bazarr, Trakt-Listen). Nicht-Ziele: Musik, Fotos, Live-TV,
-native Apps, Plugins, algorithmische Empfehlungen. Repository öffentlich unter AGPL-3.0:
+Integrationen lesend (Radarr/Sonarr, Seerr, Bazarr, Trakt-Listen). Nicht-Ziele: Musik (ausser Live-Webradio,
+Frage 23), Fotos, native Apps (ausser der Android-Handy-App und der Android-TV-App, Fragen 34 und 35), Plugins,
+algorithmische Empfehlungen. Live-TV (IPTV mit Programmzeitschrift, Timeshift und Aufnahmen) ist seit dem
+28. November 2026 ein beschlossener Funktionsbereich (Frage 37, Konzept 28), konzipiert, nicht gebaut; Bau je
+Stufe erst nach Marcos ausdrücklicher Baufreigabe. Repository öffentlich unter AGPL-3.0:
 https://github.com/SlouchCat/slouchcat. Spezifikation mit 68 Abnahmekriterien (IDs K/B/H/W/E/O/C/A/I) in
 `docs/spec/01-anforderungen-v1.md`; Sammlung rund 2'500 Filme und 40'000 Folgen auf SMB/NFS.
 
