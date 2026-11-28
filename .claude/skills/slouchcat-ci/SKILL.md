@@ -31,8 +31,11 @@ Jede Regel hat einen Grund; wer gegen eine verstossen will, fragt Marco.
    (heute: nur Doku, schon geprüft; mit M9 zusätzlich `run_<job> = false`). Grund: ein vergessener
    Job bliebe unbeobachtet.
 4. **Caches speichert nur main** (`actions/cache/save` mit Bedingung auf main), PR-Läufe lesen.
-   Kein neuer Cache ohne Zeile im Cache-Budget (`docs/perf/ci.md`, Ziel ≤ 9 GiB von 10). Grund: das
-   Repo stand am 28.11. bei 10,41 GiB, und GitHub verdrängt dann wahllos.
+   Kein neuer Cache ohne Zeile im Cache-Budget (`docs/perf/ci.md`, Abschnitt 11, Ziel ≤ 9 GiB von 10)
+   und kein Schlüssel, der je Push einen neuen Eintrag anlegt, ohne Grund (Lauf-ID nur, wo ein
+   veralteter Cache messbar langsamer macht, wie `gradle-build`). Grund: Das Repo steht an der Grenze,
+   und GitHub verdrängt dann, was am längsten nicht benutzt wurde, am 28.11. die apt-Caches.
+   Release-Workflows bauen ohne Cache (`no-cache`).
 5. **Fremde Actions nur mit voller Commit-SHA und Tag-Kommentar.** Heruntergeladene Binaries nur mit
    geprüfter SHA-256 (`.github/task-checksums.txt`). Grund: Sicherheitsreview M-2.
 6. **Kein `pull_request_target`, kein `workflow_run`, kein Pfadfilter auf Workflow-Ebene.** Grund:
