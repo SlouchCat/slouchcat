@@ -28,7 +28,6 @@ function la02Detail(s) {
     <dl class="kv"><dt>Adresse</dt><dd>${la02Address(s)}</dd>
     <dt>Aktualisieren</dt><dd>${s.interval ? `alle ${s.interval} Stunden` : 'nur von Hand'}</dd>
     <dt>Neue Sender sofort anbieten</dt><dd>${s.offerNew ? 'an' : 'aus (Werksvorgabe an; neue Sender kommen inaktiv mit Filter «Neu»)'}</dd>
-    <dt>Vorladen für Sender dieser Quelle</dt><dd>${s.moreConn ? 'an' : 'aus'}</dd>
     <dt>Gruppen</dt><dd>${s.groups}</dd><dt>Verschwundene Sender</dt><dd>${s.gone}</dd>
     <dt>Feste Ziele im Heimnetz</dt><dd>${la02Targets(s) ? `${la02Targets(s)} (bestätigt, protokolliert)` : 'keine'}</dd></dl>
     <h3 class="la02-h3">Letzte Läufe</h3>
@@ -42,7 +41,7 @@ function la02Row(s) {
     { label: 'Letzter Import', href: (LIVE.importRuns[s.id] || [])[0] ? `#/admin/live/sources/${s.id}/import/${LIVE.importRuns[s.id][0][0]}` : `#/admin/live/sources/${s.id}`, icon: 'list' },
     { label: 'Entfernen', act: 'la02Remove', data: { id: s.id }, danger: true, icon: 'trash' },
   ], { aria: `Weitere Aktionen für ${s.name}`, cls: 'quiet icon' });
-  return `<tr class="${open ? 'open' : ''}"><td class="main"><span class="la02-name"><button type="button" class="tog" data-act="open" data-id="la02:${s.id}" aria-expanded="${open}" aria-label="${esc(s.name)}: Einzelheiten ${open ? 'zuklappen' : 'aufklappen'}" data-fid="la02:tog:${s.id}">${icon('chevR', 14)}</button><a class="lnk" href="#/admin/live/sources/${s.id}" data-fid="la02:name:${s.id}"><b>${esc(s.name)}</b></a></span></td>
+  return `<tr class="${open ? 'open' : ''}"><td class="main"><span class="la02-name"><button type="button" class="tog" data-act="open" data-id="la02:${s.id}" aria-expanded="${open}" aria-label="${esc(s.name)}: Einzelheiten ${open ? 'zuklappen' : 'aufklappen'}" data-fid="la02:tog:${s.id}">${icon('chevR', 14)}</button><a class="lnk" href="#/admin/live/sources/${s.id}" data-fid="la02:name:${s.id}"><b>${esc(s.name)}</b></a>${(() => { const r = typeof admRest === 'function' ? admRest(s.id) : null; return r ? `<span class="chip warn">vorsorglicher Empfang ruht bis ${admUntil(r.until)}</span>${r.pattern === 'B' ? '<span class="chip info">Ein-Strom-Betrieb</span>' : ''}` : ''; })()}</span></td>
     <td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td>
     <td data-l="Sender">${fmt.num(s.active)} aktiv / ${fmt.num(s.total)}</td>
     <td data-l="Letzte Aktualisierung">${la02Last(s)}</td>
@@ -100,16 +99,30 @@ DIALOGS.la02Test = (p) => {
     actions: `<button type="button" class="btn secondary" data-act="close" data-fid="la02t:x" data-autofocus>Schliessen</button>` };
 };
 ACT.la02Remove = (d) => { ui.draft.la02rm = 'keep'; openDialog('la02Remove', { id: d.id }); };
+/** what runs from a source right now, only as numbers (04 T-29: removing a source ends its receivers within 5 s) */
+function la02Running(id) {
+  const chs = new Set(admInputs().filter((n) => n.source === id && n.state !== 'deferred').map((n) => n.ch));
+  const v = admViewers().filter((x) => chs.has(x.ch)).length;
+  const r = [...chs].reduce((a, ch) => a + (typeof aaRecsOn === 'function' ? aaRecsOn(ch) : 0), 0);
+  return { chs, v, r };
+}
 DIALOGS.la02Remove = (p) => {
-  const s = LIVE.sources.find((x) => x.id === p.id); const only = Math.round(s.active * 0.64);
+  const s = LIVE.sources.find((x) => x.id === p.id); const only = Math.round(s.active * 0.64); const run = la02Running(s.id);
   const r = (v, t) => `<label class="check"><input type="radio" name="la02rm" value="${v}" data-bind="ui.draft.la02rm" ${ui.draft.la02rm === v ? 'checked' : ''} data-fid="la02rm:${v}">${t}</label>`;
-  return { title: `Quelle «${esc(s.name)}» entfernen?`, body: `<p class="lead">${s.active} Sender stammen aus dieser Quelle; ${only} davon haben keine andere Quelle.</p>
+  const runTxt = run.v + run.r ? `<p><b>Gerade laufen ${run.v} Zuschauer und ${run.r} ${run.r === 1 ? 'Aufnahme' : 'Aufnahmen'} über diese Quelle. Sie enden innert 5 Sekunden; die Aufnahmen behalten, was sie haben, und gelten als unvollständig.</b></p>` : '<p>Gerade laufen 0 Zuschauer und 0 Aufnahmen über diese Quelle.</p>';
+  return { title: `Quelle «${esc(s.name)}» entfernen?`, body: `<p class="lead">${s.active} Sender stammen aus dieser Quelle; ${only} davon haben keine andere Quelle.</p>${runTxt}
     <div class="stack" style="gap:0">${r('keep', `Diese ${only} Sender behalten, als «ohne Quelle» markieren und abschalten`)}${r('delete', `Diese ${only} Sender löschen`)}</div>
     <p class="muted">Favoriten, Zuordnungen und geplante Aufnahmen bleiben bei behaltenen Sendern erhalten. Geplante Aufnahmen gelöschter Sender werden abgesagt; die Profile bekommen eine Warnung.</p>`,
-    actions: `<button type="button" class="btn secondary" data-act="close" data-fid="la02rm:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="la02RemoveOk" data-id="${s.id}" data-fid="la02rm:ok">${icon('trash', 16)}Entfernen</button>` };
+    actions: `<button type="button" class="btn secondary" data-act="close" data-fid="la02rm:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="la02RemoveOk" data-id="${s.id}" data-fid="la02rm:ok">${icon('trash', 16)}${run.v + run.r ? 'Entfernen und beenden' : 'Entfernen'}</button>` };
 };
+if (!LU.REASON.sourceRemoved) LU.REASON.sourceRemoved = 'Die Quelle wurde entfernt.';
 ACT.la02RemoveOk = (d) => {
   const k = LIVE.sources.findIndex((x) => x.id === d.id); if (k < 0) return;
-  const [s] = LIVE.sources.splice(k, 1); closeDialog(); render();
-  toast(`Quelle «${esc(s.name)}» entfernt. ${ui.draft.la02rm === 'delete' ? 'Ihre Sender ohne andere Quelle wurden gelöscht.' : 'Ihre Sender ohne andere Quelle sind abgeschaltet.'}`, 'ok', 6000);
+  const run = la02Running(d.id);
+  LIVE.consumers.forEach((c) => { if (run.chs.has(c[0]) && (c[1] === 'viewer' || c[1] === 'recording')) c[1] = 'ended'; });
+  LIVE.profiles.forEach((p) => SIM.recordings(p.id).filter((x) => x.state === 'running' && run.chs.has(x.ch)).forEach((x) => { SIM.stopRecording(x.id); const rr = SIM.recording(x.id); if (rr) { rr.state = 'incomplete'; rr.reason = 'sourceRemoved'; } }));
+  for (let i = LIVE.inputs.length - 1; i >= 0; i--) if (LIVE.inputs[i].source === d.id) { const [n] = LIVE.inputs.splice(i, 1); LIVE.resources.bandIn = Math.max(0, Math.round((LIVE.resources.bandIn - (n.bitrate || 0)) * 10) / 10); }
+  const [s] = LIVE.sources.splice(k, 1); closeDialog();
+  if (location.hash.startsWith(`#/admin/live/sources/${s.id}`)) go('#/admin/live/sources'); else render();
+  toast(`Quelle «${esc(s.name)}» entfernt. ${run.v + run.r ? `${run.v} Zuschauer und ${run.r} ${run.r === 1 ? 'Aufnahme' : 'Aufnahmen'} beendet. ` : ''}${ui.draft.la02rm === 'delete' ? 'Ihre Sender ohne andere Quelle wurden gelöscht.' : 'Ihre Sender ohne andere Quelle sind abgeschaltet.'}`, 'ok', 6000);
 };

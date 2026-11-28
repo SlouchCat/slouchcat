@@ -122,7 +122,8 @@ function abSyncInput(c) {
 /* ======================================================================================
    LA-09 Empfang: Strategie · Zeitpläne · Ausnahmen je Sender
    ====================================================================================== */
-const abRcBase = () => Object.assign({}, abClone(LIVE.settings.reception), { preloadMax: LIVE.limits.preloaded, more: Object.fromEntries(LIVE.sources.map((s) => [s.id, !!s.moreConn])) });
+/* Vorladen nur global (an oder aus, Obergrenzen) und je Sender über die Strategie; je Quelle kein Schalter und keine Zahl (04 T-18, RG-03) */
+const abRcBase = () => Object.assign({ preloadOn: true, checkIdle: false }, abClone(LIVE.settings.reception), { preloadMax: LIVE.limits.preloaded });
 function abRcErrors(d) {
   const e = {};
   if (!Number.isInteger(d.recLeadS) || d.recLeadS < 10 || d.recLeadS > 120) e.lead = 'Gib eine ganze Zahl von 10 bis 120 ein.';
@@ -136,25 +137,27 @@ function abStrategyTab() {
   const defWarn = d.default === 'permanent'
     ? notice('warn', `Standard «Permanent» für alle Sender: ${fmt.num(cnt.total)} dauerhafte Verbindungen`, 'Jeder permanent empfangene Sender belegt dauerhaft eine Verbindung zur Quelle, auch ohne Zuschauer. Wie viele gleichzeitige Verbindungen dein Anbieter erlaubt, musst du selbst im Blick behalten.') : '';
   const schedSel = d.default === 'schedule' ? abFld('la09-defsch', 'Zeitplan für alle Sender', abSel(`${P}.schedule`, 'la09-defsch', [['', 'Zeitplan wählen …'], ...LIVE.settings.schedules.map((s) => [s.name, `${s.name} (${s.times})`])], { err: e.sched, label: 'Zeitplan für alle Sender' }), { err: e.sched }) : '';
-  /* Vorladen je Quelle: reine Vorlade-Einstellung (Datenfeld moreConn, dieselbe wie LA-03 «Vorladen für Sender dieser Quelle») */
   const srcList = abEmpty() ? [] : LIVE.sources;
-  const srcTable = srcList.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Art</th><th>Vorladen für Sender dieser Quelle</th></tr></thead><tbody>${srcList.map((s) => `<tr><td class="main" data-l="Quelle"><a class="lnk" href="#/admin/live/sources/${s.id}" data-fid="la09:src:${s.id}">${esc(s.name)}</a></td><td data-l="Art">${LU.SOURCE_KIND[s.kind]}</td><td data-l="Vorladen"><span class="ab-swl">${sw(`${P}.more.${s.id}`, `Vorladen für Sender der Quelle ${s.name}`)}<span>${d.more[s.id] ? 'an' : 'aus'}</span></span></td></tr>`).join('')}</tbody></table></div><p class="muted aa-small">Vorladen öffnet zusätzliche Verbindungen zu dieser Quelle. Ob dein Anbieter das zulässt, verantwortest du.</p>`
-    : abEmptyBox('Noch keine Quelle', 'Sobald eine Quelle besteht, stellst du hier ein, ob ihre Sender vorgeladen werden.', `<a class="btn primary" href="#/admin/live/sources/new" data-fid="la09:addsrc0">${icon('plus', 16)}Quelle hinzufügen</a>`);
-  return `${notice('', 'Wie der Empfang arbeitet', 'Laufende Wiedergaben und Aufnahmen sind immer geschützt: Keine Einstellung beendet sie. Nach einem Neustart nimmt der Server dauerhaft und nach Zeitplan empfangene Sender von selbst wieder auf. Jeder dauerhaft, vorgeladen oder nach Zeitplan empfangene Sender belegt eine Verbindung zur Quelle, auch ohne Zuschauer.')}
+  const srcRows = srcList.length ? `<div class="tblw ab-tbl"><table class="tbl"><thead><tr><th>Quelle</th><th>Vorsorglicher Empfang</th></tr></thead><tbody>${srcList.map((s) => { const r = admRest(s.id); return `<tr><td class="main" data-l="Quelle">${esc(s.name)}</td><td data-l="Vorsorglicher Empfang">${r ? `<span class="chip warn">ruht</span> ${esc(admRestText(r))} · <a class="lnk" href="#/admin/live/diagnostics" data-fid="la09:rest:${s.id}">Diagnose</a>` : '<span class="chip ok">läuft</span>'}</td></tr>`; }).join('')}</tbody></table></div>` : abEmptyBox('Noch keine Quelle', 'Sobald eine Quelle besteht, siehst du hier, ob ihr vorsorglicher Empfang läuft oder ruht.', `<a class="btn primary" href="#/admin/live/sources/new" data-fid="la09:addsrc0">${icon('plus', 16)}Quelle hinzufügen</a>`);
+  const pl = abEmpty() ? null : admPermLoad();
+  const preOff = !d.preloadOn; const preNote = preOff ? '<span class="muted aa-small ab-full">Wirkt nicht, solange «Vorladen» aus ist.</span>' : '';
+  return `${admLockLine()}${pl ? notice('warn', 'Dauersender belegen mehr als die Hälfte der Eingänge', admPermText(pl)) : ''}${notice('', 'Wie der Empfang arbeitet', 'Laufende Wiedergaben und Aufnahmen sind immer geschützt: Keine Einstellung beendet sie. Ein laufender Dauersender (permanent oder im Zeitfenster seines Zeitplans) bleibt ebenfalls. Reicht die Kapazität nicht, wird die neue Anfrage abgelehnt («ausgelastet»); zuerst weichen Vorgeladenes, «automatisch» gehaltene Ströme und Ströme in Karenz. Nach einem Neustart nimmt der Server dauerhaft und nach Zeitplan empfangene Sender von selbst wieder auf. Jeder dauerhaft, vorgeladen oder nach Zeitplan empfangene Sender belegt eine Verbindung zur Quelle, auch ohne Zuschauer.')}
     <section class="card"><div class="ch"><span class="ik">${icon('wifi', 18)}</span><h2>Strategie für alle Sender</h2></div>
       <div class="srow-wrap">
         ${abRow('Standard für alle Sender', 'Einzelne Sender kannst du im Reiter «Ausnahmen je Sender» abweichend einstellen.', `<div class="ab-cards" role="radiogroup" aria-label="Standard für alle Sender">${defOpts}</div>${schedSel}${defWarn}`, { col: true })}
-        ${abRow('Benachbarte Sender vorladen', 'Beim Umschalten öffnet Slouchcat die Nachbarn in der Senderliste im Voraus.', `${abSel(`${P}.neighbours`, 'la09-nb', [[0, 'aus'], [1, '1 Sender davor und danach'], [2, '2 Sender davor und danach']], { num: true, label: 'Benachbarte Sender vorladen' })}<span class="muted aa-small ab-full">Wirkt nur bei Quellen, bei denen «Vorladen für Sender dieser Quelle» an ist (unten). Vorladen öffnet nur den Empfang. Eine Umwandlung für ein Gerät startet erst, wenn jemand schaut.</span>`)}
-        ${abRow('Vorgeladene Sender insgesamt', 'Obergrenze für alle Zuschauer zusammen. Benachbarte und oft genutzte Sender zählen beide dazu.', `${abSel(`${P}.preloadMax`, 'la09-pm', Array.from({ length: 17 }, (_, i) => [i, i === 0 ? 'keine' : `höchstens ${i}`]), { num: true, label: 'Vorgeladene Sender insgesamt' })}<span class="muted aa-small ab-full">Vorschlag: höchstens 4.</span>`)}
-        ${abRow('Oft genutzte Sender bereithalten', `Gilt für Sender mit der Art «Automatisch» (derzeit ${abPl(cnt.by.auto, 'Sender', 'Sender')}).`, `${abSel(`${P}.keepHot`, 'la09-kh', Array.from({ length: 11 }, (_, i) => [i, i === 0 ? 'keinen' : `höchstens ${i}`]), { num: true, label: 'Oft genutzte Sender bereithalten' })}<span class="muted aa-small ab-full">Solange jemand Live-TV schaut und noch 10 Minuten danach.</span>`)}
+        ${abRow('Vorladen', 'Gilt für alle Quellen und Sender. Ab Werk an, mit vorsichtigen Obergrenzen. Je Sender steuerst du den Empfang über die Strategie (Reiter «Ausnahmen je Sender»).', `<span class="ab-swl">${sw(`${P}.preloadOn`, 'Vorladen')}<span>${d.preloadOn ? 'an' : 'aus'}</span></span><span class="muted aa-small ab-full">Zugang mit nur einer Verbindung? Dann schalte das Vorladen hier aus: Es gilt für alle Quellen. Slouchcat zählt keine Verbindungen und kennt keine Anbieterlimits.</span>`)}
+        ${abRow('Benachbarte Sender vorladen', 'Beim Umschalten öffnet Slouchcat die Nachbarn in der Senderliste im Voraus.', `${abSel(`${P}.neighbours`, 'la09-nb', [[0, 'aus'], [1, '1 Sender davor und danach'], [2, '2 Sender davor und danach']], { num: true, label: 'Benachbarte Sender vorladen' })}<span class="muted aa-small ab-full">Vorladen öffnet nur den Empfang. Eine Umwandlung für ein Gerät startet erst, wenn jemand schaut. Lehnt eine Quelle eine weitere Verbindung ab, ruht der vorsorgliche Empfang dieser Quelle von selbst (30 Minuten, bei Wiederholung länger); die Diagnose zeigt es.</span>${preNote}`)}
+        ${abRow('Vorgeladene Sender insgesamt', 'Obergrenze für alle Zuschauer zusammen. Benachbarte und oft genutzte Sender zählen beide dazu.', `${abSel(`${P}.preloadMax`, 'la09-pm', Array.from({ length: 17 }, (_, i) => [i, i === 0 ? 'keine' : `höchstens ${i}`]), { num: true, label: 'Vorgeladene Sender insgesamt' })}<span class="muted aa-small ab-full">Vorschlag: höchstens 4.</span>${preNote}`)}
+        ${abRow('Oft genutzte Sender bereithalten', `Gilt für Sender mit der Art «Automatisch» (derzeit ${abPl(cnt.by.auto, 'Sender', 'Sender')}).`, `${abSel(`${P}.keepHot`, 'la09-kh', Array.from({ length: 11 }, (_, i) => [i, i === 0 ? 'keinen' : `höchstens ${i}`]), { num: true, label: 'Oft genutzte Sender bereithalten' })}<span class="muted aa-small ab-full">Solange jemand Live-TV schaut und noch 10 Minuten danach.</span>${preNote}`)}
         ${abRow('Lieblingssender der Zuschauer berücksichtigen', 'Die Favoriten der Profile, die gerade schauen, stehen in der Liste zuerst.', sw(`${P}.favourites`, 'Lieblingssender der Zuschauer berücksichtigen'))}
         ${abRow('Nicht mehr gebrauchten Empfang beenden nach', 'Wartezeit, nachdem der letzte Zuschauer weg ist.', abSel(`${P}.stopAfterS`, 'la09-st', [[15, '15 s'], [30, '30 s'], [60, '60 s'], [120, '2 Min.'], [300, '5 Min.']], { num: true, label: 'Empfang beenden nach' }))}
         ${abRow('Empfang für Aufnahmen vorher starten', 'Zusätzlich zum Vorlauf der Aufnahme.', `<span class="ab-unit">${abInp(`${P}.recLeadS`, 'la09-lead', { num: true, min: 10, max: 120, err: e.lead, label: 'Sekunden vor dem Vorlauf' })}<span>s vor dem Vorlauf</span></span>${abErr('la09-lead', e.lead)}`)}
+        ${abRow('Übrige ruhende Sender prüfen', 'Lieblingssender, Sender mit Aufnahme in 24 Stunden und Sender mit Zeitplan prüft Slouchcat immer. Alle übrigen nur, wenn das an ist.', `<span class="ab-swl">${sw(`${P}.checkIdle`, 'Übrige ruhende Sender prüfen')}<span>${d.checkIdle ? 'an' : 'aus'}</span></span><span class="muted aa-small ab-full">Werksvorgabe: aus. An: höchstens einmal je Tag und Sender in einem Nachtfenster, nie bei einer Quelle, deren vorsorglicher Empfang gerade ruht.</span>`)}
       </div>
     </section>
-    <section class="card"><div class="ch"><span class="ik">${icon('link', 18)}</span><h2>Vorladen je Quelle</h2></div>
-      <p class="muted">Ist «Vorladen» einer Quelle aus, lädt Slouchcat ihre Sender nicht vor und hält sie bei «Automatisch» nicht bereit. Dauerhaft und nach Zeitplan sind ausdrückliche Aufträge und hängen nicht daran.</p>
-      ${srcTable}</section>
+    <section class="card"><div class="ch"><span class="ik">${icon('link', 18)}</span><h2>Quellen</h2></div>
+      <p class="muted">Nur Anzeige, keine Einstellung: je Quelle der Zustand des vorsorglichen Empfangs. Ruht er, hat Slouchcat das von selbst so gestellt.</p>
+      ${srcRows}</section>
     ${dirty ? abSaveBar('abRcSave', 'abRcDisc', 'la09', nerr) : ''}`;
 }
 ACT.abRcDisc = () => { delete ui.draft.rc; render(); };
@@ -162,8 +165,7 @@ ACT.abRcSave = () => {
   const d = ui.draft.rc; if (!d || Object.keys(abRcErrors(d)).length) return;
   if (d.default === 'permanent' && LIVE.settings.reception.default !== 'permanent' && !ui.draft.rcOk) { openDialog('abRcConfirm', {}); return; }
   ui.draft.rcOk = false;
-  const { more, preloadMax, ...rest } = d; LIVE.settings.reception = abClone(rest); LIVE.limits.preloaded = preloadMax;
-  LIVE.sources.forEach((s) => { if (s.id in more) s.moreConn = !!more[s.id]; });
+  const { preloadMax, ...rest } = d; LIVE.settings.reception = abClone(rest); LIVE.limits.preloaded = preloadMax;
   delete ui.draft.rc; render();
   toast('Empfang gespeichert. Laufende Wiedergaben und Aufnahmen bleiben unberührt.');
 };
@@ -248,7 +250,7 @@ ACT.abSchedDelOk = () => {
 /** Zustand eines Senders mit eigener Empfangsart: läuft · zurückgestellt seit … · gestört · nicht empfangen */
 function abOvState(c) {
   const n = LIVE.inputs.find((x) => x.ch === c.id);
-  if (n && n.state === 'deferred') return `<span class="chip warn" title="${esc(n.deferredReason || '')}">zurückgestellt seit ${fmt.time(n.since)}</span>`;
+  if (n && n.state === 'deferred') return `<span class="chip warn" title="${esc(admDefWhy(n))}">zurückgestellt: konnte nicht starten, ${esc(admDefCause(n).replace(' der Eingangsströme', ''))}, ${admDefTries(n)} Versuche</span>`;
   if ((n && n.state === 'reconnecting') || SIM.chState(c) !== 'ok') return '<span class="chip bad">gestört</span>';
   if (n) return '<span class="chip ok">läuft</span>';
   return '<span class="muted">nicht empfangen</span>';
@@ -258,7 +260,8 @@ function abOverridesTab() {
   const cnt = abStratCounts(); const q = (ui.draft.ovq || '').toLowerCase(); const f = ui.draft.ovf || '';
   const inputsFor = (k) => LIVE.inputs.filter((n) => n.reasons.includes(k)).length;
   const nDef = LIVE.inputs.filter((n) => n.state === 'deferred').length;
-  const tiles = `<div class="stats" style="--n:5">${abStat('Permanent', abPl(cnt.by.permanent, 'Sender', 'Sender'), `belegt dauerhaft ${abPl(cnt.by.permanent - nDef, 'Eingang', 'Eingänge')} von ${LIVE.limits.inputs}`, { cls: cnt.by.permanent ? 'warn' : '' })}${abStat('Zurückgestellt', abPl(nDef, 'Sender', 'Sender'), nDef ? 'belegt keinen Platz, startet von selbst wieder' : 'keiner', { cls: nDef ? 'warn' : '' })}${abStat('Nach Zeitplan', abPl(cnt.by.schedule, 'Sender', 'Sender'), `derzeit ${abPl(inputsFor('schedule'), 'Eingang', 'Eingänge')} im Zeitfenster`)}${abStat('Automatisch', abPl(cnt.by.auto, 'Sender', 'Sender'), `davon höchstens ${LIVE.settings.reception.keepHot} bereit`)}${abStat('Bei Bedarf', abPl(cnt.by.ondemand, 'Sender', 'Sender'), 'ohne Zuschauer kein Empfang')}</div>`;
+  const tiles = `<div class="stats" style="--n:5">${abStat('Permanent', abPl(cnt.by.permanent, 'Sender', 'Sender'), `belegt dauerhaft ${abPl(cnt.by.permanent - nDef, 'Eingang', 'Eingänge')} von ${LIVE.limits.inputs}`, { cls: cnt.by.permanent ? 'warn' : '' })}${abStat('Zurückgestellt', abPl(nDef, 'Sender', 'Sender'), nDef ? 'konnte nicht starten, belegt keinen Platz' : 'keiner', { cls: nDef ? 'warn' : '' })}${abStat('Nach Zeitplan', abPl(cnt.by.schedule, 'Sender', 'Sender'), `derzeit ${abPl(inputsFor('schedule'), 'Eingang', 'Eingänge')} im Zeitfenster`)}${abStat('Automatisch', abPl(cnt.by.auto, 'Sender', 'Sender'), `davon höchstens ${LIVE.settings.reception.keepHot} bereit`)}${abStat('Bei Bedarf', abPl(cnt.by.ondemand, 'Sender', 'Sender'), 'ohne Zuschauer kein Empfang')}</div>`;
+  const pl = admPermLoad(); const plWarn = pl ? notice('warn', 'Dauersender belegen mehr als die Hälfte der Eingänge', admPermText(pl)) : '';
   let list = cnt.explicit.filter((c) => (!f || c.reception === f) && (!q || c.name.toLowerCase().includes(q) || String(c.no) === q));
   const s = AB.ov; const key = { name: (c) => c.name.toLowerCase(), strat: (c) => abStratName(c.reception), sched: (c) => c.schedule || '' }[s.sort];
   list = list.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * s.dir);
@@ -277,7 +280,7 @@ function abOverridesTab() {
     <td data-l="Zustand">${abOvState(c)}</td>
     <td class="end"><button type="button" class="btn quiet" data-act="abOvReset" data-ch="${c.id}" data-fid="la09:ores:${c.id}">${icon('undo', 16)}Auf Standard zurück</button></td></tr>`).join('')}</tbody></table></div>`
     : abEmptyBox(cnt.explicit.length ? 'Keine Treffer' : 'Keine Ausnahmen', cnt.explicit.length ? 'Passe Suche oder Filter an.' : `Alle Sender folgen dem Standard «${abStratName(LIVE.settings.reception.default)}».`);
-  return `${tiles}${addForm}
+  return `${tiles}${plWarn}${addForm}
     <div class="ab-tools"><div class="fld ab-grow"><label for="la09-q">Sender suchen</label><input class="inp" id="la09-q" type="search" data-bind="ui.draft.ovq" data-live data-fid="la09:q" value="${esc(ui.draft.ovq || '')}" placeholder="Name oder Nummer" autocomplete="off"></div>
     <div class="fld"><label for="la09-f">Art</label>${abSel('ui.draft.ovf', 'la09-f', AB_OVF, { label: 'Nach Art filtern' })}</div></div>
     ${tbl}<p class="muted aa-small">${fmt.num(list.length)} von ${fmt.num(cnt.explicit.length)} Ausnahmen · ${fmt.num(cnt.governed)} weitere Sender folgen dem Standard «${abStratName(LIVE.settings.reception.default)}».</p>`;

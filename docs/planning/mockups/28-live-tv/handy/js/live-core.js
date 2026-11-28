@@ -13,6 +13,10 @@ function liveGate(path) {
   const nf = () => ({ html: `${bar('Nicht gefunden', { back: false })}<div class="empty">${icon('alert', 40)}<b>Nicht gefunden</b><p>Diese Seite gibt es nicht.</p><p style="margin-top:16px"><a class="btn ghost" href="#/" data-fid="nf-home">Zur Startseite</a></p></div>` });
   /* right taken away while watching (mockup state «Recht entzogen …»): the player shows the message (14, 4.12) */
   if (SIM.flags().revoked && path.startsWith('/live/watch/')) return null;
+  /* variant E-28-42 (a), mockup state a12 (default off = Vorgabe (b): 404 as before). A-12 (14 3.14): the primary profile keeps LS-14 and the details of its profiles' recordings, reached only
+     through «Profile verwalten», even without its own right «Live-TV» or «Aufnahmen»; playing needs Live-TV */
+  const kid = path.match(/^\/live\/recordings\/([^/]+)(\/play)?$/); const kr = kid && SIM.recording(kid[1]);
+  if (SIM.flags().a12 && SIM.profile().primary && (path === '/live/recordings/profiles' || (kr && SIM.childProfiles().some((p) => p.id === kr.profile) && (!kid[2] || r.liveTv)))) return null;
   if (path.startsWith('/live') && !r.liveTv) return nf();
   if (/^\/live\/(recordings|scheduled)/.test(path) && !r.recordings) return nf();
   if (path === '/live/recordings/profiles' && !SIM.profile().primary) return nf();
@@ -110,3 +114,16 @@ function installPlaceholders() {
 let liveDirty = false;
 SIM.on((t) => { if (t !== 'change') return; if ($('#overlays .scrim')) liveDirty = true; else render(); });
 setInterval(() => { if (liveDirty && !$('#overlays .scrim')) { liveDirty = false; render(); } }, 400);
+
+/* 14 4.5: the app in the background (or screen off) pauses; after 30 s the session ends and on return the app
+   tunes the same channel in again (offset gone, toast «Neu eingeschaltet»). Shorter breaks keep the session. */
+let lvHiddenAt = 0;
+function lvBackReturn(awayMs) {
+  const p = SIM.player(); if (!p) { if (awayMs >= 30000) toast('Im Mockup: zuerst einen Sender einschalten.'); return; }
+  if (awayMs >= 30000) { SIM.tune(p.ch, { list: p.list }); SIM.emit('retuned'); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { lvHiddenAt = Date.now(); return; }
+  if (lvHiddenAt) { lvBackReturn(Date.now() - lvHiddenAt); lvHiddenAt = 0; }
+});
+LIVE_MOCK.addAction('App 30 s im Hintergrund (Rückkehr zum Player)', () => lvBackReturn(30000));

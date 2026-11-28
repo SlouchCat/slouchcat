@@ -12,12 +12,12 @@ const hpListName = (ids) => { const fav = SIM.favorites(); const all = SIM.chann
 
 /* phases and faults come from the core (LIVE_UI.playerPhase, the same thresholds in all clients; mockup states in
    «Zustände» → Player): start (black, banner) · loading (from 0.5 s) · slow («Dauert länger») · play · error */
-const HP_ERRMAP = { unreachable: 'unreach', notPlayable: 'notplay' };
+const HP_ERRMAP = { unreachable: 'unreach', notPlayable: 'notplay' }; /* busyPerm, noConvert: same key */
 function hpPhase(c) {
   const P = HP.p; const el = Date.now() - P.tuneAt;
   if (Date.now() < P.reload) return 'loading';
   const ph = LU.playerPhase(el, c, { hot: LIVE.inputs.some((i) => i.ch === c.id && i.state === 'running') });
-  P.coreErr = ph.err || null; P.stall = ph.stall ? Date.now() + 60000 : 0;
+  P.coreErr = ph.err || null; P.why = ph.why || ''; P.stall = ph.stall ? Date.now() + 60000 : 0;
   if (ph.fallback && !P.fb) { P.fb = true; setTimeout(() => toast(LU.TX.fallback || 'Auf eine Ersatzquelle umgeschaltet.'), 0); } else if (!ph.fallback && ph.k === 'ok') P.fb = false;
   if (ph.k === 'error') return 'error';
   if (ph.k === 'ok') return 'play';
@@ -25,7 +25,7 @@ function hpPhase(c) {
 }
 /** RM-16: a fault switched in the mockup bar acts on the running channel; unreachable and slow start load
     again, leaving an error loads again, the others (stall, fallback, limit, busy, not playable) show at once */
-const hpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'notPlayable', 'unreachable'].includes(was);
+const hpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'busyPerm', 'notPlayable', 'unreachable'].includes(was);
 const hpErrKind = (c) => { const e = HP.p.coreErr || (SIM.chState(c) === 'gone' ? 'gone' : 'unreach'); return HP_ERRMAP[e] || e; };
 const HP_ERR = {
   unreach: (c) => ({ t: `${c.name} ist gerade nicht erreichbar. Slouchcat versucht es weiter.`, w: true, b: [['hpRetryPl', 'Erneut versuchen'], ['hpOther', 'Anderer Sender']] }),
@@ -35,6 +35,8 @@ const HP_ERR = {
   revoked: () => ({ t: 'Live-TV ist für dieses Profil nicht mehr freigegeben.', b: [['hpHome', 'Zur Startseite']] }),
   notplay: () => ({ t: 'Dieser Sender lässt sich auf diesem Gerät nicht abspielen.', b: [['hpOther', 'Anderer Sender']] }),
   busy: () => ({ t: 'Der Server ist gerade ausgelastet. Versuche es gleich nochmals.', b: [['hpRetryPl', 'Erneut versuchen']] }),
+  busyPerm: (c) => ({ t: LIVE_UI.PLAYER_ERR.busyPerm(c), b: [['hpRetryPl', 'Erneut versuchen']] }),
+  noConvert: (c) => ({ t: LIVE_UI.PLAYER_ERR.noConvert(c), b: [['hpOther', 'Anderer Sender']] }),
 };
 const hpRecElapsed = (r) => { const m = Math.max(0, SIM.now() - r.start); return `${Math.floor(m / 60)}:${String(Math.floor(m % 60)).padStart(2, '0')}`; };
 
@@ -87,7 +89,7 @@ route('/live/watch/:id', (pm) => {
   const sub = (ss) => ({ unreach: 'Nächster Versuch in <b data-hp-retry>20</b> s' }[ss] || '');
   const eb = (eo.b || []).map(([a, l], i) => `<button type="button" class="btn ${i ? 'ghost' : 'secondary'} sm" data-act="${a}" data-fid="pl-eb-${a}">${esc(l)}</button>`).join('');
   const errHtml = `<div class="hp-ov hp-err" role="alert">${LU.logo(c)}<b>${esc(c.name)}</b><p>${esc(eo.t)}</p>${eo.w ? `<small>${sub('unreach')}</small>` : ''}<div class="hp-ebtn">${eb}</div></div>`;
-  const loadTxt = Date.now() < P.reload ? P.reloadTxt : phase === 'slow' ? 'Dauert länger als üblich …' : `${c.name} wird geladen`;
+  const loadTxt = Date.now() < P.reload ? P.reloadTxt : phase === 'slow' ? `Dauert länger als üblich …${P.why ? ` ${P.why}` : ''}` : `${c.name} wird geladen`;
   const mid = `<div class="hp-mid"><button type="button" class="ib hp-bigb" data-act="hpPrev" aria-label="Vorheriger Sender" data-fid="pl-prev">${icon('prev', 28)}</button>
     ${ts ? `<button type="button" class="ib hp-bigb" data-act="hpSeekRel" data-s="-10" aria-label="10 Sekunden zurück" data-fid="pl-rew">${icon('rew', 28)}</button><button type="button" class="ib hp-bigb hp-pp" data-act="hpPlPP" aria-label="${pl.paused ? 'Weiter' : 'Anhalten'}" data-fid="pl-pp">${icon(pl.paused ? 'play' : 'pause', 32)}</button><button type="button" class="ib hp-bigb" data-act="hpSeekRel" data-s="10" aria-label="10 Sekunden vor" data-fid="pl-fwd">${icon('fwd', 28)}</button>` : ''}
     <button type="button" class="ib hp-bigb" data-act="hpNext" aria-label="Nächster Sender" data-fid="pl-next">${icon('next', 28)}</button></div>`;
@@ -122,7 +124,7 @@ function hpPlTick() {
   if (!hpPlOn()) return; const P = HP.p; const pl = SIM.player(); const st = $('.hp-stage'); if (!pl || !st) return;
   const c = SIM.channel(pl.ch); const ph = SIM.mode() === 'loading' ? 'loading' : hpPhase(c);
   if (st.dataset.phase !== ph) st.dataset.phase = ph;
-  const lt = $('[data-hp-loadtxt]', st); if (lt) { const tx = Date.now() < P.reload ? P.reloadTxt : ph === 'slow' ? 'Dauert länger als üblich …' : `${c.name} wird geladen`; if (lt.textContent !== tx) lt.textContent = tx; }
+  const lt = $('[data-hp-loadtxt]', st); if (lt) { const tx = Date.now() < P.reload ? P.reloadTxt : ph === 'slow' ? `Dauert länger als üblich …${P.why ? ` ${P.why}` : ''}` : `${c.name} wird geladen`; if (lt.textContent !== tx) lt.textContent = tx; }
   { const s = $('.hp-stall', st); if (s) s.classList.toggle('on', P.stall > Date.now() && ph === 'play'); }
   if ((ph === 'error') !== (st.dataset.err === '1')) render(); /* a fault state of the core switched */
   const rt = $('[data-hp-retry]', st); if (rt) rt.textContent = String(20 - (Math.floor(Math.max(0, Date.now() - P.tuneAt - 7000) / 1000) % 20));
@@ -182,7 +184,7 @@ function hpSetHtml() {
   const pl = SIM.player(); const c = SIM.channel(pl ? pl.ch : 'srf1'); const P = HP.p; const mia = SIM.profile().age === 6;
   const chip = (g, i, t, on, dis) => `<button type="button" class="chip${on ? ' on' : ''}" aria-pressed="${on}" ${dis ? 'disabled aria-disabled="true"' : ''} data-act="hpSetPick" data-g="${g}" data-i="${i}" data-fid="set-${g}-${i}">${esc(t)}</button>`;
   return `<h2>Ton, Untertitel, Qualität</h2><div class="sec">Ton</div><div class="chips lh-wrap">${c.audio.map((a, i) => chip('audio', i, a.replace(/ \(.*\)$/, '') + (/Audiodeskription/.test(a) ? ' (Audiodeskription)' : ''), P.audio === i)).join('')}</div>
-    <div class="sec">Untertitel</div><div class="chips lh-wrap">${chip('subs', -1, 'Aus', P.subs === -1)}${c.subs.map((s, i) => chip('subs', i, s, P.subs === i)).join('')}</div>${c.subs.length ? '' : `<p class="pad hint">Dieser Sender sendet keine Untertitel.</p>`}
+    <div class="sec">Untertitel</div><div class="chips lh-wrap">${chip('subs', -1, 'Aus', P.subs === -1)}${c.subs.map((s, i) => chip('subs', i, s, P.subs === i, LU.isTeletext(s))).join('')}</div>${c.subs.length ? (c.subs.every(LU.isTeletext) ? `<p class="pad hint">${esc(LU.SUBS_TX.teletext)}</p>` : c.subs.some(LU.isTeletext) ? '<p class="pad hint">Untertitel als Videotext zeigt Slouchcat noch nicht an.</p>' : '') : `<p class="pad hint">${esc(LU.SUBS_TX.none)}</p>`}
     <div class="sec">Qualität</div><div class="chips lh-wrap">${chip('q', 'auto', 'Automatisch', P.q === 'auto')}${chip('q', 'orig', 'Original (1080i)', P.q === 'orig', mia)}${chip('q', '720', '720p', P.q === '720')}${chip('q', '480', '480p', P.q === '480')}</div>${mia ? '<p class="pad hint">Höchstens 720p für dieses Profil.</p>' : ''}
     <div class="acts"><button type="button" class="btn primary" data-act="close" data-fid="set-ok">Fertig</button></div>`;
 }
@@ -282,7 +284,7 @@ function hpRecRow(r, o) {
   const pic = `<span class="hp-rr-pic">${LU.picture({ ch: r.ch, title: r.title, img: r.img }, { fallback: 'logo' })}${r.watchedPct ? `<span class="hp-ovprog"><span class="lv-prog" role="progressbar" aria-valuenow="${r.watchedPct}" aria-valuemin="0" aria-valuemax="100" aria-label="Angesehen: ${r.watchedPct} %"><i style="width:${r.watchedPct}%"></i></span></span>` : ''}</span>`;
   const body = `<span class="hp-rr-body"><b>${esc(r.title)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}<small>${hpRecMeta(r)}</small><span class="hp-pr-meta">${badges}<small>${esc(hpKeepText(r.keep, r))}</small></span></span>`;
   if (HP.rec.select) return `<li class="hp-rr"><label class="hp-rr-main hp-selrow"><input type="checkbox" ${sel ? 'checked' : ''} data-act="hpRecSel" data-id="${r.id}" data-fid="rs-${r.id}" aria-label="${esc(r.title)}${r.sub ? ', ' + esc(r.sub) : ''} auswählen">${pic}${body}</label></li>`;
-  return `<li class="hp-rr"><a class="hp-rr-main" href="#/live/recordings/${r.id}" data-fid="rr-${r.id}" aria-label="${esc(r.title)}${r.sub ? ', ' + esc(r.sub) : ''}, ${hpRecMeta(r)}">${pic}${body}</a><span class="hp-pr-act"><a class="ib" href="#/live/recordings/${r.id}/play" aria-label="${esc(r.title)} abspielen" data-fid="rp-${r.id}">${icon('play', 22)}</a>${o.del ? `<button type="button" class="ib" data-act="hpKidDel" data-id="${r.id}" aria-label="${esc(r.title)} löschen" data-fid="rk-${r.id}">${icon('trash', 22)}</button>` : ''}</span></li>`;
+  return `<li class="hp-rr"><a class="hp-rr-main" href="#/live/recordings/${r.id}" data-fid="rr-${r.id}" aria-label="${esc(r.title)}${r.sub ? ', ' + esc(r.sub) : ''}, ${hpRecMeta(r)}">${pic}${body}</a><span class="hp-pr-act">${o.noPlay ? '' : `<a class="ib" href="#/live/recordings/${r.id}/play" aria-label="${esc(r.title)} abspielen" data-fid="rp-${r.id}">${icon('play', 22)}</a>`}${o.del ? `<button type="button" class="ib" data-act="hpKidDel" data-id="${r.id}" aria-label="${esc(r.title)} löschen" data-fid="rk-${r.id}">${icon('trash', 22)}</button>` : ''}</span></li>`;
 }
 route('/live/recordings/profiles', () => hpProfilesPage());
 route('/live/recordings', (p, q) => {
@@ -346,9 +348,10 @@ route('/live/recordings/:id', (pm) => {
   const c = SIM.channel(r.ch); const own = r.profile === SIM.profile().id; const bad = r.state === 'failed' || r.state === 'rejected'; const rule = r.rule ? SIM.rule(r.rule) : null;
   const gapMin = r.gaps.reduce((a, g) => a + (g[1] - g[0]), 0); const dur = r.end - r.start;
   const ra = (ic, label, act, extra, fid, cls) => `<button type="button" class="hp-ra${cls ? ' ' + cls : ''}" data-act="${act}" ${extra} data-fid="${fid}"><span class="hp-ra-i">${icon(ic, 24)}</span><span>${esc(label)}</span></button>`;
-  const resume = own && r.watchedPct > 0 && r.watchedPct < 95 && !bad && r.state !== 'running';
+  const canPlay = own || SIM.rights().liveTv; /* A-12: the primary profile without own Live-TV sees and deletes, but does not play */
+  const resume = canPlay && own && r.watchedPct > 0 && r.watchedPct < 95 && !bad && r.state !== 'running';
   const resTxt = r.resumeAt || hpMMSS(dur * r.watchedPct / 100);
-  const kids = !own ? `<div class="note">${icon('info', 20)}<div>Aufnahme von ${esc(hpProfName(r.profile))}. Du siehst sie, weil ${esc(hpProfName(r.profile))} eine Altersgrenze hat. Fortschritt wird nicht gespeichert.</div></div>` : '';
+  const kids = !own ? `<div class="note">${icon('info', 20)}<div>Aufnahme von ${esc(hpProfName(r.profile))}. Du siehst sie, weil ${esc(hpProfName(r.profile))} eine Altersgrenze hat. ${canPlay ? 'Fortschritt wird nicht gespeichert.' : 'Zum Abspielen braucht dein Profil selbst Live-TV.'}</div></div>` : '';
   const from = `${r.origin === 'series' && rule ? `Aus der Serienaufnahme «${esc(rule.title)}»` : r.origin === 'instant' ? 'Sofortaufnahme' : rule ? `Einzeln geplant am ${fmt.day(rule.created)}` : 'Einzeln geplant'}`;
   const tl = !bad ? `<div class="hp-tl" role="img" aria-label="Zeitleiste der Aufnahme, ${r.gaps.length} Lücken">${r.padBefore ? `<i class="pad" style="left:0;width:${(r.padBefore / dur * 100).toFixed(1)}%"></i>` : ''}${r.padAfter ? `<i class="pad" style="right:0;width:${(r.padAfter / dur * 100).toFixed(1)}%"></i>` : ''}${r.gaps.map((g) => `<i class="lv-gap gp" style="left:${((g[0] - r.start) / dur * 100).toFixed(1)}%;width:${Math.max(1.5, (g[1] - g[0]) / dur * 100).toFixed(1)}%"></i>`).join('')}</div>` : '';
   const html = `${hpBackBar('Aufnahme')}${kids}
@@ -356,7 +359,7 @@ route('/live/recordings/:id', (pm) => {
       <p class="hp-meta">${esc(c.name)} · ${esc(fmt.day(r.start))}, ${fmt.range(r.start, r.end)} · ${hpRecDur(r)}${r.padBefore || r.padAfter ? `, davon Vorlauf ${r.padBefore} Min. und Nachlauf ${r.padAfter} Min.` : ''}</p>
       <div class="hp-chips"><span class="badge ${r.state === 'done' ? 'ok' : ''}">${esc(LU.REC_STATE[r.state])}</span>${bad ? '' : `<span class="badge">${r.state === 'running' ? fmt.gb(hpRecSize(r)) + ' bisher' : fmt.gb(r.sizeGB)}</span>`}</div></div></div>
     <div class="hp-ras" role="toolbar" aria-label="Aktionen">
-      ${!bad ? `<a class="hp-ra" href="#/live/recordings/${r.id}/play" data-fid="rd-play"><span class="hp-ra-i">${icon('play', 24)}</span><span>${resume ? 'Weiter ab ' + esc(resTxt) : 'Abspielen'}</span></a>` : ''}
+      ${!bad && canPlay ? `<a class="hp-ra" href="#/live/recordings/${r.id}/play" data-fid="rd-play"><span class="hp-ra-i">${icon('play', 24)}</span><span>${resume ? 'Weiter ab ' + esc(resTxt) : 'Abspielen'}</span></a>` : ''}
       ${resume ? `<a class="hp-ra" href="#/live/recordings/${r.id}/play?from=start" data-fid="rd-start"><span class="hp-ra-i">${icon('rew', 24)}</span><span>Von vorne</span></a>` : ''}
       ${r.state === 'running' ? ra('close', 'Aufnahme beenden', 'hpStopRec', `data-id="${r.id}"`, 'rd-stop') : ''}
       ${!bad && r.state !== 'running' ? ra('clock', 'Aufbewahrung', 'hpKeep', `data-id="${r.id}"`, 'rd-keep') : ''}
@@ -368,7 +371,7 @@ route('/live/recordings/:id', (pm) => {
       ${tl}${r.state === 'incomplete' ? '<p class="hint">Schraffiert: Lücken. Heller: Vor- und Nachlauf.</p>' : ''}
       ${r.fallbackAt ? `<div class="note">${icon('info', 20)}<div>Um ${fmt.time(r.fallbackAt)} auf eine Ersatzquelle gewechselt.</div></div>` : ''}
       ${!bad ? `<p class="hp-lnr"><small>Spuren</small><br>${esc(r.tracks)}</p><p class="hp-lnr"><small>Aufbewahrung</small><br>${esc(hpKeepText(r.keep, r))}</p>` : ''}</div>
-    <div class="sec">Herkunft</div><div class="pad"><p>${rule && r.origin === 'series' ? `<a class="hp-lnk" href="#/live/scheduled?tab=series" data-fid="rd-from">${from}</a>` : from}</p></div>
+    <div class="sec">Herkunft</div><div class="pad"><p>${rule && r.origin === 'series' && SIM.rights().recordings ? `<a class="hp-lnk" href="#/live/scheduled?tab=series" data-fid="rd-from">${from}</a>` : from}</p></div>
     <p class="lh-sample">${esc(LU.TX.sample)}</p>`;
   return { nav: '', html };
 });

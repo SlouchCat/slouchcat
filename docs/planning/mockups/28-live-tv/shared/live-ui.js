@@ -112,6 +112,9 @@
     root.querySelectorAll('[data-lv-now]').forEach((el) => { const k = el.dataset.lvNow; el.textContent = k === 'left' ? `noch ${Math.max(0, Math.ceil(Number(el.dataset.e) - SIM.now()))} Min.` : k === 'clock' ? fmt.clock(SIM.now()) : fmt.time(SIM.now()); });
   }
   if (SIM && typeof document !== 'undefined') SIM.on((t) => { if (t === 'minute' || t === 'tick') refresh(); });
+  /* messages of the player that every client shows the same way (its global toast) */
+  const TOAST = { restarted: 'Die Wiedergabe war zu lange angehalten und wurde neu gestartet.', retuned: 'Neu eingeschaltet' };
+  if (SIM && typeof document !== 'undefined') SIM.on((t) => { if (TOAST[t] && typeof g.toast === 'function') setTimeout(() => g.toast(TOAST[t]), 0); });
 
   /* ---------- texts and badges ---------- */
   const TX = {
@@ -168,29 +171,40 @@
   const LOAD = { spinnerMs: 500, hotReadyMs: 600, coldReadyMs: 1800, slowAfterMs: 2500, slowReadyMs: 4500, giveUpMs: 6000,
     note: 'Im Mockup verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehlerbild nach 6 s (Konzept 14 Fassung 2: 0.5 / 3 / 15 s).' };
   /** phase of the player elapsedMs after switching to channel c (o.hot: input already received or preloaded).
-      → { k: 'loading'|'slow'|'ok'|'error', spin, err ('unreachable'|'limit'|'busy'|'notPlayable'|'revoked'|'gone'), stall, fallback }.
+      → { k: 'loading'|'slow'|'ok'|'error', spin, why, err ('unreachable'|'limit'|'busy'|'busyPerm'|'notPlayable'|'noConvert'|'revoked'|'gone'), stall, fallback }.
+      why: reason of the state «startet» (04 6.3, 14 4.11), shown from «Dauert länger» on.
       Reads the mockup states (LIVE_SIM.flags().fault, .revoked) and the channel state. */
   function playerPhase(elapsedMs, c, o) {
     o = o || {}; c = typeof c === 'string' ? SIM.channel(c) : c; const f = SIM.flags(); const e = elapsedMs;
     if (!c || SIM.chState(c) === 'gone') return { k: 'error', err: 'gone', spin: false };
     if (f.revoked) return { k: 'error', err: 'revoked', spin: false };
-    if (f.fault === 'limit' || f.fault === 'busy' || f.fault === 'notPlayable') return { k: 'error', err: f.fault, spin: false };
-    const wait = (k) => ({ k: e < LOAD.slowAfterMs ? 'loading' : 'slow', spin: e > LOAD.spinnerMs });
+    if (f.fault === 'limit' || f.fault === 'busy' || f.fault === 'busyPerm' || f.fault === 'notPlayable') return { k: 'error', err: f.fault, spin: false };
+    if (f.noContain && NEEDS_CONVERT.has(c.id)) return { k: 'error', err: 'noConvert', spin: false };
+    const why = e < 1200 ? 'Verbindung zur Quelle wird aufgebaut' : NEEDS_CONVERT.has(c.id) ? 'Umwandlung startet' : 'Warte auf den Bildanfang (lange Bildgruppen)';
+    const wait = () => ({ k: e < LOAD.slowAfterMs ? 'loading' : 'slow', spin: e > LOAD.spinnerMs, why });
     if (SIM.chState(c) !== 'ok' || f.fault === 'unreachable') return e < LOAD.giveUpMs ? wait() : { k: 'error', err: 'unreachable', spin: false };
     const ready = f.fault === 'slow' ? LOAD.slowReadyMs : o.hot ? LOAD.hotReadyMs : LOAD.coldReadyMs;
     if (e < ready) return wait();
     return { k: 'ok', spin: false, stall: f.fault === 'stall', fallback: f.fault === 'fallback' };
   }
+  /** channels whose stream needs a conversion (ZDF: «1 umgewandelt» in LIVE.inputs); without containment they cannot play */
+  const NEEDS_CONVERT = new Set(['zdf']);
   /** texts of the player errors (14, 4.12); err from playerPhase */
   const PLAYER_ERR = {
     unreachable: (c) => `${c.name} ist gerade nicht erreichbar. Slouchcat versucht es weiter.`,
     limit: () => 'Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.',
     revoked: () => 'Live-TV ist für dieses Profil nicht mehr freigegeben.',
     busy: () => 'Der Server ist gerade ausgelastet. Versuche es gleich nochmals.',
+    /* 14 4.12: the player does not name the cause; the mockup state is called «Dauerempfang belegt die Kapazität» */
+    busyPerm: () => 'Der Server ist gerade ausgelastet. Versuche es gleich nochmals.',
+    noConvert: () => 'Dieser Sender lässt sich auf diesem Gerät nur mit Umwandlung abspielen, und die Umwandlung ist auf diesem Server gerade aus.',
     gone: () => 'Diesen Sender gibt es nicht mehr.',
     notPlayable: () => 'Dieser Sender lässt sich auf diesem Gerät nicht abspielen.',
   };
 
-  const UI = { warnText, imagesOn, setImages, imageMode, setImageMode, probeResult, LOAD, playerPhase, PLAYER_ERR, img: IMGBASE, esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
+  /* subtitles (14 4.10): browser none until stage E, Teletext in no client */
+  const SUBS_TX = { browser: 'Untertitel gibt es im Browser noch nicht. Die Apps zeigen sie.', later: 'Untertitel folgen in einer späteren Stufe', teletext: 'Dieser Sender sendet Untertitel nur als Videotext. Slouchcat zeigt sie noch nicht an.', none: 'Dieser Sender sendet keine Untertitel.' };
+  const isTeletext = (s) => /Videotext/.test(s);
+  const UI = { SUBS_TX, isTeletext, NEEDS_CONVERT, warnText, imagesOn, setImages, imageMode, setImageMode, probeResult, LOAD, playerPhase, PLAYER_ERR, img: IMGBASE, esc, fmt, cal, dayOf, initials, logo, logoFail, picture, picFail, progress, pct, nowText, refresh, TX, REC_STATE, REASON, RULE_KIND, RECEPTION, SOURCE_KIND, badge, programBadges, sampleNote, fakeVideo };
   g.LIVE_UI = UI;
 })(typeof window !== 'undefined' ? window : globalThis);

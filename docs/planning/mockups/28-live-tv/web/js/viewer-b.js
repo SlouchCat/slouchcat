@@ -8,9 +8,12 @@
 /* icons vbVol, vbMute, vbFull, vbBack, vbFwd, vbSub, vbAudio, vbChapter, vbBlank: in core.js */
 
 /* ---------- mockup states: all in the core (LIVE_SIM.flags(), bar «Zustände»); VB only reads them ---------- */
+/** web player: no selectable subtitles until stage E (14 4.10); the button is greyed out (aria-disabled, focusable) */
+const VB_SUB_LATER = LU.SUBS_TX.browser;
+const vbSubBtn = (fid, c) => { const t = c && !(c.subs || []).length ? LU.SUBS_TX.none : c && c.subs.every(LU.isTeletext) ? LU.SUBS_TX.teletext : `${LU.SUBS_TX.later}. ${LU.SUBS_TX.browser}`; return `<button type="button" class="vbp-ib" aria-disabled="true" data-t="${esc(t)}" data-fid="${fid}" aria-label="Untertitel: ${esc(t)}">${icon('vbSub', 22)}<span class="vbp-tip" aria-hidden="true">${esc(t)}</span></button>`; };
 const VB = {
   get quotaFull() { return SIM.quota().full; },
-  get perr() { const f = SIM.flags().fault; return ['limit', 'notPlayable', 'busy', 'stall'].includes(f) ? f : ''; },
+  get perr() { const f = SIM.flags().fault; return ['limit', 'notPlayable', 'busy', 'busyPerm', 'stall'].includes(f) ? f : ''; },
   get fallback() { return SIM.flags().fault === 'fallback'; },
   get slow() { return SIM.flags().fault === 'slow'; },
   get many() { return SIM.flags().many; },
@@ -545,15 +548,15 @@ function vbZap(dir, via) {
 function vbpLoadState(p) {
   /* «Langsamer Start» and «Sender nicht erreichbar» of the bar «Zustände» restart the loading phases at once on the running channel (RM-16);
      the other faults come straight from LIVE_UI.playerPhase on the next drawing */
-  const f = SIM.flags().fault; const P = vbpS(); const key = `${p.ch}@${p.joinedAt}#${P.retry}~${f === 'slow' || f === 'unreachable' ? f : ''}`;
+  const f = SIM.flags().fault; const P = vbpS(); const key = `${p.ch}@${p.joinedAt}#${P.retry}~${f === 'slow' || f === 'unreachable' ? f : ''}${SIM.flags().noContain ? '!nc' : ''}`;
   if (!P.load || P.load.key !== key) {
     const recv = LIVE.inputs.some((i) => i.ch === p.ch && i.state === 'running');
     const L = LU.LOAD; const dur = VB.slow ? L.slowReadyMs : recv ? L.hotReadyMs : L.coldReadyMs; /* thresholds of the core, shortened in the mockup */
     P.load = { key, t0: Date.now(), dur, recv }; P.readyAt = Date.now() + dur; P.infoUntil = Date.now() + dur + 5000;
-    [L.spinnerMs, L.slowAfterMs, dur, L.giveUpMs, dur + 5050].forEach((ms) => setTimeout(() => { if (P.load && P.load.key === key && parseHash().path.startsWith('/live/watch/')) render(); }, ms + 10));
+    [L.spinnerMs, 1200, L.slowAfterMs, dur, L.giveUpMs, dur + 5050].forEach((ms) => setTimeout(() => { if (P.load && P.load.key === key && parseHash().path.startsWith('/live/watch/')) render(); }, ms + 10));
   }
   const ph = LU.playerPhase(Date.now() - P.load.t0, SIM.channel(p.ch), { hot: P.load.recv });
-  P.load.err = ph.err || null;
+  P.load.err = ph.err || null; P.load.why = ph.why || '';
   return ph.k === 'ok' || ph.k === 'error' ? 'ready' : ph.k === 'slow' ? 'slow' : ph.spin ? 'connecting' : 'switching';
 }
 function vbpError(c) {
@@ -568,6 +571,8 @@ function vbpErrHtml(kind, c) {
     limit: ['Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.', 'Beende eine andere Wiedergabe und versuche es dann nochmals.', ['back']],
     notPlayable: ['Dieser Sender lässt sich auf diesem Gerät nicht abspielen.', '', ['other']],
     busy: ['Der Server ist gerade ausgelastet. Versuche es gleich nochmals.', '', ['retry']],
+    busyPerm: [LU.PLAYER_ERR.busyPerm(c), '', ['retry']],
+    noConvert: [LU.PLAYER_ERR.noConvert(c), '', ['other']],
   }[kind];
   const B = { retry: ['vbpRetry', 'Erneut versuchen', 'refresh'], other: ['vbpOther', 'Anderer Sender', 'list'], back: ['vbpLeave', 'Zurück', 'arrowL'] };
   return `<div class="vbp-err" role="alert">${LU.logo(c)}<b>${c.no} ${esc(c.name)}</b><p>${esc(T[0])}</p>${T[1] ? `<p class="m">${T[1]}</p>` : ''}<div class="row-gap">${T[2].map((k, i) => `<button type="button" class="btn ${i ? 'secondary' : 'primary'}" data-act="${B[k][0]}" data-fid="vbperr:${k}">${icon(B[k][2], 18)}${B[k][1]}</button>`).join('')}</div></div>`;
@@ -636,9 +641,8 @@ function vbElapsed(start) { const m = Math.max(0, Math.floor(SIM.now() - start))
 function vbpMenus(c) {
   const P = vbpS(); const ai = P.audio[c.id] || 0; const si = P.sub[c.id] || 0;
   const aud = popMenu('vbp:audio', `${icon('vbAudio', 22)}<span class="vbp-tip" aria-hidden="true">Ton <kbd>T</kbd></span>`, (c.audio || []).map((a, i) => ({ label: a, act: 'vbpAudio', data: { i }, icon: i === ai ? 'check' : 'vbBlank' })), { cls: 'vbp-ib', aria: 'Ton: ' + ((c.audio || [])[ai] || '') });
-  const subs = (c.subs || []).length
-    ? popMenu('vbp:subs', `${icon('vbSub', 22)}<span class="vbp-tip" aria-hidden="true">Untertitel <kbd>U</kbd></span>`, [{ label: 'Aus', act: 'vbpSub', data: { i: 0 }, icon: si === 0 ? 'check' : 'vbBlank' }, ...c.subs.map((s, i) => ({ label: s, act: 'vbpSub', data: { i: i + 1 }, icon: si === i + 1 ? 'check' : 'vbBlank' }))], { cls: 'vbp-ib' + (si ? ' on' : ''), aria: 'Untertitel: ' + (si ? c.subs[si - 1] : 'aus') })
-    : `<button type="button" class="vbp-ib" aria-disabled="true" data-fid="vbp:subs" aria-label="Untertitel: Dieser Sender sendet keine Untertitel">${icon('vbSub', 22)}<span class="vbp-tip" aria-hidden="true">Dieser Sender sendet keine Untertitel</span></button>`;
+  /* Browser: no selectable subtitles until stage E (14 4.10, RG-05): greyed-out button with the reason */
+  const subs = vbSubBtn('vbp:subs', c);
   const set = popMenu('vbp:set', `${icon('settings', 22)}<span class="vbp-tip" aria-hidden="true">Einstellungen <kbd>Q</kbd></span>`, [...VB_QUAL.map(([k, l]) => ({ label: 'Qualität: ' + l, act: 'vbpQual', data: { q: k }, icon: P.quality === k ? 'check' : 'vbBlank' })), { label: 'Info Jetzt/Danach (I)', act: 'vbpInfo', icon: 'info' }, { label: 'Tastenkürzel (?)', act: 'vbpKeys', data: { k: 'live' }, icon: 'help' }], { cls: 'vbp-ib', aria: 'Einstellungen: Qualität und Info' });
   return { aud, subs, set };
 }
@@ -692,7 +696,7 @@ function vbpHtml(c, p) {
   const nn = SIM.nowNext(c.id);
   const sw = Date.now() < P.sw;
   const pic = ready ? LU.fakeVideo(c, { paused: (p && p.paused) || stall }) : `<div class="vbp-black"></div>`;
-  const load = !ready && !err && phase !== 'switching' ? `<div class="vbp-load" role="status"><span class="spin lg"></span><b>${esc(c.name)} wird geladen</b>${phase === 'slow' ? `<span>${esc('Dauert länger als üblich …')}</span>` : ''}</div>` : '';
+  const load = !ready && !err && phase !== 'switching' ? `<div class="vbp-load" role="status"><span class="spin lg"></span><b>${esc(c.name)} wird geladen</b>${phase === 'slow' ? `<span>${esc('Dauert länger als üblich …')}</span>${P.load && P.load.why ? `<span>${esc(P.load.why)}</span>` : ''}` : ''}</div>` : '';
   const ov = stall ? `<div class="vbp-load dim" role="status"><span class="spin lg"></span><b>${esc('Verbindung wird wiederhergestellt …')}</b></div>` : sw ? `<div class="vbp-load dim" role="status"><span class="spin lg"></span><b>${esc(P.swText)}</b></div>` : '';
   const showInfo = !err && (P.info || Date.now() < P.infoUntil);
   const ts = r.timeshift && !gone && p;
@@ -782,6 +786,7 @@ ACT.vbgoDetClose = () => { const st = vbgState('ov'); st.detail = null; st.refoc
 ACT.vbpInfo = () => { const P = vbpS(); P.info = !P.info; if (!P.info) P.infoUntil = 0; render(); };
 ACT.vbpMute = () => { const P = vbpS(); P.muted = !P.muted; render(); };
 ACT.vbpAudio = (d) => { const P = vbpS(); const p = SIM.player(); if (!p) return; P.audio[p.ch] = Number(d.i); vbpSwitchTrack('Wechsle Tonspur …'); };
+/* ACT.vbpSub stays for the keyboard help; the menu offers no selectable entry */
 ACT.vbpSub = (d) => { const P = vbpS(); const p = SIM.player(); if (!p) return; P.sub[p.ch] = Number(d.i); const c = SIM.channel(p.ch); toast(Number(d.i) ? `Untertitel: ${esc(c.subs[Number(d.i) - 1])}` : 'Untertitel aus'); };
 ACT.vbpQual = (d) => { const P = vbpS(); P.quality = d.q; vbpSwitchTrack('Wechsle Qualität …'); };
 function vbpSwitchTrack(text) { const P = vbpS(); P.sw = Date.now() + 800; P.swText = text; render(); setTimeout(render, 820); }
@@ -876,7 +881,7 @@ document.addEventListener('keydown', (e) => {
     case 'g': e.preventDefault(); if (vbIsPhone()) go('#/live/guide'); else ACT.vbpGuide(); break;
     case 'r': e.preventDefault(); if (SIM.rights().recordings) { const b = $('[data-fid="vbp:rec"], [data-fid="menu:vbp:rec"]'); if (b) b.click(); } break;
     case 'i': e.preventDefault(); ACT.vbpInfo(); break;
-    case 't': case 'u': case 'q': { e.preventDefault(); const id = { t: 'vbp:audio', u: 'vbp:subs', q: 'vbp:set' }[key]; const b = $(`[data-fid="menu:${id}"]`); if (b) b.click(); else if (key === 'u') toast('Dieser Sender sendet keine Untertitel.', 'warn'); break; }
+    case 't': case 'u': case 'q': { e.preventDefault(); const id = { t: 'vbp:audio', u: 'vbp:subs', q: 'vbp:set' }[key]; const b = $(`[data-fid="menu:${id}"]`); const sb = key === 'u' ? $('[data-fid="vbp:subs"]') : null; if (b) b.click(); else if (sb) toast(esc(sb.dataset.t), 'warn'); break; }
     case 'm': e.preventDefault(); ACT.vbpMute(); break;
     case 'f': e.preventDefault(); ACT.vbpFs(); break;
     case '?': e.preventDefault(); ACT.vbpKeys({ k: 'live' }); break;

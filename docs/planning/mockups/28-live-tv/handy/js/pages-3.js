@@ -406,17 +406,17 @@ window.addEventListener('hashchange', () => { /* the band stays across pages */ 
 
 /* ============================================================ LS-14 Aufnahmen meiner Profile */
 function hpProfilesPage() {
-  const kids = SIM.childProfiles(); let body = hpState(3, 80); const empty = SIM.mode() === 'empty';
+  const kids = SIM.childProfiles(); const canPlay = SIM.rights().liveTv; let body = hpState(3, 80); const empty = SIM.mode() === 'empty';
   if (!body) {
-    const data = kids.map((k) => ({ k, recs: empty ? [] : SIM.recordings(k.id), up: SIM.upcoming(k.id) }));
+    const data = kids.map((k) => ({ k, recs: empty ? [] : SIM.recordings(k.id) }));
     const none = data.every((x) => !x.recs.length);
-    body = !kids.length || none ? hpEmptyBox('record', 'Keine Aufnahmen', `Die Profile ${kids.map((k) => k.name).join(' und ')} haben keine Aufnahmen.`) : data.map(({ k, recs, up }) => {
+    body = !kids.length || none ? hpEmptyBox('record', 'Keine Aufnahmen', `Die Profile ${kids.map((k) => k.name).join(' und ')} haben keine Aufnahmen.`) : data.map(({ k, recs }) => {
       const o = !!HP.prof.open['k-' + k.id]; const gb = recs.reduce((a, r) => a + hpRecSize(r), 0);
-      return `<section class="hp-band"><button type="button" class="hp-band-h" aria-expanded="${o}" data-act="hpProfOpen" data-id="k-${k.id}" data-fid="kp-${k.id}"><span class="avatar" style="background:var(--av-${k.accent})">${esc(k.name[0])}</span><span class="hp-band-t"><b>${esc(k.name)}</b><small>${recs.length} ${recs.length === 1 ? 'Aufnahme' : 'Aufnahmen'} · ${fmt.gb(gb)} · ${up.length} geplant</small></span>${icon(o ? 'up' : 'down', 20)}</button>
-        ${o ? `<div class="hp-band-b">${recs.length ? `<ul class="hp-plist">${recs.map((r) => hpRecRow(r, { del: true })).join('')}</ul>` : '<p class="pad hint">Keine Aufnahmen.</p>'}${up.length ? `<div class="sec">Geplant</div>${up.map((u) => `<p class="pad hp-dsub"><b>${esc(u.title)}</b><br><small>${esc(SIM.channel(u.ch).name)} · ${esc(fmt.dayRel(u.start))} ${fmt.range(u.start, u.end)}</small></p>`).join('')}` : ''}</div>` : ''}</section>`;
+      return `<section class="hp-band"><button type="button" class="hp-band-h" aria-expanded="${o}" data-act="hpProfOpen" data-id="k-${k.id}" data-fid="kp-${k.id}"><span class="avatar" style="background:var(--av-${k.accent})">${esc(k.name[0])}</span><span class="hp-band-t"><b>${esc(k.name)}</b><small>${recs.length} ${recs.length === 1 ? 'Aufnahme' : 'Aufnahmen'} · ${fmt.gb(gb)}</small></span>${icon(o ? 'up' : 'down', 20)}</button>
+        ${o ? `<div class="hp-band-b">${recs.length ? `<ul class="hp-plist">${recs.map((r) => hpRecRow(r, { del: true, noPlay: !canPlay })).join('')}</ul>` : '<p class="pad hint">Keine Aufnahmen.</p>'}</div>` : ''}</section>`;
     }).join('');
   }
-  return { nav: '', html: `${hpBackBar('Aufnahmen meiner Profile')}<p class="pad hint" style="margin-bottom:10px">Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat. Beim Abspielen wird kein Fortschritt gespeichert.</p>${body}<p class="lh-sample">${esc(LU.TX.sample)}</p>` };
+  return { nav: '', html: `${hpBackBar('Aufnahmen meiner Profile')}<p class="pad hint" style="margin-bottom:10px">Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat. ${canPlay ? 'Beim Abspielen wird kein Fortschritt gespeichert.' : ''}</p>${canPlay ? '' : `<div class="note">${icon('info', 20)}<div>Zum Abspielen braucht dein Profil selbst Live-TV. Sehen und Löschen geht trotzdem, so gibst du Speicher frei.</div></div>`}${body}<p class="lh-sample">${esc(LU.TX.sample)}</p>` };
 }
 ACT.hpProfOpen = (d) => { HP.prof.open[d.id] = !HP.prof.open[d.id]; render(); };
 ACT.hpKidDel = (d) => LiveDlg.confirmDelete({ kind: 'childRecording', ids: [d.id] });
@@ -437,7 +437,7 @@ route('/settings/profiles', () => {
       <button type="button" class="hp-band-h" aria-expanded="${o}" data-act="hpProfOpen" data-id="p-${p.id}" data-fid="pb-${p.id}"><span class="hp-band-t"><b>Live-TV</b><small>${esc(sum)}</small></span>${icon(o ? 'up' : 'down', 20)}</button>
       ${o ? `<div class="hp-band-b">${sws}${p.age != null ? `<div class="note" style="margin-top:8px">${icon('info', 20)}<div>${esc(LU.TX.noAgeCheck)}</div></div>` : ''}</div>` : ''}` : ''}</section>`;
   }).join('');
-  const kidsRec = me0.primary && SIM.rights().liveTv && SIM.childProfiles().some((k) => SIM.recordings(k.id).length);
+  const kidsRec = me0.primary && (SIM.rights().recordings || SIM.flags().a12) && SIM.childProfiles().some((k) => SIM.recordings(k.id).length);
   return { nav: '', html: `${bar('Profile verwalten', { back: true })}${me0.primary ? '' : `<div class="note">${icon('info', 20)}<div>Nur das Hauptprofil ändert Profile.</div></div>`}<p class="pad hint" style="margin-bottom:10px">Konto «${esc(LIVE.account.name)}»</p>${list}${kidsRec ? `<ul>${li('users', 'Aufnahmen meiner Profile', SIM.childProfiles().filter((k) => SIM.recordings(k.id).length).map((k) => k.name).join(', '), null, 'href="#/live/recordings/profiles" data-fid="pf-kids"')}</ul>` : ''}<p class="lh-sample">${esc(LU.TX.sample)}</p>` };
 });
 ACT.hpPSw = (d) => {
@@ -450,13 +450,24 @@ ACT.hpPSw = (d) => {
 ACT.hpPConfirm = (d) => { closeSheet(); SIM.setRight('profile', 'liveTv', true, d.p); toast(`Live-TV für ${LIVE.profiles.find((x) => x.id === d.p).name}: an`); };
 
 /* ============================================================ LS-22 Benachrichtigungen einstellen */
+/* switch of the profile «Titel und Sender in Meldungen nach aussen nennen» (12 SM-56): default off, never for profiles with a PIN */
+ui.hpTitles = ui.hpTitles || {};
+function hpTitlesSw() {
+  const p = SIM.profile(); const pin = !!p.pin; const on = !pin && !!ui.hpTitles[p.id];
+  return `<button type="button" class="li" role="switch" aria-checked="${on}"${pin ? ' aria-disabled="true"' : ''} data-act="hpTitlesTog" data-fid="sw-titles"><span class="tx"><b>Titel und Sender in Meldungen nach aussen nennen</b><small class="hp-wrapsm">Ohne diesen Schalter nennen E-Mail, Push und Telegram weder Titel noch Sender. Die Glocke zeigt beides. Für Profile mit PIN geht das nie, damit eine Meldung nichts aus einem geschützten Profil verrät.</small></span><span class="sw" aria-checked="${on}"></span></button>`;
+}
+ACT.hpTitlesTog = (d, el) => {
+  const p = SIM.profile(); if (el.getAttribute('aria-disabled') === 'true') { toast('Für Profile mit PIN geht das nie, damit eine Meldung nichts aus einem geschützten Profil verrät.'); return; }
+  ui.hpTitles[p.id] = !ui.hpTitles[p.id]; render();
+  toast(ui.hpTitles[p.id] ? 'Meldungen nach aussen nennen jetzt Titel und Sender.' : 'Meldungen nach aussen nennen keinen Titel und keinen Sender mehr.');
+};
 ui.hpn = ui.hpn || { rem: true, remApp: true, done: true, fail: true, rej: true };
 route('/settings/notifications', () => {
   const r = SIM.rights();
   return { nav: '', html: `${bar('Benachrichtigungen', { back: true })}
     <p class="pad hint" style="margin-bottom:6px">Wann Slouchcat dir etwas meldet. Die Meldungen erscheinen in der Glocke und, wenn du es erlaubst, als Mitteilung auf deinen Geräten.</p>
     ${r.liveTv ? `<div class="sec">Live-TV</div>${sw('ui', 'hpn.rem', 'Sendungserinnerung', 'Vor dem Beginn einer Sendung, an die du dich erinnern lässt.')}
-    ${r.recordings ? `${sw('ui', 'hpn.done', 'Aufnahme fertig', 'Wenn eine Aufnahme vollständig ist.')}${sw('ui', 'hpn.fail', 'Aufnahme fehlgeschlagen oder unvollständig', 'Wenn der Sender nicht erreichbar war.')}${sw('ui', 'hpn.rej', 'Aufnahme nicht möglich', 'Wenn der Speicher des Kontos beim Start voll war. Das Hauptprofil bekommt die Meldung ebenfalls.')}` : ''}` : ''}
+    ${r.recordings ? `${sw('ui', 'hpn.done', 'Aufnahme fertig', 'Wenn eine Aufnahme vollständig ist.')}${sw('ui', 'hpn.fail', 'Aufnahme fehlgeschlagen oder unvollständig', 'Wenn der Sender nicht erreichbar war.')}${sw('ui', 'hpn.rej', 'Aufnahme nicht möglich', 'Wenn der Speicher des Kontos beim Start voll war. Das Hauptprofil bekommt die Meldung ebenfalls.')}` : ''}${hpTitlesSw()}` : ''}
     <div class="sec">Weitere</div>${sw('ui', 'hpn.other1', 'Neu in der Bibliothek', 'Neue Filme und Folgen.')}${sw('ui', 'hpn.other2', 'Wünsche', 'Wenn ein gewünschter Titel verfügbar ist.')}
     <p class="lh-sample">${esc(LU.TX.sample)}</p>` };
 });

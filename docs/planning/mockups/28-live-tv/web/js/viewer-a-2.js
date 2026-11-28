@@ -158,7 +158,10 @@ route('/settings/profiles', () => {
     <div class="va-sw"><div class="va-swt"><b id="pf-req-l">Darf Titel anfordern</b><span id="pf-req-h">Wünsche über Seerr stellen.</span></div><button type="button" class="sw" role="switch" aria-checked="${d.v.req}" aria-labelledby="pf-req-l" aria-describedby="pf-req-h" data-act="vaPfTog" data-key="req" data-pid="${sel}" data-fid="pf:${sel}:req"></button></div>
     ${band('va-pf-live:' + sel, 'Live-TV', `<span>${esc(summary)}</span>`, `<div class="va-pflive">${live}</div>`, { viewer: true, icon: 'live' })}
     ${dirty ? `<div class="savebar" role="group" aria-label="Änderungen"><span class="grow">Ungespeicherte Änderungen für ${esc(d.v.name || pr.name)}</span><button type="button" class="btn secondary" data-act="vaPfReset" data-pid="${sel}" data-fid="pf:reset">Verwerfen</button><button type="button" class="btn primary" data-act="vaPfSave" data-pid="${sel}" data-fid="pf:save">${icon('check', 18)}Speichern</button></div>` : ''}</div>`;
-  return frame(tabs + form);
+  /* LS-14 is reached from here; without own «Aufnahmen» only in variant E-28-42 (a) (mockup state a12, A-12, 14 3.14) */
+  const kids = SIM.rights().recordings || SIM.flags().a12 ? SIM.childProfiles().filter((k) => SIM.rights(k.id).recordings && SIM.recordings(k.id).length) : [];
+  const kidsLink = kids.length ? `<a class="vb-link" href="#/live/recordings/profiles" data-fid="pf:kids">${icon('users', 20)}<span class="grow"><b>Aufnahmen meiner Profile</b><span class="muted"> · ${esc(kids.map((k) => k.name).join(', '))}</span></span>${icon('chevR', 18)}</a>` : '';
+  return frame(tabs + form + kidsLink);
 });
 ACT.vaPfSel = (d) => { VA.pf.sel = d.id; render(); };
 ACT.vaPfTog = (d, el) => {
@@ -206,12 +209,20 @@ route('/settings/notifications', (pm, query) => {
     const title = g === 'live' && !r.recordings ? 'Live-TV' : title0;
     const on = evs.reduce((n, e) => n + VA.nt[e.id].filter(Boolean).length, 0); const all = evs.length * 3;
     const rows = evs.map((e) => `<li class="va-ev"><div class="va-evt"><b>${esc(e.t)}</b><span>${esc(e.d)}</span></div><div class="va-evc">${VA_CH.map(([ck, cl], i) => `<span class="va-nc"><span class="va-ncl" aria-hidden="true">${cl}</span>${sw(`ui.va.nt.${e.id}.${i}`, `${e.t}: ${cl}`)}</span>`).join('')}</div></li>`).join('');
-    return band('va-nt:' + g, title, `<span>${on} von ${all} an</span>`, `<div class="va-evh" aria-hidden="true"><span></span><span>${VA_CH.map(([, l]) => `<span>${l}</span>`).join('')}</span></div><ul class="va-evl">${rows}</ul>`, { viewer: true, icon: ic, open: query.open === g });
+    const titles = g === 'live' ? vaTitlesRow() : '';
+    return band('va-nt:' + g, title, `<span>${on} von ${all} an</span>`, `<div class="va-evh" aria-hidden="true"><span></span><span>${VA_CH.map(([, l]) => `<span>${l}</span>`).join('')}</span></div><ul class="va-evl">${rows}</ul>${titles}`, { viewer: true, icon: ic, open: query.open === g });
   }).join('');
   const html = `<div class="page"><div class="head"><h1>Benachrichtigungen</h1><p class="sub">Wähle, worüber und wie du benachrichtigt wirst. Die Glocke findest du oben rechts. Push kommt auf Geräte mit der App.</p><div class="acts"><a class="btn secondary" href="#/notifications" data-fid="ls22:inbox">${icon('bell', 18)}Zur Glocke</a><button type="button" class="btn ghost" data-act="vaNtTest" data-fid="ls22:test">${icon('send', 18)}Testmeldung senden</button></div></div>
     ${groups}${LU.sampleNote()}</div>`;
   return { type: 'viewer', nav: 'notif', title: 'Benachrichtigungen einstellen', html };
 });
+/* switch of the profile «Titel und Sender in Meldungen nach aussen nennen» (12 SM-56): default off, never for profiles with a PIN */
+VA.titles = VA.titles || {};
+function vaTitlesRow() {
+  const p = SIM.profile(); const pin = !!p.pin;
+  return `<div class="va-sw"><div class="va-swt"><b id="nt-titles-l">Titel und Sender in Meldungen nach aussen nennen</b><span id="nt-titles-h">Ohne diesen Schalter nennen E-Mail, Push und Telegram weder Titel noch Sender. Die Glocke zeigt beides.</span><span class="va-swn" id="nt-titles-n">Für Profile mit PIN geht das nie, damit eine Meldung nichts aus einem geschützten Profil verrät.</span></div>${sw(`ui.va.titles.${p.id}`, 'Titel und Sender in Meldungen nach aussen nennen', { after: 'vaTitlesTog', disabled: pin })}</div>`;
+}
+ACT.vaTitlesTog = () => toast(VA.titles[SIM.profile().id] ? 'Meldungen nach aussen nennen jetzt Titel und Sender.' : 'Meldungen nach aussen nennen keinen Titel und keinen Sender mehr.');
 ACT.vaNtTest = () => toast('Testmeldung gesendet. Sie erscheint in der Glocke.', 'mail');
 
 /* ======================================================================================

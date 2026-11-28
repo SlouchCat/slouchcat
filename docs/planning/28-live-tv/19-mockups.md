@@ -1,6 +1,6 @@
 # Konzept 28 · Klickbare Mockups
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Review 3, nicht freigegeben
+Stand: 28. November 2026 · Fassung 3 · Status: Entwurf nach Review 4 und 6, nicht freigegeben
 
 Die Mockups zeigen alle Seiten und Dialoge aus `14-oberflaeche.md` (Zuschauer) und `15-administration.md`
 (Verwaltung) in drei Clients zum Anklicken: **Web-App** (Computer, Tablet, Handy-Browser, dazu die
@@ -161,15 +161,21 @@ darstellt und kein Zustand ist.
 | Sender gestört: zusätzlich SRF 1 | SRF 1 «Gerade nicht erreichbar» (ZDFinfo ist immer gestört) |
 | Viele Sender | 2'000 Testsender im Programmraster (Web und TV) |
 | Kontingent voll | Speicher des Kontos 200 von 200 GB; neue Aufnahmen werden abgelehnt und gemeldet |
-| Player: Sender nicht erreichbar, Ersatzquelle aktiv, Grenze erreicht, Strom stockt, Langsamer Start, Nicht abspielbar, Server ausgelastet | die Fehler- und Ladebilder aus 14 Abschnitt 4.11 und 4.12 |
+| Player: Sender nicht erreichbar, Ersatzquelle aktiv, Grenze erreicht, Strom stockt, Langsamer Start, Nicht abspielbar, Server ausgelastet, Server ausgelastet: Dauerempfang belegt die Kapazität | die Fehler- und Ladebilder aus 14 Abschnitt 4.11 und 4.12. Beim letzten Zustand sieht der Zuschauer «Der Server ist gerade ausgelastet …» ohne Ursache (14 4.12): Ein laufender Dauersender weicht keinem neuen Zuschauer (Vorgabe nach LTV-002, `20` E-28-30) |
+| Variante E-28-42 (a) (unter Rechte) | Hauptprofil ohne eigenes Live-TV-Recht erreicht «Aufnahmen meiner Profile» über «Profile verwalten», ohne «Abspielen»; aus (ab Werk) = Vorgabe: nicht erreichbar |
+| Eindämmung nicht verfügbar | Umwandlung für Live-TV aus (`04` T-27, `12` F-1): ZDF (braucht in den Beispieldaten eine Umwandlung) zeigt im Player «Dieser Sender lässt sich auf diesem Gerät nur mit Umwandlung abspielen, und die Umwandlung ist auf diesem Server gerade aus.»; die Verwaltung warnt in LA-01, den Einstellungen und der Seitenleiste |
 | Verwaltung (nur Web): Speicher knapp, Speicher voll, Netzlaufwerk nicht eingehängt, EPG-Import fehlgeschlagen | Warnungen und Zustände in LA-01, LA-10, LA-12, LA-14 bis LA-16 |
-| Aktionen (je Client) | einmalige Vorführungen, zum Beispiel «Erinnerung jetzt zeigen» in der Web-App |
+| Aktionen (je Client) | einmalige Vorführungen, zum Beispiel «Erinnerung jetzt zeigen» in der Web-App, «App 30 s im Hintergrund» in TV- und Handy-App («Neu eingeschaltet», 14 4.5) |
 
 **Ladezeiten im Player:** Das Konzept schlägt 0,5 s (Ladeanzeige), 3 s («Dauert länger als üblich …») und
 15 s (Fehlerbild) vor (14 Fassung 2, 4.11). Damit man alles in wenigen Sekunden sieht, sind die Werte im Mockup
 **verkürzt**: Ladeanzeige ab 0,5 s, «Dauert länger» ab 2,5 s, Fehlerbild nach 6 s. Ein schon empfangener
 Sender ist nach 0,6 s da, ein neuer nach 1,8 s, «Langsamer Start» nach 4,5 s. Die Werte gelten in allen
-drei Clients gleich (`LIVE_UI.LOAD`). Ein Fehlerschalter wirkt sofort auf den laufenden Sender.
+drei Clients gleich (`LIVE_UI.LOAD`). Ein Fehlerschalter wirkt sofort auf den laufenden Sender. Ab «Dauert
+länger» nennt der Player den Grund des Zustands «startet» («Verbindung zur Quelle wird aufgebaut», «Warte auf den
+Bildanfang (lange Bildgruppen)», «Umwandlung startet»; `04` 15.3, 14 4.11). Eine Pause länger als die
+Höchstdauer des Zeitversatzes plus 15 Minuten (Uhr vorstellen) endet beim Weiterdrücken mit «Die Wiedergabe war
+zu lange angehalten und wurde neu gestartet.» (14 4.7).
 
 ## 5. Abdeckung des Auftrags (Abschnitt 13)
 
@@ -254,7 +260,7 @@ Abbrechen, LD-08 Tag und Uhrzeit, LD-09 Filterblatt (W, H), LD-11 Aufbewahrung.
 
 ## 6. Abweichungen vom Oberflächenkonzept
 
-Stand nach 14 Fassung 2 (Abschnitt 11) und 15 Fassung 2 (Abschnitt 8). «nachgezogen» heisst: 14/15 folgen
+Stand nach 14 Fassung 3 (Abschnitte 11 und 13) und 15 Fassung 3 (Abschnitte 8 und 10). «nachgezogen» heisst: 14/15 folgen
 jetzt dem Mockup; «Mockup nachgezogen» heisst: das Mockup folgt jetzt 14/15.
 
 | Client | Abweichung | Grund | Stand |
@@ -264,21 +270,27 @@ jetzt dem Mockup; «Mockup nachgezogen» heisst: das Mockup folgt jetzt 14/15.
 | Web | LS-25, LD-10 nicht-modal, LD-09 Grundform, Bedienleiste blendet nach 4 s aus | wie 14 | entspricht 14 |
 | Web | Programm-Überlagerung zeigt Details künftiger Sendungen als Seitenleiste | Details ohne den Player zu verlassen | in 14 nachgezogen (4.9) |
 | Web | «Recht entzogen» mit eigener Adresse `#/player/revoked`; die Meldung bleibt, bis man den Player verlässt | nur Mockup; im Produkt Fehlerbild im Player, danach 404 | nur Mockup |
-| Web | LS-14: geplante Termine eines Kinderprofils nur als Zahl | F-4 offen | in 14 als Zwischenstand; hängt an F-4 |
+| alle | LS-14: keine Zahl der geplanten Termine eines Kinderprofils | Vorgabe (A) von `20` E-28-43 | Mockup nachgezogen |
+| alle | Hauptprofil ohne eigenes Live-TV-Recht: LS-14 nicht erreichbar (Vorgabe (b) von `20` E-28-42). Die Variante (a) (A-12: über «Profile verwalten» mit Sehen und Löschen, ohne «Abspielen») zeigt ein eigener Schalter unter «Zustände», ab Werk aus | 14 3.14 | Mockup zeigt die Vorgabe |
+| Web, Handy | LS-22: Schalter «Titel und Sender in Meldungen nach aussen nennen», ab Werk aus, für Profile mit PIN nie | `12` SM-56, 14 13 | Mockup nachgezogen |
+| Web | Player und Aufnahme-Player: Knopf «Untertitel» ausgegraut mit «Untertitel folgen in einer späteren Stufe. Untertitel gibt es im Browser noch nicht. Die Apps zeigen sie.»; TV und Handy: Untertitel wählbar, Teletext (Videotext) nicht wählbar mit Hinweis | 14 4.10, RG-05 | Mockup nachgezogen |
 | Verwaltung | LA-05: Gruppen unter dem Sendernamen | Platz | in 15 nachgezogen |
 | Verwaltung | LA-01: Zustand «Eingeschränkt» | aus den gestörten Sendern berechnet | entspricht 15 |
 | Verwaltung | LA-05, LA-11: Tabellen nur mit Beispielsendern, Köpfe zählen auf 584 | nur Beispielsender im Einzelnen erfasst | nur Mockup |
 | Verwaltung | LA-22, LA-26: nur das Neue gezeigt | der Rest bleibt | entspricht 15 |
-| Verwaltung | LA-09 und LA-03: Einstellung je Quelle **«Vorladen für Sender dieser Quelle: an/aus»** mit dem Satz «Vorladen öffnet zusätzliche Verbindungen zu dieser Quelle. Ob dein Anbieter das zulässt, verantwortest du.»; keine Rechnung je Quelle, kein «Limit»; die Obergrenze vorgeladener Sender insgesamt bleibt eine Einstellung des Empfangs | Review 3 RM-01 (LTV-017): nichts, was wie eine Verbindungsverwaltung je Anbieter aussieht. 15 Fassung 2 nennt den Schalter nach `04` T-18 «weitere gleichzeitige Verbindungen erlaubt»; das Mockup zeigt ihn enger als reine Vorlade-Einstellung | **hängt an offener Frage `04` F-3 und F-9**; 15 3.3 und 3.9 an den Wortlaut des Mockups angleichen oder Marco entscheidet |
+| Verwaltung | LA-03 und LA-09: **kein Schalter je Quelle** und keine Zahl je Quelle. Vorladen und «automatisch» nur global (an/aus, Obergrenzen) und je Sender (Empfangsstrategie); LA-09 mit dem Hinweis «Hat dein Zugang nur eine Verbindung, schalte das Vorladen aus. Slouchcat verwaltet keine Verbindungszahl je Anbieter.»; LA-13 zeigt, wann der vorsorgliche Empfang einer Quelle von selbst ruht (Quelle lehnt eine weitere Verbindung ab; Ein-Strom-Betrieb) | Vorgabe nach LTV-017 (RG-03). Der frühere Schalter «Vorladen für Sender dieser Quelle» ist entfallen; er ist nur noch Variante (b) der Frage `20` E-28-02/E-28-29 | Mockup zeigt die Vorgabe; entspricht 15 Fassung 3 |
 | Verwaltung | LA-15: «Werksvorgabe 1 Stunde, eingestellt 2 Stunden» | 04 14 | in 15 nachgezogen |
 | Verwaltung | LA-03: feste Ziele im Heimnetz statt Schalter, Adressen nur Schema · Host · Port, Kopfzeilen nur Name und «gesetzt», Quellentest ohne Hinweis aus dem Heimnetz; LA-10 ohne Heimnetz-Schalter und ohne Kopfzeilen | 15 Fassung 2 | Mockup nachgezogen |
-| Verwaltung | «Sofort beenden …» neben «Deaktivieren» (LA-05, LA-06); «zurückgestellt» (3sat) in LA-01, LA-09, LA-12; laufende Aufnahmen nur als Zahl | 15 Fassung 2, `04` T-29, T-17 | Mockup nachgezogen |
+| Verwaltung | «Deaktivieren» mit Rückfrage «läuft weiter, bis der letzte Zuschauer geht, höchstens 12 Stunden; neue Zuschauer nicht» und eigenem «Sofort beenden» (LA-05, LA-06); «Quelle entfernen» und Ändern einer Quelle nennen die Zahl betroffener Zuschauer und Aufnahmen und beenden sie; laufende Aufnahmen nur als Zahl | `04` T-29, RT-06 | Mockup nachgezogen |
+| Verwaltung | 3sat (Dauersender) «zurückgestellt: konnte nicht starten: Obergrenze der Eingangsströme erreicht» seit dem Hochfahren um 18:02 (LA-01, LA-09, LA-12); ein laufender Dauersender weicht nie einem Zuschauer | Vorgabe nach LTV-002 (RG-02, `20` E-28-30 (b)); die Variante «Zuschauer geht vor» zeigt das Mockup nicht | entspricht 15 Fassung 3 |
+| Verwaltung | LA-03: feste Ziele im Heimnetz als einzelne Adresse mit Port; ein Netz höchstens /28 nur mit zweiter Bestätigung, nie mit Gateway; Meldungen sagen nicht, was dort antwortet | RT-05, `12` 14.9 | Mockup nachgezogen |
+| Verwaltung | Zustand «Eindämmung nicht verfügbar» (Schalter, Abschnitt 4) | `04` T-27, `12` F-1 (`20` E-28-04) | Mockup nachgezogen |
 | Verwaltung | «Neue Sender sofort anbieten»: Werksvorgabe an; die Beispielquelle «Kabelanbieter Schweiz» hat es auf aus, deshalb bleiben Blue Zoom, Kanal 9 und CNN inaktiv mit Filter «Neu» | so bleibt die Beispielzahl von 16 Sendern für Zuschauer | entspricht 15 (Einstellung bleibt wählbar) |
-| TV | OK zeigt die Bedienleiste, ← die Senderliste | Variante A | hängt an F-7 |
+| TV | OK zeigt die Bedienleiste, ← die Senderliste | Variante A | hängt an `20` E-28-57 |
 | TV | Senderliste im Player folgt der Herkunftsliste; «2 h»-Knöpfe im Raster | | in 14 nachgezogen |
 | TV | kein LD-09; LS-21, LS-23, LS-24, LS-26 minimal | | entspricht 14 |
 | Handy | «Programm» im Player als Blatt; «Details» beendet die Wiedergabe | | in 14 nachgezogen bzw. Grundsatz 6 |
-| alle | LD-02/LD-03 ohne «ähnliche Titel», «Angesehene zuerst» und Schalter gegen doppelte Folgen; Zeitfenster, Wochentage, «nur Erstausstrahlungen», Ende der Wiederholung als «Vorschlag, hängt an Frage F-23»; LD-04 nur «Bis Sendungsende» und «Bis ich stoppe» (bei Zeitversatz «Ab jetzt aufnehmen (live)»); LD-05 Vorlauf 0, 5, 15, 30 Min.; Kinderaufnahme vom Hauptprofil abgespielt ohne Fortschritt | 14 Fassung 2, `03` DR-08, DR-21 | Mockup nachgezogen |
+| alle | LD-02/LD-03 ohne «ähnliche Titel», «Angesehene zuerst» und Schalter gegen doppelte Folgen; Zeitfenster, Wochentage, «nur Erstausstrahlungen», Ende der Wiederholung als «Vorschlag, hängt an Frage F-23» (`20` E-28-53); LD-04 nur «Bis Sendungsende» und «Bis ich stoppe» (bei Zeitversatz «Ab jetzt aufnehmen (live)»); LD-05 Vorlauf 0, 5, 15, 30 Min.; Kinderaufnahme vom Hauptprofil abgespielt ohne Fortschritt | 14 Fassung 2, `03` DR-08, DR-21 | Mockup nachgezogen |
 | alle | «Zuletzt gesehen» bis 20 Sender, mit «Liste leeren» | 14 3.1, DR-15 | Mockup nachgezogen |
 | alle | Ladezeiten verkürzt (Abschnitt 4) | Vorführung | nur Mockup |
 
@@ -294,6 +306,10 @@ jetzt dem Mockup; «Mockup nachgezogen» heisst: das Mockup folgt jetzt 14/15.
 - Spracheingabe am TV, Push-Mitteilungen und echte Tastenkürzel des Betriebssystems sind nicht gespielt.
 - Im Mockup-Ordner liegt ein Laufzeit-Ordner `.omc/` (Statusdateien der Agenten, git-ignoriert, nicht im Repo).
   Vor dem Weitergeben des Ordners löschen; ich habe ihn nicht gelöscht, weil das Löschen Marco überlassen ist.
+- Ein vom Administrator deaktivierter Sender läuft beim Zuschauer weiter (T-29); dass er beim nächsten
+  Einstellen «Dieser Sender ist nicht mehr verfügbar.» zeigt, spielt das Mockup nicht.
+- «Quelle lehnt weitere Verbindung ab» (14 4.12) hat keinen eigenen Player-Schalter; die Verwaltung zeigt den
+  Fall in LA-13.
 - Echte Logos und Bilder sieht nur, wer den Bildsatz unter `~/.local/share/slouchcat-design/media/` und den
   Link `shared/img` hat, nicht aus einem Klon. Sie gehören nie in Git, öffentliche Artefakte oder PR-Texte.
 
@@ -306,7 +322,7 @@ Alle Läufe mit Chromium ohne Kopf (Playwright aus dem Haupt-Checkout), **ohne D
   Aufnahme- und Planungsarten, die Serie «Tatort», Rechte, Zustände und Register. Belegung: Anna 82 GB,
   Luca 56.7 GB, Mia 3.3 GB, zusammen 142 GB in 31 gespeicherten Aufnahmen.
 - **Alle Adressen:** jede Register-Adresse aller vier Einstiege, die Web-App in Desktop- und Handy-Breite, die
-  Handy-App als Handy hoch und Tablet quer (212 Adressen), Schalter «automatisch». Mit Link `shared/img`:
+  Handy-App als Handy hoch und Tablet quer (212 Adressen), Schalter «automatisch»; Fassung 3 mit Link wieder gelaufen, dieselben Werte. Mit Link `shared/img`:
   Probe geladen, 0 Konsolenfehler, 0 fehlgeschlagene Anfragen, 0 Seiten mit waagrechtem Überlauf, 0 Mal
   «undefined», «NaN» oder «[object Object]»; geladene Logos auf den Senderlisten Web 16, TV 17, Handy 16,
   Tablet 16. Ohne Link (umbenannt, danach zurück): je Browsersitzung genau die eine fehlgeschlagene Probe
@@ -317,16 +333,23 @@ Alle Läufe mit Chromium ohne Kopf (Playwright aus dem Haupt-Checkout), **ohne D
   Leiste der TV-App in allen drei Clients auf die Wörter «Live-TV», «Aufnahme», «Sender», «Programm»,
   «Fernseh…», «Erinnerung», «Timeshift» (Text und Namen für Bildschirmleser, ohne Mockup-Leiste): 0 Treffer.
   Dasselbe ohne «Aufnahmen» (Wörter «Aufnahme», «aufnehmen») und ohne «Timeshift»: je 0 Treffer.
-  Ausgenommen ist nur «Profile verwalten» des Hauptprofils (dort setzt es die Rechte).
+  Ausgenommen ist nur «Profile verwalten» des Hauptprofils (dort setzt es die Rechte). Fassung 3: wieder 0, 0 und 0.
 - **Kontrast** (berechnete Farben auf dem tatsächlichen Grund, jede Register-Adresse): gedämpfter Text
   (`--tx2`, `--tx3`) Web mindestens 8:1 ausser einem Messfehler an der Zeitachse von LS-04 (die Beschriftung
   sitzt auf einem 1 px breiten Strich, gemessen wird der Strich), TV mindestens 8.91:1, Handy mindestens
   8.60:1; Rahmen ringsum mindestens 3.28:1 in allen drei Clients. Angehoben: Zeiten im TV-Raster, Genre und
   Restzeit der laufenden Zeile (Web), Tastenhinweis «Strg K», Rahmen von Karten, Menüs, Dialogen und
   Schalterzeilen am TV und am Handy.
-- **Zustände:** 20 Seiten mit Player, Rastern, Aufnahmen und Verwaltung (Web, TV, Handy), je Seite jeder
-  Schalter der Leiste «Zustände» und die vier Seitenzustände ein und aus, zusammen 480 Wechsel: 0 Fehler in
-  der Konsole, 0 Mal «undefined» oder «NaN».
+- **Zustände** (Fassung 3): 23 Seiten mit Player (auch ZDF), Rastern, Aufnahmen und Verwaltung (Web, TV,
+  Handy), je Seite jeder Schalter der Leiste «Zustände» (neu «Dauerempfang belegt die Kapazität»,
+  «Eindämmung nicht verfügbar», Variante E-28-42 (a)) und die vier Seitenzustände ein und aus, zusammen 690
+  Wechsel: 0 Fehler in der Konsole, 0 Mal «undefined» oder «NaN». Mit «Eindämmung nicht verfügbar» zeigt ZDF in
+  allen drei Playern das Fehlerbild «… nur mit Umwandlung …».
+- **Verwaltung** (Fassung 3, Skript eines Unter-Agenten): LA-01 bis LA-16 mit und ohne «Eindämmung nicht
+  verfügbar», Breite 1280 und 390 px, Neuanlage, Entfernen und Ändern von Quellen, feste Ziele, Deaktivieren:
+  703 Prüfungen, 0 Befunde, 0 Konsolenfehler.
+- **A-12 und LS-22** (Fassung 3): Variante an und aus in allen drei Clients, Schalter in LS-22: 134 Prüfungen,
+  0 Fehler.
 - **Von Hand bzw. mit Skript durchgespielt** (die Wege, die Review 3 nicht geprüft hatte): Neuanlage
   M3U-URL, Xtream und Einzelstrom (Multicast mit festen Zielen) in LA-03 bis «übernehmen» und Import; am TV
   jede Seite und jeder Dialog nur mit Pfeilen, OK und Zurück (jedes Element erreichbar, Zurück führt hinaus
@@ -340,9 +363,30 @@ Alle Läufe mit Chromium ohne Kopf (Playwright aus dem Haupt-Checkout), **ohne D
 
 ## 9. Änderungen gegenüber der vorigen Fassung
 
+Fassung 2 → 3 (Review 4 und 6, Entscheide des Koordinators, Nachzug nach 14 Abschnitt 13 und 15 Abschnitt 10,
+28. November 2026):
+
+- **Bilder:** Schalter «Echte Logos und Bilder» ab Werk «automatisch» mit einer Probe je Sitzung; Bildsatz
+  ausserhalb des Arbeitsbaums, `shared/img` ist ein Link (Abschnitt 2).
+- **RG-03:** Schalter «Vorladen für Sender dieser Quelle» entfallen; Vorladen nur global und je Sender; Hinweis
+  in LA-09, Ereignisse «vorsorglicher Empfang ruht» in LA-13 (Muster A/B). Die frühere Zeile «hängt an `04`
+  F-3/F-9» entfällt: Der Schalter ist nur noch Variante (b) der Frage `20` E-28-02/E-28-29.
+- **RG-02:** Ein laufender Dauersender weicht nicht; 3sat nur als «konnte nicht starten» (2 Versuche); neuer
+  Player-Zustand «Server ausgelastet: Dauerempfang belegt die Kapazität»; Warnung «Dauersender belegen mehr
+  als die Hälfte».
+- **T-29, RT-06:** Deaktivieren mit 12 Stunden und «Sofort beenden»; Entfernen und Ändern einer Quelle mit
+  Zahl der Betroffenen, «enden innert 5 Sekunden».
+- **RT-05:** feste Ziele als Einzeladresse mit Port, Netz höchstens /28 mit zweiter Bestätigung.
+- **RT-01:** Zustand «Eindämmung nicht verfügbar» mit Warnung in der Verwaltung und Fehlerbild im Player.
+- **RG-05:** Untertitel im Browser ausgegraut, in den Apps wählbar, Teletext nirgends.
+- **14 Abschnitt 13:** Grund des Zustands «startet», Pause zu lang, App nach 30 s im Hintergrund, LS-14 ohne
+  Zahl geplanter Termine, A-12 nur als Variante E-28-42 (a), LS-22 mit «Titel und Sender in Meldungen nach
+  aussen nennen». LD-02, LD-04, LD-05 (0/5/15/30 Minuten) waren schon nachgezogen.
+- **RG-13:** Kennungen auf `20` E-28-nn.
+
 Fassung 1 → 2 (Review 3 und Nachzug nach 14/15 Fassung 2, 28. November 2026):
 
-- **RM-01:** LA-09/LA-03 nur noch «Vorladen für Sender dieser Quelle» (Abschnitt 6).
+- **RM-01:** LA-09/LA-03 nur noch «Vorladen für Sender dieser Quelle» (Abschnitt 6; in Fassung 3 entfallen).
 - **RM-02:** Ohne Recht nichts vom Bereich: Mockup-Vermerke aus dem App-Bild entfernt (Start, Suche,
   Benachrichtigungen, Profile, Radio, unveränderte Seiten), Block «Live-TV» in LS-21 nur für das Hauptprofil,
   Fernbedienungstasten ohne Recht stumm.
@@ -361,5 +405,5 @@ Fassung 1 → 2 (Review 3 und Nachzug nach 14/15 Fassung 2, 28. November 2026):
   fehlgeschlagene Probe; «an» und «aus» übersteuern. Bilder liegen ausserhalb des Arbeitsbaums (Link `shared/img`). **RM-13:** `.omc/`
   nicht gelöscht (Abschnitt 7).
 - **Nachzug** nach `MOCKUP-NACHZUG.md` und 14/15 Fassung 2 (Abschnitt 6, Zeilen «Mockup nachgezogen»); neue
-  Beispieldaten: Startpuffer im Arbeitsspeicher, Timeshift-Deckel 50 GB, 3sat zurückgestellt, Obergrenze
+  Beispieldaten: Startpuffer im Arbeitsspeicher, Timeshift-Deckel 50 GB, 3sat als Dauersender, der nicht starten konnte (Fassung 3), Obergrenze
   8 Eingänge und 4 vorgeladene, EPG alle 24 Stunden, Konto des Administrators mit Live-TV.

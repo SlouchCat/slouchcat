@@ -158,9 +158,9 @@ route('/live/watch/:id', (p) => ({ full: true, rot: 'l', html: '…' }));   // P
 | `recordings[]` | `{ id, profile, title, sub, ch, start, end, padBefore, padAfter, sizeGB, state (running|done|incomplete|failed|rejected), reason, gaps[[a,b]], fallbackAt, watchedPct, watched, resumeAt, keep {mode: 'forever'|'days', days, until}, origin (single|series|instant), rule, tracks }` |
 | `rules[]` | Planungen: `kind` single (program, start, end), series (series, channels 'all'|[], onlyNew, noDup, keepLast, skipped[[programId, grund]]), recurring (ch, from, to, weekdays[1..5]), manual (TV24, Warnung «Sender weg») |
 | `warnings[]`, `reminders[]` | Warnungen `{ id, kind, severity, rules[], text }`; Erinnerungen `{ program, lead }` |
-| `sources[]`, `importRuns{}`, `importResult` | Quellen (4) mit `moreConn` (Einstellung «Vorladen für Sender dieser Quelle»; nie «Limit» oder eine Rechnung je Quelle) und `fixedTargets` (Multicast: feste Ziele im Heimnetz), letzte Läufe, Ergebnis des letzten Imports (neu, geändert, verschwunden, Duplikate 3, fehlerhaft) |
+| `sources[]`, `importRuns{}`, `importResult` | Quellen (4) mit `fixedTargets` (Multicast: feste Ziele im Heimnetz, je Adresse mit Port); **keine Einstellung und keine Zahl je Quelle** für Vorladen oder Verbindungen (RG-03, LTV-017), letzte Läufe, Ergebnis des letzten Imports (neu, geändert, verschwunden, Duplikate 3, fehlerhaft) |
 | `epgSources[]`, `epgRuns{}`, `mappings[]`, `mappingCounts`, `duplicates[]`, `totals` | EPG und Zuordnungen, Duplikate, Zahlen (584 aktiv von 10'354) |
-| `inputs[]`, `consumers[]`, `diagnostics`, `resources`, `limits` | aktive Eingänge (Zustand `'deferred'` mit `deferredReason`: zurückgestellt, z. B. 3sat), Abnehmer (ohne Titel), Diagnose, Kennzahlen; `limits` = `{ inputs: 8, preloaded: 4 }` |
+| `inputs[]`, `consumers[]`, `diagnostics`, `resources`, `limits` | aktive Eingänge (Zustand `'deferred'` mit `deferredReason`: ein Dauersender, der **nicht starten konnte**, z. B. 3sat beim Hochfahren; ein laufender Dauersender weicht nie, RG-02), Abnehmer (ohne Titel), Diagnose, Kennzahlen; `limits` = `{ inputs: 8, preloaded: 4 }` |
 | `storage[]`, `accounts[]`, `settings` | drei Speicherorte, Belegung je Konto, Einstellungen (DVR, Timeshift, Empfang, Zeitpläne, EPG, Grenzen) |
 
 Bilder: `shared/img` ist ein Link auf `~/.local/share/slouchcat-design/media/live-tv-2026-11-28` (nie in Git,
@@ -193,14 +193,19 @@ einer gedachten Quelle auf genau diesen Test.
 | Sender gestört: zusätzlich SRF 1 | `disturbed` | `chState('srf1')` = disturbed |
 | Viele Sender | `many` | 2'000 Testsender zusätzlich im Raster (Web: Testzeilen von LS-04, TV: `gridChannels()`) |
 | Kontingent voll | `quotaFull` | `quota().full`, Sofortaufnahme abgelehnt, `rejectForQuota` |
-| Player: Sender nicht erreichbar, Ersatzquelle aktiv, Grenze erreicht, Strom stockt, Langsamer Start, Nicht abspielbar, Server ausgelastet | `fault` | über `LIVE_UI.playerPhase` in allen drei Playern |
+| Player: Sender nicht erreichbar, Ersatzquelle aktiv, Grenze erreicht, Strom stockt, Langsamer Start, Nicht abspielbar, Server ausgelastet, Server ausgelastet: Dauerempfang belegt die Kapazität | `fault` (`busyPerm` für den letzten; Zuschauertext ohne Ursache) | über `LIVE_UI.playerPhase` in allen drei Playern |
+| Variante E-28-42 (a) | `a12` | Hauptprofil ohne eigenes Live-TV-Recht erreicht LS-14 über «Profile verwalten» (ohne Abspielen); aus = Vorgabe: 404 |
+| Eindämmung nicht verfügbar: Umwandlung für Live-TV aus | `noContain` | Player: Sender in `LIVE_UI.NEEDS_CONVERT` (ZDF) → Fehler `noConvert`; Verwaltung: Warnung LA-01, Einstellungen, Pille der Seitenleiste |
 | Verwaltung (nur Web): Speicher knapp, voll, Netzlaufwerk nicht eingehängt | `admStorage` | LA-01, LA-12, LA-14 bis LA-16 |
 | Verwaltung (nur Web): EPG-Import fehlgeschlagen | `epgFail` | LA-01, LA-10 |
 
 **Player-Phasen** (gleich in allen Clients): `LIVE_UI.playerPhase(msSeitUmschalten, sender, { hot })` →
-`{ k: 'loading'|'slow'|'ok'|'error', spin, err, stall, fallback }`, Schwellen in `LIVE_UI.LOAD` (im Mockup
+`{ k: 'loading'|'slow'|'ok'|'error', spin, why, err, stall, fallback }` (`why`: Grund des Zustands «startet», ab «Dauert länger» zeigen), Schwellen in `LIVE_UI.LOAD` (im Mockup
 verkürzt: Ladeanzeige ab 0.5 s, «Dauert länger» ab 2.5 s, Fehler nach 6 s; Konzept 14 Fassung 2: 0.5 / 3 / 15 s),
-Fehlertexte in `LIVE_UI.PLAYER_ERR`.
+Fehlertexte in `LIVE_UI.PLAYER_ERR`. Untertitel: Texte in `LIVE_UI.SUBS_TX`, `isTeletext(spur)`; Browser ohne wählbare
+Untertitel (Knopf ausgegraut), TV und Handy wählbar ausser Teletext (14 4.10). Ereignisse `'restarted'` (Pause zu
+lang, `resume()` stellt neu ein) und `'retuned'` (App nach 30 s im Hintergrund) zeigt `LIVE_UI` über den `toast`
+des Clients.
 
 **Zahlen:** Die Belegung eines Profils ist die Summe seiner Aufnahmen (`usageOf(id)`, `usage()` →
 `{ usedGB, count, byProfile }`); `LIVE.account.usedGB` und der Eintrag des Kontos in `LIVE.accounts` rechnen
@@ -220,7 +225,7 @@ Zahlen immer im Format de-CH: Dezimalpunkt und Hochkomma (`4.1 GB`, `10'354`) ü
   timeshift }` (wirksam = Konto UND Profil), `rawRights('profile'|'account')`, `setRight(ebene, schlüssel,
   an)`. Ohne Recht gibt der Kern für `/live…` (bzw. Aufnahmeseiten) «Nicht gefunden» zurück; Knöpfe
   «Aufnehmen» und Timeshift lassen die Seiten selbst weg (`rights()` prüfen).
-- Mockup-Zustände: `mode()` → `'normal'|'empty'|'loading'|'error'`, `flags()` → `{ noEpg, disturbed, many, quotaFull, fault, revoked, admStorage, epgFail }`.
+- Mockup-Zustände: `mode()` → `'normal'|'empty'|'loading'|'error'`, `flags()` → `{ noEpg, disturbed, many, quotaFull, fault, revoked, admStorage, epgFail, noContain, a12 }`.
   **Jede Seite zeigt alle vier Modi.**
 - Sender: `channels({ q, group ('fav' = Meine Sender), country, lang, category })` (sortiert, leer bei
   `empty`), `channel(id)`, `channelByNo(nr)`, `chState(c)` → `'ok'|'disturbed'|'gone'`, `epgOf(c)`.

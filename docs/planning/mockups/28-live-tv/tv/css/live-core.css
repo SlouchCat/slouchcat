@@ -88,3 +88,6 @@
 #toast.on { transform: translate(-50%, 0); }
 .ov-panel { border-color: var(--frame); } /* frames of menus and dialogs at least 3:1 (RM-04) */
 .tsw:not(.is-f), .tc.more .im { border-color: var(--frame); } /* switch rows and «Alle anzeigen» tiles: frames at least 3:1 */
+
+/* note under a menu list row (Teletext subtitles not supported) */
+.mi-note { margin: 4px 0 0 8px; font-size: var(--fs-s); color: var(--tx2); }

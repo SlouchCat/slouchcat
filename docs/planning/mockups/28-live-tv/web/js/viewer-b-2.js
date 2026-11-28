@@ -149,25 +149,32 @@ document.addEventListener('change', (e) => {
 /* ======================================================================================
    LS-14 Aufnahmen meiner Profile (registered before LS-09 so the static route wins)
    ====================================================================================== */
+/* A-12: without own «Aufnahmen» (or «Live-TV») LS-14 and its details stand outside the Live-TV area, reached from «Profile» */
+const vbKidSolo = () => !SIM.rights().recordings;
+const VB_NOPLAY = 'Zum Abspielen braucht dein Profil selbst Live-TV.';
+function vbKidFrame(o) {
+  if (!vbKidSolo()) return { type: 'viewer', nav: 'live', title: o.plain, html: livePage(o) };
+  return { type: 'viewer', nav: 'profiles', title: o.plain, html: `<div class="page"><div class="head"><div class="ht"><h1>${o.title}</h1></div>${o.sub ? `<p class="sub">${o.sub}</p>` : ''}<div class="acts">${o.solo}</div></div>${o.html}${LU.sampleNote()}</div>` };
+}
 route('/live/recordings/profiles', () => {
-  const kids = SIM.childProfiles().filter((p) => SIM.rights(p.id).recordings);
+  const kids = SIM.childProfiles().filter((p) => SIM.rights(p.id).recordings); const canPlay = SIM.rights().liveTv;
   if (!kids.length) return notFoundView();
   const mode = liveMode();
   let body;
   if (mode === 'loading') body = skelRows(2, 60);
   else if (mode === 'error') body = liveError('Die Aufnahmen der Profile konnten nicht geladen werden.');
   else {
-    const all = kids.map((p) => ({ p, recs: SIM.recordings(p.id), up: vbUpcoming(p.id) }));
+    const all = kids.map((p) => ({ p, recs: SIM.recordings(p.id) }));
     if (!all.some((x) => x.recs.length)) body = emptyState(`Die Profile ${esc(kids.map((k) => k.name).join(' und '))} haben keine Aufnahmen.`, '');
-    else body = all.map(({ p, recs, up }) => {
+    else body = all.map(({ p, recs }) => {
       const gb = recs.reduce((s, r) => s + vbRecGB(r), 0);
       const ids = recs.map((r) => r.id);
-      const rows = recs.length ? `<ul class="vbk-list" data-vbrove="list" data-vbkey="vbk-${p.id}">${recs.map((r) => { const c = SIM.channel(r.ch) || { name: r.ch }; const ok = !vbFailed(r); return `<li class="vbk-row" data-vbrow="${esc(r.id)}"><a class="vbk-main" href="#/live/recordings/${esc(r.id)}" data-vbi tabindex="${vbTab('vbk-' + p.id, r.id, ids)}" data-fid="vbk:${esc(r.id)}"><span class="vbk-art">${LU.picture(vbRecPic(r), { fallback: 'logo' })}</span><span class="grow"><b>${esc(vbRecTitle(r))}</b><span class="muted">${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(vbRecDur(r))}${r.sizeGB ? ' · ' + fmt.gb(vbRecGB(r)) : ''}</span><span class="bdg">${r.state === 'done' ? '' : LU.badge(r.state === 'running' ? 'recording' : r.state === 'incomplete' ? 'incomplete' : 'failed', { text: true, label: vbStateWord(r) })}${r.origin === 'series' ? '<span class="chip info">Serie</span>' : ''}</span></span></a>${ok ? `<a class="btn secondary sm" href="#/live/recordings/${esc(r.id)}/play" data-vbx tabindex="-1" data-fid="vbkp:${esc(r.id)}">${icon('play', 16)}Abspielen</a>` : ''}<button type="button" class="btn ghost sm danger" data-act="vbKidDel" data-id="${esc(r.id)}" data-vbx tabindex="-1" data-fid="vbkd:${esc(r.id)}">${icon('trash', 16)}Löschen</button></li>`; }).join('')}</ul>` : `<p class="muted">${esc(p.name)} hat keine Aufnahmen.</p>`;
-      const meta = `${recs.length === 1 ? '1 Aufnahme' : recs.length + ' Aufnahmen'} · ${fmt.gb(gb)} · ${up.length} geplant`;
-      return band('vbk-' + p.id, `${avatarHtml(p, 'vbk-av')}<span>${esc(p.name)} <span class="muted vbk-age">ab ${p.age}</span></span>`, esc(meta), rows + `<p class="muted vbk-note">Geplante Termine von ${esc(p.name)} siehst du hier nur als Zahl. Ob du sie ändern darfst, ist noch offen (F-4).</p>`, { viewer: true });
+      const rows = recs.length ? `<ul class="vbk-list" data-vbrove="list" data-vbkey="vbk-${p.id}">${recs.map((r) => { const c = SIM.channel(r.ch) || { name: r.ch }; const ok = !vbFailed(r); return `<li class="vbk-row" data-vbrow="${esc(r.id)}"><a class="vbk-main" href="#/live/recordings/${esc(r.id)}" data-vbi tabindex="${vbTab('vbk-' + p.id, r.id, ids)}" data-fid="vbk:${esc(r.id)}"><span class="vbk-art">${LU.picture(vbRecPic(r), { fallback: 'logo' })}</span><span class="grow"><b>${esc(vbRecTitle(r))}</b><span class="muted">${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(vbRecDur(r))}${r.sizeGB ? ' · ' + fmt.gb(vbRecGB(r)) : ''}</span><span class="bdg">${r.state === 'done' ? '' : LU.badge(r.state === 'running' ? 'recording' : r.state === 'incomplete' ? 'incomplete' : 'failed', { text: true, label: vbStateWord(r) })}${r.origin === 'series' ? '<span class="chip info">Serie</span>' : ''}</span></span></a>${ok && canPlay ? `<a class="btn secondary sm" href="#/live/recordings/${esc(r.id)}/play" data-vbx tabindex="-1" data-fid="vbkp:${esc(r.id)}">${icon('play', 16)}Abspielen</a>` : ''}<button type="button" class="btn ghost sm danger" data-act="vbKidDel" data-id="${esc(r.id)}" data-vbx tabindex="-1" data-fid="vbkd:${esc(r.id)}">${icon('trash', 16)}Löschen</button></li>`; }).join('')}</ul>` : `<p class="muted">${esc(p.name)} hat keine Aufnahmen.</p>`;
+      const meta = `${recs.length === 1 ? '1 Aufnahme' : recs.length + ' Aufnahmen'} · ${fmt.gb(gb)}`; /* no count of planned dates (20 E-28-43 (A)) */
+      return band('vbk-' + p.id, `${avatarHtml(p, 'vbk-av')}<span>${esc(p.name)} <span class="muted vbk-age">ab ${p.age}</span></span>`, esc(meta), rows, { viewer: true });
     }).join('');
   }
-  return { type: 'viewer', nav: 'live', title: 'Aufnahmen meiner Profile', html: livePage({ tab: 'recordings', title: 'Aufnahmen meiner Profile', sub: 'Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat.', actions: `<a class="btn ghost" href="#/live/recordings" data-fid="vbk:back">${icon('chevL', 18)}Meine Aufnahmen</a>`, html: `<div class="stack vbk">${body}</div>` }) };
+  return vbKidFrame({ tab: 'recordings', plain: 'Aufnahmen meiner Profile', title: 'Aufnahmen meiner Profile', sub: 'Hier siehst du die Aufnahmen der Profile mit Altersgrenze. Aufnahmen von Profilen ohne Altersgrenze bleiben privat.', actions: `<a class="btn ghost" href="#/live/recordings" data-fid="vbk:back">${icon('chevL', 18)}Meine Aufnahmen</a>`, solo: `<a class="btn ghost" href="#/settings/profiles" data-fid="vbk:back">${icon('chevL', 18)}Profile</a>`, html: `<div class="stack vbk">${canPlay ? '' : notice('', VB_NOPLAY, 'Sehen und Löschen geht trotzdem, so gibst du Speicher frei.')}${body}</div>` });
 });
 ACT.vbKidDel = (d) => LiveDlg.confirmDelete({ kind: 'childRecording', ids: [d.id] });
 
@@ -187,7 +194,7 @@ function vbrHtml(a, S) {
   const m = vbRecModel(r); const pos = Math.min(vbrPos(S), m.dur);
   const tr = vbTracks(r);
   const aud = popMenu('vbr:audio', `${icon('vbAudio', 22)}<span class="vbp-tip" aria-hidden="true">Ton <kbd>T</kbd></span>`, tr.audio.map((x, i) => ({ label: x, act: 'vbrAudio', data: { i }, icon: i === S.audio ? 'check' : 'vbBlank' })), { cls: 'vbp-ib', aria: 'Ton: ' + tr.audio[S.audio] });
-  const subs = tr.subs.length ? popMenu('vbr:subs', `${icon('vbSub', 22)}<span class="vbp-tip" aria-hidden="true">Untertitel <kbd>U</kbd></span>`, [{ label: 'Aus', act: 'vbrSub', data: { i: 0 }, icon: S.sub === 0 ? 'check' : 'vbBlank' }, ...tr.subs.map((x, i) => ({ label: x, act: 'vbrSub', data: { i: i + 1 }, icon: S.sub === i + 1 ? 'check' : 'vbBlank' }))], { cls: 'vbp-ib', aria: 'Untertitel' }) : `<button type="button" class="vbp-ib" aria-disabled="true" data-fid="vbr:subs" aria-label="Keine Untertitel in dieser Aufnahme">${icon('vbSub', 22)}<span class="vbp-tip" aria-hidden="true">Keine Untertitel aufgenommen</span></button>`;
+  const subs = vbSubBtn('vbr:subs', null); /* browser: stage E (14 4.10) */
   const set = popMenu('vbr:set', `${icon('settings', 22)}<span class="vbp-tip" aria-hidden="true">Wiedergabequalität <kbd>Q</kbd></span>`, [['orig', 'Original'], ['720', '720p'], ['480', '480p']].map(([k, l]) => ({ label: 'Wiedergabe: ' + l, act: 'vbrQual', data: { q: k }, icon: S.quality === k ? 'check' : 'vbBlank' })).concat([{ label: 'Tastenkürzel (?)', act: 'vbpKeys', data: { k: 'rec' }, icon: 'help' }]), { cls: 'vbp-ib', aria: 'Einstellungen' });
   const choice = S.choice ? `<div class="vbr-choice" role="dialog" aria-label="Wo weiterschauen?"><b>${esc(r.title)}</b><div class="stack"><button type="button" class="btn primary" data-act="vbrFrom" data-f="resume" data-fid="vbrc:resume">${icon('play', 18)}Weiter ab ${vbHms(vbResumeAt(r))}</button><button type="button" class="btn secondary" data-act="vbrFrom" data-f="start" data-fid="vbrc:start">Von vorne</button>${m.pre ? `<button type="button" class="btn ghost" data-act="vbrFrom" data-f="pre" data-fid="vbrc:pre">Ab Aufnahmebeginn (mit Vorlauf)</button>` : ''}</div></div>` : '';
   const ended = S.ended ? `<div class="vbr-choice" role="status"><b>Ende der Aufnahme</b><div class="row-gap"><button type="button" class="btn primary" data-act="vbrFrom" data-f="start" data-fid="vbre:again">${icon('refresh', 18)}Nochmals</button><a class="btn secondary" href="#/live/recordings" data-fid="vbre:list">Zu meinen Aufnahmen</a></div></div>` : '';
@@ -292,7 +299,7 @@ document.addEventListener('keydown', (e) => {
     case 'Home': if (slider) { e.preventDefault(); vbrSet(S, 0, m); render(); } break;
     case 'End': if (slider) { e.preventDefault(); vbrSet(S, m.dur, m); render(); } break;
     case 'ArrowUp': case 'ArrowDown': e.preventDefault(); S.vol = Math.max(0, Math.min(100, S.vol + (key === 'ArrowUp' ? 10 : -10))); S.muted = S.vol === 0; toast(`Lautstärke ${S.vol} %`, 'ok', 1200); render(); break;
-    case 't': case 'u': case 'q': { e.preventDefault(); const b = $(`[data-fid="menu:${{ t: 'vbr:audio', u: 'vbr:subs', q: 'vbr:set' }[key]}"]`); if (b) b.click(); else toast('Keine Untertitel aufgenommen.', 'warn'); break; }
+    case 't': case 'u': case 'q': { e.preventDefault(); const b = $(`[data-fid="menu:${{ t: 'vbr:audio', u: 'vbr:subs', q: 'vbr:set' }[key]}"]`); if (b) b.click(); else if (key === 'u') { const x = $('[data-fid="vbr:subs"]'); if (x) toast(esc(x.dataset.t), 'warn'); } break; }
     case 'm': e.preventDefault(); ACT.vbrMute(); break;
     case 'f': e.preventDefault(); ACT.vbpFs(); break;
     case '?': e.preventDefault(); ACT.vbpKeys({ k: 'rec' }); break;
@@ -306,13 +313,13 @@ document.addEventListener('keydown', (e) => {
 route('/live/recordings/:id', (pm) => {
   const a = vbRecAccess(pm.id); if (!a) return notFoundView();
   const r = a.r; const c = SIM.channel(r.ch) || { name: r.ch, no: '' }; const mode = liveMode();
-  if (mode === 'loading') return { type: 'viewer', nav: 'live', title: 'Aufnahme', html: livePage({ tab: 'recordings', title: 'Aufnahme', html: skelRows(3, 120) }) };
+  if (mode === 'loading') return a.own ? { type: 'viewer', nav: 'live', title: 'Aufnahme', html: livePage({ tab: 'recordings', title: 'Aufnahme', html: skelRows(3, 120) }) } : vbKidFrame({ tab: 'recordings', plain: 'Aufnahme', title: 'Aufnahme', solo: '', html: skelRows(3, 120) });
   const dur = vbRecDur(r); const run = r.state === 'running'; const bad = vbFailed(r);
-  const res = a.own ? vbResumeAt(r) : null;
+  const res = a.own ? vbResumeAt(r) : null; const canPlay = a.own || SIM.rights().liveTv; const solo = !a.own && vbKidSolo();
   const R = (href, act, ic, label, cls, data) => (href ? `<a class="round${cls ? ' ' + cls : ''}" href="${href}" data-fid="vbd:${esc(label)}"><span class="c">${icon(ic, 20)}</span>${esc(label)}</a>` : `<button type="button" class="round${cls ? ' ' + cls : ''}" data-act="${act}" ${data || ''} data-fid="vbd:${esc(label)}"><span class="c">${icon(ic, 20)}</span>${esc(label)}</button>`);
   const base = `#/live/recordings/${esc(r.id)}/play`;
   let rounds = '';
-  if (!bad) rounds += res != null ? R(base + '?from=resume', '', 'play', `Weiter ab ${vbHms(res)}`, 'hi') + R(base + '?from=start', '', 'refresh', 'Von vorne') : R(base + '?from=start', '', 'play', 'Abspielen', 'hi');
+  if (!bad && canPlay) rounds += res != null ? R(base + '?from=resume', '', 'play', `Weiter ab ${vbHms(res)}`, 'hi') + R(base + '?from=start', '', 'refresh', 'Von vorne') : R(base + '?from=start', '', 'play', 'Abspielen', 'hi');
   if (a.own && !bad) rounds += R('', 'vbKeep', 'clock', 'Aufbewahrung', '', `data-id="${esc(r.id)}"`);
   if (run && a.own) rounds += R('', 'vbRecStop', 'x', 'Aufnahme beenden', '', `data-id="${esc(r.id)}"`);
   rounds += R('', a.own ? 'vbDelRec' : 'vbKidDel', 'trash', bad ? 'Entfernen' : 'Löschen', '', `data-id="${esc(r.id)}"`);
@@ -326,14 +333,15 @@ route('/live/recordings/:id', (pm) => {
   if (r.fallbackAt) stateHtml += notice('', `Um ${fmt.time(r.fallbackAt)} auf eine Ersatzquelle gewechselt.`, '');
   if (!bad) stateHtml += `<p class="sec">${esc(r.tracks || '')}</p><p class="muted">Alle empfangenen Spuren bleiben erhalten. Aufgenommen wird immer in Originalqualität.</p>`;
   const rule = r.rule ? SIM.rule(r.rule) : null;
-  const origin = r.origin === 'series' ? `Aus der Serienaufnahme «${esc(rule ? rule.title : r.title)}» · <a class="lnk" href="#/live/scheduled?tab=series" data-fid="vbd:rule">Serienaufnahmen</a>` : r.origin === 'instant' ? 'Sofortaufnahme im Player' : 'Einzeln geplant';
+  const origin = r.origin === 'series' ? `Aus der Serienaufnahme «${esc(rule ? rule.title : r.title)}»${solo ? '' : ` · <a class="lnk" href="#/live/scheduled?tab=series" data-fid="vbd:rule">Serienaufnahmen</a>`}` : r.origin === 'instant' ? 'Sofortaufnahme im Player' : 'Einzeln geplant';
   const facts = `<div class="facts"><div class="f">${icon('tv', 18)}<span>${c.no} ${esc(c.name)}</span></div><div class="f">${icon('calendar', 18)}<span>${fmt.dayLong(r.start)}, ${fmt.range(r.start, r.end)}</span></div><div class="f">${icon('clock', 18)}<span>${fmt.dur(dur)}${r.padBefore || r.padAfter ? `, davon Vorlauf ${r.padBefore || 0} Min. und Nachlauf ${r.padAfter || 0} Min.` : ''}</span></div>${!bad ? `<div class="f">${icon('database', 18)}<span>${fmt.gb(vbRecGB(r))}${run ? ' bisher' : ''}</span></div><div class="f">${icon('bookmark', 18)}<span>${esc(vbKeepText(r))}${a.own ? ` · <button type="button" class="lnk" data-act="vbKeep" data-id="${esc(r.id)}" data-fid="vbd:keep2">Ändern</button>` : ''}</span></div>` : ''}<div class="f">${icon('layers', 18)}<span>${origin}</span></div></div>`;
   const pic = vbRecPic(r);
-  const html = `${a.own ? '' : notice('', `Aufnahme von ${esc(a.prof.name)}`, `Du siehst sie als Hauptprofil. ${esc(a.prof.name)} sieht deine Aufnahmen nicht. Spielst du sie ab, wird kein Fortschritt gespeichert, weder bei ${esc(a.prof.name)} noch bei dir.`)}
+  const html = `${a.own ? '' : notice('', `Aufnahme von ${esc(a.prof.name)}`, `Du siehst sie als Hauptprofil. ${esc(a.prof.name)} sieht deine Aufnahmen nicht. ${canPlay ? `Spielst du sie ab, wird kein Fortschritt gespeichert, weder bei ${esc(a.prof.name)} noch bei dir.` : esc(VB_NOPLAY)}`)}
     <div class="vbd"><div class="vbd-art">${LU.picture(pic, { fallback: 'logo' })}</div><div class="vbd-info"><p class="sec">${r.sub ? `«${esc(r.sub)}» · ` : ''}${esc(c.name)} · ${fmt.day(r.start)} · ${fmt.dur(dur)}</p><div class="bdg">${LU.badge(run ? 'recording' : bad ? 'failed' : r.state === 'incomplete' ? 'incomplete' : 'scheduled', { text: true, label: vbStateWord(r) })}${!a.own ? '' : r.watched ? '<span class="chip ok">Gesehen</span>' : r.watchedPct ? `<span class="chip info">${r.watchedPct} % gesehen</span>` : ''}</div><div class="rounds" role="toolbar" aria-label="Aktionen">${rounds}</div></div></div>
     ${mode === 'error' ? liveError('Die Aufnahme konnte nicht geladen werden.') : ''}
     <section class="panel"><h2>Zustand</h2>${stateHtml}</section><section class="panel"><h2>Angaben</h2>${facts}</section>`;
-  return { type: 'viewer', nav: 'live', title: r.title, html: livePage({ tab: 'recordings', title: esc(r.title), actions: `<a class="btn ghost" href="${a.own ? '#/live/recordings' : '#/live/recordings/profiles'}" data-fid="vbd:back">${icon('chevL', 18)}${a.own ? 'Meine Aufnahmen' : 'Aufnahmen meiner Profile'}</a>`, html }) };
+  const back = `<a class="btn ghost" href="${a.own ? '#/live/recordings' : '#/live/recordings/profiles'}" data-fid="vbd:back">${icon('chevL', 18)}${a.own ? 'Meine Aufnahmen' : 'Aufnahmen meiner Profile'}</a>`;
+  return a.own ? { type: 'viewer', nav: 'live', title: r.title, html: livePage({ tab: 'recordings', title: esc(r.title), actions: back, html }) } : vbKidFrame({ tab: 'recordings', plain: r.title, title: esc(r.title), actions: back, solo: back, html });
 });
 ACT.vbKeep = (d) => LiveDlg.retention(d.id);
 /* rounds are one toolbar: arrows move inside */

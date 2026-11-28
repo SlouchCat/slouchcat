@@ -75,7 +75,7 @@ function adminAreaOf(route) {
 function livePills() {
   const bad = LIVE.diagnostics.now.length + (SIM.flags().disturbed ? 1 : 0);
   return {
-    area: bad ? [`${bad} gestört`, 'warn'] : null,
+    area: SIM.flags().noContain ? ['Eindämmung fehlt', 'bad'] : bad ? [`${bad} gestört`, 'warn'] : null,
     sources: LIVE.sources.some((s) => !s.lastOk) ? ['Fehler', 'bad'] : null,
     diagnostics: bad ? [`${bad} gestört`, 'warn'] : null,
     storage: ['full', 'unmounted'].includes(SIM.flags().admStorage) ? [SIM.flags().admStorage === 'full' ? 'Speicher voll' : 'Netzlaufwerk fehlt', 'bad'] : SIM.flags().admStorage === 'low' || LIVE.accounts.some((a) => a.quotaGB && a.usedGB / a.quotaGB >= 0.9) ? ['Speicher knapp', 'warn'] : null,

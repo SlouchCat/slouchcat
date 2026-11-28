@@ -66,8 +66,14 @@ function aaAttention() {
   /* EPG-Import fehlgeschlagen (Mockup-Zustand «EPG-Import fehlgeschlagen» oder echter Fehler einer EPG-Quelle) */
   LIVE.epgSources.filter((e) => e.lastOk === false).forEach((e) => L.push({ k: 'warn', t: e.last, text: `Programmdaten «${esc(e.name)}» konnten nicht geladen werden (${esc(e.lastError || 'unbekannter Fehler')}). Die bisherigen Programmdaten bleiben.`, href: '#/admin/live/epg?tab=sources', fid: 'att:epgsrc:' + e.id }));
   LIVE.sources.filter((s) => !s.lastOk).forEach((s) => L.push({ k: 'warn', t: s.last, text: `Import «${esc(s.name)}» fehlgeschlagen (${esc(s.lastError)}). Die bisherige Liste bleibt aktiv.`, href: `#/admin/live/sources/${s.id}/import/${(LIVE.importRuns[s.id] || [[]])[0][0]}`, fid: 'att:src:' + s.id }));
-  /* zurückgestellte Eingänge (15 Fassung 2, 3.1 und 3.9): nur hier, keine Meldung */
-  LIVE.inputs.filter((n) => n.state === 'deferred').forEach((n) => { const c = SIM.channel(n.ch); L.push({ k: 'warn', t: n.since, text: `${esc(c.name)} (${aaRecName(c.reception)}) ist seit ${fmt.time(n.since)} zurückgestellt: Der Platz wurde für einen Zuschauer gebraucht. Slouchcat startet ihn wieder, sobald 60 Sekunden lang Platz frei ist.`, href: '#/admin/live/streams', fid: 'att:def:' + n.ch }); });
+  /* Eindämmung von FFmpeg fehlt (Mockup-Zustand, 04 T-27, 12 F-1) */
+  if (SIM.flags().noContain) L.push({ k: 'bad', t: SIM.now(), text: `${ADM_NOCONTAIN}. Sender, die eine Umwandlung brauchen, spielen nicht.`, href: '#/admin/live/diagnostics', fid: 'att:nocontain' });
+  /* zurückgestellte Dauersender (04 T-17): nur, wenn sie nicht starten konnten; ein laufender Dauersender weicht nie */
+  LIVE.inputs.filter((n) => n.state === 'deferred').forEach((n) => { const c = SIM.channel(n.ch); L.push({ k: 'warn', t: n.since, text: `${esc(c.name)} (${aaRecName(c.reception)}) konnte um ${fmt.time(n.since)} nicht starten: ${esc(admDefCause(n))} (${admDefTries(n)} Versuche). Slouchcat startet ihn, sobald die Zulassung 60 Sekunden lang gelänge.`, href: '#/admin/live/streams', fid: 'att:def:' + n.ch }); });
+  /* Dauersender belegen mehr als die Hälfte der Eingänge (15 3.1, 04 8.2) */
+  if (!aaEmpty()) { const pl = admPermLoad(); if (pl) L.push({ k: 'warn', t: SIM.now(), text: admPermText(pl), href: '#/admin/live/reception?tab=overrides', fid: 'att:permload' }); }
+  /* vorsorglicher Empfang ruht (Laufzeitregel, keine Einstellung) */
+  ADM_REST.forEach((x) => { const r = admRest(x.src); if (r) L.push({ k: 'info', t: r.at, text: `Vorsorglicher Empfang für «${esc(admSrcName(r.src))}» ruht bis ${admUntil(r.until)}: ${r.pattern === 'A' ? 'Die Quelle hat eine weitere Verbindung abgelehnt.' : 'Die Quelle trennt die ältere Verbindung (Ein-Strom-Betrieb).'}`, href: '#/admin/live/diagnostics', fid: 'att:rest:' + r.src }); });
   LIVE.accounts.filter((a) => a.quotaGB && a.usedGB / a.quotaGB >= 0.9).forEach((a) => L.push({ k: 'warn', t: SIM.now() - 60, text: `Konto ${esc(a.email)}: ${fmt.num(a.usedGB)} von ${fmt.num(a.quotaGB)} GB für Aufnahmen belegt.`, href: '#/admin/live/storage?tab=storage', fid: 'att:acc:' + a.email }));
   if (LIVE.mappingCounts.missing) L.push({ k: 'warn', t: SIM.now() - 120, text: `${LIVE.mappingCounts.missing} aktive Sender ohne Programmdaten.`, href: '#/admin/live/epg?tab=mapping&filter=missing', fid: 'att:epg' });
   LIVE.goneChannels.forEach((c) => { const n = LIVE.profiles.reduce((a, p) => a + SIM.rules(p.id).filter((r) => r.ch === c.id).length, 0); L.push({ k: 'info', t: c.since, text: `${esc(c.name)} ist aus «${esc(aaSrcName(c.sources[0].source))}» verschwunden.${n ? ` ${aaPl(n, 'geplante Aufnahme', 'geplante Aufnahmen')} betroffen.` : ''}`, href: '#/admin/live/channels?tab=channels&state=gone', fid: 'att:gone:' + c.id }); });
@@ -109,15 +115,16 @@ function aaOverview() {
   const dash = '–';
   const stats = `<div class="stats" style="--n:3">${aaStat('Zustand', empty ? 'Keine Quelle' : st[0], empty ? 'Füge eine Quelle hinzu' : st[2], { cls: empty ? 'bad' : st[1], href: '#/admin/live/diagnostics', fid: 'la01:s-state' })}
     ${aaStat('Sender', empty ? dash : fmt.num(c.active) + ' aktiv', empty ? '' : `${fmt.num(c.available)} verfügbar · ${fmt.num(c.unavailable)} nicht verfügbar`, { href: '#/admin/live/channels?tab=channels', fid: 'la01:s-ch', cls: c.unavailable ? '' : '' })}
-    ${aaStat('Eingänge', empty ? dash : `${I.n} von ${I.max}`, empty ? '' : `davon ${I.perm} dauerhaft · ${I.pre} vorgeladen · ${I.sch} nach Zeitplan · ${I.def} zurückgestellt`, { href: '#/admin/live/streams', fid: 'la01:s-in' })}
+    ${aaStat('Eingänge', empty ? dash : `${I.n} von ${I.max}`, empty ? '' : `davon ${I.perm} dauerhaft · ${I.pre} vorgeladen · ${I.sch} nach Zeitplan · ${I.def} zurückgestellt${I.def ? ' (konnte nicht starten)' : ''}`, { href: '#/admin/live/streams', fid: 'la01:s-in' })}
     ${aaStat('Zuschauer', empty ? dash : vs.length, empty ? '' : `Umwandlungen: ${trans}`, { href: '#/admin/live/streams', fid: 'la01:s-vi' })}
     ${aaStat('Aufnahmen', empty ? dash : run + ' laufen', empty ? '' : `${R.recPlanned24h} geplant (nächste 24 h)`, { href: '#/admin/live/storage?tab=dvr', fid: 'la01:s-rec' })}
-    ${aaStat('Bandbreite', empty ? dash : `ein ${fmt.dec(R.bandIn, 1, 1)} Mbit/s`, empty ? '' : `aus ${fmt.dec(bandOut, 1, 1)} Mbit/s`, { href: '#/admin/live/streams', fid: 'la01:s-bw' })}</div>`;
+    ${aaStat('Bandbreite', empty ? dash : `ein ${fmt.dec(R.bandIn, 1, 1)} Mbit/s`, empty ? '' : `aus ${fmt.dec(bandOut, 1, 1)} Mbit/s`, { href: '#/admin/live/streams', fid: 'la01:s-bw' })}
+    ${aaStat('FFmpeg-Sperre', SIM.flags().noContain ? 'Eindämmung nicht verfügbar' : 'aktiv', SIM.flags().noContain ? 'Umwandlung für Live-TV aus; nur Originale' : 'Umwandlung und Probe nur in der Sperre', { cls: SIM.flags().noContain ? 'bad' : '', href: '#/admin/live/diagnostics', fid: 'la01:s-lock' })}</div>`;
   const att = aaAttention();
   const cardAtt = `<section class="card"><div class="ch"><span class="ik">${icon('alert', 18)}</span><h2>Braucht Aufmerksamkeit</h2></div>${att.length ? `<ul class="aa-atts">${att.map(aaAttRow).join('')}</ul>` : `<p class="muted">${empty ? 'Noch nichts zu prüfen.' : 'Alles in Ordnung. Nichts braucht Aufmerksamkeit.'}</p>`}</section>`;
   const top = I.live.map((n) => Object.assign({}, n, { v: admViewersOf(n.ch), recordings: aaRecsOn(n.ch) })).sort((a, b) => b.v + b.recordings - (a.v + a.recordings)).slice(0, 5);
   const cardIn = `<section class="card"><div class="ch"><span class="ik">${icon('play', 18)}</span><h2>Aktive Eingänge</h2><a class="btn quiet sm" href="#/admin/live/streams" data-fid="la01:all-in">Alle ansehen</a></div>
-    ${top.length ? `<div class="tblw aa-tbl-in"><table class="tbl"><thead><tr><th>Sender</th><th>Grund</th><th class="end">Zuschauer</th><th class="end">Aufnahmen</th><th class="end">Bitrate</th></tr></thead><tbody>${top.map((n) => { const c0 = SIM.channel(n.ch); return `<tr><td class="main"><span class="aa-chn">${LU.logo(c0)}<a class="lnk" href="#/admin/live/streams" data-fid="la01:in:${n.ch}">${esc(c0.name)}</a></span></td><td data-l="Grund">${n.state === 'reconnecting' ? '<span class="chip bad">Gestört</span>' : n.reasons.map((r) => `<span class="chip info">${AA_REASON[r]}${r === 'schedule' ? ` «${esc(n.schedule)}»` : ''}</span>`).join(' ')}</td><td class="end" data-l="Zuschauer">${n.v}</td><td class="end" data-l="Aufnahmen">${n.recordings}</td><td class="end" data-l="Bitrate">${n.bitrate ? fmt.dec(n.bitrate, 1, 1) + ' Mbit/s' : '–'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted">Gerade ist kein Sender eingeschaltet.</p>'}</section>`;
+    ${top.length ? `<div class="tblw aa-tbl-in"><table class="tbl"><thead><tr><th>Sender</th><th>Grund</th><th class="end">Zuschauer</th><th class="end">Aufnahmen</th><th class="end">Bitrate</th></tr></thead><tbody>${top.map((n) => { const c0 = SIM.channel(n.ch); return `<tr><td class="main"><span class="aa-chn">${LU.logo(c0)}<a class="lnk" href="#/admin/live/streams" data-fid="la01:in:${n.ch}">${esc(c0.name)}</a></span></td><td data-l="Grund">${n.state === 'reconnecting' ? '<span class="chip bad">Gestört</span>' : n.reasons.map((r) => `<span class="chip info">${AA_REASON[r]}${r === 'schedule' ? ` «${esc(n.schedule)}»` : ''}</span>`).join(' ')}</td><td class="end" data-l="Zuschauer">${n.v}</td><td class="end" data-l="Aufnahmen">${admRecCell(n.recordings)}</td><td class="end" data-l="Bitrate">${n.bitrate ? fmt.dec(n.bitrate, 1, 1) + ' Mbit/s' : '–'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted">Gerade ist kein Sender eingeschaltet.</p>'}</section>`;
   const chs = rs.chs;
   const cardRec = `<section class="card"><div class="ch"><span class="ik">${icon('record', 18)}</span><h2>Aufnahmen</h2></div>
     <p>${empty ? 'Noch keine Aufnahmen.' : `<b>${aaPl(run, 'läuft', 'laufen')}</b> auf ${aaPl(chs, 'Sender', 'Sendern')} · <b>${R.recPlanned24h}</b> geplant in 24 Std. · höchstens ${R.recMaxParallel} gleichzeitig`}</p>
@@ -131,7 +138,7 @@ function aaOverview() {
   const eps = LIVE.epgSources; const last = Math.max(...eps.map((e) => e.last)); const until = Math.max(...eps.map((e) => e.until)); const warns = eps.reduce((n, e) => n + e.warnings.length, 0);
   const cardEpg = `<section class="card"><div class="ch"><span class="ik">${icon('calendar', 18)}</span><h2>Programmdaten</h2><a class="btn quiet sm" href="#/admin/live/epg?tab=sources" data-fid="la01:epg">Öffnen</a></div>
     <p>${aaEmpty() ? 'Noch keine Programmdaten.' : SIM.flags().noEpg ? '<b>Keine Programmdaten</b> (Mockup-Zustand «Ohne EPG»). Das Fernsehen läuft trotzdem.' : `Stand ${aaWhen(last)} · reicht bis ${fmt.day(until)} · ${aaPl(eps.length, 'Quelle', 'Quellen')} · ${aaPl(warns, 'Warnung', 'Warnungen')}`}</p></section>`;
-  return `${empty ? aaSetupBand() : ''}${stats}<div class="cols2">${cardAtt}<div class="stack">${cardRec}${cardEpg}</div></div>${cardIn}${cardRes}${aaVerantwortung('la01:resp')}`;
+  return `${empty ? aaSetupBand() : ''}${admNoContain()}${stats}<div class="cols2">${cardAtt}<div class="stack">${cardRec}${cardEpg}</div></div>${cardIn}${cardRes}${aaVerantwortung('la01:resp')}`;
 }
 route('/admin/live', () => {
   const m = aaMode();
@@ -152,8 +159,9 @@ const AA_KINDS = [
 const AA_STEPS = ['Art', 'Adresse und Zugang', 'Testen', 'Vorschau', 'Einstellungen', 'Übernehmen'];
 const AA_OUT = [['auto', 'Automatisch aus den Eingaben'], ['ok', 'Erfolg'], ['auth', 'Zugangsdaten falsch'], ['unreach', 'Nicht erreichbar'], ['format', 'Keine Senderliste'], ['hls', 'Einzelner Stream statt Liste'], ['drm', 'Kopierschutz (DRM)'], ['local', 'Ziel im Heimnetz nicht freigegeben']];
 const AA_V3 = 'Mit dieser Freigabe darf Slouchcat für diese Quelle genau diese Ziele in deinem Heimnetz aufrufen. Gib nur Geräte frei, die du kennst. Andere Quellen und andere Teile von Slouchcat bleiben vom Heimnetz getrennt.';
-const AA_PRELOAD_HINT = 'Vorladen öffnet zusätzliche Verbindungen zu dieser Quelle. Ob dein Anbieter das zulässt, verantwortest du.';
 const AA_PORTS = { https: 443, http: 80, rtsp: 554, rtmp: 1935 };
+/* Hinweis V-7 (15 Abschnitt 5) unter den Einstellungen der Quelle, mit Link auf LA-09; eine Einstellung je Quelle gibt es nicht */
+const AA_V7 = '<p class="muted aa-small">Eine Einstellung für Vorladen oder Verbindungen je Quelle gibt es nicht. Zugang mit nur einer Verbindung? Dann schalte das Vorladen in <a class="lnk" href="#/admin/live/reception?tab=strategy" data-fid="la03:v7">«Empfang»</a> aus: Es gilt für alle Quellen. Slouchcat zählt keine Verbindungen und kennt keine Anbieterlimits.</p>';
 /** eine Adresse nur als Schema · Host · Port (15 Grundsatz 5): nie Pfad, Abfrage oder Zugangsdaten, auch nicht maskiert */
 function aaSHP(u) {
   const m = String(u || '').trim().match(/^([a-z][a-z0-9+.-]*):\/\/(?:[^@/]*@)?@?(\[[^\]]+\]|[^:/?#]+)(?::(\d+))?/i);
@@ -169,7 +177,7 @@ const aaIsPrivate = (h) => /^(10\.|192\.168\.|127\.|172\.(1[6-9]|2\d|3[01])\.|lo
 const aaTargetsOf = (s) => (s.targets ? aaClone(s.targets) : s.kind === 'single' && s.localNet ? (s.streams || []).map((u) => ({ addr: aaHost(u), port: aaPortOf(u) })) : []);
 function aaSrcNew() {
   return { id: null, kind: '', name: '', address: '', addrSet: false, addrShow: [], addrNew: true, file: '', fileSize: '', user: '', userSet: false, userNew: true, pw: '', pwSet: false, pwNew: true,
-    hdr: [], uaMode: 'std', ua: '', uaSet: false, uaNew: true, origins: [], originAdd: '', targets: [], targetsOk: false, interval: 24, hour: '06:00', offerNew: true, takeGroups: true, takeNumbers: true, moreConn: false,
+    hdr: [], uaMode: 'std', ua: '', uaSet: false, uaNew: true, origins: [], originAdd: '', targets: [], targetsOk: false, interval: 24, hour: '06:00', offerNew: true, takeGroups: true, takeNumbers: true,
     epgAdd: true, test: null, outcome: 'auto', step: 1, single: { mode: 'new', name: '', no: '', group: 'ch', backup: 'srf1' }, tried: false, err1: false, nextWhy: false };
 }
 function aaSrcFrom(s) {
@@ -177,26 +185,47 @@ function aaSrcFrom(s) {
   return Object.assign(aaSrcNew(), { id: s.id, kind: s.kind, name: s.name, address: '', addrSet: s.kind !== 'm3u-file', addrShow: lines.map(aaSHP), addrNew: false, file: s.file || '', fileSize: s.fileSize || '',
     userSet: !!s.user, userNew: !s.user, pwSet: s.kind === 'xtream', pwNew: s.kind !== 'xtream', hdr: (s.hdr || []).map((h) => ({ k: h.k, v: '', set: !!h.set, edit: false })), uaMode: s.uaMode || 'std', uaSet: s.uaMode === 'own', uaNew: s.uaMode !== 'own',
     origins: aaClone(s.origins || []), targets: aaTargetsOf(s), targetsOk: aaTargetsOf(s).length > 0, interval: s.interval, hour: s.hour || (s.last ? fmt.time(s.last) : '06:00'), offerNew: s.offerNew !== false,
-    takeGroups: s.takeGroups !== false, takeNumbers: s.takeNumbers !== false, moreConn: !!s.moreConn, step: 0 });
+    takeGroups: s.takeGroups !== false, takeNumbers: s.takeNumbers !== false, step: 0 });
 }
-const aaDraftKey = (d) => JSON.stringify([d.name, d.address, d.addrNew, d.file, d.user, d.userSet, d.pw, d.pwSet, d.hdr, d.uaMode, d.ua, d.uaSet, d.origins, d.targets, d.targetsOk, d.interval, d.hour, d.offerNew, d.takeGroups, d.takeNumbers, d.moreConn]);
+const aaDraftKey = (d) => JSON.stringify([d.name, d.address, d.addrNew, d.file, d.user, d.userSet, d.pw, d.pwSet, d.hdr, d.uaMode, d.ua, d.uaSet, d.origins, d.targets, d.targetsOk, d.interval, d.hour, d.offerNew, d.takeGroups, d.takeNumbers]);
 /** Hosts der Quelle: eingetippte (typed) oder gespeicherte */
 function aaHostsOf(d) {
   if (d.addrNew) return aaAddrLines(d.address).map((a) => ({ host: aaHost(a), port: aaPortOf(a), typed: true }));
   const s = LIVE.sources.find((x) => x.id === d.id); if (!s) return [];
   return (s.kind === 'single' ? s.streams : s.kind === 'm3u-file' ? [] : [s.address]).map((a) => ({ host: aaHost(a), port: aaPortOf(a), typed: false }));
 }
-const aaInNet = (t, host) => { const a = String(t.addr).trim(); if (a === host) return true; const m = a.match(/^(\d+\.\d+\.\d+)\.\d+\/(\d+)$/); return !!(m && Number(m[2]) <= 32 && Number(m[2]) >= 24 && host.startsWith(m[1] + '.')); };
+/* feste Ziele (04 T-5, 10.9; RT-05): je Ziel eine Adresse mit Port; ein Netz höchstens /28 (16 Adressen) oder ein
+   Bereich höchstens 16 Ports nur mit zweiter Bestätigung, nie ein Netz mit der ersten Adresse des Heimnetzes */
+/** «192.168.1.50:8001» in einem Feld: Adresse und Port trennen */
+const aaTgSplit = (t) => { const a = String(t.addr || '').trim(); const p = String(t.port || '').trim(); const m = !p && a.match(/^([^:\s]+):(\d+(?:-\d+)?)$/); return m ? { a: m[1], p: m[2] } : { a, p }; };
+const aaTgNet = (a) => { const m = a.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d+)$/); return m ? { ip: m[1], bits: Number(m[2]) } : null; };
+const aaIp = (ip) => ip.split('.').reduce((n, x) => n * 256 + Number(x), 0);
+/** wie viele Adressen und Ports ein Ziel umfasst */
+function aaTgSize(t) { const { a, p } = aaTgSplit(t); const n = aaTgNet(a); const r = p.match(/^(\d+)(?:-(\d+))?$/); return { addrs: n && n.bits <= 32 ? 2 ** (32 - n.bits) : 1, ports: r ? Math.max(1, Number(r[2] || r[1]) - Number(r[1]) + 1) : 1 }; }
+const aaTgWide = (t) => { const s = aaTgSize(t); return s.addrs > 1 || s.ports > 1; };
+const aaInNet = (t, host) => { const { a } = aaTgSplit(t); if (a === host) return true; const n = aaTgNet(a); if (!n || !/^\d+(\.\d+){3}$/.test(host)) return false; const b = aaIp(n.ip); const h = aaIp(host); return n.bits >= 28 && n.bits <= 32 && h >= b && h < b + 2 ** (32 - n.bits); };
 const aaCovered = (d, host) => d.targetsOk && d.targets.some((t) => aaInNet(t, host));
 const aaNeedTargets = (d) => d.kind !== 'm3u-file' && (d.targets.length > 0 || aaHostsOf(d).some((h) => aaIsPrivate(h.host)) || (d.test && d.test.o === 'local'));
 function aaTargetErr(t) {
-  const a = String(t.addr || '').trim(); const p = String(t.port || '').trim();
-  if (!a) return 'Trage eine Adresse, ein Netz oder einen Hostnamen ein.';
+  const { a, p } = aaTgSplit(t);
+  if (!a) return 'Trage eine Adresse mit Port ein, z. B. 192.168.1.50 und 8001.';
   if (/^(127\.|0\.|169\.254\.|localhost$|::1$|fe80:)/i.test(a)) return 'Dieses Ziel ist nie freigebbar (Loopback, Link-Local oder eigene Adresse).';
-  const cidr = a.match(/\/(\d+)$/); if (cidr && Number(cidr[1]) < 24) return 'Höchstens ein Netz /24.';
-  if (!/^(\d{1,3}(\.\d{1,3}){3}(\/\d+)?|[a-z0-9-]+(\.[a-z0-9-]+)*)$/i.test(a)) return 'Das ist keine Adresse, kein Netz und kein Hostname.';
-  const r = p.match(/^(\d+)(?:-(\d+))?$/); if (!r) return 'Trage einen Port oder einen Bereich ein, z. B. 5000 oder 5000-5010.';
-  const lo = Number(r[1]); const hi = Number(r[2] || r[1]); if (lo < 1 || hi > 65535 || hi < lo) return 'Ports liegen zwischen 1 und 65535.'; if (hi - lo + 1 > 64) return 'Höchstens 64 Ports in einem Bereich.';
+  if (!/^(\d{1,3}(\.\d{1,3}){3}(\/\d+)?|[a-z0-9-]+(\.[a-z0-9-]+)*)$/i.test(a)) return 'Das ist keine Adresse und kein Netz. Beispiel: 192.168.1.50 oder Multicast 239.10.0.1.';
+  const ip = a.replace(/\/\d+$/, ''); if (/^\d/.test(a) && ip.split('.').some((x) => Number(x) > 255)) return 'Jede Zahl einer Adresse liegt zwischen 0 und 255.';
+  const n = aaTgNet(a);
+  if (n) {
+    if (n.bits > 32) return 'Nach dem Schrägstrich steht eine Zahl von 28 bis 32.';
+    if (n.bits < 28) return `Dieses Netz ist zu gross (${fmt.num(2 ** (32 - n.bits))} Adressen). Erlaubt ist höchstens ein Netz mit 16 Adressen (/28). Gib besser einzelne Adressen frei.`;
+    const size = 2 ** (32 - n.bits); const base = aaIp(n.ip);
+    if (base % size) return `${a} ist nicht der Anfang eines Netzes. Für /${n.bits} beginnt das Netz bei einer durch ${size} teilbaren letzten Zahl, z. B. ${ip.replace(/\.\d+$/, '')}.${size}/${n.bits}.`;
+    const o = ip.split('.').map(Number); const mc = o[0] >= 224 && o[0] <= 239;
+    if (!mc && size > 1 && o[3] === 0) return `Ein Netz darf die erste Adresse des Heimnetzes (${o.slice(0, 3).join('.')}.1) nicht enthalten: Netze mit dem Standard-Gateway gibt Slouchcat nie frei. Nimm z. B. ${o.slice(0, 3).join('.')}.16/${n.bits} oder einzelne Adressen.`;
+  }
+  if (!p) return 'Ohne Port gibt Slouchcat kein Ziel frei. Trage einen Port ein, z. B. 8001 (oder schreibe 192.168.1.50:8001).';
+  const r = p.match(/^(\d+)(?:-(\d+))?$/); if (!r) return 'Der Port ist eine Zahl, z. B. 8001, oder ein kleiner Bereich, z. B. 5000-5015.';
+  const lo = Number(r[1]); const hi = Number(r[2] || r[1]); if (lo < 1 || hi > 65535 || hi < lo) return 'Ports liegen zwischen 1 und 65535.'; if (hi - lo + 1 > 16) return 'Höchstens 16 Ports in einem Bereich, z. B. 5000-5015.';
+  if (aaTgWide(t) && !t.net) return 'Hier steht eine einzelne Adresse mit einem Port. Ein Netz oder einen Portbereich gibst du über «Netz statt Adresse …» frei.';
+  if (aaTgWide(t) && !t.wideOk) return 'Bestätige die Freigabe für das Netz oder den Portbereich (Kästchen unten). Ohne diese zweite Bestätigung gibt Slouchcat es nicht frei.';
   return '';
 }
 function aaSrcErrors(d) {
@@ -284,7 +313,14 @@ ACT.aaCred = (dd) => {
   else { d[k + 'Set'] = false; d[k + 'New'] = true; d[k] = ''; toast(`${k === 'pw' ? 'Passwort' : 'Benutzername'} wird beim Speichern entfernt.`, 'warn'); }
   render();
 };
-ACT.aaOrigAdd = () => { const d = ui.draft.src; const h = String(d.originAdd || '').trim().toLowerCase(); if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h)) { toast('Trage einen Hostnamen ein, z. B. cdn.example.net.', 'warn'); return; } if (!d.origins.includes(h)) d.origins.push(h); d.originAdd = ''; render(); };
+ACT.aaTgNetMode = (dd) => { const t = ui.draft.src.targets[Number(dd.i)]; t.net = !t.net; t.wideOk = false; ui.draft.src.targetsOk = false; render(); setTimeout(() => { const el = document.getElementById('la03-ta' + dd.i); if (el) el.focus(); }, 0); };
+/** Ursprung als Schema · Host · Port (15 3.3, 04 T-28): «https://cdn.example.net» oder «cdn.example.net» (https, 443) */
+function aaOrigin(v) {
+  const m = String(v || '').trim().toLowerCase().match(/^(?:(https?):\/\/)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?::(\d{1,5}))?\/?$/); if (!m) return null;
+  const sch = m[1] || 'https'; return `${sch} · ${m[2]} · ${m[3] || AA_PORTS[sch]}`;
+}
+const aaOrigShow = (h) => (/·/.test(h) ? h : aaOrigin(h) || h);
+ACT.aaOrigAdd = () => { const d = ui.draft.src; const h = aaOrigin(d.originAdd); if (!h) { toast('Trage einen Ursprung ein, z. B. https://cdn.example.net oder cdn.example.net:8443.', 'warn'); return; } if (!d.origins.map(aaOrigShow).includes(h)) d.origins.push(h); d.originAdd = ''; render(); };
 ACT.aaOrigDel = (dd) => { ui.draft.src.origins.splice(Number(dd.i), 1); render(); };
 ACT.aaTgAdd = () => { const d = ui.draft.src; d.targets.push({ addr: '', port: '' }); d.targetsOk = false; render(); setTimeout(() => { const el = document.querySelector(`[data-fid="la03:ta${d.targets.length - 1}"]`); if (el) el.focus(); }, 0); };
 ACT.aaTgDel = (dd) => { const d = ui.draft.src; d.targets.splice(Number(dd.i), 1); d.targetsOk = false; render(); };
@@ -335,19 +371,22 @@ function aaHdrFields(d, e) {
 }
 /** Ursprünge für Zugangsdaten und Kopfzeilen: ab Werk nur der Host der Adresse */
 function aaOriginFields(d) {
-  const base = (aaHostsOf(d)[0] || {}).host;
-  return `<p class="muted aa-small">An diese Hosts dürfen Zugangsdaten und Kopfzeilen gehen. Ab Werk nur der Host der eingetragenen Adresse. Füge einen Host hinzu, wenn die Ströme deines Anbieters auf einem anderen Host liegen.</p>
-    <ul class="aa-origs">${base ? `<li><span class="mono">${esc(base)}</span><span class="muted">Host der Adresse</span></li>` : '<li class="muted">Host der Adresse (nach dem Eintragen)</li>'}${d.origins.map((h, i) => `<li><span class="mono">${esc(h)}</span><button type="button" class="btn quiet icon sm" data-act="aaOrigDel" data-i="${i}" aria-label="${esc(h)} entfernen" data-fid="la03:od${i}">${icon('trash', 16)}</button></li>`).join('')}</ul>
-    <div class="row-gap"><label class="vh" for="la03-orig">Host hinzufügen</label><input class="inp aa-origin" id="la03-orig" data-bind="ui.draft.src.originAdd" data-fid="la03-orig" value="${esc(d.originAdd || '')}" placeholder="cdn.example.net" autocomplete="off" spellcheck="false" data-enter="aaOrigAdd"><button type="button" class="btn secondary sm" data-act="aaOrigAdd" data-fid="la03:oadd">${icon('plus', 16)}Host hinzufügen</button></div>`;
+  const first = d.addrNew ? aaAddrLines(d.address)[0] : d.addrShow[0]; const base = first ? (d.addrNew ? aaSHP(first) : first) : '';
+  return `<p class="muted aa-small">An diese Ursprünge (Schema, Host, Port) dürfen Zugangsdaten und Kopfzeilen gehen. Ab Werk nur der Ursprung der eingetragenen Adresse. Füge einen Ursprung hinzu, wenn die Ströme deines Anbieters auf einem anderen Host liegen.</p>
+    <ul class="aa-origs">${base && base !== '–' ? `<li><span class="mono">${esc(base)}</span><span class="muted">Ursprung der Adresse</span></li>` : '<li class="muted">Ursprung der Adresse (nach dem Eintragen)</li>'}${d.origins.map((h, i) => `<li><span class="mono">${esc(aaOrigShow(h))}</span><button type="button" class="btn quiet icon sm" data-act="aaOrigDel" data-i="${i}" aria-label="${esc(aaOrigShow(h))} entfernen" data-fid="la03:od${i}">${icon('trash', 16)}</button></li>`).join('')}</ul>
+    <div class="row-gap"><label class="vh" for="la03-orig">Ursprung hinzufügen</label><input class="inp aa-origin" id="la03-orig" data-bind="ui.draft.src.originAdd" data-fid="la03-orig" value="${esc(d.originAdd || '')}" placeholder="https://cdn.example.net" autocomplete="off" spellcheck="false" data-enter="aaOrigAdd"><button type="button" class="btn secondary sm" data-act="aaOrigAdd" data-fid="la03:oadd">${icon('plus', 16)}Ursprung hinzufügen</button></div>`;
 }
-const aaOrigSum = (d) => { const n = (aaHostsOf(d)[0] ? 1 : 0) + d.origins.length; return `${n} ${n === 1 ? 'Host' : 'Hosts'}`; };
+const aaOrigSum = (d) => { const n = (aaHostsOf(d)[0] ? 1 : 0) + d.origins.length; return `${n} ${n === 1 ? 'Ursprung' : 'Ursprünge'}`; };
 /** Schritt 2a: feste Ziele im Heimnetz (kein Ja-Nein-Schalter für das ganze Heimnetz) */
 function aaTargetFields(d, e) {
   const p = aaHostsOf(d).find((h) => aaIsPrivate(h.host) && !d.targets.some((t) => aaInNet(t, h.host)));
-  const rows = d.targets.map((t, i) => `<div class="aa-trow"><div class="fld"><label for="la03-ta${i}">Adresse oder Netz</label><input class="inp" id="la03-ta${i}" data-bind="ui.draft.src.targets.${i}.addr" data-live data-fid="la03:ta${i}" value="${esc(t.addr)}" placeholder="192.168.1.20" autocomplete="off" spellcheck="false"${e['t' + i] ? ' aria-invalid="true"' : ''}></div>
-    <div class="fld"><label for="la03-tp${i}">Port</label><input class="inp" id="la03-tp${i}" data-bind="ui.draft.src.targets.${i}.port" data-live data-fid="la03:tp${i}" value="${esc(t.port)}" placeholder="5000" inputmode="numeric" autocomplete="off"${e['t' + i] ? ' aria-invalid="true"' : ''}></div>
-    <button type="button" class="btn quiet icon" data-act="aaTgDel" data-i="${i}" aria-label="Ziel ${i + 1} entfernen" data-fid="la03:td${i}">${icon('trash', 16)}</button>${e['t' + i] ? `<span class="aa-err" role="alert">${icon('alert', 14)}${esc(e['t' + i])}</span>` : ''}</div>`).join('');
-  return `<p class="muted aa-small">Es gibt keinen Schalter für das ganze Heimnetz. Trage die Ziele dieser Quelle einzeln ein: eine Adresse, ein kleines Netz (höchstens /24) oder einen Hostnamen, dazu einen Port oder einen kleinen Bereich (höchstens 64 Ports). Höchstens 16 Ziele.</p>
+  const wide = (t, i) => { if (!t.net || !aaTgWide(t)) return ''; const z = aaTgSize(t); const net = z.addrs > 1;
+    return `<label class="check aa-wide"><input type="checkbox" ${t.wideOk ? 'checked' : ''} data-bind="ui.draft.src.targets.${i}.wideOk" data-fid="la03:tw${i}"><span>${net ? 'Ich gebe ein ganzes Netz frei' : 'Ich gebe einen Portbereich frei'}: ${aaPl(z.addrs, 'Adresse', 'Adressen')}, ${aaPl(z.ports, 'Port', 'Ports')}. Damit darf die Senderliste dieser Quelle jedes Gerät in diesem Bereich auf diesen Ports ansprechen, auch ohne dass du es merkst.</span></label>`; };
+  const rows = d.targets.map((t, i) => `<div class="aa-trow"><div class="fld"><label for="la03-ta${i}">${t.net ? 'Netz (höchstens /28)' : 'Adresse'}</label><input class="inp" id="la03-ta${i}" data-bind="ui.draft.src.targets.${i}.addr" data-live data-fid="la03:ta${i}" value="${esc(t.addr)}" placeholder="${t.net ? '192.168.1.16/28' : '192.168.1.50'}" autocomplete="off" spellcheck="false"${e['t' + i] ? ' aria-invalid="true"' : ''}></div>
+    <div class="fld"><label for="la03-tp${i}">${t.net ? 'Port oder Bereich' : 'Port'}</label><input class="inp" id="la03-tp${i}" data-bind="ui.draft.src.targets.${i}.port" data-live data-fid="la03:tp${i}" value="${esc(t.port)}" placeholder="${t.net ? '5000-5015' : '8001'}" inputmode="numeric" autocomplete="off"${e['t' + i] ? ' aria-invalid="true"' : ''}></div>
+    <button type="button" class="btn quiet icon" data-act="aaTgDel" data-i="${i}" aria-label="Ziel ${i + 1} entfernen" data-fid="la03:td${i}">${icon('trash', 16)}</button>
+    <div class="aa-wide"><button type="button" class="btn quiet sm" data-act="aaTgNetMode" data-i="${i}" data-fid="la03:tn${i}">${t.net ? 'Einzelne Adresse statt Netz' : 'Netz statt Adresse …'}</button></div>${wide(t, i)}${e['t' + i] ? `<span class="aa-err" role="alert">${icon('alert', 14)}${esc(e['t' + i])}</span>` : ''}</div>`).join('');
+  return `<p class="muted aa-small">Es gibt keinen Schalter für das ganze Heimnetz. Trage die Ziele dieser Quelle einzeln ein, je Ziel eine einzelne Adresse und ein einzelner Port, z. B. 192.168.1.50 und 8001 oder Multicast 239.10.0.1 und 5000. Ein kleines Netz (höchstens 16 Adressen, /28) oder ein Portbereich (höchstens 16 Ports) geht nur über «Netz statt Adresse …» mit einer zweiten Bestätigung und nie, wenn das Netz das Standard-Gateway enthält. Höchstens 16 Ziele.</p>
     ${p ? `<p class="aa-small">Die Adresse zeigt ins Heimnetz (<span class="mono">${esc(p.host)}${p.port ? ' · ' + esc(p.port) : ''}</span>). <button type="button" class="lnk" data-act="aaToTargets" data-fid="la03:tgfrom">Als Ziel übernehmen</button></p>` : ''}
     <div class="stack">${rows || '<p class="muted">Keine Ziele im Heimnetz.</p>'}</div>
     <div><button type="button" class="btn secondary sm" data-act="aaTgAdd" data-fid="la03:tadd" ${d.targets.length >= 16 ? 'disabled' : ''}>${icon('plus', 16)}Ziel hinzufügen</button></div>
@@ -369,8 +408,6 @@ function aaTakeFields(d) {
     <div class="srow"><div class="st"><b>Verschwundene Sender</b><span>Sofort für Zuschauer ausgeblendet. Favoriten, Nummer, Gruppen, Zuordnung und Planungen bleiben gespeichert und wirken wieder, wenn der Sender zurückkommt. Slouchcat löscht nie von selbst.</span></div><div class="sc"><span class="muted">keine Wahl</span></div></div>
     <div class="srow"><div class="st"><b>Schutz vor unvollständigen Listen</b><span>Fehlt mehr als ein Drittel der bisherigen Sender, hält Slouchcat die Liste zurück und markiert nichts als verschwunden.</span></div><div class="sc"><span class="muted">immer an</span></div></div>`;
 }
-/** Vorladen je Quelle: dieselbe Einstellung wie LA-09 «Vorladen je Quelle» (Datenfeld moreConn) */
-const aaPreFields = () => `<div class="srow"><div class="st"><b>Vorladen für Sender dieser Quelle</b><span>${AA_PRELOAD_HINT} Werksvorgabe: aus. Wie viele Sender insgesamt vorgeladen werden, stellst du unter <a class="lnk" href="#/admin/live/reception?tab=strategy" data-fid="la03:rcp">Empfang</a> ein.</span></div><div class="sc">${sw('ui.draft.src.moreConn', 'Vorladen für Sender dieser Quelle')}<span>${ui.draft.src.moreConn ? 'an' : 'aus'}</span></div></div>`;
 function aaTestBlock(d) {
   const t = d.test; let h = `<div class="aa-test"><div class="row-gap"><button type="button" class="btn secondary" data-act="aaTest" data-fid="la03:test" ${t && t.run ? 'disabled' : ''}>${icon('play', 16)}${t && !t.run ? 'Noch einmal testen' : 'Testen'}</button>
     <label class="aa-mock" for="la03-out"><span>Nur im Mockup, nicht Teil der App: Ergebnis des Tests</span>${selectEl('ui.draft.src.outcome', AA_OUT.map(([v, x]) => ({ v, t: x })), { label: 'Nur im Mockup, nicht Teil der App: Ergebnis des Tests', after: 'aaOutcomeSet' }).replace('<select ', '<select id="la03-out" ')}</label></div>`;
@@ -397,7 +434,7 @@ function aaSrcDone(d) {
   const t = d.test || {}; const sch = AA_INTERVALS.find((x) => x.v === d.interval).t; const kind = AA_KINDS.find((k) => k[0] === d.kind)[1]; const pv = aaPreviewData(d).counts;
   return `<dl class="kv"><dt>Name</dt><dd>${esc(d.name)}</dd><dt>Art</dt><dd>${kind}</dd><dt>Adresse</dt><dd>${d.kind === 'm3u-file' ? `Datei <span class="mono">${esc(d.file)}</span>` : aaAddrLines(d.address).map((a) => `<span class="mono">${esc(aaSHP(a))}</span>`).join('<br>')}</dd>
     <dt>Sender</dt><dd>${d.kind === 'single' ? (d.single.mode === 'new' ? `neuer Sender «${esc(d.single.name || '–')}»` : `Ersatzquelle von ${esc((SIM.channel(d.single.backup) || {}).name || '')}`) : `${fmt.num(pv.new)} neu, ${d.offerNew ? 'gleich aktiv' : 'zunächst inaktiv (Filter «Neu»)'} · ${pv.dup} mögliche Duplikate · ${pv.bad} fehlerhafte Einträge`}</dd>
-    <dt>Aktualisierung</dt><dd>${d.kind === 'single' ? 'entfällt' : sch + (d.interval ? ` um ${esc(d.hour)}` : '')}</dd><dt>Ziele im Heimnetz</dt><dd>${aaTgSum(d)}</dd><dt>Vorladen</dt><dd>${d.moreConn ? 'an' : 'aus'}</dd></dl>
+    <dt>Aktualisierung</dt><dd>${d.kind === 'single' ? 'entfällt' : sch + (d.interval ? ` um ${esc(d.hour)}` : '')}</dd><dt>Ziele im Heimnetz</dt><dd>${aaTgSum(d)}</dd></dl>
     <p class="muted">Mit «Quelle speichern und Sender übernehmen» legt Slouchcat die Quelle an und liest die Liste ein. Das Ergebnis siehst du danach als Import-Ergebnis.</p>`;
 }
 function aaWizard(d, e) {
@@ -411,7 +448,7 @@ function aaWizard(d, e) {
   }
   if (d.step === 3) body = `<p class="lead">Slouchcat ruft die Adresse einmal ab und zeigt, was dort liegt. Es wird nichts übernommen.</p>${aaTestBlock(d)}`;
   if (d.step === 4) body = d.kind === 'single' ? aaSingleStep(d) : `<p class="lead">So würde der erste Import aussehen. Du übernimmst noch nichts.</p>${aaImportView(aaPreviewData(d), { preview: true, key: 'wizard' })}`;
-  if (d.step === 5) body = `<div class="card"><div class="srow-wrap">${d.kind === 'single' ? '<p class="muted">Einzelströme werden nicht importiert und nicht aktualisiert.</p>' : aaUpdFields(d) + aaTakeFields(d)}${aaPreFields()}</div></div>`;
+  if (d.step === 5) body = `<div class="card"><div class="srow-wrap">${d.kind === 'single' ? '<p class="muted">Einzelströme werden nicht importiert und nicht aktualisiert.</p>' : aaUpdFields(d) + aaTakeFields(d)}</div>${AA_V7}</div>`;
   if (d.step === 6) body = aaSrcDone(d);
   const last = d.step === 6; const t = d.test; const blocked = d.step === 3 && !(t && t.ok);
   const why = !blocked ? '' : t && t.run ? 'Der Test läuft noch. Warte auf das Ergebnis.' : t ? `Weiter geht es erst nach einem erfolgreichen Test. Der Test meldet: ${t.title} Korrigiere die Angaben in Schritt 2 und teste noch einmal.` : 'Weiter geht es erst nach einem erfolgreichen Test.';
@@ -437,7 +474,7 @@ ACT.aaFinish = () => {
   const tg = d.targetsOk ? aaClone(d.targets) : [];
   const s = { id, name: d.name.trim(), kind: d.kind, address: d.kind === 'single' ? '' : aaMask(d.address.trim()), host: aaHost(d.address), user: d.kind === 'xtream' ? 'gesetzt' : '', file: d.file, fileSize: d.fileSize, uploaded: now, streams: d.kind === 'single' ? lines.map(aaMask) : undefined,
     active: d.kind === 'single' ? 1 : d.offerNew ? nNew : 0, total: d.kind === 'single' ? 1 : nNew, groups: t.groups || 0, gone: 0, interval: d.kind === 'single' ? 0 : d.interval, last: d.kind === 'single' ? null : now, lastOk: true, next: d.interval && d.kind !== 'single' ? now + d.interval * 60 : null, state: 'ok',
-    targets: tg, localNet: tg.length > 0, offerNew: d.offerNew, moreConn: d.moreConn, origins: aaClone(d.origins),
+    targets: tg, localNet: tg.length > 0, offerNew: d.offerNew, origins: aaClone(d.origins),
     hdr: d.hdr.filter((h) => h.k.trim()).map((h) => ({ k: h.k.trim(), v: '', set: true })), uaMode: d.uaMode, hour: d.hour, takeGroups: d.takeGroups, takeNumbers: d.takeNumbers };
   LIVE.sources.push(s); ADM.addedImported += s.total; let run = null;
   if (d.kind === 'single') {
@@ -455,32 +492,42 @@ ACT.aaFinish = () => {
 /* Ändern: dieselben Felder als Aufklapper, SaveBar */
 function aaEditView(d, s) {
   const e = d.tried ? aaSrcErrors(d) : {}; const eb = aaErrBand(e); const dirty = aaDraftKey(d) !== AA.srcSnap;
-  const kind = AA_KINDS.find((k) => k[0] === d.kind)[1]; const sch = AA_INTERVALS.find((x) => x.v === d.interval).t;
+  const kind = AA_KINDS.find((k) => k[0] === d.kind)[1]; const sch = AA_INTERVALS.find((x) => x.v === d.interval).t; const rest = admRest(s.id);
   const shp = d.addrNew ? (aaAddrLines(d.address).map(aaSHP)[0] || 'neue Adresse') : d.addrShow[0] || '';
   const sumAddr = d.kind === 'xtream' ? `Xtream, <span class="mono">${esc(shp)}</span>, Benutzer ${d.userSet || d.user ? 'gesetzt' : 'nicht gesetzt'}, Passwort ${d.pwSet || d.pw ? 'gesetzt' : 'nicht gesetzt'}` : d.kind === 'm3u-file' ? `Datei ${esc(d.file)}` : d.kind === 'single' ? `${d.addrNew ? aaAddrLines(d.address).length : d.addrShow.length} Einzelströme` : `<span class="mono">${esc(shp)}</span>`;
   const bands = band('la03:addr', 'Adresse und Zugang', sumAddr, `<div class="stack aa-form">${aaAddrFields(d, e, false)}</div>${aaTestBlock(d)}${d.test && d.test.ok ? `<div><a class="btn quiet sm" href="#/admin/live/sources/${s.id}/import/preview" data-fid="la03:prev">Import-Vorschau ansehen</a></div>` : ''}`, { icon: 'link', open: eb.addr })
     + band('la03:hdr', 'Kopfzeilen und User-Agent', aaHdrSum(d), aaHdrFields(d, e), { icon: 'key', open: eb.hdr })
     + (d.kind === 'm3u-file' ? '' : band('la03:orig', 'Ursprünge', aaOrigSum(d), aaOriginFields(d), { icon: 'link' }))
     + (d.kind === 'single' ? '' : band('la03:upd', 'Aktualisierung', d.interval ? `${sch} um ${esc(d.hour)}` : 'nur von Hand', aaUpdFields(d), { icon: 'refresh' }) + band('la03:take', 'Übernahme', `neue Sender ${d.offerNew ? 'sofort' : 'inaktiv'}, Gruppen ${d.takeGroups ? 'an' : 'aus'}, Nummern ${d.takeNumbers ? 'an' : 'aus'}`, aaTakeFields(d), { icon: 'list' }))
-    + band('la03:pre', 'Vorladen', d.moreConn ? 'an' : 'aus', aaPreFields(), { icon: 'zap' })
-    + (d.kind === 'm3u-file' ? '' : band('la03:net', 'Ziele im Heimnetz', aaTgSum(d), aaTargetFields(d, e), { icon: 'home2', open: eb.net || undefined }));
+    + (d.kind === 'm3u-file' ? '' : band('la03:net', 'Ziele im Heimnetz', aaTgSum(d), aaTargetFields(d, e), { icon: 'home2', open: eb.net || undefined }))
+    + band('la03:rest', 'Vorsorglicher Empfang', rest ? `ruht bis ${admUntil(rest.until)} (Muster ${rest.pattern})` : 'läuft', `<p>${rest ? `Zustand: ${esc(admRestText(rest))}. Slouchcat hat das von selbst so gestellt; nach Ablauf der Frist läuft der vorsorgliche Empfang wieder. <a class="lnk" href="#/admin/live/diagnostics" data-fid="la03:restdg">In der Diagnose ansehen</a>` : 'Zustand: läuft. Vorladen, «automatisch» und Prüfungen dürfen diese Quelle nutzen.'}</p><p class="muted aa-small">Nur Anzeige, keine Einstellung.</p>${AA_V7}`, { icon: 'zap' });
   return `<p class="muted">${kind}. Eigene Namen, Logos, Gruppen, Nummern, Favoriten, Zuordnungen und geplante Aufnahmen bleiben bei jeder Aktualisierung erhalten.</p>${aaVerantwortung('la03:resp')}${bands}
     <div class="aa-danger"><button type="button" class="btn quiet dq" data-act="la02Remove" data-id="${s.id}" data-fid="la03:rm">${icon('trash', 16)}Quelle entfernen</button></div>
     ${dirty ? `<div class="savebar" role="region" aria-label="Änderungen speichern"><span class="grow">Ungespeicherte Änderungen</span><button type="button" class="btn ghost" data-act="aaDiscard" data-fid="la03:discard">Verwerfen</button><button type="button" class="btn primary" data-act="aaSave" data-fid="la03:save">Speichern</button></div>` : ''}`;
 }
 ACT.aaDiscard = () => { const s = LIVE.sources.find((x) => x.id === ui.draft.src.id); ui.draft.src = aaSrcFrom(s); AA.srcSnap = aaDraftKey(ui.draft.src); toast('Änderungen verworfen.', 'ok'); render(); };
+/** Teile einer Quelle, deren Änderung ihre Empfänger beendet (15 Grundsatz 6, 04 T-29): Adresse, Zugang, Kopfzeilen, Ursprünge, feste Ziele */
+const aaSecKey = (d) => JSON.stringify([d.address, d.addrNew, d.file, d.user, d.userSet, d.userNew, d.pw, d.pwSet, d.pwNew, d.hdr, d.uaMode, d.ua, d.uaSet, d.origins, d.targets, d.targetsOk]);
+DIALOGS.aaChgAsk = (p) => {
+  const run = la02Running(p.id);
+  return { title: 'Quelle ändern?', body: `<p class="lead">Über diese Quelle laufen gerade ${run.v} Zuschauer und ${run.r} ${run.r === 1 ? 'Aufnahme' : 'Aufnahmen'}. Mit der Änderung enden sie innert 5 Sekunden und verbinden neu.</p><p class="muted">Das gilt für Adresse, Zugangsdaten, Kopfzeilen, Ursprünge und feste Ziele. Eine laufende Aufnahme bekommt dabei eine kurze Lücke.</p>`,
+    actions: `<button type="button" class="btn secondary" data-act="close" data-fid="chg:x" data-autofocus>Abbrechen</button><button type="button" class="btn danger" data-act="aaChgOk" data-fid="chg:ok">Ändern</button>` };
+};
+ACT.aaChgOk = () => { ui.draft.src.chgOk = true; closeDialog(); ACT.aaSave(); };
 ACT.aaSave = () => {
   const d = ui.draft.src; const e = aaSrcErrors(d); d.tried = true;
   if (Object.keys(e).length) { const b = aaErrBand(e); if (b.addr) ui.open['la03:addr'] = true; if (b.hdr) ui.open['la03:hdr'] = true; if (b.net) ui.open['la03:net'] = true; toast('Bitte korrigiere die markierten Angaben.', 'bad'); render(); return; }
   const s = LIVE.sources.find((x) => x.id === d.id); const tg = d.targetsOk ? aaClone(d.targets) : [];
-  Object.assign(s, { name: d.name.trim(), targets: tg, localNet: tg.length > 0, offerNew: d.offerNew, moreConn: d.moreConn, origins: aaClone(d.origins), interval: d.kind === 'single' ? 0 : d.interval, hour: d.hour, takeGroups: d.takeGroups, takeNumbers: d.takeNumbers, uaMode: d.uaMode,
+  const sec = aaSecKey(d) !== aaSecKey(aaSrcFrom(s)); const run = sec ? la02Running(s.id) : { v: 0, r: 0 };
+  if (sec && run.v + run.r && !d.chgOk) { openDialog('aaChgAsk', { id: s.id }); return; }
+  Object.assign(s, { name: d.name.trim(), targets: tg, localNet: tg.length > 0, offerNew: d.offerNew, origins: aaClone(d.origins), interval: d.kind === 'single' ? 0 : d.interval, hour: d.hour, takeGroups: d.takeGroups, takeNumbers: d.takeNumbers, uaMode: d.uaMode,
     hdr: d.hdr.filter((h) => h.k.trim()).map((h) => ({ k: h.k.trim(), v: '', set: true })) });
   if (d.kind === 'xtream') s.user = d.user ? 'gesetzt' : d.userSet ? s.user : '';
   if (d.addrNew && d.address.trim()) { if (d.kind === 'single') s.streams = aaAddrLines(d.address).map(aaMask); else { s.address = aaMask(d.address.trim()); s.host = aaHost(d.address); } }
   if (d.kind === 'm3u-file') { s.file = d.file; s.fileSize = d.fileSize; }
   s.next = s.interval ? SIM.now() + s.interval * 60 : null;
   ui.draft.src = aaSrcFrom(s); AA.srcSnap = aaDraftKey(ui.draft.src);
-  toast(`Quelle «${esc(s.name)}» gespeichert.`, 'ok'); render();
+  toast(`Quelle «${esc(s.name)}» gespeichert.${sec && run.v + run.r ? ` ${run.v} Zuschauer und ${run.r} ${run.r === 1 ? 'Aufnahme' : 'Aufnahmen'} verbinden neu.` : ''}`, 'ok'); render();
 };
 route('/admin/live/sources/new', () => aaSrcRoute('new'));
 route('/admin/live/sources/:id', (pm) => aaSrcRoute(pm.id));

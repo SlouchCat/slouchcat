@@ -184,7 +184,8 @@ button.stat[aria-pressed='true'] { background: var(--s3); border-color: var(--tx
 .aa-shp { gap: 6px; }
 .aa-hset { grid-template-columns: 1fr auto auto; align-items: center; padding: 4px 0; }
 .aa-trow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
-.aa-trow .aa-err { grid-column: 1 / -1; }
+.aa-trow .aa-err, .aa-trow .aa-wide { grid-column: 1 / -1; }
+.aa-wide span { font-size: 14px; }
 .aa-2a { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
 .aa-confirm span { font-size: 14px; }
 .aa-origs { display: flex; flex-direction: column; }

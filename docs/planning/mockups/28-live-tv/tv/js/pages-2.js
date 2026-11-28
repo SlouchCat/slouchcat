@@ -205,7 +205,7 @@ const PL = { id: null, fault: '', t0: 0, info: false, infoUntil: 0, infoFocus: f
 RESETS.push(() => { Object.assign(PL, { id: null, info: false, infoFocus: false, bar: false, list: false, guide: false, force: '', pend: null, leaving: false, fb: false, tsoff: false, shown: '', listKind: '' }); });
 /** RM-16: a fault switched in the mockup bar acts on the running channel; unreachable and slow start load
     again, leaving an error loads again, the others (stall, fallback, limit, busy, not playable) show at once */
-const tvpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'notPlayable', 'unreachable'].includes(was);
+const tvpFaultRestart = (was, now) => ['unreachable', 'slow'].includes(now) || ['limit', 'busy', 'busyPerm', 'notPlayable', 'unreachable'].includes(was);
 const tvpIsPlayer = () => /^\/live\/watch\//.test(curPath());
 const tvpPl = () => SIM.player();
 const tvpInput = (id) => LIVE.inputs.some((i) => i.ch === id && i.state === 'running');
@@ -229,6 +229,8 @@ function tvpErrHtml(c, kind) {
     limit: ['Auf deinem Konto laufen schon 3 Wiedergaben gleichzeitig.', 'back'],
     revoked: ['Live-TV ist für dieses Profil nicht mehr freigegeben.', 'home'],
     busy: ['Der Server ist gerade ausgelastet. Versuche es gleich nochmals.', 'retry'],
+    busyPerm: [LU.PLAYER_ERR.busyPerm(c), 'retry'],
+    noConvert: [LU.PLAYER_ERR.noConvert(c), 'other'],
     gone: ['Diesen Sender gibt es nicht mehr.', 'other'],
     notplayable: ['Dieser Sender lässt sich auf diesem Gerät nicht abspielen.', 'other'],
   }[kind];
@@ -303,7 +305,7 @@ route('/live/watch/:id', (pm) => {
   const paused = !!(pl && pl.paused); const r = SIM.rights();
   const run = r.recordings && SIM.runningOn(c.id);
   const showVid = !err && (ph.k === 'ok' || ph.k === 'forced');
-  const loadTxt = ph.k === 'slow' ? 'Dauert länger als üblich …' : `${esc(c.name)} wird geladen`;
+  const loadTxt = ph.k === 'slow' ? `Dauert länger als üblich …${ph.why ? ` ${esc(ph.why)}` : ''}` : `${esc(c.name)} wird geladen`;
   const html = `<div class="tvp-pl${showVid ? '' : ' dark'}" data-phase="${ph.k}">
     <div class="tvp-vid">${showVid ? LU.fakeVideo(c, { paused }) : ''}</div><i class="tvp-scrim" aria-hidden="true"></i>
     ${paused && showVid ? `<span class="tvp-pause" aria-hidden="true">${icon('pause', 120)}</span>` : ''}
@@ -458,15 +460,16 @@ ACT.tvpListCycle = () => {
 };
 const TV_Q = ['Automatisch', 'Original (1080i)', '720p', '480p'];
 function tvpAudioHtml() {
-  const c = SIM.channel(PL.id); const pf = S.prefs; const subs = c.subs || [];
+  /* Teletext subtitles: in no client before stage E (04 7.4, RG-05); DVB subtitles selectable */
+  const c = SIM.channel(PL.id); const pf = S.prefs; const all = c.subs || []; const subs = all.filter((x) => !LU.isTeletext(x)); const ttx = all.filter(LU.isTeletext);
   const row = (f, ic, t, v, act, dis) => `<button type="button" class="mi" data-act="${act}" data-f="${f}"${dis ? ' aria-disabled="true"' : ''}><span class="mi-ic">${icon(ic, 36)}</span><span class="mi-tx"><b>${t}</b><small>${esc(v)}</small></span>${dis ? '' : icon('sort', 30)}</button>`;
   return `<h2>Ton, Untertitel, Qualität</h2><div class="mlist">${row('au-a', 'audio', 'Ton', c.audio && c.audio.includes(pf.audio) ? pf.audio : (c.audio || ['Deutsch'])[0], 'tvpAu', false)}
-    ${row('au-s', 'subs', 'Untertitel', subs.length ? (subs.includes(pf.subs) ? pf.subs : 'Aus') : 'Dieser Sender sendet keine Untertitel', 'tvpSub', !subs.length)}${row('au-q', 'hd', 'Qualität', pf.quality, 'tvpQual', false)}</div>`;
+    ${row('au-s', 'subs', 'Untertitel', subs.length ? (subs.includes(pf.subs) ? pf.subs : 'Aus') : ttx.length ? LU.SUBS_TX.teletext : LU.SUBS_TX.none, 'tvpSub', !subs.length)}${subs.length && ttx.length ? `<p class="mi-note">${esc(ttx.join(', '))}: als Videotext noch nicht unterstützt</p>` : ''}${row('au-q', 'hd', 'Qualität', pf.quality, 'tvpQual', false)}</div>`;
 }
 ACT.tvpAudio = () => menu(tvpAudioHtml());
 const tvpCycle = (arr, cur) => arr[(Math.max(0, arr.indexOf(cur)) + 1) % arr.length];
 ACT.tvpAu = () => { const c = SIM.channel(PL.id); const a = c.audio || ['Deutsch']; S.prefs.audio = tvpCycle(a, a.includes(S.prefs.audio) ? S.prefs.audio : a[0]); save(); redrawMenu(tvpAudioHtml()); toast('Wechsle Tonspur …'); };
-ACT.tvpSub = () => { const c = SIM.channel(PL.id); if (!(c.subs || []).length) { toast('Dieser Sender sendet keine Untertitel'); return; } const a = ['Aus', ...c.subs]; S.prefs.subs = tvpCycle(a, a.includes(S.prefs.subs) ? S.prefs.subs : 'Aus'); save(); redrawMenu(tvpAudioHtml()); };
+ACT.tvpSub = () => { const c = SIM.channel(PL.id); const sel = (c.subs || []).filter((x) => !LU.isTeletext(x)); if (!sel.length) { toast((c.subs || []).length ? LU.SUBS_TX.teletext : LU.SUBS_TX.none); return; } const a = ['Aus', ...sel]; S.prefs.subs = tvpCycle(a, a.includes(S.prefs.subs) ? S.prefs.subs : 'Aus'); save(); redrawMenu(tvpAudioHtml()); };
 ACT.tvpQual = () => { S.prefs.quality = tvpCycle(TV_Q, S.prefs.quality); save(); redrawMenu(tvpAudioHtml()); };
 /* fault states of the player: mockup bar «Zustände» → Player (LIVE_SIM.flags().fault) */
 

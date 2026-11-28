@@ -365,6 +365,10 @@ function liveGate(path) {
   const r = SIM.rights();
   /* right taken away while watching (mockup state «Recht entzogen …»): the player says so (14, 4.12; page of viewer-b.js) */
   if (SIM.flags().revoked && path.startsWith('/live/watch/')) { const rv = ROUTES.find((x) => x.pattern === '/player/revoked'); if (rv) return rv.fn({}, { ch: path.split('/')[3] }); }
+  /* variant E-28-42 (a), mockup state a12 (default off = Vorgabe (b): 404 as before). A-12 (14 3.14): the primary profile keeps LS-14 and the details of its profiles' recordings, reached only
+     through «Profile verwalten», even without its own right «Live-TV» or «Aufnahmen»; playing needs Live-TV */
+  const kid = path.match(/^\/live\/recordings\/([^/]+)(\/play)?$/); const kr = kid && SIM.recording(kid[1]);
+  if (SIM.flags().a12 && SIM.profile().primary && (path === '/live/recordings/profiles' || (kr && SIM.childProfiles().some((p) => p.id === kr.profile) && (!kid[2] || r.liveTv)))) return null;
   if (path.startsWith('/live') && !r.liveTv) return notFoundView();
   if (/^\/live\/(recordings|scheduled)/.test(path) && !r.recordings) return notFoundView();
   if (path === '/live/recordings/profiles' && !SIM.profile().primary) return notFoundView();

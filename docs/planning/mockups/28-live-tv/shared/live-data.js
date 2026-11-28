@@ -47,13 +47,13 @@
   /* ---------- sources (administration) ---------- */
   const sources = [
     { id: 'src-kabel', name: 'Kabelanbieter Schweiz', kind: 'm3u-url', address: 'https://iptv.example.net/playlist.m3u8?token=••••', host: 'iptv.example.net',
-      active: 398, total: 412, groups: 14, gone: 1, interval: 24, moreConn: true, last: at(0, '06:00'), lastOk: true, next: at(1, '06:00'), state: 'ok', localNet: false, offerNew: false },
+      active: 398, total: 412, groups: 14, gone: 1, interval: 24, last: at(0, '06:00'), lastOk: true, next: at(1, '06:00'), state: 'ok', localNet: false, offerNew: false },
     { id: 'src-xtream', name: 'Xtream Beispielanbieter', kind: 'xtream', address: 'http://xtream.example.com:8080', host: 'xtream.example.com', user: 'demo',
-      active: 120, total: 9874, groups: 212, gone: 0, interval: 12, last: at(0, '05:00'), lastOk: false, lastError: 'Server antwortet 503', next: at(0, '17:00'), state: 'warn', localNet: false, offerNew: false, moreConn: false },
+      active: 120, total: 9874, groups: 212, gone: 0, interval: 12, last: at(0, '05:00'), lastOk: false, lastError: 'Server antwortet 503', next: at(0, '17:00'), state: 'warn', localNet: false, offerNew: false },
     { id: 'src-region', name: 'Senderliste Region', kind: 'm3u-file', file: 'senderliste-region.m3u', fileSize: '1.2 MB', uploaded: at(-8, '14:20'),
-      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false, moreConn: true },
+      active: 64, total: 66, groups: 3, gone: 0, interval: 0, last: at(-8, '14:20'), lastOk: true, next: null, state: 'ok', localNet: false, offerNew: false },
     { id: 'src-mc', name: 'Heimnetz Multicast', kind: 'single', streams: ['udp://@239.10.0.1:5000', 'udp://@239.10.0.2:5000'],
-      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, fixedTargets: 2, offerNew: false, moreConn: false },
+      active: 2, total: 2, groups: 0, gone: 0, interval: 0, last: null, lastOk: true, next: null, state: 'ok', localNet: true, fixedTargets: 2, offerNew: false },
   ];
   /* import runs per source: [runId, at, result, new, changed, gone, note] */
   const importRuns = {
@@ -315,8 +315,9 @@
     { ch: 'zdf', source: 'src-kabel', backup: 0, state: 'running', reasons: ['viewer'], since: at(0, '20:14'), viewers: 1, recordings: 0, bitrate: 8.3, transcode: '1 umgewandelt (Hardware QSV)', buffer: '11 MB', timeshift: '0.9 GB (1 Puffer)', recGB: 0, errors: null },
     { ch: 'srfinfo', source: 'src-kabel', backup: 0, state: 'running', reasons: ['preload'], since: at(0, '20:36'), viewers: 0, recordings: 0, bitrate: 5.2, transcode: '–', buffer: '9 MB', timeshift: '–', recGB: 0, errors: null },
     { ch: 'daserste', source: 'src-kabel', backup: 0, state: 'running', reasons: ['schedule'], schedule: 'Abends', since: at(0, '18:00'), viewers: 0, recordings: 0, bitrate: 8.0, transcode: '–', buffer: '12 MB', timeshift: '–', recGB: 0, errors: null },
-    /* 15 Fassung 2, 0.1: 3sat is received permanently but deferred since 20:31 (a viewer needed the place; upper limit 8 inputs) */
-    { ch: '3sat', source: 'src-kabel', backup: 0, state: 'deferred', reasons: ['permanent'], since: at(0, '20:31'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: null, deferredReason: 'Ein Zuschauer brauchte den Platz (höchstens 8 Eingänge).' },
+    /* RG-02 (Vorgabe): a running permanent channel never yields to a viewer. «zurückgestellt» only when it cannot
+       start: here the server started at 18:02 with more permanent channels than places (upper limit 8 inputs). */
+    { ch: '3sat', source: 'src-kabel', backup: 0, state: 'deferred', reasons: ['permanent'], since: at(0, '18:02'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: null, deferredReason: 'Konnte nicht starten: Obergrenze der Eingangsströme erreicht (beim Hochfahren mehr Dauersender eingestellt als Plätze).' },
     { ch: 'zdfinfo', source: 'src-xtream', backup: 2, state: 'reconnecting', attempt: [3, 5], reasons: ['viewer'], since: at(0, '20:12'), viewers: 0, recordings: 0, bitrate: 0, transcode: '–', buffer: '0 MB', timeshift: '–', recGB: 0, errors: 'alle Quellen fehlgeschlagen' },
   ];
   /* consumers of the inputs (LA-12 expanded): no titles, recordings only with the account */

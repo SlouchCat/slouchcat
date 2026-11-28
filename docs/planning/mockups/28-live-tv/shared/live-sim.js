@@ -24,11 +24,13 @@
       noEpg: false,            // no channel has programme data
       disturbed: false,        // additionally SRF 1 is disturbed (ZDFinfo is disturbed in the data anyway)
       quotaFull: false,        // account storage full: new recordings are rejected and reported
-      fault: '',               // player: '' | unreachable | fallback | limit | stall | slow | notPlayable | busy
+      fault: '',               // player: '' | unreachable | fallback | limit | stall | slow | notPlayable | busy | busyPerm
       revoked: false,          // the right «Live-TV» was taken away while watching: the player shows the message
       many: false,             // 2'000 extra test channels in the programme grid
       admStorage: '',          // administration: '' | low (Speicher knapp) | full (voll) | unmounted (Netzlaufwerk nicht eingehängt)
       epgFail: false,          // administration: the last EPG import failed (old data stays)
+      a12: false,              // variant E-28-42 (a): primary profile without own Live-TV right manages child recordings (LS-14); default = Vorgabe (b): not reachable
+      noContain: false,        // containment (Landlock, Seccomp) not available: conversion for Live-TV is off (T-27, 12 F-1)
       notices: [],             // messages to profiles (bell): { profile, kind, text, at, href }
       favorites: clone(L.favorites),
       recent: clone(L.recent),
@@ -70,7 +72,7 @@
 
   /* ---------- mockup states ---------- */
   function setMode(m) { st.mode = m; emit('change'); }
-  /** setFlag('noEpg'|'disturbed'|'quotaFull'|'many'|'epgFail', bool) or ('fault'|'admStorage', string) */
+  /** setFlag('noEpg'|'disturbed'|'quotaFull'|'many'|'epgFail'|'noContain', bool) or ('fault'|'admStorage', string) */
   function setFlag(k, v) {
     if (k === 'revoked') { setRevoked(v); return; }
     st[k] = typeof st[k] === 'string' ? String(v || '') : !!v; emit('change');
@@ -78,7 +80,7 @@
   /** «Recht entzogen während der Wiedergabe»: takes the right away; the player shows the message, every other
       Live-TV address answers «Nicht gefunden». Off gives the right back. */
   function setRevoked(on) { st.revoked = !!on; st.profiles[st.profileId].liveTv = !on; emit('change'); }
-  const flags = () => ({ noEpg: st.noEpg, disturbed: st.disturbed, quotaFull: st.quotaFull, fault: st.fault, revoked: st.revoked, many: st.many, admStorage: st.admStorage, epgFail: st.epgFail });
+  const flags = () => ({ noEpg: st.noEpg, disturbed: st.disturbed, quotaFull: st.quotaFull, fault: st.fault, revoked: st.revoked, many: st.many, admStorage: st.admStorage, epgFail: st.epgFail, noContain: st.noContain, a12: st.a12 });
 
   /* ---------- channels ---------- */
   const allChannels = () => L.channels;
@@ -338,7 +340,13 @@
   function zap(dir) { const p = st.player; if (!p) return null; const l = p.list; const k = l.indexOf(p.ch); const n = l[(k + dir + l.length) % l.length]; tune(n, { list: l }); return n; }
   function lastChannel() { const p = st.player; if (p && p.prev) tune(p.prev); }
   function pause() { const p = st.player; if (!p || !rights().timeshift || p.paused) return; p.paused = true; p.pausedAt = now(); p.pausedOffset = p.offset; emit('change'); }
-  function resume() { const p = st.player; if (!p || !p.paused) return; p.paused = false; emit('change'); }
+  /* 14 4.7: a session that fetched nothing for 15 minutes (with timeshift: the maximum plus 15 minutes) has
+     ended; pressing play tunes in again and the client shows «… zu lange angehalten …» (event 'restarted') */
+  function resume() {
+    const p = st.player; if (!p || !p.paused) return;
+    if (now() - p.pausedAt >= L.timeshiftMaxMin + 15) { p.paused = false; p.offset = 0; p.pausedOffset = 0; p.joinedAt = now(); emit('restarted'); emit('change'); return; }
+    p.paused = false; emit('change');
+  }
   /** offset in minutes behind live; clamped to [0, max] */
   function seek(offset) { const p = st.player; if (!p || !rights().timeshift) return; p.offset = Math.max(0, Math.min(offset, maxShift())); if (p.paused) { p.pausedAt = now(); p.pausedOffset = p.offset; } emit('change'); }
   function toLive() { const p = st.player; if (!p) return; p.offset = 0; p.paused = false; emit('change'); }
