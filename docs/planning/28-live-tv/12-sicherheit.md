@@ -1,13 +1,17 @@
 # Konzept 28 · Sicherheitskonzept und Bedrohungsmodell
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 Dieses Dokument legt fest, wie Live-TV in Slouchcat sicher gebaut wird: welche Werte zu schützen sind, wer
 angreifen kann, auf welchem Weg, und mit welcher Regel jeder Weg geschlossen wird. Es beantwortet Auftrag
 Abschnitt 10 (`anhang/auftrag-2026-11-28.md`, Z. 1316–1406) Zeile für Zeile. Grundlage ist das unabhängige
 Sicherheits-Review (`anhang/reviews/review-1-sicherheit.md`, Befunde RS-01 bis RS-24, Massnahmen MS-01 bis
-MS-28) und die Fassung 2 von `04-architektur.md` und `05-streaming-und-fast-zapping.md` (Entscheide T-1 bis
-T-28). Alles hier ist **spezifiziert**, nichts ist gebaut. Wo eine Regel auf bestehendem Code beruht, steht
+MS-28), die Fassung 3 von `04-architektur.md` und `05-streaming-und-fast-zapping.md` (Entscheide T-1 bis
+T-29; massgebliche Werte in `04` Abschnitt 14), das Review des Datenmodells und der API
+(`anhang/reviews/review-2-datenmodell-api.md`, Befunde RD-06, RD-07, RD-08, RD-16) und die Nachprüfung an
+Primärquellen (`anhang/nachpruefung-quellen.md`, «Nachprüfung Nr. n»). Zahlen stehen massgeblich in `04`
+Abschnitt 14; nennt dieses Dokument eine Zahl, ist sie von dort übernommen oder als eigene Annahme
+gekennzeichnet. Alles hier ist **spezifiziert**, nichts ist gebaut. Wo eine Regel auf bestehendem Code beruht, steht
 **gebaut** mit Datei und Zeile (Stand Arbeitsbaum `claude/konzept-live-tv`, Server 1.44.1).
 
 ## Lesart
@@ -22,11 +26,13 @@ und `F-n` zählen in dieser Datei eigen; aus anderen Dateien werden sie mit der 
 **Einordnung jeder Regel:** **gebaut** (mit Datei:Zeile), **spezifiziert** (dieses Konzept legt fest),
 **Annahme** (Zahl oder Verhalten, das der Bau belegen muss), **offen** (O-n oder F-n), **zu messen** (M-n).
 
-**Stufen** nach `03-fachkonzept.md` (Lesart): 0 Regeln, 1 Sender schauen (HTTP, HLS, Xtream, M3U),
-2 Programmzeitschrift, 3 Empfang und Umschalten (dazu UDP, RTP, Multicast, Quellen im Heimnetz), 4 Timeshift,
-5 Aufnahmen, 6 Serien. Dazu zwei späte Stufen aus `04` T-3: **Stufe W** (Weg W: DASH und HLS mit fMP4, nur
-nach M-10) und **Stufe L** (RTSP und RTMP über Go-Bibliotheken, `04` F-1). «Pflicht vor Stufe n» heisst: Die
-Stufe wird nicht veröffentlicht, solange die Massnahme und ihr Testfall fehlen.
+**Stufen** nach dem Schnitt von `18-umsetzungsplan.md` (Abschnitt 4): **0** Regeln und Grundlagen, **1a**
+Sender schauen (HTTP, HLS, Xtream, M3U; nur öffentliche Ziele), **1b** Senderverwaltung erweitert, **2**
+Programmzeitschrift, **3** Empfang und Umschalten, **H** Quellen im Heimnetz, UDP, RTP und Multicast, **4**
+Timeshift, **5** Aufnahmen, **6** Serien und wiederkehrende Aufnahmen, **L** RTSP und RTMP, **W** DASH und HLS
+mit fMP4 (nur nach M-10), **E** Ergänzungen nach Messung. «Pflicht vor Stufe n» heisst: Die Stufe wird nicht
+veröffentlicht, solange die Massnahme und ihr Testfall fehlen. Die Dialer-Prüfung mit leerer Zielliste
+(«nur öffentlich») gehört zu 1a, die festen Ziele im Heimnetz zu H (`18` D-4).
 
 **Begriffe, einmal erklärt.** **SSRF** (serverseitige Anfragefälschung): Jemand bringt den Server dazu, eine
 Adresse abzurufen, die er selbst nicht erreicht, etwa den Router im Heimnetz. **DNS-Rebinding:** Ein Name zeigt
@@ -52,9 +58,9 @@ Was dort nicht steht, ist nicht erlaubt. Die Ausnahmen werden mit Stufe 0 in Reg
 
 | Nr. | Ausnahme | Genaue Grenze | Wer setzt sie | Wie sie sichtbar ist |
 |---|---|---|---|---|
-| **A-3** (präzisiert, `04` 10.9, O-24) | **Quellen im Heimnetz mit festen Zielen.** Eine Live-Quelle darf Adressen im Heimnetz erreichen. | Nur als **Liste fester Ziele je Quelle**: je Eintrag eine Adresse oder ein Netz von höchstens /24 (IPv4) oder /64 (IPv6) und ein Port oder Portbereich von höchstens 64 Ports (Annahme). Jede Verbindung der Quelle wird an der wirklich angewählten Adresse geprüft; ein Verweis (Sender, Unterliste, Segment, Schlüssel, Weiterleitung) ist erlaubt, wenn er **innerhalb** der Ziele liegt, sonst nicht. **Nie** freigebbar: Loopback, `0.0.0.0/8`, unspezifiziert, Link-Local mit den Metadaten-Adressen, eigene Adressen des Containers (im Netzmodus «host» die des Hosts), der Port des Weiterleiters. Logos, EPG-Bilder und `url-tvg` aus Listen nie. Radio, Podcasts und Bilder bleiben unverändert. | **nur der Administrator** (mit Hauptprofil, wie jede Verwaltungsoperation); Konten und Profile tragen keine Quellen ein | LA-02: Abzeichen «Heimnetz: n Ziele» je Quelle; LA-03: Abschnitt «Ziele im Heimnetz» mit den aufgelösten Adressen; LA-01: Zahl der Quellen mit Freigabe; Protokoll der Verwaltung je Änderung (SM-41) |
-| **A-9** (neu, `04` 10.6, F-11) | **Netzmodus «host» oder veröffentlichte UDP-Ports** für UDP, RTP und Multicast. | Nur über die Zusatzdateien `compose.live-udp.yaml` und `compose.live-hostnet.yaml` (oder ein eigenes Netz nach `04` F-11 (b)). Folgen im Wortlaut von `04` 10.6 Punkt 1 bis 4. Im Netzmodus «host» ist Weg W gesperrt und `netguard` verweigert zusätzlich alle Adressen der Schnittstellen des Hosts (SM-11). | **der Betreiber** des Docker-Hosts (wer die Compose-Dateien wählt), nicht die Verwaltung | Die Zusatzdatei setzt `SLOUCHCAT_NETWORK_MODE=host`; der Server prüft beim Start zusätzlich die Schnittstellen (O-4). LA-01 und die Systemseite zeigen dauerhaft «Netzmodus host: Sicherheitsfolgen» mit Link auf den Text. |
-| **ADR 0025, Weg W** (`04` T-4) | **FFmpeg liest selbst über HTTP**, aber nur vom Go-Weiterleiter. | Nur DASH und HLS mit fMP4 oder getrennter Tonspur; nur unverschlüsseltes HTTP an `127.0.0.1`; jede Adresse auf einen Ersatznamen umgeschrieben; kein Tunnel; nur mit der Sperre des Prozesses (SM-09); nur nach dem Beleg M-10; nie im Netzmodus «host». Ohne Sperre und ohne M-10 wird Weg W **nicht gebaut** (`04` F-13). | **Marco** entscheidet über den Bau (`04` F-13); im Betrieb wählt der Server Weg W je Quelle selbst, wenn die Sperre beim Start als wirksam geprüft ist | LA-03 Test: «Diese Quelle liest FFmpeg über den geschützten Weiterleiter»; LA-01: «FFmpeg-Sperre: aktiv / fehlt (DASH nicht verfügbar)» |
+| **A-3** (präzisiert, `04` 10.9, O-24; Stufe H) | **Quellen im Heimnetz mit festen Zielen.** Eine Live-Quelle darf Adressen im Heimnetz erreichen. Bis Stufe H gibt es keine Freigabe (nur öffentliche Ziele). | Nur als **Liste fester Ziele je Quelle**: je Eintrag eine Adresse oder ein Netz von höchstens /24 (IPv4) oder /64 (IPv6) und ein Port oder Portbereich von höchstens 64 Ports (Annahme). Jede Verbindung der Quelle wird an der wirklich angewählten Adresse geprüft; ein Verweis (Sender, Unterliste, Segment, Schlüssel, Weiterleitung) ist erlaubt, wenn er **innerhalb** der Ziele liegt, sonst nicht. **Nie** freigebbar: Loopback, `0.0.0.0/8`, unspezifiziert, Link-Local mit den Metadaten-Adressen, eigene Adressen des Containers (im Netzmodus «host» die des Hosts), der Port des Weiterleiters. Logos, EPG-Bilder und `url-tvg` aus Listen nie. Radio, Podcasts und Bilder bleiben unverändert. | **nur der Administrator** (mit Hauptprofil, wie jede Verwaltungsoperation); Konten und Profile tragen keine Quellen ein | LA-02: Abzeichen «Heimnetz: n Ziele» je Quelle; LA-03: Abschnitt «Ziele im Heimnetz» mit den aufgelösten Adressen; LA-01: Zahl der Quellen mit Freigabe; Protokoll der Verwaltung je Änderung (SM-41) |
+| **A-9** (neu, `04` 10.6, F-11; Stufe H) | **Netzmodus «host» oder veröffentlichte UDP-Ports** für UDP, RTP und Multicast. | Nur über die Zusatzdateien `compose.live-udp.yaml` und `compose.live-hostnet.yaml` (oder ein eigenes Netz nach `04` F-11 (b)). Folgen im Wortlaut von `04` 10.6 Punkt 1 bis 4. Im Netzmodus «host» ist Weg W gesperrt und `netguard` verweigert zusätzlich alle Adressen der Schnittstellen des Hosts (SM-11). | **der Betreiber** des Docker-Hosts (wer die Compose-Dateien wählt), nicht die Verwaltung | Die Zusatzdatei setzt `SLOUCHCAT_NETWORK_MODE=host`; der Server prüft beim Start zusätzlich die Schnittstellen (O-4). LA-01 und die Systemseite zeigen dauerhaft «Netzmodus host: Sicherheitsfolgen» mit Link auf den Text. |
+| **ADR 0025, Weg W** (`04` T-4) | **FFmpeg liest selbst über HTTP**, aber nur vom Go-Weiterleiter. | Nur DASH und HLS mit fMP4 oder getrennter Tonspur; nur unverschlüsseltes HTTP an `127.0.0.1`; jede Adresse auf einen Ersatzpfad des Weiterleiters umgeschrieben (`05` 2.6); kein Tunnel, keine Proxy-Einstellung; nur mit der hart gesetzten Sperre des Prozesses (SM-09); nur nach dem Beleg M-10; nie im Netzmodus «host». Ohne Sperre und ohne M-10 wird Weg W **nicht gebaut** (`04` F-13). | **Marco** entscheidet über den Bau (`04` F-13); im Betrieb wählt der Server Weg W je Quelle selbst, aber nur, wenn die Hülle die Sperre beim Start vollständig setzen kann | LA-03 Test: «Diese Quelle liest FFmpeg über den geschützten Weiterleiter»; LA-01: «FFmpeg-Sperre: aktiv» oder «Eindämmung nicht verfügbar (DASH nicht verfügbar)» |
 | **A-6** (`02`, E-3; `04` F-10) | **Hauptprofil sieht, löscht und spielt Aufnahmen seiner Profile mit Altersgrenze.** | Nur das Hauptprofil **desselben** Kontos, nur Aufnahmen von Profilen mit Altersgrenze, Abspielen nur mit bei ihm wirksamem «Live-TV» (`03` DR-03). Profile ohne Altersgrenze bleiben ganz privat. Ob auch Aufnahmen zählen, die **vor** dem Setzen der Grenze entstanden sind, ist `04` F-10 (Empfehlung dort: nein). Die Zugriffsregel ist **eine** Abfrage in `liveq` (SM-37). | **Marco** (E-3); im Betrieb folgt sie aus der Altersgrenze, die das Hauptprofil setzt | Hauptprofil: Bereich «Aufnahmen meiner Profile» (`03` DR-02); Profil mit Altersgrenze: Hinweis in «Meine Aufnahmen» «Dein Hauptprofil kann diese Aufnahmen sehen» (Empfehlung für `14`) |
 | **A-2, A-5** (LTV-015) | **Live-TV ohne Altersprüfung.** | Nur Live-TV, Programmdaten und Aufnahmen von Fernsehsendern. Filme, Serien, Hörbücher, Podcasts und alle anderen altersgefilterten Bibliotheken bleiben unverändert; Live-Antworten tragen keine `ItemRef` (A-8). Der Deckel des Administrators je Konto bleibt verbindlich. | **Hauptprofil** je Profil (innerhalb des Deckels), **Administrator** je Konto (Deckel) | Profilverwaltung: Schalter «Live-TV» mit Satz «Live-TV hat keine Altersprüfung. Das Profil sieht alle Sender des Kontos.» (Empfehlung für `14`); ab Werk aus für Profile mit Altersgrenze (`03` DR-01) |
 
@@ -105,7 +111,7 @@ Profil gewählten Frist oder «behalte N»), A-7 (eigene, schreibbare Speicheror
 | AK-9 | **Gast oder Gerät im Heimnetz** | erreicht Port 8096, UDP-Ports und Multicast; kann Absender fälschen | Pakete in UDP-Sender einschleusen, fluten, mitlesen |
 | AK-10 | **Administrator mit Fehlbedienung** | trägt Quellen ein, gibt Ziele frei, wählt Netzmodus und Speicherorte | ungewollte Öffnung des Heimnetzes, volle Platte, Lecks in Bildschirmfotos |
 | AK-11 | **Angreifer mit erbeutetem Token `lt`** oder erbeuteter Sitzung | Adresse aus Browserverlauf, Proxy-Protokoll, Bildschirmfoto | fremd fernsehen, Plätze belegen, Prozesse auslösen |
-| AK-12 | **Benutzer auf dem Docker-Host** | `ps`, `/proc`, Loopback des Hosts | Argumentlisten und Ersatznamen lesen, Dienste auf Loopback erreichen |
+| AK-12 | **Benutzer auf dem Docker-Host** | `ps`, `/proc`, Loopback des Hosts | Argumentlisten und Ersatzpfade lesen, Dienste auf Loopback erreichen |
 | AK-13 | **Fremde Webseite** im Browser eines angemeldeten Benutzers | Formulare und Bilder auf Slouchcat-Adressen | CSRF auf schreibende Live-Operationen |
 
 ### 2.3 Vertrauensgrenzen
@@ -170,7 +176,7 @@ flowchart LR
   DIAL --> PARS
   PARS --> LIVE
   LIVE -- "VG-3 Pipes, feste Argumente" --> FF
-  FWD -- "VG-3 HTTP mit Ersatznamen" --> FFW
+  FWD -- "VG-3 HTTP über Ersatzpfade" --> FFW
   DIAL --> FWD
   FFW -- "VG-3 TS auf pipe:1" --> PARS
   CLI -- "VG-4 Cookie, Bearer, lt" --> API
@@ -194,7 +200,7 @@ nach Schaden × Ausnutzbarkeit: hoch, mittel, niedrig. Gegliedert nach den sechs
 | Nr. | Bedrohung | Akteur | Angriffsweg | Schutzgut | Risiko ohne | Massnahme | Restrisiko |
 |---|---|---|---|---|---|---|---|
 | BD-01 | Eine Senderliste nennt als «Sender» den Router, und der Server ruft ihn auf. | AK-1 | Sender-, Listen-, Segment- oder Schlüsseladresse einer öffentlichen Quelle | SG-1 | hoch | SM-01, SM-02, SM-03 | niedrig |
-| BD-02 | Eine Quelle mit Heimnetz-Freigabe schickt den Server über ihre Liste an beliebige Geräte im Heimnetz. | AK-1, AK-9, AK-10 | Sender oder Verweise einer freigegebenen Quelle ausserhalb des freigegebenen Geräts | SG-1 | hoch | SM-01, SM-06, SM-41 | niedrig (R-6: das freigegebene Gerät selbst bleibt erreichbar) |
+| BD-02 | Eine Quelle mit Heimnetz-Freigabe schickt den Server über ihre Liste an beliebige Geräte im Heimnetz. | AK-1, AK-9, AK-10 | Sender oder Verweise einer freigegebenen Quelle ausserhalb des freigegebenen Geräts | SG-1 | hoch | SM-01, SM-06, SM-41, SM-47 | niedrig (R-6: das freigegebene Gerät selbst bleibt erreichbar) |
 | BD-03 | Eine Weiterleitung führt vom Anbieter auf eine Adresse im Heimnetz oder auf unverschlüsseltes HTTP. | AK-1, AK-2 | Antwort 3xx | SG-1, SG-2 | hoch | SM-04 | niedrig |
 | BD-04 | Ein Name zeigt bei der Prüfung nach aussen und beim Verbinden ins Heimnetz. | AK-1, AK-2 | DNS-Rebinding, Name mit öffentlicher und privater Adresse | SG-1 | hoch | SM-05 | niedrig |
 | BD-05 | Eine IPv6- oder eingebettete Adresse rutscht durch den Filter. | AK-1, AK-2 | NAT64, Teredo, IPv4-übersetzte Form, weltweite IPv6 im Heimnetz | SG-1 | mittel | SM-03, SM-11 | niedrig (R-4: weltweite IPv6 und eigene WAN-Adresse) |
@@ -215,7 +221,7 @@ nach Schaden × Ausnutzbarkeit: hoch, mittel, niedrig. Gegliedert nach den sechs
 | BD-15 | Passwörter und Token der Anbieter stehen lesbar in der Datenbank und in jeder Sicherung. | Dritte mit Kopie, AK-10 | Klartext in Spalten, Sicherung ohne Geheimnisse, `VACUUM INTO` | SG-2 | hoch | SM-14, SM-18 | niedrig |
 | BD-16 | Ein gekaperter Listen-Host trägt einen Sender auf seinem eigenen Host ein und erntet die Kopfzeilen und Passwörter der Quelle. | AK-1 | Kopfzeilen und Anmeldung an jeden Host der Liste | SG-2 | hoch | SM-15 | niedrig |
 | BD-17 | Die Xtream-Antwort nennt einen anderen Server, und der Server schickt Benutzer und Passwort im Pfad dorthin. | AK-1 | `server_info.url`, `server_info.port` | SG-2 | hoch | SM-20 | niedrig |
-| BD-18 | Eine Senderliste setzt eigene Kopfzeilen wie `Authorization` oder `X-Forwarded-For` für Anfragen ins Heimnetz. | AK-1 | `#EXTVLCOPT`, `#EXTHTTP`, Anhang `|…` | SG-1, SG-2 | mittel | SM-15 | niedrig |
+| BD-18 | Eine Senderliste setzt eigene Kopfzeilen wie `Authorization` oder `X-Forwarded-For` für Anfragen ins Heimnetz. | AK-1 | `#EXTVLCOPT`, `#EXTHTTP`, Anhang `\|…` | SG-1, SG-2 | mittel | SM-15 | niedrig |
 | BD-19 | Zugangsdaten landen im Protokoll, im Fehlerring der Verwaltung oder im kopierten Diagnosetext. | AK-10, Dritte mit Protokoll | Adresse im Fehlertext, `slog.Any`, Kopfzeilen als Wert | SG-2 | hoch | SM-17 | niedrig |
 | BD-20 | Die Verwaltung zeigt Adressen oder Kopfzeilen im Klartext, die dann in Bildschirmfotos stehen. | AK-10 | API-Antwort, Maskierung nach Namen | SG-2 | mittel | SM-16 | niedrig |
 | BD-21 | Zugangsdaten erscheinen in der Prozessliste, in der Umgebung oder in `ffmpeg.log`. | AK-12 | `/proc/<pid>/cmdline`, `/proc/<pid>/environ`, Datei | SG-2, SG-3 | hoch | SM-19, SM-22 | niedrig |
@@ -235,7 +241,7 @@ nach Schaden × Ausnutzbarkeit: hoch, mittel, niedrig. Gegliedert nach den sechs
 
 | Nr. | Bedrohung | Akteur | Angriffsweg | Schutzgut | Risiko ohne | Massnahme | Restrisiko |
 |---|---|---|---|---|---|---|---|
-| BD-28 | Eine XMLTV-Datei lädt über eine Entität fremde Dateien nach oder bläht sich auf. | AK-3 | `<!DOCTYPE>`, `<!ENTITY>`, «Billion Laughs» | SG-3, SG-5 | mittel | SM-28 | niedrig |
+| BD-28 | Eine XMLTV-Datei lädt über eine Entität fremde Dateien nach, bläht sich auf oder verschachtelt sich so tief, dass der Speicher wächst. | AK-3 | `<!DOCTYPE>`, `<!ENTITY>`, «Billion Laughs», tiefe Verschachtelung beim Lesen mit `Token()` | SG-3, SG-5 | mittel | SM-28 | niedrig |
 | BD-29 | Eine gepackte Datei entpackt sich zu vielen Gigabyte. | AK-3, AK-1 | gzip-, zip-, bzip2-Bombe, Transport-gzip | SG-5 | hoch | SM-29 | niedrig |
 | BD-30 | Ein einziges riesiges Element oder eine riesige Zeile füllt den Speicher, bevor eine Grenze greift. | AK-1, AK-3 | 2 GB in einem `<desc>`, M3U ohne Zeilenumbruch | SG-5 | hoch | SM-27, SM-28 | niedrig |
 | BD-31 | Eine kaputte oder riesige Senderliste hält den Import und den einzigen Datenbankschreiber auf. | AK-1, AK-10 | 10 GB, eine Million Einträge, ungültiges UTF-8, tiefes JSON | SG-5 | hoch | SM-27 | niedrig |
@@ -264,8 +270,11 @@ nach Schaden × Ausnutzbarkeit: hoch, mittel, niedrig. Gegliedert nach den sechs
 | BD-44 | Unterschiedliche Fehlerantworten oder fortlaufende Kennungen verraten, was es gibt. | AK-5, AK-6 | 401 gegen 404, Antwortzeit, Kennungen zählen | SG-4 | niedrig | SM-35, SM-37, SM-38 | niedrig |
 | BD-45 | Eine fremde Webseite stellt im Browser des Opfers um, löscht Aufnahmen oder plant welche. | AK-13 | CSRF | SG-4 | mittel | SM-40 | niedrig |
 | BD-46 | Schnelles Umschalten, Quellentests oder Importe belegen alle Eingänge und Anbieterverbindungen. | AK-5 mit Recht, AK-11, AK-10 | Drosselung fehlt, Konto ohne Stream-Grenze | SG-5, SG-2 | hoch | SM-39, SM-24 | niedrig |
-| BD-47 | Der Administrator sieht Titel privater Aufnahmen oder externe Meldungen verraten sie. | AK-10, Dritte am Postfach | Verwaltung, E-Mail, Push | SG-4 | mittel | SM-42 | niedrig |
+| BD-47 | Der Administrator sieht Titel privater Aufnahmen oder externe Meldungen verraten sie. | AK-10, Dritte am Postfach | Verwaltung, E-Mail, Push | SG-4 | mittel | SM-42, SM-45, SM-46 | niedrig |
 | BD-48 | Freigaben und Quellen werden ohne Spur geändert. | AK-10 | Verwaltung | SG-8, SG-1 | mittel | SM-41 | niedrig |
+| BD-49 | Die Verwaltung zeigt, welches Konto gerade welchen Sender aufnimmt, und das öffentliche Programm verrät damit den Titel. | AK-10 | Abnehmerliste eines Eingangs (`08` 3.9, `15` LA-12) | SG-4 | hoch | SM-45 | niedrig |
+| BD-50 | Die Meldung «Kontingent voll» an das Hauptprofil nennt den Titel einer Aufnahme eines erwachsenen Profils. | AK-7 | Glocke, E-Mail, Push | SG-4 | hoch | SM-46 | niedrig |
+| BD-51 | Ein aus Sicherheitsgründen deaktivierter Sender läuft für laufende Zuschauer weiter. | AK-9, AK-1 | `04` T-29 | SG-7 | mittel | SM-36, SM-47 (Befehl «sofort beenden», Text) | niedrig |
 
 ---
 
@@ -311,17 +320,26 @@ sonst eine offene Verbindung zu einem freigegebenen Gerät ohne Prüfung (RS-11)
 genau diesem Grund zwei Transporte (`netguard.go:93-111`). EPG-Quellen und Logos haben eigene Transporte ohne
 Freigabe.
 
+**Laufende Verbindungen bei einer engeren Regel (spezifiziert, ab H).** `CloseIdleConnections` schliesst nur
+ruhende Verbindungen. Entzieht der Administrator ein festes Ziel oder einen Ursprung, beendet der Server darum
+auch die **laufenden** Verbindungen der Quelle, die nach der neuen Regel nicht mehr erlaubt wären; der Dialog
+nennt vorher die Zahl der betroffenen Zuschauer und Aufnahmen und verlangt eine Bestätigung (wie «sofort
+beenden» in `04` T-29). Eine Aufnahme bekommt dabei eine Lücke und verbindet über eine erlaubte Ersatzquelle
+weiter, wenn es eine gibt. Das ist kein Widerspruch zu T-29: Dort wird ein **Sender** deaktiviert, hier wird
+ein **Netzziel** als nicht mehr vertrauenswürdig erklärt. `04` 10.9 sagt dazu nichts (in der Schlussmeldung
+genannt).
+
 ### 4.3 SSRF je Adressart
 
 | Adressart | Wer bestimmt sie | Regel (spezifiziert) | Stufe |
 |---|---|---|---|
-| **M3U-Adresse** einer Quelle | Administrator | Dialer der Quelle; feste Ziele nur, wenn der Administrator sie freigegeben hat | 1 |
-| **Stream-Adresse** eines Senders aus einer Liste | Listen-Host (AK-1) | Dialer derselben Quelle; erbt die Freigabe nur, wenn das Ziel in den festen Zielen liegt (4.5) | 1 |
-| **Xtream-Schnittstelle und Stream-Adressen** | Administrator (Host), Anbieter (Kennungen) | Adresse baut der Server im Speicher **nur** aus dem eingetragenen Host (SM-20) | 1 |
-| **Playlist, Unterliste, Segment, Schlüssel** (HLS) | Stream-Host (AK-2) | je eine eigene Anfrage über den Dialer der Quelle; Grenzen 4.7 | 1 |
-| **EPG-Adresse** einer EPG-Quelle | Administrator | eigener Dialer der EPG-Quelle; Heimnetz nur mit festen Zielen, wenn `09` F-4 es zulässt (O-9) | 2 |
+| **M3U-Adresse** einer Quelle | Administrator | Dialer der Quelle; in 1a nur öffentliche Ziele, ab H feste Ziele, wenn der Administrator sie freigegeben hat | 1a, H |
+| **Stream-Adresse** eines Senders aus einer Liste | Listen-Host (AK-1) | Dialer derselben Quelle; erbt eine Freigabe (ab H) nur, wenn das Ziel in den festen Zielen liegt (4.5) | 1a, H |
+| **Xtream-Schnittstelle und Stream-Adressen** | Administrator (Host), Anbieter (Kennungen) | Adresse baut der Server im Speicher **nur** aus dem eingetragenen Host (SM-20) | 1a |
+| **Playlist, Unterliste, Segment, Schlüssel** (HLS) | Stream-Host (AK-2) | je eine eigene Anfrage über den Dialer der Quelle; Grenzen 4.7 | 1a |
+| **EPG-Adresse** einer EPG-Quelle | Administrator | eigener Dialer der EPG-Quelle; in 2 nur öffentlich; Heimnetz nur mit festen Zielen ab H, wenn `09` F-4 es zulässt (O-9) | 2, H |
 | **`url-tvg`** aus einer M3U | Listen-Host | nur als Vorschlag, nie still abgerufen; nach Bestätigung **immer nur öffentlich** (gebaut als Muster `FeedOriginFile`, `netguard.go:113-116`; `09` 2.1) | 2 |
-| **Logo** (`tvg-logo`, Xtream `stream_icon`) | Listen-Host | nur öffentlich, nie über eine Freigabe (4.9) | 1 |
+| **Logo** (`tvg-logo`, Xtream `stream_icon`) | Listen-Host | nur öffentlich, nie über eine Freigabe (4.9) | 1a |
 | **EPG-Bild** (`<icon src>`) | EPG-Host | nur öffentlich (4.9) | 2 |
 | **DASH- und fMP4-Manifeste** | Stream-Host | nur Stufe W über den Weiterleiter (4.8) | W |
 | **RTSP, RTMP** | Administrator (Adresse), Server (Datenkanal) | nur über den übergebenen Dialer der Quelle (SM-12) | L |
@@ -358,7 +376,11 @@ Restlücken (R-4): eine weltweite IPv6-Adresse eines Geräts im Heimnetz ist von
 unterscheiden (`netguard.go:44-47`), und die öffentliche Adresse des eigenen Anschlusses gilt als öffentlich
 (manche Router zeigen ihre Verwaltung auch dort).
 
-### 4.5 Freigabe lokaler Ziele (SM-01, SM-06)
+### 4.5 Freigabe lokaler Ziele (SM-01, SM-06; Stufe H)
+
+In Stufe 1a gibt es keine Freigabe: Jede Quelle hat eine leere Zielliste, jede lokale Adresse wird abgelehnt,
+und Sender aus Listen mit lokalem Ziel werden als «Ziel im Heimnetz nicht freigegeben» markiert. Die Liste
+fester Ziele, ihre Bestätigung und der Sammelhinweis kommen mit Stufe H (`18` 4.6, D-4).
 
 | Punkt | Regel (spezifiziert) |
 |---|---|
@@ -404,7 +426,7 @@ gerade angewählt wird.
 | Takt | Nachladen frühestens nach max(1 s, halbe Zieldauer); Zieldauer 1 bis 60 s, sonst Abbruch | Annahme (`05` 2.3) |
 | Ketten | höchstens 32 Varianten; Unterlisten höchstens 3 Ebenen; Kreis (eine schon besuchte Adresse) bricht ab | Annahme |
 | Sprünge | Sprung der Folgenummer um mehr als 10 Segmente: Neustart am Ende (gebaut als Muster, `hlssrc.go:29-31`) | spezifiziert |
-| Schlüssel | nur `http`/`https`; `skd://`, `data:` und andere Formate als `identity` führen zu «DRM» (`05` 2.5); ein Schlüssel wird nie gespeichert und nie protokolliert. | spezifiziert |
+| Schlüssel | nur `http`/`https`; `skd://`, `data:` und andere Formate als `identity` führen zu «DRM» (`05` 2.5); ein Schlüssel wird nie gespeichert und nie protokolliert. | spezifiziert; die Einordnung der Verschlüsselungsarten nach der HLS-Spezifikation ist **Annahme** (an der Quelle nicht nachgelesen, `05` 2.5) |
 | Nach 3 Segmentfehlern in Folge | Abbruch und Wiederverbindung nach `04` 5.3 | spezifiziert (`05` 2.2) |
 
 ### 4.8 DASH und HLS mit fMP4: Weg W (SM-08, SM-09; nur Stufe W)
@@ -413,29 +435,40 @@ Die Regeln stehen in `05` 2.6 und gelten hier wörtlich. Ergänzend und präzisi
 
 | Punkt | Regel |
 |---|---|
-| Wie FFmpeg den Weiterleiter erreicht | ausdrücklich über die Option für einen HTTP-Proxy `http://127.0.0.1:<Port>`, **ohne** Kennwort; jede Adresse im Manifest trägt einen Ersatznamen unter `.src.slouchcat.invalid` (`05` 2.6). Ein Codepfad von FFmpeg, der den Proxy nicht beachtet, scheitert dann an der Namensauflösung (`.invalid` ist nie auflösbar) und fällt nach «zu» aus, nicht nach «offen». `05` 2.6 nennt die Proxy-Angabe nicht (O-5). |
-| Protokoll-Liste | `-protocol_whitelist http,tcp`, Eingang `-f hls` oder `-f dash` (`05` 2.6; `04` 13.3 zu `tcp`). |
-| Ersatznamen | zufällig, mindestens 128 Bit, je Empfänger und Host; der Weiterleiter nimmt nur Namen an, die er diesem Empfänger vergeben hat, und ruft dafür nur Adressen dieser Quelle über deren Dialer ab. |
-| Kein Tunnel | `CONNECT` beantwortet der Weiterleiter mit 403. |
+| Wie FFmpeg den Weiterleiter erreicht | über **Ersatzpfade**, die direkt auf den Weiterleiter zeigen: `http://127.0.0.1:<Port>/<Zufall>/…` (`05` 2.6, `04` T-4). Es gibt keine Proxy-Einstellung; FFmpeg sieht keinen echten Host. Die Umgebung der Hülle enthält weder `http_proxy` noch `no_proxy` (FFmpeg liest beide selbst, belegt, Nachprüfung Nr. 25). Fassung 1 dieses Dokuments schlug eine Proxy-Option vor (O-5); `04` hat sich für den Ersatzpfad entschieden, der nicht davon abhängt, dass FFmpeg eine Proxy-Angabe in jeder Unteranfrage beachtet. |
+| Protokoll-Liste | `-protocol_whitelist http,tcp`, Eingang `-f hls` oder `-f dash`; `tcp` ist als untere Schicht von `http` nötig (belegt, Nachprüfung Nr. 24); der HLS-Leser nimmt in Listen nur `http`, `https`, `file`, `data` an, mit der Liste bleibt `http` (belegt für 7.1.4, Nachprüfung Nr. 27). |
+| Ersatzpfade | zufällig, mindestens 128 Bit, je Empfänger und Host; der Weiterleiter beantwortet nur Pfade, die er diesem Empfänger vergeben hat (sonst 404), und ruft dafür nur Adressen dieser Quelle über deren Dialer ab. Ein Ersatzpfad ist kein Geheimnis des Anbieters; er stirbt mit dem Empfänger. |
+| Kein Tunnel | `CONNECT` und jede Anfrage in Proxy-Form beantwortet der Weiterleiter mit 403. |
 | DASH vorab in Go | Go liest jedes MPD mit `encoding/xml`, wendet die DRM-Regel an (jede `ContentProtection` führt zur Ablehnung) und verwirft jedes Dokument mit `<!DOCTYPE` oder `<!ENTITY`, bevor der XML-Leser von FFmpeg es sieht. Grenzen wie XMLTV-Element (Tabelle 7.4, MPD-Zeile). |
 | Netzmodus «host» | Weg W gesperrt (SM-11). |
-| Beleg | M-10 als feindliche Testmenge mit Mitschrift aller `connect()`- und `sendto()`-Aufrufe des Prozesses. |
+| Beleg | M-10 als feindliche Testmenge mit Mitschrift aller `connect()`- und `sendto()`-Aufrufe des Prozesses; bestanden schon **ohne** Sperre (`05` 2.6: die Sperre ist die zweite Sicherung). |
 
 **Sperre des Prozesses (SM-09), präzisiert.** Landlock (eine Sicherheitsfunktion des Linux-Kernels, die ein
-Prozess sich selbst auferlegt und nicht mehr lösen kann) regelt in der Netzfassung (Linux ab 6.7) nach unserem
-Wissen nur **TCP** und nur nach **Port**, nicht nach Adresse (Annahme, im Bau mit M-25 zu belegen). Daraus folgt:
+Prozess sich selbst auferlegt und nicht mehr lösen kann) regelt in seiner Netzfassung (ABI 4) TCP-Verbindungen
+nur nach **Port**, nicht nach Adresse (belegt, Nachprüfung Nr. 34, Kerneldoku). UDP regelt Landlock erst ab ABI 10
+(`BIND_UDP`, `CONNECT_SEND_UDP`; belegt ebenda, in `go-landlock` ab v0.10.0, Nachprüfung Nr. 35). Dateiregeln
+gibt es ab ABI 1; dass das Linux 5.13 ist, belegt die README von `go-landlock`; die Kernelfassung für ABI 4 (in
+`04` «6.7») und für ABI 10 ist **nicht nachgelesen**. Daraus folgt:
 
 1. Landlock erlaubt TCP-Verbindungen nur zum Port `P` des Weiterleiters, aber zu **jeder** Adresse mit diesem Port.
    Der Weiterleiter wählt `P` darum zufällig beim Start, und `P` steht in keinem Manifest.
-2. UDP und rohe Sockets regelt Landlock nicht. Die Hülle setzt deshalb zusätzlich einen Seccomp-Filter (eine
-   Liste erlaubter Systemaufrufe), der `socket()` nur für `AF_INET`/`AF_INET6` mit `SOCK_STREAM` und für
-   `AF_UNIX` zulässt (Annahme: FFmpeg braucht für HTTP nichts anderes; M-10 belegt es).
+2. **UDP:** Hat der Kernel ABI 10 oder höher, verbietet Landlock UDP (keine `CONNECT_SEND_UDP`- und keine
+   `BIND_UDP`-Regel). **Immer zusätzlich**, auch mit ABI 10, setzt die Hülle einen Seccomp-Filter (eine Liste
+   erlaubter Systemaufrufe), der `socket()` nur für `AF_INET`/`AF_INET6` mit `SOCK_STREAM` und Protokoll 0 oder
+   TCP sowie für `AF_UNIX` zulässt. Er verbietet damit UDP auf älteren Kernen, rohe Sockets, SCTP und
+   Multipath-TCP (das Landlock nach der Doku von `go-landlock` nicht einschränkt, Nachprüfung Nr. 35).
+   Annahme: FFmpeg braucht für HTTP nichts anderes; M-10 belegt es.
 3. Dateiregeln: Lesen nur Programm, Bibliotheken, `/dev/dri` und was die Hardware braucht; kein `/config`,
-   kein `/cache` ausser dem eigenen Arbeitsordner, kein `/proc` anderer Prozesse (sonst liest ein gekaperter
-   FFmpeg die Ersatznamen anderer Empfänger aus deren Argumentliste).
-4. **Restrisiko (R-3):** Ein FFmpeg mit eingeschleustem Code kann eine TCP-Verbindung zu einem Rechner des
+   kein `/cache` ausser dem eigenen Arbeitsordner, kein `/media`, kein `/proc` anderer Prozesse (sonst liest ein
+   gekaperter FFmpeg die Ersatzpfade anderer Empfänger aus deren Argumentliste); Schreiben nirgends.
+4. **Hart gesetzt, nie «so gut es geht».** Die Hülle fragt die ABI-Fassung des Kernels ab, setzt den
+   vollständigen Regelsatz und prüft das Ergebnis. Fehlt ein Teil (Dateien, TCP, UDP über Landlock oder Seccomp),
+   startet der FFmpeg-Empfänger von Weg W **nicht** (`04` T-4). Die Betriebsart `BestEffort()` von
+   `go-landlock` wird **nirgends** verwendet: Sie fällt ohne Kernel-Unterstützung still auf «keine Beschränkung»
+   zurück (belegt, Nachprüfung Nr. 35). Ein Lint (`forbidigo`) verbietet den Aufruf.
+5. **Restrisiko (R-3):** Ein FFmpeg mit eingeschleustem Code kann eine TCP-Verbindung zu einem Rechner des
    Angreifers auf Port `P` öffnen. Er hat dann aber weder `secret.key` noch die Datenbank, nur den Strom und die
-   Ersatznamen seiner eigenen Quelle.
+   Ersatzpfade seiner eigenen Quelle.
 
 ### 4.9 Logos und EPG-Bilder nur über den Server (SM-13)
 
@@ -449,7 +482,7 @@ Wissen nur **TCP** und nur nach **Port**, nicht nach Adresse (Annahme, im Bau mi
 | Ablage | unter `<cache>/images/live/…/<Prüfsumme>/`, Name nur aus der Prüfsumme, Obergrenze 2 GiB (Annahme, `09` 9) | spezifiziert |
 | Zugriff | Logo- und Bildrouten antworten ohne wirksames Recht 404 (SM-38). Der Service Worker darf Logos zwischenspeichern (sie sind nicht privat), Listen und Segmente bleiben `NetworkOnly` (gebaut: `web/vite.config.ts:123-160`, laut V1 L-3). | spezifiziert |
 
-### 4.10 UDP, RTP und Multicast (SM-10; Stufe 3)
+### 4.10 UDP, RTP und Multicast (SM-10; Stufe H)
 
 | Frage | Regel (spezifiziert) |
 |---|---|
@@ -492,7 +525,7 @@ Fassung `v1:` (`:121`, `:136`). Zweckschlüssel leitet `Derive` per HKDF ab (`:1
 | Entschlüsseln | nur in `live/catalog`, kurz vor dem Verbinden, nur im Speicher; nie in eine Struktur, die protokolliert oder an die API gegeben wird (Typ ohne `String()`, der den Wert zeigt; Bau: eigener Typ `secretURL` mit `LogValue()` = `site`). |
 | Schlüssel | derselbe `secret.key`; kein eigener Schlüssel für Live-TV. Das Token `lt` nutzt `Derive("live-token")`, also einen unabhängigen Zweckschlüssel. |
 | `VACUUM INTO` | Die Kopien vor jeder Migration (gebaut, `server/internal/store/migrate.go:110-121`; `CLAUDE.md` Regel 5) liegen neben der Datenbank in `/config` und enthalten die Chiffrate; im Klartext nur `site`. |
-| Sicherung ohne Geheimnisse | **Gebaut** ist: Die Kopie löscht mit `secure_delete` alle `v1:`-Einstellungen, Push-Abos, Telegram-Codes und Sitzungen (`server/internal/admin/backup.go:338-353`); private Podcast-Adressen bleiben dagegen im Klartext (`backup.go:88-91`). Für Live-TV: Die Kopie leert zusätzlich alle verschlüsselten Live-Spalten (`NULL`, mit `secure_delete`), damit eine «Sicherung ohne Geheimnisse» wörtlich keine enthält. Nach einer Wiederherstellung zeigen die Quellen «Zugang fehlt, bitte neu eingeben». Alternative und Entscheid: F-4. |
+| Sicherung ohne Geheimnisse | **Gebaut** ist: Die Kopie löscht mit `secure_delete` alle `v1:`-Einstellungen, Push-Abos, Telegram-Codes und Sitzungen (`server/internal/admin/backup.go:338-353`); private Podcast-Adressen bleiben dagegen im Klartext (`backup.go:88-91`). Für Live-TV (Vorgabe nach F-4 (a)): Die Kopie überschreibt mit `secure_delete` jeden verschlüsselten Live-Wert mit dem **Platzhalter `v0:`** («Zugang fehlt»), nicht mit `NULL`. So bleiben alle CHECK-Regeln aus `07` gültig (etwa `url_enc GLOB 'v[0-9]*:*'`, Pflichtspalten für Xtream-Benutzer und Kopfzeilen-Werte), und die Kopie enthält weder Klartext noch Chiffrat (RD-08). Der Dienst erkennt `v0:` und zeigt je Quelle «Zugang neu eingeben»; ein `v0:`-Wert wird nie an eine Quelle geschickt. Die Klartextspalten `site`, Namen der Kopfzeilen und der Fingerabdruck `url_fp` (HMAC, `07`) bleiben. `07` 6.3 beschreibt heute noch die Sicherung mit Chiffraten und ist nach dem Entscheid zu F-4 anzugleichen. |
 | Sicherung mit Geheimnissen | ganz verschlüsselt mit Passphrase (gebaut: age mit scrypt, `backup.go:33-41`); unverändert. |
 
 ### 5.2 Adressen mit eingebetteten Zugangsdaten und Kopfzeilen (SM-15, SM-16)
@@ -502,7 +535,7 @@ Fassung `v1:` (`:121`, `:136`). Zweckschlüssel leitet `Derive` per HKDF ab (`:1
 | Erkennung | entfällt: Weil **jede** Adresse geheim ist, braucht es keine Erkennung nach Muster (die bei unbekannten Namen und Xtream-Pfaden versagt, RS-05). |
 | `benutzer:passwort@` | wird beim Anlegen in Benutzer und Passwort zerlegt und ohne Benutzerteil gespeichert; Go setzt daraus sonst selbst einen `Authorization`-Kopf, auch nach Weiterleitungen. |
 | Feste Ursprünge | Zugangsdaten und Kopfzeilen einer Quelle hängen an einer festen Menge von Ursprüngen (Schema, Host, Port). Ab Werk nur der Ursprung der eingetragenen Adresse. Der Administrator kann weitere hinzufügen; die Verwaltung schlägt die Hosts der importierten Sender vor (je Host mit Zahl der Sender), übernimmt aber nichts von selbst. Jede Anfrage an einen anderen Ursprung bekommt nur `User-Agent` und `Accept`. |
-| Kopfzeilen aus Listen | Aus `#EXTVLCOPT`, `#EXTHTTP` und dem Anhang `|…` übernimmt der Import nur `User-Agent` und `Referer`, je höchstens 256 Zeichen, ohne Steuerzeichen; alles andere (`Authorization`, `Cookie`, `Host`, `X-Forwarded-*`, `Proxy-*`, alle übrigen) wird verworfen und gezählt (`04` 10.5). |
+| Kopfzeilen aus Listen | Aus `#EXTVLCOPT`, `#EXTHTTP` und dem Anhang `\|…` übernimmt der Import nur `User-Agent` und `Referer`, je höchstens 256 Zeichen, ohne Steuerzeichen; alles andere (`Authorization`, `Cookie`, `Host`, `X-Forwarded-*`, `Proxy-*`, alle übrigen) wird verworfen und gezählt (`04` 10.5). |
 | Verbotene Kopfzeilen auch für den Administrator | `Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Proxy-*`, `X-Forwarded-*`, `Forwarded` (Annahme); Namen nach RFC-Zeichensatz, Werte ohne CR, LF und NUL, je Wert höchstens 4 KiB, höchstens 16 Kopfzeilen je Quelle. |
 | Anmeldung an Quellen | nur vom Server aus (LTV-Q-10.21); kein Client sieht je eine Anbieter-Adresse oder ein Passwort. |
 
@@ -512,7 +545,7 @@ Fassung `v1:` (`:121`, `:136`). Zweckschlüssel leitet `Derive` per HKDF ab (`:1
 |---|---|---|
 | **Protokoll** | Live-TV protokolliert von einer Adresse **nur** `netguard.Site(u)`. Ein Lint (`forbidigo`) verbietet im Paket `live/**` und in `transcode/live.go` Adressen als `slog.String`, `slog.Any` oder im Text der Meldung. Die Schwärzung (5.4) ist die zweite Linie, nicht die erste. | spezifiziert |
 | **Fehlerring der Verwaltung** | sitzt hinter der Schwärzung (gebaut, `server/internal/logging/errors.go:17-28`, `:55`); jede Ergänzung in 5.4 wirkt dort mit. | gebaut |
-| **Argumentlisten** | Weg G und L: kein Prozess. Umwandlung und Probe: nur `pipe:0`/`pipe:1`. Weg W: nur der Ersatzname und die Proxy-Adresse ohne Kennwort. Nie eine Anbieter-Adresse, ein Passwort oder eine Kopfzeile in `/proc/<pid>/cmdline`. | spezifiziert (`05` 2.4) |
+| **Argumentlisten** | Weg G und L: kein Prozess. Umwandlung und Probe: nur `pipe:0`/`pipe:1`. Weg W: nur der Ersatzpfad auf `127.0.0.1`. Nie eine Anbieter-Adresse, ein Passwort oder eine Kopfzeile in `/proc/<pid>/cmdline`. | spezifiziert (`05` 2.4) |
 | **Umgebung** | jeder Live-FFmpeg bekommt eine eigene, kleine Umgebung ohne `SLOUCHCAT_*` (SM-22). Heute erbt FFmpeg die ganze Umgebung des Servers mit allen API-Schlüsseln (`server/internal/transcode/session.go:660-683`, kein `cmd.Env`; `deploy/compose.yaml:41-79`). | spezifiziert |
 | **`ffmpeg.log`** | Live-FFmpeg schreibt **keine** Datei (die Dateiwiedergabe tut es, `session.go:34`, `:305-309`). Die Fehlerausgabe bleibt gekürzt im Speicher (Muster `tailWriter`) und läuft vor jeder Verwendung durch die Schwärzung. | spezifiziert (`04` 10.4) |
 | **Fehlermeldungen** | an Clients nur stabile Codes ohne Adresse; in der Verwaltung höchstens `site` (gebaut als Muster `netguard.Clean`, `netguard.go:144-150`). Antwortkörper von Quellen werden nie gezeigt und nie protokolliert, auch nicht gekürzt. | spezifiziert |
@@ -535,14 +568,14 @@ zusammengesetzte Werte nur für `error` und `*url.URL` (`:185-198`).
 | Pfadmuster | Benutzerteil vor dem Host: `(?i)([a-z][a-z0-9+.-]*://)[^/@\s]+@` → `${1}[redacted]@` | `benutzer:passwort@host` |
 | Pfadmuster | Xtream: `(?i)/(live\|movie\|series\|timeshift)/[^/\s]+/[^/\s]+/` → `/${1}/[redacted]/[redacted]/` | Benutzer und Passwort im Pfad |
 | Pfadmuster | Xtream-Kurzform: `(?i)(://[^/\s]+)/[^/\s]+/[^/\s]+/(\d+)(\.(ts\|m3u8))?\b` → `${1}/[redacted]/[redacted]/${2}${3}`, nur auf Werte, die als Adresse erkannt sind | `/benutzer/passwort/1234.ts` |
-| Pfadmuster | Ersatznamen des Weiterleiters: `(?i)[a-z0-9]{16,}\.src\.slouchcat\.invalid` → `[redacted].src.slouchcat.invalid` | ein Ersatzname öffnet den Weiterleiter für eine Quelle |
+| ~~Pfadmuster Ersatzname~~ | **entfällt** (Fassung 1 hatte `…\.src\.slouchcat\.invalid`): Weg W nutzt Ersatzpfade auf `127.0.0.1` (`05` 2.6); ein Ersatzpfad ist kein Geheimnis eines Anbieters und nur im Container erreichbar (`04` 15.1). Die Fehlerausgabe von FFmpeg wird ohnehin nie roh protokolliert. | – |
 | Schlüsselnamen (`sensitiveKeys`, nach Endung) | `cookie`, `setcookie`, `username`, `sourceurl`, `streamurl`, `epgurl`, `playlisturl`, `manifesturl`, `segmenturl`, `keyurl`, `sourceheaders`, `headers`, `xtreamuser` | Attribute mit Adressen und Kopfzeilen. `livetoken`, `relaysecret`, `proxysecret`, `xtreampassword` sind über die Endungen `token`, `secret`, `password` schon abgedeckt und kommen nur in den Test. |
 | **Nicht** aufnehmen | `lt` als Schlüsselendung (träfe `default`, `result`, `alt`); `url` als Schlüsselendung (zu breit; hier gilt «nur `netguard.Site`») | RS-07 (f) |
 | Zusammengesetzte Werte (`redactAny`) | `http.Header`, `url.Values`, `[]string`, `map[string]string`, `map[string][]string`: Element für Element durch die Schlüsselregel und `RedactString`; `*http.Request` nur als Methode und `site` | Kopfzeilen und Argumentlisten als ein Wert |
 | Nie protokolliert, auch nicht geschwärzt | Antwortkörper von Quellen; Inhalt von M3U-Zeilen; Fehlerausgabe von FFmpeg in Weg W (nur gekürzt im Speicher); Schlüssel aus `EXT-X-KEY` | `04` 10.4 |
 
 **Testfall (Pflicht):** Ein Protokoll, das jeden Testwert (Abfrage, Pfad, Benutzerteil, Kopfzeile als
-`http.Header`, Argumentliste als `[]string`, Ersatzname) in Text, `slog.String`, `slog.Any` und Gruppe enthält,
+`http.Header`, Argumentliste als `[]string`) in Text, `slog.String`, `slog.Any` und Gruppe enthält,
 enthält danach keinen davon; dazu der Gegentest, dass `default=`, `result` und `alt` unverändert bleiben.
 
 ### 5.5 Weitergabe nur an feste Ursprünge (SM-15, SM-20)
@@ -582,7 +615,7 @@ Element: Option aus der Liste, Wert Zahl oder Listenwert).
 | Probe (`ffprobe`) auf dem Ring | `-protocol_whitelist pipe` | `-f mpegts -i pipe:0` |
 | Strom normalisieren (`04` O-2) | `-protocol_whitelist pipe` | `-f mpegts -i pipe:0` |
 | Bild skalieren (Logos, EPG-Bilder) | `pipe` (gebaut für Bilder laut V1 §1) | nur nach Go-Dekodierung (4.9) |
-| Empfänger Weg W (Stufe W) | `-protocol_whitelist http,tcp` | `-f hls` oder `-f dash`, Ersatzname |
+| Empfänger Weg W (Stufe W) | `-protocol_whitelist http,tcp` | `-f hls` oder `-f dash`, Ersatzpfad |
 
 Kein Live-Aufruf erbt die Argumente der Hauptkette der Dateiwiedergabe, die heute keine Protokoll-Liste hat
 (V1 L-5). **FFmpeg sieht keine Netzadresse** (ADR 0025 Punkt 2, `04` T-4); Weg W ist die einzige, benannte und erst
@@ -598,18 +631,21 @@ und `oom_score_adj 500` (`server/internal/transcode/session.go:660-683`, `:702-7
 **Spezifiziert: eine Hülle für jeden Live-FFmpeg und jede Probe.** Die Hülle ist ein Unterbefehl des Servers
 (`slouchcat sandbox-exec`), den `transcode` mit `exec.CommandContext` startet. Sie richtet den Prozess ein und
 ersetzt sich dann mit `execve` durch FFmpeg (gleiche PID, keine zweite Prozessstufe). So gelten alle Grenzen
-**vor** der ersten Zeile FFmpeg; ein `prlimit` von aussen «gleich nach dem Start» (`04` 10.8) liesse ein kurzes
-Fenster offen. Wo der Code der Hülle liegt, damit Regel 3 sinngemäss gilt: O-1.
+**vor** der ersten Zeile FFmpeg (so jetzt auch `04` T-27 und 10.8; Fassung 2 von `04` setzte die Grenzen nach dem
+Start). Der Code der Hülle liegt in `internal/transcode`; `cmd/slouchcat` ruft beim Unterbefehl nur diese Funktion;
+`execve` (`syscall.Exec`, `unix.Exec`) erlaubt ein Lint nur dort; Regel 3 bekommt dafür einen benannten Zusatz
+(`04` 10.8, `04` O-26; erledigt O-1).
 
 | Massnahme | Wie | Geht im heutigen Container? | Stufe |
 |---|---|---|---|
-| Umgebung | ausdrücklich: `PATH`, `LANG=C.UTF-8`, `TZ`, die Variablen der Hardware (`LIBVA_DRIVER_NAME`, `LIBVA_DRIVERS_PATH`, `NVIDIA_*`, soweit das Image sie braucht); sonst nichts, keine `SLOUCHCAT_*` | ja, nur Code | 1 |
-| Ressourcengrenzen | `RLIMIT_CORE` 0, `RLIMIT_NOFILE` 256, `RLIMIT_NPROC` klein (FFmpeg startet keine Kinder; Annahme 64 wegen Threads), `RLIMIT_AS` (Richtwert 2 GiB für Umwandlung, nur Software-Backend, bis M-25 die Verträglichkeit mit QSV und NVENC belegt), `RLIMIT_FSIZE` 0 (FFmpeg schreibt keine Datei) | ja, nur Code | 1 |
-| Rechte | `PR_SET_NO_NEW_PRIVS` setzt die Hülle selbst (Voraussetzung für Seccomp und Landlock ohne Rechte); `PR_SET_PDEATHSIG` = SIGKILL (stirbt der Server, stirbt FFmpeg) | ja, nur Code | 1 |
-| Sperre der Dateien (Landlock) | Lesen nur Programm, Bibliotheken, Gerätedateien der Hardware; kein `/config`, kein `/cache`, kein `/media`, kein `/proc` anderer Prozesse; Schreiben nirgends | braucht Linux ab 5.13 und ein Seccomp-Profil von Docker, das die Aufrufe zulässt (Annahme, M-25) | **empfohlen ab 1**, Pflicht für Weg W; ob Pflicht ab 1: F-1 |
-| Sperre des Netzes | Umwandlung und Probe: Landlock verbietet jede TCP-Verbindung, Seccomp verbietet `socket()` ausser `AF_UNIX`; Weg W: 4.8 | Landlock-Netz ab Linux 6.7 (Annahme, M-25); Seccomp ab jedem heutigen Kernel | wie oben |
-| Anzeige | LA-01: «FFmpeg-Sperre: aktiv» oder «FFmpeg läuft ohne Sandbox», mit dem Grund (Kernel, Docker-Profil) | ja | 1 |
-| Compose | `security_opt: ["no-new-privileges:true"]`, `cap_drop: [ALL]`, `pids_limit` (Richtwert 512) | **braucht eine Änderung an `compose.yaml`**, `04` 10.6, `04` F-12 | 1 |
+| Umgebung | ausdrücklich: `PATH`, `LANG=C.UTF-8`, `TZ`, die Variablen der Hardware (`LIBVA_DRIVER_NAME`, `LIBVA_DRIVERS_PATH`, `NVIDIA_*`, soweit das Image sie braucht); sonst nichts, keine `SLOUCHCAT_*`, nie `http_proxy` oder `no_proxy` (FFmpeg liest beide selbst, belegt, Nachprüfung Nr. 25) | ja, nur Code | 1a |
+| Ressourcengrenzen | `RLIMIT_CORE` 0, `RLIMIT_NOFILE` 256, `RLIMIT_NPROC` klein (FFmpeg startet keine Kinder; Annahme 64 wegen Threads), `RLIMIT_AS` (Richtwert 2 GiB für Umwandlung, nur Software-Backend, bis M-25 die Verträglichkeit mit QSV und NVENC belegt), `RLIMIT_FSIZE` 0 (FFmpeg schreibt keine Datei) | ja, nur Code | 1a |
+| Rechte | `PR_SET_NO_NEW_PRIVS` setzt die Hülle selbst (Voraussetzung für Seccomp und Landlock ohne Rechte); `PR_SET_PDEATHSIG` = SIGKILL (stirbt der Server, stirbt FFmpeg) | ja, nur Code | 1a |
+| Sperre der Dateien (Landlock) | Lesen nur Programm, Bibliotheken, Gerätedateien der Hardware; kein `/config`, kein `/cache`, kein `/media`, kein `/proc` anderer Prozesse; Schreiben nirgends | braucht Landlock ABI 1 (Linux 5.13, belegt über die README von `go-landlock`) und ein Seccomp-Profil von Docker, das die Aufrufe zulässt (M-25) | **empfohlen ab 1a**, Pflicht für Weg W; ob Pflicht ab 1a: F-1 |
+| Sperre des Netzes | Umwandlung und Probe: Landlock ohne jede `CONNECT_TCP`-Regel (also keine TCP-Verbindung), ab ABI 10 auch ohne UDP-Regel; **immer** dazu Seccomp: `socket()` nur `AF_UNIX`. Weg W: 4.8 | Landlock-TCP ab ABI 4 (Kernelfassung nicht nachgelesen), UDP ab ABI 10 (belegt, Nachprüfung Nr. 34); Seccomp auf jedem heutigen Kernel | wie oben |
+| Hart oder ausgewiesen, nie still | Die Hülle prüft die ABI-Fassung und setzt den Regelsatz vollständig. Weg W: fehlt ein Teil, startet der Empfänger nicht. Umwandlung und Probe: fehlt ein Teil, läuft FFmpeg nach der Vorgabe von F-1 (a) ohne Sperre weiter, **aber nie still**: Der Zustand «Eindämmung nicht verfügbar» steht mit Grund (Kernel, Docker-Profil, fehlende ABI-Fassung) in LA-01 und im Protokoll. `BestEffort()` von `go-landlock` wird nie verwendet (Lint). | ja, nur Code | 1a |
+| Anzeige | LA-01: «FFmpeg-Sperre: aktiv» oder «Eindämmung nicht verfügbar», mit dem Grund (`04` T-27; `04` 10.8 nennt in der Tabelle noch den alten Text «FFmpeg läuft ohne Sandbox») | ja | 1a |
+| Compose | `security_opt: ["no-new-privileges:true"]`, `cap_drop: [ALL]`, `pids_limit` (Richtwert 512) | **braucht eine Änderung an `compose.yaml`**, `04` 10.6, `04` F-12 | 0 (Planschritt 0.6 in `18`, nach `04` F-12 (a) und V-4); sonst 1a |
 
 **Was die Compose-Änderung für bestehende Installationen heisst:** Die drei Zeilen härten nur. Der Server läuft
 schon als UID 1000 ohne Fähigkeiten im wirksamen Satz; `cap_drop` entfernt auch die Fähigkeiten, die ein
@@ -667,19 +703,26 @@ der abstürzt oder Unsinn liefert, trifft nur seine eine Sitzung (`04` T-13).
 **Belegt** (Review RS-15, am Quelltext von Go 1.27.3 geprüft): `encoding/xml` sammelt `<!DOCTYPE …>` und
 `<!ENTITY …>` nur als `Directive` und wertet sie nie aus; Entitäten werden nur aus den fünf vordefinierten Namen
 und aus `Decoder.Entity` ersetzt, einstufig, ohne erneutes Lesen; externe Entitäten werden nie geladen; es gibt
-keine Rekursion und damit keine Entitäten-Bombe; `Unmarshal` und `DecodeElement` begrenzen die Tiefe auf 10'000.
-Die Annahme in `09` Abschnitt 12 ist damit belegt.
+keine Rekursion und damit keine Entitäten-Bombe (belegt auch für Go 1.24, Nachprüfung Nr. 31). Die Annahme in
+`09` Abschnitt 12 ist damit belegt. **Die Tiefengrenze von 10'000 gilt nur für `Unmarshal` und `DecodeElement`,
+nicht für `Decoder.Token`** (belegt, Nachprüfung Nr. 32): Wer Zeichen für Zeichen mit `Token()` liest, wie der
+EPG-Import ausserhalb der Elemente `<channel>` und `<programme>`, hat keine Tiefengrenze; der Elementstapel des
+Decoders wächst ohne Prüfung.
 
 **Trotzdem zu begrenzen:** Der Decoder puffert **ein einzelnes Token** (Text, Attribut, Kommentar, Direktive)
 vollständig, ohne Grenze; `DecodeElement` liest ein Element erst ganz und misst danach. Darum:
 
-1. Ein zählender Leser zwischen Entpacker und Decoder bricht ab, sobald seit dem Start des aktuellen Elements der
+1. **Eigene Tiefengrenze in der `Token`-Schleife:** Die Schleife zählt jedes `StartElement` und `EndElement`
+   selbst und bricht bei Tiefe 16 (XMLTV, `09` 12) bzw. 32 (MPD in Stufe W) mit einem stabilen Fehlercode ab,
+   bevor der Stapel weiter wächst. Dazu eine Grenze der Elemente insgesamt ausserhalb von `<programme>`
+   (Annahme 100'000) und die Byte-Grenze aus Punkt 2. Testfall in SM-28.
+2. Ein zählender Leser zwischen Entpacker und Decoder bricht ab, sobald seit dem Start des aktuellen Elements der
    obersten Ebene (`<channel>`, `<programme>`) mehr als 256 KiB gelesen sind (`d.InputOffset()`; Skizze im Review).
    Damit ist auch jedes einzelne Token begrenzt, auch zwischen zwei Elementen (Kommentar, Direktive).
-2. `d.Entity = xml.HTMLEntity` (gebaut als Muster, `internal/feed/feed.go:95`), `d.Strict = true`.
-3. Eine Direktive oder ein Kommentar ausserhalb des Prologs wird übersprungen und gezählt; mehr als 1'000 davon
+3. `d.Entity = xml.HTMLEntity` (gebaut als Muster, `internal/feed/feed.go:95`), `d.Strict = true`.
+4. Eine Direktive oder ein Kommentar ausserhalb des Prologs wird übersprungen und gezählt; mehr als 1'000 davon
    brechen ab (Annahme).
-4. Zeichensatz streamend über `golang.org/x/text/encoding` (schon Abhängigkeit, `server/go.mod:23`), nicht über
+5. Zeichensatz streamend über `golang.org/x/text/encoding` (schon Abhängigkeit, `server/go.mod:23`), nicht über
    `io.ReadAll` wie der Podcast-Parser (`internal/feed/feed.go:392-402`); nur die Liste erlaubter Zeichensätze
    (`09` Abschnitt 4).
 5. Programmdaten sind Text; Clients zeigen sie nie als HTML (`09` Abschnitt 12). Steuerzeichen ausser Tab und
@@ -698,7 +741,7 @@ vollständig, ohne Grenze; `DecodeElement` liest ein Element erst ganz und misst
 | xz, zstd | nicht in Stufe 2 (`09` O-1). |
 | Zwischenablage | gepackt, wie geliefert, unter `<cache>/live/epg/source-<Kennung>.bin`; Name nur aus der Kennung (`09` 2.3). |
 
-### 7.3 M3U, Xtream und Uploads (SM-27; Stufe 1)
+### 7.3 M3U, Xtream und Uploads (SM-27; Stufe 1a)
 
 | Punkt | Regel |
 |---|---|
@@ -706,7 +749,7 @@ vollständig, ohne Grenze; `DecodeElement` liest ein Element erst ganz und misst
 | Attribute | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `url-tvg` und wenige weitere; je höchstens 4 KiB; unbekannte werden übergangen; Kopfzeilen aus Listen nur nach 5.2. |
 | Adressen | nur `http`, `https`, `udp`, `rtp`, `rtsp`, `rtmp`, `rtmps` (je nach Stufe); alles andere (`file`, `data`, `javascript`, `ftp`) wird als fehlerhaft gezählt. |
 | Xtream-JSON | streamend über `json.Decoder.Token`, Tiefe höchstens 32, Antwort höchstens 200 MiB, Feld höchstens 4 KiB; nur Live-Kategorien und Live-Ströme (`15` V-6). |
-| Upload (Datei) | eigener Grenzwert in `largeBodies` (gebaut als Muster, `server/internal/api/limits.go:33-44`); nur für Administratoren; der Inhalt wird wie ein Abruf geprüft. Grösse: `15` nennt 20 MB, `05` 2.3 200 MiB (O-8). |
+| Upload (Datei) | eigener Grenzwert in `largeBodies` (gebaut als Muster, `server/internal/api/limits.go:33-44`); nur für Administratoren; der Inhalt wird wie ein Abruf geprüft. Grösse 200 MiB für Abruf und Hochladen (`04` 14.9; O-8 erledigt). |
 | Schreiben | in Stapeln von 500 Zeilen (`04` 4.2), damit der einzige SQLite-Schreiber nicht lange blockiert. |
 | Ein fehlerhafter Import zerstört nichts | Bricht der Import ab, bleibt der bisherige Stand unverändert (`15` LA-04). |
 
@@ -714,12 +757,12 @@ vollständig, ohne Grenze; `DecodeElement` liest ein Element erst ganz und misst
 
 | Parser | Grösse | Zeit | Tiefe | Zeilen- oder Feldlänge | Anzahl |
 |---|---|---|---|---|---|
-| M3U (Abruf und Upload) | 200 MiB (O-8) | Import 10 min | – | Zeile 64 KiB, Attribut 4 KiB | 200'000 Einträge |
+| M3U (Abruf und Upload) | 200 MiB (`04` 14.9) | Import 10 min | – | Zeile 64 KiB, Attribut 4 KiB | 200'000 Einträge |
 | Xtream-JSON | 200 MiB je Antwort | 2 min je Antwort, Import 10 min | 32 | Feld 4 KiB | 200'000 Ströme, 5'000 Kategorien |
 | HLS-Liste | 1 MiB | Kopf 15 s, Lesen 10 s Stillstand | Unterlisten 3, mit Weiterleitungen 5 Sprünge | Zeile 64 KiB | 32 Varianten, 10'000 Segmente je Liste |
 | Segment, `EXT-X-MAP`, Schlüssel | 64 MiB, 1 MiB, 16 Byte | 15 s Kopf, 10 s Stillstand | – | – | 3 Fehler in Folge |
-| MPD (nur Stufe W, Go liest vorab) | 1 MiB | 15 s | 32 | Attribut 64 KiB | 64 Darstellungen, 256 Perioden |
-| XMLTV | 1 GiB gepackt, 4 GiB entpackt, Verhältnis 100 | 30 min je Import | 16 (`09` 12) | 256 KiB je Element der obersten Ebene, damit je Token | 1'000 Direktiven und Kommentare; Felder nach `09` 4 |
+| MPD (nur Stufe W, Go liest vorab) | 1 MiB | 15 s | 32, in der `Token`-Schleife selbst gezählt | Attribut 64 KiB | 64 Darstellungen, 256 Perioden |
+| XMLTV | 1 GiB gepackt, 4 GiB entpackt, Verhältnis 100 | 30 min je Import | 16 (`09` 12), in der `Token`-Schleife selbst gezählt (Go begrenzt sie dort nicht) | 256 KiB je Element der obersten Ebene, damit je Token | 1'000 Direktiven und Kommentare; 100'000 Elemente ausserhalb von `<programme>`; Felder nach `09` 4 |
 | gzip, bzip2, zip | wie XMLTV | wie XMLTV | 1 Schicht | – | zip: 1 Eintrag |
 | TS-Paket und PSI (`live/mpegts`) | Paket 188 Byte; Abschnitt höchstens 1'021 Byte bei PAT/PMT, 4'093 Byte bei privaten | Echtzeit | – | Adaptionsfeld ≤ 183 Byte; Deskriptorschleife innerhalb des Abschnitts | 64 Programme je PAT, 64 Spuren je PMT, 8'191 PIDs |
 | PES | 4 MiB je zusammengesetztem Paket (auch bei Längenangabe 0) | – | – | Kopf nach Längenfeld, geprüft gegen Rest | – |
@@ -740,7 +783,7 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 
 | Punkt | Regel | Einordnung | Massnahme |
 |---|---|---|---|
-| **Unbegrenzte Puffer** | Es gibt keinen: Ring höchstens 15 s, beim Start reserviert, wächst nie an Ort (`04` T-7); Summe aller Ringe und Rückstaue im Byte-Budget (`05` 3.6, höchstens 512 MB empfohlen); Rückstau je Schreiber 64 MiB oder 60 s für Aufnahmen, 16 MiB für Sitzungspuffer (`04` 8.3); Deckel über alle Sitzungspuffer ab Werk der kleinere Wert aus 20 % des freien Platzes und 50 GB; Höchstdauer je Puffer 60 min (`03` DR-07); Mindestreserve 5 GB oder 5 % (`04` 10.10). Alle Zahlen Annahmen. | spezifiziert | SM-31 |
+| **Unbegrenzte Puffer** | Es gibt keinen: Ring höchstens 15 s, beim Start reserviert, wächst nie an Ort (`04` T-7); Ringe im Byte-Budget mit Reservierung, Rückstau bei Gebrauch gezählt (`04` 8.1; Budget ab Werk ein Achtel des Arbeitsspeichers, höchstens 512 MB); Rückstau je Schreiber bis 64 MiB oder 60 s für Aufnahmen, bis 16 MiB für Sitzungspuffer; Deckel über alle Sitzungspuffer ab Werk der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB, Kürzen nie unter 5 Minuten; Höchstdauer je Puffer 60 min (`03` DR-07); Mindestreserve Timeshift der grössere Wert aus 5 GB und 5 %, Aufnahmen der grössere Wert aus 20 GB und 5 %, Ordner des Startpuffers 10 %. Alle Werte nach `04` Abschnitt 14.3 und 14.6. | spezifiziert | SM-31 |
 | **Path Traversal** | Namen von Ordnern und Dateien bestehen **nur** aus Kennungen (ULID, Zahlen, feste Endungen), nie aus Sender-, Sendungs- oder Profilnamen und nie aus Werten der Quelle. Jeder Zugriff relativ zu einer geprüften, geöffneten Wurzel über `paths` (`os.Root`; Regel 4), `..` und Symlinks aus der Wurzel hinaus werden verworfen. Ein Test prüft, dass ein Titel mit `../` und `/` keinen Pfad ändert. | spezifiziert | SM-32 |
 | **Dateisystemrechte** | Ordner 0700, Dateien 0600, Eigentümer die UID des Servers; das `tmpfs` des Radios hat schon `mode=0700` (gebaut, `deploy/compose.yaml:39-40`). Das Aufnahme-Volume aus `compose.live.yaml` wird mit derselben UID eingehängt. | spezifiziert | SM-32 |
 | **Zugriffsschutz Timeshift** | Stückdateien eines Sitzungspuffers liest nur der Server, und nur für die eigene Live-Sitzung über deren Token `lt` (SM-35). Es gibt keine statische Auslieferung eines Ordners und keine Adresse, die einen Dateinamen enthält; Segmente werden nach Nummer im Verzeichnis der Sitzung gefunden. Ohne Recht «Timeshift» gibt es keinen Sitzungspuffer, und ältere Segmente als die drei neuesten sind 404 (`04` T-10). | spezifiziert | SM-34 |
@@ -753,16 +796,17 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 
 ## 9. Authentisierung und Autorisierung (Auftrag 10.6)
 
-### 9.1 Token `lt` für Liste und Segment (SM-35; Stufe 1)
+### 9.1 Token `lt` für Liste und Segment (SM-35; Stufe 1a)
 
 | Punkt | Regel (spezifiziert) |
 |---|---|
-| Inhalt | `lt = <Kennung der Live-Sitzung (ULID)> "." <Einstell-Nummer> "." <Sender-Kennung> "." base64url(HMAC-SHA256(k, "live\n" + Sitzung + "\n" + Einstell-Nummer + "\n" + Sender))`, mit `k = secrets.Keyring.Derive("live-token")`. Muster gebaut beim Radio (`server/internal/radio/token.go:11-41`). Kein Profil, kein Konto, keine Quelle im Token. |
+| Inhalt | nach `08` 4.2 (dort massgeblich): `base64url(sessionId (16 Byte ULID) ‖ tune (uint32) ‖ issuedAt (uint32 Sekunden) ‖ mac (16 Byte))`, `mac` = HMAC-SHA256 mit `k = secrets.Keyring.Derive("live-token")` über alle vorderen Felder und das Kennzeichen `live-v1`, auf 128 Bit gekürzt. Muster gebaut beim Radio (`server/internal/radio/token.go:11-41`). Kein Profil, kein Konto, keine Quelle, keine Adresse im Token; Pfad (`/live/play/{sessionId}/{tune}/…`) und Token müssen übereinstimmen. |
 | Prüfung | zuerst Form und HMAC in konstanter Zeit, **erst dann** Zugriff auf den Zustand der Sitzung (anders als `playback.Authorize`, das zuerst die Datenbank liest, `server/internal/playback/sessions.go:803-823`). Der Zustand liegt im Arbeitsspeicher; Sitzung vorhanden, nicht beendet, Einstell-Nummer gleich der aktuellen, Segmentnummer im Fenster. |
 | Bindung | an eine Live-Sitzung (gehört Anmeldung, Profil und Gerät, `04` T-9) und an genau ein Einstellen; nach dem Umschalten ist das alte Token sofort ungültig. |
-| Laufzeit | vom Einstellen bis zum nächsten Umschalten, zum Ende der Sitzung, zu 60 s ohne Herzschlag oder zu 12 Stunden (Annahme, `04` 10.3); dann gibt der Herzschlag ein neues aus. Ablauf und Widerruf leben in der Sitzung, nicht im Token (wie Radio, `token.go:16`). |
+| Laufzeit | vom Einstellen bis zum nächsten Umschalten, zum Ende der Sitzung, zu 60 s ohne Herzschlag oder zu 12 Stunden ab `issuedAt` (Annahme, `04` 14.4); ab 11 Stunden liefert der Herzschlag eine Liste mit neuem Token (`08` 4.2). Widerruf lebt in der Sitzung, nicht im Token (wie Radio, `token.go:16`). |
 | Erneuerung | **nur** der Herzschlag (alle 10 s), eine angemeldete JSON-Operation derselben Anmeldung mit Cookie oder Bearer; Segmentabrufe verlängern nichts (`04` T-21). Benanntes Risiko: Herzschlag im Hintergrund (M-5). |
-| Prüfung der Anmeldung | jede Listenanfrage, höchstens 30 s alt: wirksames Recht und Gültigkeit der Anmeldesitzung (Abmelden, Passwortwechsel, Rolle, Ablauf). Gebaut beim Radio einmal je Minute (`server/internal/radio/listen.go:578-587`). |
+| Prüfung der Anmeldung | jede Listenanfrage, höchstens 30 s alt: wirksames Recht und Gültigkeit der Anmeldesitzung (Abmelden, Passwortwechsel, Rolle, Ablauf). Segmente prüfen Token und Sitzung, nicht die Anmeldung (`08` 4.2). Gebaut beim Radio einmal je Minute (`server/internal/radio/listen.go:578-587`). |
+| Fehlerantwort: 404, nicht 401 | Ein falsches, fremdes, abgelaufenes oder widerrufenes Token und eine beendete Sitzung ergeben an jeder `lt`-Route **404** mit demselben Körper wie «kein Recht» (`08` 4.2, `04` 10.3). Der Bestand antwortet an seinen Token-Routen (`st`, `rt`, `dt`) mit **401** (`server/internal/api/stream_token.go:24-52`; Radio `api/openapi.yaml:12006-12007`) und **bleibt so**; Live-TV ändert ihn nicht. **Warum Live-TV abweicht:** (1) Das Token ist die einzige Berechtigung dieser Routen; «Token passt nicht» heisst «diese Wiedergabe ist für dich nicht sichtbar», und Unsichtbares ist 404 (`03` 2.3, Auftrag Z. 1400). (2) Mit 401 für ein falsches Token und 404 für fehlendes Recht liessen sich beide Fälle unterscheiden: Ein Angreifer erführe, ob ein Token zu einer lebenden Sitzung gehört. (3) Weil die Apps heute an Token-Routen auf 401 reagieren, gilt für `lt` die Client-Regel aus `08` (RD-16): Der Client deutet einen Fehler an einer `lt`-Route nie selbst als «Sitzung weg», sondern fragt den Herzschlag; nur dessen 410 `live_session_gone` heisst «neu anlegen». Ein Segment ausserhalb des Fensters ist ebenfalls 404. |
 | Nicht in Logs | `lt` steht in `sensitiveQuery` (5.4), nicht in den Schlüsselnamen. |
 | Nicht im Referrer | `Referrer-Policy: no-referrer` auf jeder Antwort (gebaut, `server/internal/api/stream_token.go:54-61`). |
 | Nicht im Zwischenspeicher | Liste und Segmente mit `Cache-Control: private, no-store` (gebaut als Muster, `server/internal/api/playback_handlers.go:93`); der Service Worker lässt `/api/` unberührt (V1 L-3). |
@@ -778,6 +822,7 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 | Liste | Token, Zustand, höchstens 30 s alt Recht und Anmeldung |
 | Segment | Token, Zustand (im Speicher), Segment im Fenster |
 | Logo, Sendungsbild | Sitzung mit wirksamem Recht «Live-TV» (Cookie wie heutige Bilder) |
+| Einstellen auf einen deaktivierten Sender | 404 sofort (`04` T-29) |
 
 **Entzug, und wie schnell er wirkt:**
 
@@ -787,6 +832,24 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 | Sicherung ohne Haken (etwa Ablauf der Anmeldung) | Listenanfrage prüft höchstens 30 s alt | höchstens 30 s plus eine Nachladezeit der Liste |
 | Herzschlag fehlt | Ende der Sitzung | 60 s |
 | Nur «Timeshift» entzogen | Sitzungspuffer gelöscht, Wiedergabe springt an die Live-Kante | sofort |
+| Handy- oder TV-App geht in den Hintergrund, Bildschirm aus (`04` 10.3) | Der Client beendet die Sitzung selbst; Token ungültig, Puffer gelöscht; bei Rückkehr stellt die App neu ein (neues Token) | sofort, spätestens 60 s (fehlender Herzschlag) |
+| Browser im Hintergrund, Bildübertragung auf ein anderes Gerät | offen (`04` O-25): es gilt die Regel der 60 s ohne Herzschlag ohne Ausnahme | höchstens 60 s nach dem letzten Herzschlag |
+| Sender deaktiviert (`04` T-29) | **kein Entzug:** Neues ist sofort 404 (Einstellen, Aufnahme, Vorladen, Prüfung); laufende Wiedergaben und Aufnahmen laufen weiter | – |
+| Befehl «sofort beenden» der Verwaltung (`04` T-29) | Sitzungen des Senders enden wie bei einem Haken; Aufnahmen «unvollständig, Sender deaktiviert» | sofort |
+| Festes Ziel oder Ursprung entzogen (ab H) | laufende Verbindungen zu nicht mehr erlaubten Zielen enden nach Bestätigung (4.2) | sofort |
+
+**Sicherheitsfolgen von T-29.** Deaktivieren ist eine Pflegehandlung, kein Entzug eines Rechts. Wer einen Sender
+aus einem **Sicherheitsgrund** abschaltet (gefälschtes Bild über UDP, R-2; eine Quelle, die feindliche Daten
+liefert), muss «sofort beenden» wählen, sonst sehen laufende Zuschauer, auch Profile mit Altersgrenze, weiter.
+Der Dialog «Deaktivieren» sagt darum ausdrücklich: «Laufende Wiedergaben und Aufnahmen laufen weiter. Wählst du
+‹sofort beenden›, enden sie jetzt.» (Empfehlung für `15`). Rechte (drei Schalter, Abmelden, Profilwechsel) sind
+von T-29 nicht berührt und wirken wie oben sofort.
+
+**Sicherheitsfolgen der Regel «Hintergrund beendet die Sitzung».** Sie verkleinert das Fenster, in dem ein Token
+gilt, und gibt Plätze der Stream-Grenze frei; ein vergessenes Gerät hält keinen Eingang. Die 60 Sekunden, die eine
+kurze Unterbrechung übersteht, sind dieselben wie beim fehlenden Herzschlag (R-9). Bei der Bildübertragung hat das
+Empfangsgerät das Token in seiner Adresse; es gilt dort bis 60 s nach dem letzten Herzschlag des Senders der
+Übertragung (R-9, `04` O-25).
 
 **Restrisiko (R-7):** Was der Player schon geladen hat, spielt er zu Ende. Für Live-TV ist das höchstens sein
 Vorlauf (Einstellung für hls.js in `05` 5.3); mit Zeitversatz kann der Player nicht mehr laden als das, was er
@@ -796,8 +859,13 @@ gepuffert hat.
 
 - **404 überall:** Ohne wirksames Recht antwortet jede Live-Operation und jede Live-Route mit 404, nie 403 (`03`
   2.3). Ein ungültiges, fremdes, abgelaufenes oder widerrufenes Token ergibt **dieselbe** 404-Antwort mit gleichem
-  Körper wie «kein Recht». Die gebauten Token-Routen antworten heute 401 (`server/internal/api/stream_token.go:24-45`);
-  Live-TV weicht bewusst davon ab (`04` 10.3).
+  Körper wie «kein Recht». Die gebauten Token-Routen antworten heute 401 (`server/internal/api/stream_token.go:24-52`);
+  Live-TV weicht bewusst davon ab, Begründung in 9.1 (`04` 10.3, `08` 4.2).
+- **403 nur für den fehlenden CSRF-Kopf:** «404, nie 403» gilt für **Unsichtbares** (fehlendes Recht, fremde
+  Kennung, ungültiges Token). Der bestehende CSRF-Schutz behält sein Verhalten: Eine schreibende Anfrage ohne
+  CSRF-Kopf bekommt wie überall **403** `csrf_header_missing` (gebaut, `server/internal/api/session.go:281-288`,
+  `:314-315`). Die Prüfung läuft in `authorize` nach dem Routing und **vor** jeder Prüfung von Recht oder Objekt;
+  die Antwort ist also für jedes Profil gleich, mit und ohne Recht, und verrät nichts über Sichtbares (`04` 10.3).
 - **Zeitverhalten:** HMAC zuerst, Zustand im Speicher (9.1); fremde und fehlende Objekte gehen durch dieselbe
   Abfrage (SM-37), sodass «gibt es nicht» und «gehört dir nicht» denselben Weg nehmen.
 - **Kennungen:** Sitzungen, Aufnahmen, Planungen, Serienregeln, Erinnerungen tragen zufällige Kennungen (ULID),
@@ -827,6 +895,8 @@ gepuffert hat.
 |---|---|
 | PIN-Profile | Der Live-TV-Bereich liegt hinter dem Profil wie alles andere; der Wechsel in ein PIN-Profil verlangt die PIN wie heute. Eine Live-Sitzung gehört genau einem Profil; ein Profilwechsel auf dem Gerät beendet die Live-Sitzungen des alten Profils auf diesem Gerät (Muster Radio «revoked», ADR 0025 Punkt 4). Meldungen über E-Mail, Push und Telegram nennen für PIN-Profile keinen Sender- oder Sendungstitel (`03` DR-05). |
 | Was der Administrator sieht | laufende Live-Wiedergaben wie heute Titel: Konto, Profil, Gerät, Sender, Technik (`03` DR-17); Aufnahmen nur als Zahl und Belegung je Konto, nie Titel, Profil, Sender oder Zeit; Protokolle mit Sender, `site` der Quelle und technischer Meldung, ohne Profil und Titel (`15` Abschnitt 4). Er kann fremde Aufnahmen weder abspielen noch löschen (Notfall: `15` F-18). |
+| **Laufende Aufnahmen in «Aktive Streams» (RD-06, SM-45)** | Ein Eingang ist ein Sender zu einer Zeit; mit dem Konto daneben verriete das öffentliche EPG den Titel der privaten Aufnahme. Darum zeigt die Verwaltung je Eingang laufende Aufnahmen **nur als Zahl**, ohne Konto, Profil, Titel oder Kennung; die Liste der Abnehmer (`LiveIngest.consumers` in `08`) enthält nur Zuschauer. Belegung je Konto zeigt nur LA-16 und LA-22, ohne Sender und ohne Zeit. Fehlersuche an einer Aufnahme geht über ihre Kennung im Protokoll (`15` Abschnitt 4). `15` LA-12 («Aufnahme · Konto …») und `08` 3.9 sind anzupassen. |
+| **Meldung «Kontingent voll» an das Hauptprofil (RD-07, SM-46)** | Das Hauptprofil bekommt den Eintrag in einer eigenen Art (Vorschlag `07`/`08`: `live_quota_rejected_profile`) **ohne** Titel, Sender und Zeiten: «Eine Aufnahme von ‹Profilname› wurde abgelehnt: Kontingent voll.» Titel und Sender nur, wenn die Aufnahme zu einem Profil mit Altersgrenze gehört (A-6, Merkmal der Aufnahme nach `04` F-10). Dasselbe gilt für E-Mail, Push und Telegram (`deliveries`); für PIN-Profile gilt zusätzlich `03` DR-05. Das betroffene Profil selbst bekommt die volle Meldung. |
 | Sitzungsarten der Apps | Jede `account`- und `scoped`-Live-Operation nennt in `x-clients`, ob `app` und `tv` sie rufen dürfen (Regel 7, ADR 0040); Verwaltungsoperationen nie. Die Apps nutzen Bearer, nie das Cookie; Token `lt` für Medien wie im Browser. Für Operationen mit `x-clients` gilt `docs/dev/VERTRAEGLICHKEIT.md`. |
 | CSRF | Einstellen, Beenden, Herzschlag, Qualitäts- und Spurwechsel, Aufnahme anlegen, ändern, löschen, Erinnerung, Favorit sind `POST`, `PUT` oder `DELETE` mit dem CSRF-Kopf (gebaut, `server/internal/api/session.go:278-288`). `GET` hat keine Nebenwirkung ausser dem gedrosselten Neustart einer Umwandlung (6.5). Live-Routen senden keine CORS-Freigabe (gebaut: keine Fundstelle für `Access-Control-Allow-Origin` in `server/internal/api`). |
 | Bestehende Konto-Grenzen | Live-Wiedergaben zählen zu gleichzeitigen Strömen, Bitrate, Höhe und Schauzeit von Profil und Konto (`03` DR-12, `04` T-26). Weil `max_streams` ab Werk leer ist, gelten zusätzlich die Serverdeckel aus `04` 8.5. |
@@ -840,7 +910,10 @@ gepuffert hat.
 | Live-Sitzungen insgesamt | Vorgabe 20, einstellbar 1 bis 200 (`04` 8.5) | «Server ausgelastet» |
 | Quellentest (Verwaltung) | je Quelle einer zur Zeit, serverweit 2 gleichzeitig, je Administrator 6 je Minute | «Test läuft schon» |
 | Import von Hand | je Quelle einer zur Zeit, höchstens 1 je Minute; EPG über den Pool mit einem Arbeiter (`09` 12) | «Import läuft schon» |
-| Prüfungen ruhender Sender | höchstens 2 gleichzeitig (`15` LA-13) | Warteschlange |
+| Prüfungen ruhender Sender | 1 zur Zeit, 5 s Pause dazwischen (`04` 14.2; `15` LA-13 nennt 2) | Warteschlange |
+| Segmentabrufe | höchstens 2 gleichzeitig je Sitzung (`04` 14.4) | weitere warten |
+| Eingangsströme insgesamt | ab Werk 8, einstellbar 1 bis 200 (`04` 14.1) | «Server ausgelastet» |
+| FFmpeg-Empfänger (Weg W) | höchstens 2 (0 bis 8, `04` 14.7) | Quelle wartet |
 | Programmsuche | je Profil 2 je Sekunde, Stoss 10 | «zu schnell» |
 | Logos und Bilder | 4 Abrufe gleichzeitig (4.9) | Warteschlange |
 
@@ -860,8 +933,11 @@ Nutzungsbedingungen und die zulässige Zahl der Verbindungen seiner Anbieter zuw
 Nutzungsrechte, spielt keine kopiergeschützten Ströme ab und umgeht keinen Schutz: Es erkennt DRM nach der Regel in
 `05` 2.5 und lehnt ab, setzt nie einen Schlüssel für die Entschlüsselung mit DRM und bietet kein Eingabefeld
 dafür. Die Grenze zwischen Transportverschlüsselung (HLS `AES-128`, Schlüsselformat `identity`, Schlüssel für
-jeden angemeldeten Abrufer) und DRM ist eine technische Einordnung nach RFC 8216 (Annahme, nicht nachgelesen,
-`05` W-11 und O-16); im Zweifel lehnt Slouchcat ab (`SAMPLE-AES` auch mit `identity`). Ob das Schweizer
+jeden angemeldeten Abrufer) und DRM ist eine technische Einordnung nach der HLS-Spezifikation; sie ist **Annahme**:
+Die Stellen zu Verschlüsselung und DRM sind auch in der Nachprüfung nicht an der Quelle gelesen (`05` 2.5, O-16;
+`04` 15.1 nennt W-11 dagegen «belegt», das betrifft nach der Nachprüfung nur die Startregel). Belegt ist nur, dass
+Media3 `AES-128` spielt und `SAMPLE-AES` nicht (Nachprüfung Nr. 17). Im Zweifel lehnt Slouchcat ab (`SAMPLE-AES`
+auch mit `identity`). Ob das Schweizer
 Urheberrecht (Annahme: Art. 39a URG zum Schutz technischer Massnahmen) oder ein Vertrag des Anbieters weitergehende
 Pflichten bringt, ist juristisch zu klären (`24` N-13, N-19).
 
@@ -883,53 +959,63 @@ deren Veröffentlichung Massnahme **und** Testfall vorliegen müssen; «empfohle
 
 | Nr. | Massnahme | Schliesst | Pflicht vor | Sicherheitstestfall | Bezug |
 |---|---|---|---|---|---|
-| SM-01 | Dialer je Quelle mit Prüfung jeder Verbindung an der angewählten Adresse; feste Ziele (Adresse/Netz und Port); Liste «nie freigebbar»; kein `Clients.For`, kein `LocalHost` (Lint) | BD-01, BD-02; RS-01, SL-1 | 1 (Regel mit leerer Liste), 3 (Freigabe) | Eine Quelle mit festem Ziel `192.168.1.20:9981` erreicht weder `192.168.1.20:22` noch `192.168.1.1:80`, `127.0.0.1:8096` oder `169.254.169.254:80`, weder als Sender noch über Weiterleitung, Unterliste, Segment oder Schlüssel. | T-5, LTV-003, LTV-Q-10.02–.04, .09, .10 |
-| SM-02 | ein HTTP-Transport je Quelle und Regelstand, geschlossen bei Änderung | BD-06; RS-11 | 1 | Nach einem Abruf einer freigegebenen Quelle von `192.168.1.20` scheitert derselbe Abruf über eine Quelle ohne Freigabe mit «Ziel im Heimnetz», auch innerhalb der Leerlaufzeit der Verbindung. | T-5 |
-| SM-03 | Präfixe `64:ff9b:1::/48`, `2001::/32`, `::ffff:0:0:0/96`, `192.0.0.0/24`, `240.0.0.0/4` in `netguard`; eigene Adressen des Containers nie freigebbar | BD-05; RS-18 | 1 | Eine Quelle mit `http://[64:ff9b:1::c0a8:101]/` und eine mit `http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/` werden abgewiesen. | `04` 10.9, LTV-Q-10.07, .08 |
-| SM-04 | eigene `CheckRedirect`: höchstens 5 Sprünge mit Unterlisten, nur `http`/`https`, kein `https`→`http`, Kopfzeilen fallen bei Ursprungswechsel | BD-03, BD-16; RS-06 (C) | 1 | Eine Weiterleitung von `https://a.example` auf `http://a.example` bricht ab, und eine auf `https://b.example` empfängt weder `Authorization` noch `Cookie` noch eine eigene Kopfzeile der Quelle. | LTV-Q-10.05, F-2 |
-| SM-05 | DNS-Rebinding: keine Entscheidung vor der Verbindung; feste Ziele als Adressen, Rückfrage bei geänderter Auflösung | BD-04 | 1 | Ein Testname, der abwechselnd `203.0.113.5` und `192.168.1.1` liefert, erreicht `192.168.1.1` bei keiner von 100 Verbindungen. | LTV-Q-10.06 |
-| SM-06 | Import ohne Probe; Sender ausserhalb der Ziele markiert, nie verbunden; Sammelhinweis nach Netzen; ein Zustand ohne Verbindungsversuch für nicht freigegebene Ziele | BD-02, BD-07; RS-01 P4 | 1 (Markierung), 3 (Sammelhinweis) | Eine Liste mit 500 Sendern auf `10.0.0.1–250:1–2` erzeugt null Verbindungsversuche ins Heimnetz und für jede Adresse denselben Zustand, unabhängig davon, ob dort etwas lauscht. | LTV-Q-10.09 |
-| SM-07 | Grenzen für HLS: Takt, Zieldauer, Varianten, Tiefe, Kreise, Grössen | BD-08; RS-14 | 1 | Eine Liste mit Zieldauer 0 und eine Kette A→B→A brechen mit stabilem Fehlercode ab; der Server lädt dabei höchstens einmal je Sekunde nach. | LTV-Q-10.12–.15 |
-| SM-08 | Weg W: Umschreiben aller Adressen, Proxy ohne Kennwort, kein `CONNECT`, `http,tcp`, `-f hls`/`-f dash`, keine 3xx, MPD vorab in Go ohne DOCTYPE, gesperrt im Netzmodus «host» | BD-09; RS-02, SL-2 | W | Mit der feindlichen Testmenge aus `05` 2.6 zeigt die Mitschrift aller `connect()`- und `sendto()`-Aufrufe des FFmpeg-Prozesses nur `127.0.0.1:<Port>`. | T-4, M-10, LTV-Q-10.36 |
-| SM-09 | Sperre des FFmpeg-Empfängers: Landlock (Dateien, TCP nur Port `P`), Seccomp (kein UDP, kein roher Socket), kein `/proc` anderer Prozesse | BD-09, BD-24; RS-02 P5, RS-03 | W (Pflicht) | Ein Empfänger in der Sperre kann `/config/secret.key` nicht öffnen, `/proc/1/cmdline` nicht lesen und keinen UDP-Socket anlegen. | T-4, T-27, M-25 |
-| SM-10 | UDP, RTP, Multicast: nur Administrator, Bindung an eine Schnittstelle, Port ≥ 1024, Gruppe geprüft, SSM, nichts senden, Flutgrenze, Text V-3 | BD-10, BD-11; RS-12 | 3 | Pakete mit gefälschtem Absender werden gezählt und verworfen, sobald sie die Bytegrenze überschreiten; der Socket lauscht nicht auf `0.0.0.0`, und der Empfänger sendet kein Paket. | LTV-Q-10.11 |
-| SM-11 | Netzmodus «host» als A-9; Weg W gesperrt; Adressen und IPv6-Präfixe des Hosts gesperrt; dauerhafter Hinweis | BD-12, BD-05; RS-13, SL-4 | 3 | Im Netzmodus «host» erreicht keine Quelle `127.0.0.1:<Port>` eines Testdienstes auf dem Host, und eine DASH-Quelle meldet «im Netzmodus host nicht verfügbar». | A-9, `04` F-11 |
+| SM-01 | Dialer je Quelle mit Prüfung jeder Verbindung an der angewählten Adresse; feste Ziele (Adresse/Netz und Port); Liste «nie freigebbar»; kein `Clients.For`, kein `LocalHost` (Lint) | BD-01, BD-02; RS-01, SL-1 | 1a (Regel mit leerer Liste: nur öffentlich), H (feste Ziele) | In 1a erreicht eine Quelle keine einzige lokale Adresse (weder `192.168.1.20:9981` noch `127.0.0.1:8096`); ab H erreicht eine Quelle mit festem Ziel `192.168.1.20:9981` weder `192.168.1.20:22` noch `192.168.1.1:80`, `127.0.0.1:8096` oder `169.254.169.254:80`, weder als Sender noch über Weiterleitung, Unterliste, Segment oder Schlüssel. | T-5, LTV-003, LTV-Q-10.02–.04, .09, .10 |
+| SM-02 | ein HTTP-Transport je Quelle und Regelstand, geschlossen bei Änderung; laufende Verbindungen zu nicht mehr erlaubten Zielen enden nach Bestätigung (4.2) | BD-06; RS-11 | 1a (H für den Fall mit Freigabe) | Nach einem Abruf einer freigegebenen Quelle von `192.168.1.20` scheitert derselbe Abruf über eine Quelle ohne Freigabe mit «Ziel im Heimnetz», auch innerhalb der Leerlaufzeit der Verbindung; nach dem Entzug des Ziels ist eine laufende Verbindung dorthin innert 5 s geschlossen. | T-5 |
+| SM-03 | Präfixe `64:ff9b:1::/48`, `2001::/32`, `::ffff:0:0:0/96`, `192.0.0.0/24`, `240.0.0.0/4` in `netguard`; eigene Adressen des Containers nie freigebbar | BD-05; RS-18 | 1a | Eine Quelle mit `http://[64:ff9b:1::c0a8:101]/` und eine mit `http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/` werden abgewiesen. | `04` 10.9, LTV-Q-10.07, .08 |
+| SM-04 | eigene `CheckRedirect`: höchstens 5 Sprünge mit Unterlisten, nur `http`/`https`, kein `https`→`http`, Kopfzeilen fallen bei Ursprungswechsel | BD-03, BD-16; RS-06 (C) | 1a | Eine Weiterleitung von `https://a.example` auf `http://a.example` bricht ab, und eine auf `https://b.example` empfängt weder `Authorization` noch `Cookie` noch eine eigene Kopfzeile der Quelle. | LTV-Q-10.05, F-2 |
+| SM-05 | DNS-Rebinding: keine Entscheidung vor der Verbindung; feste Ziele als Adressen, Rückfrage bei geänderter Auflösung | BD-04 | 1a | Ein Testname, der abwechselnd `203.0.113.5` und `192.168.1.1` liefert, erreicht `192.168.1.1` bei keiner von 100 Verbindungen. | LTV-Q-10.06 |
+| SM-06 | Import ohne Probe; Sender ausserhalb der Ziele markiert, nie verbunden; Sammelhinweis nach Netzen; ein Zustand ohne Verbindungsversuch für nicht freigegebene Ziele | BD-02, BD-07; RS-01 P4 | 1a (Markierung ohne Probe), H (Sammelhinweis, Freigabe) | Eine Liste mit 500 Sendern auf `10.0.0.1–250:1–2` erzeugt null Verbindungsversuche ins Heimnetz und für jede Adresse denselben Zustand, unabhängig davon, ob dort etwas lauscht. | LTV-Q-10.09 |
+| SM-07 | Grenzen für HLS: Takt, Zieldauer, Varianten, Tiefe, Kreise, Grössen | BD-08; RS-14 | 1a | Eine Liste mit Zieldauer 0 und eine Kette A→B→A brechen mit stabilem Fehlercode ab; der Server lädt dabei höchstens einmal je Sekunde nach. | LTV-Q-10.12–.15 |
+| SM-08 | Weg W: Ersatzpfade auf `127.0.0.1` für jede Adresse, keine Proxy-Einstellung, kein `CONNECT`, `http,tcp`, `-f hls`/`-f dash`, keine 3xx, MPD vorab in Go ohne DOCTYPE, gesperrt im Netzmodus «host» | BD-09; RS-02, SL-2 | W | Mit der feindlichen Testmenge aus `05` 2.6 zeigt die Mitschrift aller `connect()`- und `sendto()`-Aufrufe des FFmpeg-Prozesses nur `127.0.0.1:<Port>`. | T-4, M-10, LTV-Q-10.36 |
+| SM-09 | Sperre des FFmpeg-Empfängers, **hart gesetzt**: Landlock (Dateien; TCP nur Port `P`; UDP ab ABI 10), immer Seccomp (nur `AF_UNIX` und TCP über `AF_INET`/`AF_INET6`), kein `/proc` anderer Prozesse; fehlt ein Teil, startet der Empfänger nicht; nie `BestEffort()` | BD-09, BD-24; RS-02 P5, RS-03 | W (Pflicht) | Ein Empfänger in der Sperre kann `/config/secret.key` nicht öffnen, `/proc/1/cmdline` nicht lesen, keinen UDP-, SCTP- oder Multipath-TCP-Socket anlegen und keine Verbindung zu einem anderen Port öffnen; auf einem Kernel ohne Landlock (oder mit einem Docker-Profil, das die Aufrufe sperrt) startet er nicht, und LA-01 zeigt «Eindämmung nicht verfügbar». | T-4, T-27, M-25 |
+| SM-10 | UDP, RTP, Multicast: nur Administrator, Bindung an eine Schnittstelle, Port ≥ 1024, Gruppe geprüft, SSM, nichts senden, Flutgrenze, Text V-3 | BD-10, BD-11; RS-12 | H | Pakete mit gefälschtem Absender werden gezählt und verworfen, sobald sie die Bytegrenze überschreiten; der Socket lauscht nicht auf `0.0.0.0`, und der Empfänger sendet kein Paket. | LTV-Q-10.11 |
+| SM-11 | Netzmodus «host» als A-9; Weg W gesperrt; Adressen und IPv6-Präfixe des Hosts gesperrt; dauerhafter Hinweis | BD-12, BD-05; RS-13, SL-4 | H | Im Netzmodus «host» erreicht keine Quelle `127.0.0.1:<Port>` eines Testdienstes auf dem Host, und eine DASH-Quelle meldet «im Netzmodus host nicht verfügbar». | A-9, `04` F-11 |
 | SM-12 | RTSP/RTMP nur über den übergebenen Dialer, RTSP nur TCP, keine Fremdadresse im `Transport`, kein `rtmpe` | BD-13; RS-24 | L | Eine RTSP-Quelle, deren Server UDP an `192.168.1.1` verlangt, wird abgelehnt; ein Dialer, der alles ablehnt, verhindert jede Verbindung der Bibliothek. | `04` F-1, M-23 |
-| SM-13 | Logos und EPG-Bilder nur über den Server, nur öffentlich, Go-Decoder zuerst, Grenzen, Takt | BD-14; RS-21 | 1 (Logos), 2 (EPG-Bilder) | Ein Logo auf `http://192.168.1.1/logo.png` wird nie abgerufen, und ein Bild mit gültigem Kopf und kaputtem Inhalt erreicht FFmpeg nicht. | LTV-Q-10.16, .17 |
-| SM-14 | jede Adresse und jeder Kopfzeilen-Wert verschlüsselt, nur `site` im Klartext; Xtream nur `stream_id`; AAD `v2:` mit Tabelle, Spalte, Zeile | BD-15, BD-22; RS-05, RS-20 | 1 | Die Datenbank enthält keinen der Testwerte von Benutzer, Passwort, Token, Pfad und Kopfzeile (Bytesuche), und ein in eine andere Zeile kopierter Wert lässt sich nicht entschlüsseln. | T-28, LTV-Q-10.18, .19 |
-| SM-15 | Geheimnisse nur an feste Ursprünge; aus Listen nur `User-Agent` und `Referer`; `benutzer:passwort@` zerlegt; verbotene Kopfzeilen | BD-16, BD-18; RS-06 | 1 | Ein Sender einer Liste auf einem fremden Host empfängt weder `Authorization` noch `Cookie` noch eine eigene Kopfzeile, und eine Liste mit `#EXTHTTP:{"Cookie":"x"}` setzt kein Cookie. | T-28, LTV-Q-10.20, .21, .26 |
-| SM-16 | API und Oberfläche: Geheimnisse nur schreibbar, nur `site` und Namen, Maskierung im Server; Diagnose und Importergebnis ohne Adresse | BD-20; RS-05 P2, RS-17, SL-3 | 1 | Keine Antwort einer Live-Operation (auch nicht der Verwaltung) enthält einen Testwert von Adresse, Pfad, Passwort oder Kopfzeilen-Wert; für `X-Token: abc` liefert die API nur den Namen. | LTV-Q-10.23, .24 |
+| SM-13 | Logos und EPG-Bilder nur über den Server, nur öffentlich, Go-Decoder zuerst, Grenzen, Takt | BD-14; RS-21 | 1a (Logos), 2 (EPG-Bilder) | Ein Logo auf `http://192.168.1.1/logo.png` wird nie abgerufen, und ein Bild mit gültigem Kopf und kaputtem Inhalt erreicht FFmpeg nicht. | LTV-Q-10.16, .17 |
+| SM-14 | jede Adresse und jeder Kopfzeilen-Wert verschlüsselt, nur `site` im Klartext; Xtream nur `stream_id`; AAD `v2:` mit Tabelle, Spalte, Zeile | BD-15, BD-22; RS-05, RS-20 | 1a | Die Datenbank enthält keinen der Testwerte von Benutzer, Passwort, Token, Pfad und Kopfzeile (Bytesuche), und ein in eine andere Zeile kopierter Wert lässt sich nicht entschlüsseln. | T-28, LTV-Q-10.18, .19 |
+| SM-15 | Geheimnisse nur an feste Ursprünge; aus Listen nur `User-Agent` und `Referer`; `benutzer:passwort@` zerlegt; verbotene Kopfzeilen | BD-16, BD-18; RS-06 | 1a | Ein Sender einer Liste auf einem fremden Host empfängt weder `Authorization` noch `Cookie` noch eine eigene Kopfzeile, und eine Liste mit `#EXTHTTP:{"Cookie":"x"}` setzt kein Cookie. | T-28, LTV-Q-10.20, .21, .26 |
+| SM-16 | API und Oberfläche: Geheimnisse nur schreibbar, nur `site` und Namen, Maskierung im Server; Diagnose und Importergebnis ohne Adresse | BD-20; RS-05 P2, RS-17, SL-3 | 1a | Keine Antwort einer Live-Operation (auch nicht der Verwaltung) enthält einen Testwert von Adresse, Pfad, Passwort oder Kopfzeilen-Wert; für `X-Token: abc` liefert die API nur den Namen. | LTV-Q-10.23, .24 |
 | SM-17 | Schwärzung nach 5.4; nur `netguard.Site` im Protokoll (Lint); `redactAny` für zusammengesetzte Werte; Testfall | BD-19; RS-07 | 0 | Ein Protokoll mit allen Testwerten aus 5.4 in Text, `slog.String`, `slog.Any` und Gruppe enthält keinen davon, und `default=x` bleibt unverändert. | Regel 10, LTV-Q-10.19, .22 |
-| SM-18 | Sicherung ohne Geheimnisse leert die verschlüsselten Live-Spalten mit `secure_delete` (F-4) | BD-15; RS-05 P5 | 1 | Eine entpackte Sicherung ohne Geheimnisse enthält weder Klartext noch Chiffrat einer Live-Adresse oder eines Passworts (Bytesuche nach Testwert und nach `v2:`). | LTV-Q-10.25 |
-| SM-19 | keine Zugangsdaten in Argumenten, Umgebung, `ffmpeg.log`; Fehlerausgabe von FFmpeg nie roh | BD-21 | 1 | Während einer Live-Umwandlung enthalten `/proc/<pid>/cmdline` und `/proc/<pid>/environ` keinen Testwert und keine `SLOUCHCAT_*`-Variable, und im Arbeitsordner entsteht keine `ffmpeg.log`. | `05` 2.4, `04` 10.4 |
-| SM-20 | Xtream: Adressen nur aus dem eingetragenen Host, `server_info` nie verwendet, Hinweis bei Abweichung | BD-17; RS-05 P3 | 1 | Eine Xtream-Antwort mit `server_info.url = sammler.example` führt zu keiner einzigen Anfrage an `sammler.example`. | LTV-Q-10.26 |
-| SM-21 | Argumente nur Zahlen und Listenwerte; festes Eingangsformat; `-protocol_whitelist pipe` auch für `ffprobe`; Mustertest | BD-23; RS-16 | 1 | Ein Strom mit Sprachkennung `deu,movie=/etc/passwd` und Dienstname mit `;` und `[` erzeugt Argumentlisten, die den Mustertest bestehen und keinen dieser Werte enthalten. | T-27, LTV-Q-10.27, .28 |
-| SM-22 | Hülle für jeden Live-FFmpeg: Umgebung, rlimits vor `execve`, `no_new_privs`, `PDEATHSIG`; Landlock und Seccomp wo möglich; Anzeige «ohne Sandbox» | BD-21, BD-24, BD-26; RS-03 | 1 (ohne Landlock; Landlock nach F-1) | `/proc/<pid>/limits` eines Live-FFmpeg zeigt die gesetzten Grenzen, `/proc/<pid>/status` zeigt `NoNewPrivs: 1`, und mit Landlock scheitert das Öffnen von `/config/secret.key`. | T-27, LTV-Q-10.29, .35 |
-| SM-23 | Compose: `no-new-privileges`, `cap_drop: [ALL]`, `pids_limit` | BD-24, BD-26; RS-03 | 1 (vorbehaltlich `04` F-12) | Die ganze Prüfreihe läuft mit diesen Einstellungen grün, und ein Prozess im Container kann keine 600 Kinder anlegen. | `04` 10.6, M-25 |
-| SM-24 | Prozesslimits, Zeitgrenzen, Beendigung, Waisen, Neustartdrossel | BD-26 | 1 | Nach 1000 Umschaltungen gibt es so viele Go-Routinen, offene Dateien und Prozesse wie vorher, und nach dem harten Abbruch des Servers lebt kein FFmpeg mehr. | LTV-Q-10.31–.35 |
-| SM-25 | `recover` an der Wurzel jeder Live-Go-Routine; keine Allokation aus Längenfeldern; Fuzz-Ziele in der CI | BD-25; RS-04 | 1 (TS, HLS, M3U, Xtream), 2 (XMLTV), 3 (RTP), W (MPD) | Ein Paket, das im Parser einen Indexfehler auslöst, beendet nur den Empfang dieses Senders mit Quarantäne; eine gleichzeitige Filmwiedergabe läuft weiter. | T-27, LTV-Q-10.29, .30 |
-| SM-26 | `govulncheck` in der CI; Abgleich der FFmpeg-Fassung bei jedem Release; Release ohne Test-Tags; Live-Testdialer nur über ein Build-Tag | BD-24, BD-27; RS-24 | 1 | Die CI scheitert, wenn das Release-Binary mit einem Test-Tag gebaut ist oder `govulncheck` eine erreichbare Lücke meldet. | O-7 |
-| SM-27 | Grenzen für M3U, Xtream und Upload; streamendes Lesen; Stapel | BD-30, BD-31; RS-14 | 1 | Eine M3U mit einer 10-MB-Zeile, eine mit 300'000 Einträgen und eine Xtream-Antwort mit Tiefe 1'000 brechen mit stabilem Fehlercode ab, ohne dass der Speicher des Servers über 64 MiB wächst (Annahme), und der bisherige Stand bleibt. | LTV-Q-10.41–.45 |
-| SM-28 | XMLTV: Budget je Element über `InputOffset`, `Strict`, `HTMLEntity`, Zeichensatz streamend, Text statt HTML | BD-28, BD-30, BD-33; RS-15 | 2 | Eine XMLTV mit einem 2-GB-`<desc>` bricht nach 256 KiB ab, und eine mit `<!DOCTYPE>`, internen Entitäten und `&xxe;` lädt nichts nach und expandiert nichts. | `09` 12, LTV-Q-10.37, .38 |
+| SM-18 | Sicherung ohne Geheimnisse überschreibt jeden verschlüsselten Live-Wert mit `secure_delete` durch den Platzhalter `v0:` («Zugang fehlt»), damit die CHECK-Regeln aus `07` halten (RD-08; F-4) | BD-15; RS-05 P5, RD-08 | 1a | Eine entpackte Sicherung ohne Geheimnisse besteht `PRAGMA integrity_check` und `PRAGMA foreign_key_check`, enthält weder Klartext noch Chiffrat einer Live-Adresse oder eines Passworts (Bytesuche nach Testwert, `v1:` und `v2:` in Live-Spalten), und nach der Wiederherstellung zeigt jede Quelle «Zugang neu eingeben», ohne eine Anfrage an die Quelle zu schicken. | LTV-Q-10.25 |
+| SM-19 | keine Zugangsdaten in Argumenten, Umgebung, `ffmpeg.log`; Fehlerausgabe von FFmpeg nie roh | BD-21 | 1a | Während einer Live-Umwandlung enthalten `/proc/<pid>/cmdline` und `/proc/<pid>/environ` keinen Testwert und keine `SLOUCHCAT_*`-Variable, und im Arbeitsordner entsteht keine `ffmpeg.log`. | `05` 2.4, `04` 10.4 |
+| SM-20 | Xtream: Adressen nur aus dem eingetragenen Host, `server_info` nie verwendet, Hinweis bei Abweichung | BD-17; RS-05 P3 | 1a | Eine Xtream-Antwort mit `server_info.url = sammler.example` führt zu keiner einzigen Anfrage an `sammler.example`. | LTV-Q-10.26 |
+| SM-21 | Argumente nur Zahlen und Listenwerte; festes Eingangsformat; `-protocol_whitelist pipe` auch für `ffprobe`; Mustertest | BD-23; RS-16 | 1a | Ein Strom mit Sprachkennung `deu,movie=/etc/passwd` und Dienstname mit `;` und `[` erzeugt Argumentlisten, die den Mustertest bestehen und keinen dieser Werte enthalten. | T-27, LTV-Q-10.27, .28 |
+| SM-22 | Hülle für jeden Live-FFmpeg: Umgebung (ohne `SLOUCHCAT_*`, `http_proxy`, `no_proxy`), rlimits vor `execve`, `no_new_privs`, `PDEATHSIG`; Landlock und Seccomp hart gesetzt; fehlt ein Teil: Zustand «Eindämmung nicht verfügbar» ausgewiesen (F-1), nie `BestEffort()` (Lint) | BD-21, BD-24, BD-26; RS-03 | 1a (Landlock als Pflicht nach F-1) | `/proc/<pid>/limits` eines Live-FFmpeg zeigt die gesetzten Grenzen, `/proc/<pid>/status` zeigt `NoNewPrivs: 1`, mit Landlock scheitert das Öffnen von `/config/secret.key`; auf einem Testkernel ohne Landlock zeigen LA-01 und das Protokoll «Eindämmung nicht verfügbar» mit Grund, und kein Codepfad ruft `BestEffort()` (Lint grün, Gegentest rot). | T-27, LTV-Q-10.29, .35 |
+| SM-23 | Compose: `no-new-privileges`, `cap_drop: [ALL]`, `pids_limit` | BD-24, BD-26; RS-03 | 0 (nach `04` F-12 (a) und V-4, `18` Planschritt 0.6), sonst 1a | Die ganze Prüfreihe läuft mit diesen Einstellungen grün, und ein Prozess im Container kann keine 600 Kinder anlegen. | `04` 10.6, M-25 |
+| SM-24 | Prozesslimits, Zeitgrenzen, Beendigung, Waisen, Neustartdrossel | BD-26 | 1a | Nach 1000 Umschaltungen gibt es so viele Go-Routinen, offene Dateien und Prozesse wie vorher, und nach dem harten Abbruch des Servers lebt kein FFmpeg mehr. | LTV-Q-10.31–.35 |
+| SM-25 | `recover` an der Wurzel jeder Live-Go-Routine; keine Allokation aus Längenfeldern; Fuzz-Ziele in der CI | BD-25; RS-04 | 1a (TS, HLS, M3U, Xtream), 2 (XMLTV), H (RTP), W (MPD) | Ein Paket, das im Parser einen Indexfehler auslöst, beendet nur den Empfang dieses Senders mit Quarantäne; eine gleichzeitige Filmwiedergabe läuft weiter. | T-27, LTV-Q-10.29, .30 |
+| SM-26 | `govulncheck` in der CI; Abgleich der FFmpeg-Fassung bei jedem Release; Release ohne Test-Tags; Live-Testdialer nur über ein Build-Tag | BD-24, BD-27; RS-24 | 0 (Prüfung auf Test-Tags, `18` Planschritt 0.5), 1a (`govulncheck`, FFmpeg-Abgleich) | Die CI scheitert, wenn das Release-Binary mit einem Test-Tag gebaut ist oder `govulncheck` eine erreichbare Lücke meldet. | O-7 |
+| SM-27 | Grenzen für M3U, Xtream und Upload; streamendes Lesen; Stapel | BD-30, BD-31; RS-14 | 1a | Eine M3U mit einer 10-MB-Zeile, eine mit 300'000 Einträgen und eine Xtream-Antwort mit Tiefe 1'000 brechen mit stabilem Fehlercode ab, ohne dass der Speicher des Servers über 64 MiB wächst (Annahme), und der bisherige Stand bleibt. | LTV-Q-10.41–.45 |
+| SM-28 | XMLTV: eigene Tiefen- und Mengengrenze in der `Token`-Schleife (Go begrenzt dort nicht), Budget je Element über `InputOffset`, `Strict`, `HTMLEntity`, Zeichensatz streamend, Text statt HTML | BD-28, BD-30, BD-33; RS-15 | 2 | Eine XMLTV mit einem 2-GB-`<desc>` bricht nach 256 KiB ab; eine mit 100'000 verschachtelten Elementen ausserhalb von `<programme>` bricht bei Tiefe 17 ab, ohne dass der Speicher über 64 MiB wächst (Annahme); eine mit `<!DOCTYPE>`, internen Entitäten und `&xxe;` lädt nichts nach und expandiert nichts. | `09` 12, LTV-Q-10.37, .38 |
 | SM-29 | Kompression: Magic Bytes, `identity`, eine Schicht, Zähler nach dem Entpacken, zip mit einem Eintrag, Store/Deflate | BD-29; RS-15 | 2 | Eine gzip-Bombe 1:1000, ein zip mit zwei Einträgen und ein zip mit Methode bzip2 brechen ab, bevor mehr als die Grenze entpackt ist. | LTV-Q-10.39, .40 |
 | SM-30 | FTS5-Eingabe in Wörter zerlegt, zitiert, begrenzt | BD-32; RS-23 | 2 | Die Suche nach `"a* OR b* NEAR(` liefert eine leere Trefferliste, keinen Fehler 500. | `09` 8.4 |
 | SM-31 | Deckel, Reserve, Höchstdauer, Rückstau, kein stilles Ausweichen | BD-34; RS-22 | 4 | Mit 30 Sitzungen und vollem Deckel entsteht kein neues Stück, das Volume hält die Reserve, und eine Filmwiedergabe startet weiter. | T-7, T-25, LTV-Q-10.46 |
 | SM-32 | Namen nur aus Kennungen, Zugriff nur über `paths`, 0700/0600, Löschen Datei für Datei | BD-35, BD-36, BD-38; RS-22 | 4 (Aufnahmen 5) | Ein Symlink im Timeshift-Ordner auf `/media` bleibt beim Aufräumen unberührt, das Ziel wird nicht gelöscht, und ein Sendungstitel `../../x` ändert keinen Pfad. | T-25, LTV-Q-10.47, .48, .52 |
 | SM-33 | Marker und Dateisystemtyp je Speicherort, kein Schreiben in leeren Einhängepunkt | BD-37 | 4 (Aufnahmen 5) | Mit ausgehängtem Aufnahme-Volume entsteht keine Datei im leeren Einhängepunkt, und die Verwaltung zeigt «Speicherort fehlt». | LTV-Q-10.51 |
 | SM-34 | Timeshift- und Aufnahmedateien nur über Server-Endpunkte der eigenen Sitzung; keine statische Auslieferung | BD-38 | 4 (Aufnahmen 5) | Ein Segment eines fremden Sitzungspuffers ist mit dem eigenen Token und mit jeder geratenen Segmentnummer 404. | T-10, LTV-Q-10.49, .50 |
-| SM-35 | Token `lt`: Inhalt, HMAC zuerst, Bindung, Laufzeit, nur Herzschlag verlängert, 404 gleich, `no-store`, `no-referrer` | BD-42, BD-44; RS-08, RS-19 | 1 | Ein gefälschtes, ein abgelaufenes, ein fremdes und ein nach dem Umschalten altes Token ergeben dieselbe 404-Antwort, und ein Client, der nur Segmente holt, verliert die Sitzung nach 60 s. | T-21, LTV-Q-10.53, .54, .59 |
-| SM-36 | Widerruf über die Haken in `auth`, Sicherung je Listenanfrage höchstens 30 s alt | BD-43; RS-08 | 1 | Nach dem Abmelden antwortet jede Adresse mit dem alten Token innert 10 s mit 404; nach Ablauf der Anmeldung ohne Haken innert 30 s. | LTV-Q-10.55, .56 |
-| SM-37 | eine Zugriffsabfrage je Objektart mit Profil und Konto; Aufnahmeregel nach A-6 und `04` F-10; ULIDs; IDOR-Matrix | BD-40, BD-41, BD-44; RS-09, SL-5 | 1 (Favoriten, Verlauf, Sitzungen), 2 (Erinnerungen), 5 (Aufnahmen, Planungen) | Jede nicht erlaubte Zelle der Matrix in 9.3 antwortet 404 mit gleichem Körper, jede erlaubte liefert genau die eigenen Daten. | LTV-009, LTV-Q-10.57, .58 |
-| SM-38 | Vertragstest: jede Live-Operation und Route ohne wirksames Recht 404; `x-visibility`, `x-clients` | BD-39; RS-19 | 1 | Für jede Operation mit Live-Bezug aus `api/openapi.yaml` liefert ein Profil ohne Recht 404 mit identischem Körper, auch für Logo, Bild und Suche. | LTV-012, LTV-Q-10.61, .62 |
-| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst | BD-46, BD-34, BD-26; RS-10 | 1 | Wer in 10 s durch 20 Sender schaltet, hält danach höchstens zwei Eingangsströme, und ein zweites Profil kann sofort einen anderen Sender einstellen. | `04` 8.5, LTV-Q-10.60 |
-| SM-40 | CSRF-Kopf für jede schreibende Live-Operation; keine CORS-Freigabe | BD-45 | 1 | Ein `POST` auf «Einstellen» und ein `DELETE` auf eine Aufnahme ohne CSRF-Kopf werden mit 403 abgewiesen und ändern nichts. | LTV-Q-10.59 |
-| SM-41 | Protokoll der Verwaltung für Quellen, Ziele, Ursprünge, Speicherorte, Schalter | BD-48; RS-01 P6 | 1 (Quellen), 3 (Ziele) | Nach dem Freigeben eines Ziels steht ein Eintrag mit Administrator, Zeit, Adresse und Port im Protokoll, aber kein Passwort und keine volle Adresse. | SG-8 |
-| SM-42 | Administratorsicht ohne private Titel; Meldungen bei PIN-Profilen ohne Titel | BD-47 | 1 (Wiedergaben), 5 (Aufnahmen) | Keine Antwort der Verwaltung enthält den Titel einer Testaufnahme, und eine E-Mail für ein PIN-Profil nennt keinen Sender. | LTV-009, `03` DR-05, DR-17 |
+| SM-35 | Token `lt` nach `08` 4.2: HMAC zuerst, Bindung an Sitzung und Einstellen, Laufzeit, nur Herzschlag verlängert; jeder Token-Fehler 404 mit gleichem Körper (Bestand mit 401 bleibt unverändert); `no-store`, `no-referrer` | BD-42, BD-44; RS-08, RS-19 | 1a | Ein gefälschtes, ein abgelaufenes, ein fremdes, ein widerrufenes und ein nach dem Umschalten altes Token sowie ein Profil ohne Recht ergeben an Liste und Segment dieselbe 404-Antwort (Status und Körper bytegleich); eine bestehende `st`-Route antwortet für ein falsches Token weiter 401; ein Client, der nur Segmente holt, verliert die Sitzung nach 60 s. | T-21, LTV-Q-10.53, .54, .59 |
+| SM-36 | Widerruf über die Haken in `auth`, Sicherung je Listenanfrage höchstens 30 s alt; App im Hintergrund beendet die Sitzung; Deaktivieren eines Senders entzieht nichts, «sofort beenden» schon (T-29) | BD-43; RS-08 | 1a | Nach dem Abmelden antwortet jede Adresse mit dem alten Token innert 10 s mit 404, nach Ablauf der Anmeldung ohne Haken innert 30 s; nach «Sender deaktivieren» ist Einstellen sofort 404, eine laufende Wiedergabe läuft weiter, nach «sofort beenden» endet sie innert 10 s. | LTV-Q-10.55, .56 |
+| SM-37 | eine Zugriffsabfrage je Objektart mit Profil und Konto; Aufnahmeregel nach A-6 und `04` F-10; ULIDs; IDOR-Matrix | BD-40, BD-41, BD-44; RS-09, SL-5 | 1a (Favoriten, Verlauf, Sitzungen), 2 (Erinnerungen), 5 (Aufnahmen, Planungen), 6 (Serienregeln) | Jede nicht erlaubte Zelle der Matrix in 9.3 antwortet 404 mit gleichem Körper, jede erlaubte liefert genau die eigenen Daten. | LTV-009, LTV-Q-10.57, .58 |
+| SM-38 | Vertragstest: jede Live-Operation und Route ohne wirksames Recht 404; `x-visibility`, `x-clients` | BD-39; RS-19 | 1a | Für jede Operation mit Live-Bezug aus `api/openapi.yaml` liefert ein Profil ohne Recht 404 mit identischem Körper, auch für Logo, Bild und Suche. | LTV-012, LTV-Q-10.61, .62 |
+| SM-39 | Drosselung nach 9.5; Serverdeckel; Karenz weicht zuerst | BD-46, BD-34, BD-26; RS-10 | 1a | Wer in 10 s durch 20 Sender schaltet, hält danach höchstens zwei Eingangsströme, und ein zweites Profil kann sofort einen anderen Sender einstellen. | `04` 8.5, LTV-Q-10.60 |
+| SM-40 | bestehender CSRF-Schutz unverändert für jede schreibende Live-Operation (403 `csrf_header_missing`, gebaut); «404 statt 403» gilt nur für Unsichtbares; keine CORS-Freigabe | BD-45 | 1a | Ein `POST` auf «Einstellen» und ein `DELETE` auf eine Aufnahme ohne CSRF-Kopf werden mit 403 `csrf_header_missing` abgewiesen und ändern nichts, und zwar für ein Profil mit und ohne Recht mit derselben Antwort. | LTV-Q-10.59 |
+| SM-41 | Protokoll der Verwaltung für Quellen, Ziele, Ursprünge, Speicherorte, Schalter | BD-48; RS-01 P6 | 1a (Quellen, Ursprünge, Schalter), H (feste Ziele) | Nach dem Freigeben eines Ziels steht ein Eintrag mit Administrator, Zeit, Adresse und Port im Protokoll, aber kein Passwort und keine volle Adresse. | SG-8 |
+| SM-42 | Administratorsicht ohne private Titel; Meldungen bei PIN-Profilen ohne Titel | BD-47 | 1a (Wiedergaben), 5 (Aufnahmen) | Keine Antwort der Verwaltung enthält den Titel einer Testaufnahme, und eine E-Mail für ein PIN-Profil nennt keinen Sender. | LTV-009, `03` DR-05, DR-17 |
 | SM-43 | benannte Ausnahmen A-1 bis A-9 in Regeln, Spec und ADR (nächste Nummer 0046, `04` O-13); Hinweise V-1, V-3, V-5 | SL-1 bis SL-5 | 0 | Die Prüfung von Regeln und Spec findet jede Ausnahme aus 1.1 mit ihrer Grenze; keine Live-Regel weicht ohne Eintrag ab. | LTV-Q-10.63, .64 |
-| SM-44 | DRM erkennen und ablehnen (`05` 2.5); keine Entschlüsselungsoptionen, kein Eingabefeld | – (Rechtliches) | 1 (HLS), W (DASH) | Eine HLS-Liste mit `METHOD=SAMPLE-AES` und eine mit `KEYFORMAT="com.apple.streamingkeydelivery"` erhalten den Zustand «DRM» und werden nie abgespielt. | A-1, LTV-003 |
+| SM-44 | DRM erkennen und ablehnen (`05` 2.5; Einordnung nach der HLS-Spezifikation ist Annahme); keine Entschlüsselungsoptionen, kein Eingabefeld | – (Rechtliches) | 1a (HLS), W (DASH) | Eine HLS-Liste mit `METHOD=SAMPLE-AES` und eine mit `KEYFORMAT="com.apple.streamingkeydelivery"` erhalten den Zustand «DRM» und werden nie abgespielt. | A-1, LTV-003 |
 
-**Pflicht vor Stufe 0:** SM-17, SM-43. **Pflicht vor Stufe 1:** SM-01 (Regel), SM-02 bis SM-07, SM-13 (Logos),
-SM-14 bis SM-25, SM-26, SM-27, SM-35 bis SM-42 (soweit die Objekte in Stufe 1 entstehen), SM-44 (HLS).
+| SM-45 | Verwaltung zeigt laufende Aufnahmen je Eingang nur als Zahl; die Abnehmerliste eines Eingangs enthält nur Zuschauer; nie Konto oder Profil neben einem Sender einer laufenden Aufnahme | BD-49; RD-06 | 5 | Läuft für Konto X eine Aufnahme auf Sender S, enthält keine Antwort der Verwaltung (Eingänge, Aktive Streams, Übersicht, Protokoll) zugleich S und die Kennung, die E-Mail oder den Namen von X oder eines seiner Profile (Bytesuche je Antwort), nur «Aufnahmen: 1». | LTV-009, `03` DR-17, A-6 |
+| SM-46 | Meldung «Kontingent voll» an das Hauptprofil in eigener Art ohne Titel, Sender und Zeit; Titel nur für Aufnahmen eines Profils mit Altersgrenze; gleiche Regel für E-Mail, Push, Telegram | BD-50; RD-07 | 5 | Wird eine Aufnahme eines Profils ohne Altersgrenze wegen vollem Kontingent abgelehnt, enthalten der Eintrag des Hauptprofils und jede Zustellung an das Hauptprofil weder Titel noch Sender noch Zeit (Bytesuche); das Profil selbst bekommt sie. | LTV-009, E-4, `03` DR-05, DR-06 |
+| SM-47 | Laufende Verbindungen zu einem entzogenen festen Ziel oder Ursprung enden nach Bestätigung; Dialog «Deaktivieren» nennt, dass Laufendes weiterläuft (T-29) | BD-02, BD-10; T-29 | H (Ziele), 1a (Text beim Deaktivieren) | Entzieht der Administrator das Ziel `192.168.1.20:9981`, während ein Zuschauer und eine Aufnahme darüber laufen, ist die Verbindung innert 5 s geschlossen und die Aufnahme zeigt eine Lücke mit Grund. | T-5, T-29 |
+
+**Pflicht vor Stufe 0:** SM-17, SM-43; dazu SM-23 (nach `04` F-12 (a)) und die Prüfung auf Test-Tags aus SM-26
+(`18` Planschritte 0.5, 0.6). **Pflicht vor Stufe 1a:** SM-01 (nur öffentlich), SM-02 bis SM-07, SM-13 (Logos),
+SM-14 bis SM-22, SM-24, SM-25, SM-26, SM-27, SM-35 bis SM-42 (soweit die Objekte in 1a entstehen), SM-44 (HLS),
+SM-47 (Text beim Deaktivieren). **Stufe 1b** bringt keine neue Pflicht (Logo-Upload nutzt den bestehenden
+Weg mit `largeBodies`). **Stufe 2:** SM-13 (EPG-Bilder), SM-25 (XMLTV), SM-28 bis SM-30, SM-37 (Erinnerungen).
+**Stufe H:** SM-01 (feste Ziele), SM-06 (Sammelhinweis), SM-10, SM-11, SM-25 (RTP), SM-41 (Ziele), SM-47.
+**Stufe 4:** SM-31 bis SM-34. **Stufe 5:** SM-32 bis SM-34 für Aufnahmen, SM-37, SM-42, SM-45, SM-46.
+**Stufe 6:** SM-37 (Serienregeln). **Stufe L:** SM-12. **Stufe W:** SM-08, SM-09, SM-25 (MPD), SM-44 (DASH).
 
 ---
 
@@ -1010,8 +1096,8 @@ SM-14 bis SM-25, SM-26, SM-27, SM-35 bis SM-42 (soweit die Objekte in Stufe 1 en
 | Befund | Schwere | Behandlung |
 |---|---|---|
 | RS-01 Freigabe lokaler Ziele nicht eng | hoch | in 04 gelöst (T-5, 10.9); hier SM-01, SM-06, SM-41 |
-| RS-02 Weg W nicht dicht | hoch | in 04/05 gelöst (T-4, `05` 2.6); hier SM-08, SM-09, präzisiert in 4.8 (Proxy-Angabe O-5, Landlock nur Port und TCP: Seccomp ergänzt, R-3) |
-| RS-03 FFmpeg mit Zugriff auf Geheimnisse | hoch | in 04 gelöst (T-27, 10.8); hier SM-22, SM-23, SM-09; offen: Pflicht der Sperre ab Stufe 1 (F-1) |
+| RS-02 Weg W nicht dicht | hoch | in 04/05 gelöst (T-4, `05` 2.6); hier SM-08, SM-09, präzisiert in 4.8 (Ersatzpfad statt Proxy-Angabe, `04` 13.4; Landlock nur nach Port, UDP erst ab ABI 10, Seccomp immer, hart gesetzt; R-3) |
+| RS-03 FFmpeg mit Zugriff auf Geheimnisse | hoch | in 04 gelöst (T-27, 10.8); hier SM-22, SM-23, SM-09; offen: Pflicht der Sperre ab Stufe 1a (F-1) |
 | RS-04 Paket beendet den Server | hoch | in 04 gelöst (T-27); hier SM-25 |
 | RS-05 Adressen im Klartext | hoch | in 04 gelöst (T-28, 10.5); hier SM-14, SM-16, SM-18, SM-20; offen: Behandlung in der Sicherung (F-4) |
 | RS-06 Kopfzeilen an fremde Hosts | hoch | in 04 gelöst (T-28, 10.5); hier SM-04, SM-15 |
@@ -1034,6 +1120,19 @@ SM-14 bis SM-25, SM-26, SM-27, SM-35 bis SM-42 (soweit die Objekte in Stufe 1 en
 | RS-23 Programmsuche | niedrig | SM-30 |
 | RS-24 Abhängigkeiten, FFmpeg-Fassung, Test-Dialer | niedrig | in 04 teilweise (F-1, 10.8); hier SM-12, SM-26, O-7 |
 
+### 12.4 Befunde aus Review 2 und der Nachprüfung
+
+| Befund | Behandlung |
+|---|---|
+| RD-06 Verwaltung sieht Konto und Sender laufender Aufnahmen | SM-45 (9.4); `08` 3.9 und `15` LA-12 sind anzupassen |
+| RD-07 Meldung «Kontingent voll» an das Hauptprofil mit Titel | SM-46 (9.4); eigene Art in `07`/`08` |
+| RD-08 Platzhalter statt `NULL` in der Sicherung ohne Geheimnisse | SM-18 mit `v0:` (5.1); Entscheid F-4 |
+| RD-16 404 an `lt`-Routen, Reaktion der Clients | 9.1 «Fehlerantwort»; Client-Regel in `08` und `16` |
+| Nachprüfung Nr. 24, 25, 27 (`tcp` in der Liste, `http_proxy`, HLS-Leser von FFmpeg) | 4.8, 6.3; belegt |
+| Nachprüfung Nr. 31, 32 (`encoding/xml`: keine Entitäten, keine Tiefengrenze in `Token`) | 7.1, SM-28 |
+| Nachprüfung Nr. 34, 35 (Landlock nach Port, UDP ab ABI 10, `BestEffort()` fällt still zurück) | 4.8, 6.3, SM-09, SM-22 |
+| Nachprüfung zu HLS-Verschlüsselung und DRM | nicht gelesen: Annahme (4.7, 10, R-10) |
+
 ### 12.3 Stillschweigende Lockerungen des Reviews
 
 | Nr. | Stand |
@@ -1052,29 +1151,30 @@ SM-14 bis SM-25, SM-26, SM-27, SM-35 bis SM-42 (soweit die Objekte in Stufe 1 en
 
 | Nr. | Restrisiko | Warum es bleibt | Wer es trägt, wie es sichtbar ist |
 |---|---|---|---|
-| R-1 | Eine Speicherlücke in FFmpeg gibt einem Angreifer Code im Container; **ohne** Landlock liest er `secret.key`, Datenbank und Sicherungen. | FFmpeg ist C-Code auf feindlichen Daten und läuft mit der UID des Servers. | Betreiber; LA-01 «FFmpeg läuft ohne Sandbox»; Entscheid F-1 |
+| R-1 | Eine Speicherlücke in FFmpeg gibt einem Angreifer Code im Container; **ohne** Landlock liest er `secret.key`, Datenbank und Sicherungen. | FFmpeg ist C-Code auf feindlichen Daten und läuft mit der UID des Servers. | Betreiber; LA-01 «Eindämmung nicht verfügbar»; Entscheid F-1 |
 | R-2 | Ein Gerät im Heimnetz fälscht Bild und Ton eines UDP- oder Multicast-Senders, auch für Profile mit Altersgrenze und in Aufnahmen. | UDP hat keine Absenderprüfung; LTV-015 verlangt alle Sender ohne Prüfung. | Betreiber; Text V-3 mit Zusatz (4.10); Empfehlung VLAN |
-| R-3 | Ein gekaperter FFmpeg-Empfänger in Weg W öffnet eine TCP-Verbindung zum Rechner eines Angreifers auf dem Port des Weiterleiters. | Landlock regelt TCP nur nach Port (Annahme, M-25). Er hat dabei keine Geheimnisse des Servers. | Marco über `04` F-13; Weg W nur mit Sperre |
+| R-3 | Ein gekaperter FFmpeg-Empfänger in Weg W öffnet eine TCP-Verbindung zum Rechner eines Angreifers auf dem Port des Weiterleiters. | Landlock regelt TCP nur nach Port (belegt, Nachprüfung Nr. 34). Er hat dabei keine Geheimnisse des Servers. | Marco über `04` F-13; Weg W nur mit Sperre |
 | R-4 | Weltweite IPv6-Adressen im Heimnetz und die öffentliche Adresse des eigenen Anschlusses gelten als öffentlich. | nicht von fremden Adressen zu unterscheiden (`netguard.go:44-47`) | im Bridge-Netz ohne IPv6 praktisch geschlossen; im Netzmodus «host» teilweise über SM-11 |
 | R-5 | Im Netzmodus «host» liegt jeder Dienst auf dem Loopback des Hosts hinter jeder Lücke der Abwehr. | Folge des Netzmodus selbst | Betreiber; A-9, dauerhafter Hinweis |
 | R-6 | Ein freigegebenes Gerät, das gekapert wird, kann den Server mit feindlichen Daten beliefern und innerhalb seiner Ziele angesprochen werden. | Die Freigabe ist Vertrauen in dieses Gerät. | Administrator; V-3 |
 | R-7 | Nach einem Entzug spielt der Player noch, was er schon geladen hat. | Daten auf dem Gerät holt kein Server zurück. | Zuschauer; höchstens der Vorlauf des Players |
 | R-8 | Wer den Docker-Host verwaltet, liest Aufnahmen, Puffer und mit `secret.key` alle Geheimnisse. | Grenze des Betriebs, nicht der Anwendung | Betreiber |
-| R-9 | Ein Token `lt` aus Verlauf oder Proxy-Protokoll ist bis 60 s nach dem letzten Herzschlag des echten Geräts nutzbar. | Bearer-Adressen für native Player (V1 L-2) | Betreiber des Reverse-Proxys; Schwärzung in Slouchcat |
+| R-9 | Ein Token `lt` aus Verlauf, Proxy-Protokoll oder von einem Gerät der Bildübertragung ist bis 60 s nach dem letzten Herzschlag des echten Geräts nutzbar. | Bearer-Adressen für native Player (V1 L-2); die Apps beenden die Sitzung im Hintergrund selbst (`04` 10.3), Browser und Bildübertragung sind offen (`04` O-25) | Betreiber des Reverse-Proxys; Schwärzung in Slouchcat |
+| R-11 | Ein aus Sicherheitsgründen deaktivierter Sender läuft für laufende Zuschauer weiter, wenn der Administrator nicht «sofort beenden» wählt. | `04` T-29 schützt laufende Wiedergaben und Aufnahmen | Administrator; Text im Dialog (9.2) |
 | R-10 | Die Grenze zwischen Transportverschlüsselung und DRM ist eine Annahme. | RFC 8216 nicht nachgelesen (`05` W-11) | vorsichtige Ablehnung (SM-44) |
 
 ### 13.2 Offene technische Punkte
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | **Ort der Hülle und Regel 3.** Regel 3 erlaubt `os/exec` nur in `transcode`; die Hülle wird von dort gestartet, ruft aber selbst `execve` (`syscall.Exec`, nicht `os/exec`). Vorschlag: Code der Hülle in `internal/transcode`, `cmd/slouchcat` ruft nur die Funktion; Lint-Regel für `syscall.Exec` und `unix.Exec` nur dort, analog zur benannten Ausnahme für den Updater. | Bau, `21` |
-| O-2 | **Landlock und Seccomp im Go-Code:** über `golang.org/x/sys/unix` (schon Abhängigkeit, `server/go.mod:22`) oder eine neue Bibliothek; Fassung der Landlock-Schnittstelle je Kernel; Verhalten bei teilweiser Unterstützung (nur Dateien, kein Netz). | Bau, M-25 |
+| O-1 | ~~Ort der Hülle und Regel 3~~ **erledigt durch `04` 10.8 und `04` O-26:** Code in `internal/transcode`, `execve` per Lint nur dort, benannter Zusatz zu Regel 3. | – |
+| O-2 | **Landlock und Seccomp im Go-Code:** über `golang.org/x/sys/unix` (schon Abhängigkeit, `server/go.mod:22`) oder `go-landlock` (MIT, v0.11.2, Nachprüfung Nr. 35; dann ohne `BestEffort()`). Welche ABI-Fassung CT 190 und der Entwicklungsrechner melden; ob ABI 10 (UDP) vorhanden ist. Bei teilweiser Unterstützung gilt 4.8 Punkt 4 und 6.3 («hart oder ausgewiesen»). | Bau, M-25 |
 | O-3 | **Docker-Seccomp und Landlock:** ob das Standardprofil von Docker die Landlock-Aufrufe auf CT 190 zulässt; sonst ist die Sperre ohne Compose-Änderung nicht verfügbar. | M-25 |
 | O-4 | **Erkennung des Netzmodus «host»:** Umgebungsvariable aus der Zusatzdatei und Prüfung der Schnittstellen beim Start; was gilt, wenn jemand «host» ohne die Zusatzdatei wählt. | Bau, `15` |
-| O-5 | **Proxy-Angabe in Weg W:** `05` 2.6 nennt nicht, wie FFmpeg den Weiterleiter erreicht; vorgeschlagen ist die HTTP-Proxy-Option ohne Kennwort (4.8). Ob FFmpeg 7.1.4 sie in allen Unteranfragen von HLS und DASH beachtet, belegt M-10. | `05`, M-10 |
+| O-5 | ~~Proxy-Angabe in Weg W~~ **erledigt durch `05` 2.6 Fassung 3:** Ersatzpfade, die direkt auf den Weiterleiter zeigen; keine Proxy-Einstellung. | – |
 | O-6 | **DRM-Grenze nach RFC 8216** belegen (`05` W-11, O-16). | `05`, `24` |
 | O-7 | **Live-Testdialer:** Build-Tag (Muster `radiotest`, `server/internal/radio/dialer.go:1-11`), das nur Loopback zulässt; CI-Schritt, der das Release-Binary auf Test-Tags prüft. | `17` |
-| O-8 | **Grösse des M3U-Uploads:** `15` LA-03 nennt 20 MB, `05` 2.3 200 MiB; ein Wert für Abruf und Upload. | `15`, `05` |
+| O-8 | ~~Grösse des M3U-Uploads~~ **erledigt durch `04` 14.9:** 200 MiB für Abruf und Hochladen; `15` ist anzupassen (`04` 15.1). | – |
 | O-9 | **EPG im Heimnetz:** `09` 3.2 nennt `netguard.Clients` (`NewClients`) mit lokalem Client ohne Prüfung; erlaubt `09` F-4 das Heimnetz, gilt SM-01 mit festen Zielen, nie der lokale Client. | `09` |
 | O-10 | **Meldung mit Adresse im Heimnetz** in `15` LA-03 Schritt 2 nur für die selbst eingetippte Adresse; für Listeneinträge gilt der eine Zustand aus 4.5. | `15` |
 | O-11 | **WebP-Decoder** braucht `golang.org/x/image` (neue Abhängigkeit) oder WebP-Logos gehen ohne Go-Prüfung nicht an FFmpeg. | Bau |
@@ -1088,10 +1188,11 @@ Netz), **`04` F-12** (Härtung der Standard-Compose-Datei), **`04` F-13** (Weg W
 (EPG im Heimnetz) und **`15` F-18** (Notfall-Löschen durch den Administrator).
 
 **F-1 · Darf FFmpeg Live-TV umwandeln, wenn der Kernel keine Sperre erlaubt?**
-Die Umwandlung je Zuschauer bekommt Fremddaten über eine Pipe. `04` 10.8 empfiehlt die Sperre ab Stufe 1, macht
-sie aber nur für Weg W zur Pflicht.
+Die Umwandlung je Zuschauer bekommt Fremddaten über eine Pipe. `04` 10.8 empfiehlt die Sperre ab Stufe 1a, macht
+sie aber nur für Weg W zur Pflicht. Still weggelassen wird sie nie (`04` T-27): Es geht nur darum, ob FFmpeg ohne
+Sperre überhaupt umwandeln darf.
 
-- **(a) Ja, mit sichtbarem Hinweis** «FFmpeg läuft ohne Sandbox» (Vorgabe nach `04`). Folge: Live-TV läuft auf
+- **(a) Ja, mit ausgewiesenem Zustand** «Eindämmung nicht verfügbar» in LA-01 und im Protokoll (Vorgabe nach `04`). Folge: Live-TV läuft auf
   jedem Host; R-1 bleibt dort hoch.
 - **(b) Nur mit Sperre.** Ohne Sperre gibt es nur den Direktweg ohne FFmpeg (`04` T-12). Folge: Auf Hosts ohne
   Landlock sehen viele Sender im Browser kein Bild (`04` 7.6).
@@ -1099,12 +1200,13 @@ sie aber nur für Weg W zur Pflicht.
 Empfehlung: **(a)**, und M-25 früh messen; zeigt M-25, dass CT 190 die Sperre kann, ist sie dort ohnehin an.
 
 **F-2 · Weiterleitung von `https` nach `http`: immer abbrechen?**
-`05` 2.4 bricht nur bei Quellen mit Zugangsdaten ab. Eine unverschlüsselte Strecke erlaubt aber jedem dazwischen,
-das Bild auszutauschen, auch für Profile mit Altersgrenze.
+Fassung 2 von `05` brach nur bei Quellen mit Zugangsdaten ab. Eine unverschlüsselte Strecke erlaubt aber jedem
+dazwischen, das Bild auszutauschen, auch für Profile mit Altersgrenze. `04` T-28 und `05` 2.4 (Fassung 3) haben
+(a) als Vorgabe übernommen; die Frage bleibt, weil sie Quellen ausschliessen kann.
 
-- **(a) Immer abbrechen** (Vorgabe in diesem Dokument). Folge: Ein Anbieter, der so weiterleitet, funktioniert
+- **(a) Immer abbrechen** (Vorgabe hier und in `04` T-28). Folge: Ein Anbieter, der so weiterleitet, funktioniert
   nicht; die Meldung sagt «Quelle leitet auf unverschlüsseltes HTTP um».
-- **(b) Nur mit Zugangsdaten abbrechen** (wie `05`). Folge: mehr Quellen laufen; Quellen ohne Zugangsdaten bleiben
+- **(b) Nur mit Zugangsdaten abbrechen** (wie `05` Fassung 2). Folge: mehr Quellen laufen; Quellen ohne Zugangsdaten bleiben
   verfälschbar.
 
 Empfehlung: **(a)**. Eingetragene `http`-Quellen bleiben erlaubt; verboten ist nur der stille Wechsel.
@@ -1122,9 +1224,50 @@ Empfehlung: **(a)**; (b) nur, wenn M-2 zeigt, dass du so eine Quelle wirklich ha
 Heute löscht diese Sicherung verschlüsselte Einstellungen (`server/internal/admin/backup.go:338-353`), behält aber
 private Podcast-Adressen im Klartext (`backup.go:88-91`).
 
-- **(a) Leeren** (Vorgabe in diesem Dokument). Folge: Die Sicherung enthält wörtlich keine Zugangsdaten; nach einer
-  Wiederherstellung, auch auf demselben Server, gibst du die Zugänge neu ein.
+- **(a) Leeren** (Vorgabe in diesem Dokument): Jeder verschlüsselte Live-Wert wird in der Kopie durch den
+  Platzhalter `v0:` ersetzt, damit die Regeln der Datenbank gültig bleiben (RD-08). Folge: Die Sicherung enthält
+  wörtlich keine Zugangsdaten; nach einer Wiederherstellung, auch auf demselben Server, gibst du die Zugänge neu
+  ein.
 - **(b) Als Chiffrat behalten.** Folge: Auf demselben Server (gleicher `secret.key`) laufen die Quellen nach einer
   Wiederherstellung sofort weiter; wer die Sicherung **und** später den Schlüssel bekommt, liest sie.
 
-Empfehlung: **(a)**, weil eine Sicherung oft an Orten liegt, die weniger geschützt sind als `/config`.
+Empfehlung: **(a)**, weil eine Sicherung oft an Orten liegt, die weniger geschützt sind als `/config`. `04` 10.5 und
+`07` 6.3 beschreiben heute (b) als Folge, ohne es zu entscheiden; nach deiner Antwort sind sie anzugleichen.
+
+---
+
+## 14. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Konsolidierung 1, Grundlage `KONSOLIDIERUNG.md`, `04` und `05` Fassung 3, `18`, `07`, `08`,
+Review 2, Nachprüfung):
+
+- **Stufen** auf den Schnitt von `18` gezogen (0, 1a, 1b, 2, 3, H, 4, 5, 6, L, W, E): Dialer-Prüfung mit leerer
+  Zielliste in 1a, feste Ziele, UDP, RTP, Multicast und Netzmodus «host» in H (`18` D-4); Compose-Härtung und
+  Prüfung auf Test-Tags in Stufe 0 (`18` Planschritte 0.5, 0.6). Lesart, 4.3, 4.5, 4.10, Katalog und
+  Zusammenfassung der Pflichten angepasst.
+- **Weg W:** Ersatzpfade auf `127.0.0.1` statt Ersatznamen mit Proxy-Einstellung (`05` 2.6, `04` T-4, 13.4);
+  `http_proxy` und `no_proxy` nie in der Umgebung (Nachprüfung Nr. 25); Schwärzungsmuster für Ersatznamen entfällt
+  (`04` 15.1); O-5 erledigt.
+- **Landlock:** UDP regelt Landlock ab ABI 10 (Nachprüfung Nr. 34); der Satz «UDP regelt Landlock nicht» aus
+  Fassung 1 ist richtiggestellt. Seccomp bleibt immer gesetzt (ältere Kerne, rohe Sockets, SCTP, Multipath-TCP).
+  Kernelfassung für ABI 4 als nicht nachgelesen gekennzeichnet.
+- **Keine Sperre «so gut es geht»:** `BestEffort()` von `go-landlock` verboten (Nachprüfung Nr. 35); Weg W
+  startet ohne vollständige Sperre nicht; Umwandlung und Probe weisen «Eindämmung nicht verfügbar» aus (`04`
+  T-27). SM-09 und SM-22 mit neuem Testfall.
+- **Hülle** setzt alle Grenzen vor `execve`; Ort in `internal/transcode` nach `04` 10.8 und O-26; O-1 erledigt.
+- **`encoding/xml`:** Tiefengrenze gilt nicht für `Decoder.Token` (Nachprüfung Nr. 32); eigene Tiefen- und
+  Mengengrenze in der Leseschleife (7.1, Tabelle 7.4); SM-28 mit neuem Testfall.
+- **HLS-Verschlüsselung und DRM** als Annahme geführt (4.7, 10, SM-44), weil an der Quelle nicht gelesen.
+- **Review 2:** RD-06 als SM-45 (keine Kombination Konto und Sender laufender Aufnahmen), RD-07 als SM-46
+  (Meldung «Kontingent voll» ohne Titel an das Hauptprofil), RD-08 in SM-18 und F-4 (Platzhalter `v0:` statt
+  `NULL`); RD-16 und Token-Fehler 404 gegen 401 des Bestands begründet und mit Testfall (9.1, SM-35).
+- **Token `lt`:** Aufbau nach `08` 4.2 übernommen (mit `issuedAt`); neues Token ab 11 Stunden.
+- **CSRF:** klargestellt, dass 403 `csrf_header_missing` das bestehende Verhalten ist und «404, nie 403» nur für
+  Unsichtbares gilt; Prüfung läuft vor jeder Rechteprüfung, also ohne Orakel (9.3, SM-40; `17` H-3).
+- **T-29 und «Hintergrund beendet die Sitzung»** auf Sicherheitsfolgen geprüft (9.2): Deaktivieren entzieht
+  nichts, für Sicherheitsfälle «sofort beenden»; neues SM-47 und R-11; neue Regel für laufende Verbindungen bei
+  entzogenen festen Zielen (4.2). Bedrohungen BD-49 bis BD-51 ergänzt.
+- **Zahlen** auf `04` Abschnitt 14 gezogen (Mindestreserven, Kürzen am Deckel, Prüfungen ruhender Sender,
+  gleichzeitige Segmentabrufe, Eingangsströme, Weg-W-Empfänger, Upload 200 MiB; O-8 erledigt).
+- **Fragen:** F-1 und F-2 an den Stand von `04` Fassung 3 angepasst (F-2 bleibt offen, Vorgabe übernommen), F-4
+  mit dem Platzhalter; F-3 unverändert.
