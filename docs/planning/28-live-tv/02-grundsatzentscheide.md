@@ -180,8 +180,7 @@ Konzeptzweig in Regel 11, Spec, Frage 37 und ADR 0046 (vorgeschlagen) eingetrage
 Frage 37 ist eingetragen: `docs/planning/04-entscheidungen.md`, Zeile vom 28. November 2026 (Tabelle «Weitere
 Entscheide während der Umsetzung»), mit dem Status «Konzept liegt vor, nicht freigegeben. Gebaut wird je Stufe erst
 nach Marcos ausdrücklicher Baufreigabe». Zwei Freigaben sind zu unterscheiden (Lesart 8): «Konzept freigegeben»
-und «Baufreigabe einer Stufe». Ohne Antwort auf eine offene Frage gilt deren wortlauttreue Vorgabe (Lesart 6). Massgeblich ist der Wortlaut dort; er enthält E-1 bis E-4, A-1 bis A-9 (A-10 bis A-13 sind mit Fassung 3
-nachzutragen),
+und «Baufreigabe einer Stufe». Ohne Antwort auf eine offene Frage gilt deren wortlauttreue Vorgabe (Lesart 6). Massgeblich ist der Wortlaut dort; er enthält E-1 bis E-4, A-1 bis A-13,
 T-29 und den Verweis auf `20-offene-entscheidungen.md`. Die Freigabe und die Antworten auf die offenen Fragen
 kommen als Nachtrag zu Frage 37 (`18` Schritt 0.1). Die Liste der nachgeführten Dokumente steht in
 `21-aenderungen-an-dokumenten.md`.
@@ -229,3 +228,4 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Marcos Antworten E-1 bis E-4 si
   beendet innert 5 Sekunden. Quelle: RB-05, RT-06.
 - **Abschnitt 5:** zwei Freigaben, Grundregel, A-10 bis A-13 in Frage 37 nachzutragen.
 - Letzte Angleichung: 3.1 verweist auf `20` E-28-59 bis E-28-62.
+- Nach der Schlussprüfung (Review 7): Satz «A-10 bis A-13 nachzutragen» gestrichen (stehen in Frage 37 und ADR 0046).

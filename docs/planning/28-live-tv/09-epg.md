@@ -1,6 +1,6 @@
 # Konzept 28 · EPG und Programmzeitschrift
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 > **Kurz gesagt.** Slouchcat liest Programmdaten aus XMLTV-Dateien (Upload), XMLTV-Adressen und dem
 > `xmltv.php` einer Xtream-Quelle, gepackt oder ungepackt. Jeder Sender hat **genau eine** EPG-Quelle. Der
@@ -596,7 +596,7 @@ flowchart TD
 - Sendungsseite: «Staffel 2, Folge 5» (Stufe A) oder der `onscreen`-Text; fehlt beides: nichts.
 - Beim Anlegen einer Serienaufnahme: Hat die gewählte Sendung kein zuverlässiges Merkmal (Stufe A/B), steht dort:
   «Slouchcat kann bei dieser Sendung Folgen nicht unterscheiden. Jede passende Ausstrahlung wird aufgenommen.»
-  Das ist die Empfehlung (a) von `03` F-8; bis zu deiner Antwort dort gilt sie. Eine Zusatzregel «höchstens eine
+  Das ist die Vorgabe (a) von `03` F-8 (`20` E-28-52); sie gilt bis zu deiner Antwort dort. Eine Zusatzregel «höchstens eine
   je Tag» bietet dieses Dokument **nicht** an (Fassung 1 tat es; das war Variante (b) von `03` F-8, die der
   Auftrag nicht nennt). Wählst du dort (b) oder (c), folgt dieser Satz.
 - In «Geplante Aufnahmen» je erzeugter Aufnahme: «übersprungen: Folge schon aufgenommen (S2 F5)» oder «Folge
@@ -991,6 +991,8 @@ einem Generator, Marcos echte Dateien nur lokal.
 
 ### 14.3 Fragen an Marco (F-n)
 
+**Grundregel.** Ohne Marcos Antwort auf eine offene Frage gilt die wortlauttreue Vorgabe seines Auftrags, bei Sicherheitsfragen die sichere; die Empfehlung des Konzepts gilt erst mit seiner Antwort.
+
 **F-1 · Programmdaten in eigener Datei, nicht in der Sicherung?** → `20` E-28-24
 - Problem: Programmdaten können ein Vielfaches der heutigen Datenbank ausmachen (8.6: 5'000 Sender × 7 Tage ≈
   600 MB, wenn alle zugeordnet sind). Heute landet alles in einer Datei, die bei jedem Update fünfmal kopiert und
@@ -1001,6 +1003,7 @@ einem Generator, Marcos echte Dateien nur lokal.
   ist. Quellen, Zuordnungen, Erinnerungen und Aufnahmeplanungen sind immer gesichert.
 - (b) alles in einer Datei. Einfacher im Bau, nach einer Wiederherstellung sofort (veraltete) Daten. Folge:
   grosse Sicherungen, langsamere Updates, Import teilt sich die Schreibverbindung mit der Wiedergabe.
+- Vorgabe bis zur Antwort: (a) (`20` E-28-24).
 
 **F-2 · Namensgleiche Sender automatisch zuordnen?** → `20` E-28-26
 - Problem: Viele Listen haben keine passende `tvg-id`; dann bleibt nur der Name. Ein eindeutiger Name kann
@@ -1009,10 +1012,11 @@ einem Generator, Marcos echte Dateien nur lokal.
   eindeutigen Vorschläge nach Durchsicht.
 - (b) eindeutiger Name ordnet automatisch zu, sichtbar markiert «automatisch (Name)». Weniger Arbeit, aber
   falsche Programme fallen erst beim Zuschauen auf.
+- Vorgabe bis zur Antwort: (a) (`20` E-28-26).
 
 **F-3 · Wohin gehen Erinnerungen? — siehe `03` F-3.** → `20` E-28-22
 Die Frage ist in `03` F-3 aufgegangen (dort zusätzlich für die Meldungen der Aufnahmen). Dieses Dokument folgt
-bis zu deiner Antwort dort der Empfehlung (a): Glocke des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile
+bis zu deiner Antwort dort der Vorgabe (a) (`20` E-28-22; sie ist zugleich die Empfehlung): Glocke des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile
 ohne Titel (`03` DR-05). Variante (b) aus Fassung 1 (nur Glocke) steht dort als (b); dort (c) ist «eigene
 Kanaleinstellungen je Profil». Die Variante (c) aus Fassung 1 (Push nur an Geräte, deren letzte Anmeldung das
 Profil hatte) entfällt: Geräte kennen kein Profil, und `03` führt sie nicht.
@@ -1030,6 +1034,7 @@ Profil hatte) entfällt: Geräte kennen kein Profil, und `03` führt sie nicht.
   verwendet (`12` O-9). Stufe H (`18` 4.6). Fassung 1 schlug einen Schalter je Quelle vor; das ist ersetzt.
 - (b) nein. Selbst erzeugte Programmdaten gehen dann nur über Upload (von Hand, ohne automatische Aktualisierung)
   oder über eine öffentlich erreichbare Adresse.
+- **Vorgabe bis zur Antwort: (b)**, die sichere Variante (`20` E-28-25); (a) gilt erst mit Marcos Antwort.
 
 ---
 
@@ -1096,7 +1101,7 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Quellen der Rückmeldungen: `RU
   Annahme auf belegt gehoben (`12` 7.1). Eine Kompressionsschicht statt zwei (`12` 7.4). (Nachprüfung Nr. 32)
 - **`dd_progid`** als verbreitete Konvention gekennzeichnet, nicht als Teil der DTD (6.1, 7.1); DTD-Pflichtfelder
   und UTC-Vorgabe als belegt (Nachprüfung Nr. 39, 40); Nullbasierung von `xmltv_ns` bleibt Annahme (O-2).
-- **Serien:** «höchstens eine je Tag» aus 7.2 gestrichen; es gilt die Empfehlung (a) von `03` F-8.
+- **Serien:** «höchstens eine je Tag» aus 7.2 gestrichen; es gilt die Vorgabe (a) von `03` F-8 (`20` E-28-52).
   (dvr-autor Punkt 3)
 - **Verschobene Termine:** nicht eindeutige und fehlende Aufnahme-Termine laufen zur alten Zeit und sind markiert
   (`11` 2.3); `livetv.epg.reconcile` prüft auch laufende Aufnahmen und meldet ein späteres Ende zur Verlängerung
@@ -1109,3 +1114,4 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Quellen der Rückmeldungen: `RU
   5 Aufnahme aus dem Programm und Anpassung (LTV-005.18, .26), 6 Folgenerkennung; ADR 0049 (O-12).
 - Restebereinigung nach Konsolidierung 1: Glocke verweist über `live_ref` wie `07` 3.11 (W-31); Fragen mit Verweis auf `20`.
 - Letzte Angleichung: F-4 (a) mit den festen Zielen aus `04` 14.9 und `12` 4.5 (Einzelziel, Netz höchstens /28, 16 Ports).
+- Fassung 3 (Gesamtreview, 29. November 2026): Grundregel und je Frage F-1 bis F-4 die «Vorgabe bis zur Antwort» aus `20`; F-4 baut bis zur Antwort Variante (b) (E-28-25), nicht (a); «gilt die Empfehlung» bei `03` F-8 durch «Vorgabe» ersetzt. Nach der Schlussprüfung (Review 7): Reststelle 5.

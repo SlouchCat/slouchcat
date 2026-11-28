@@ -9,13 +9,14 @@ Diese Übersicht verdichtet fünf Rechercheberichte (R1 bis R5) und eine Messung
 Fassung 2 zieht das Dokument auf die unabhängige Nachprüfung der tragenden Rechercheaussagen (`anhang/nachpruefung-quellen.md`, 45 Zeilen: 26 bestätigt, 13 teilweise, 2 widerlegt, 3 nicht prüfbar, 1 nicht geprüft; Befund RG-07 des Gesamtreviews). Zitiert wird als «Nachprüfung Nr. n».
 
 - **Einstufung:** Jede Aussage in den Tabellen von Abschnitt 2, die in der Nachprüfung vorkommt, trägt deren Befund und die Nummer. Neu: Abschnitt 2.6 mit Aussagen, die nur die Nachprüfung prüft (Landlock, `go-landlock`, `http_proxy`, MPEG-TS-Muxer, HLS-Pflichten).
-- **Widerlegt:** Media3 `DefaultLoadControl` (richtig 1000 / 2000 ms statt 2500 / 5000); FFmpeg-HLS-Demuxer `max_reload` (richtig 100 statt 1000); Tiefengrenze in `encoding/xml` (gilt nicht für `Decoder.Token`).
-- **Abweichend oder nur teilweise:** Apple verlangt mindestens 6 Segmente je Live-Liste und IDR am Segmentanfang, HEVC nur in fMP4; der Light-Bau von hls.js liest in TS kein HEVC und AC-3 (CEA-608 «vermutlich weg» ist nicht belegt); Landlock regelt UDP ab ABI 10, `BestEffort()` ist nicht zu verwenden; `dd_progid` steht nicht in der XMLTV-DTD; Docker-Multicast stützt sich nur auf Foren; Sprung zur Live-Kante in hls.js ist ab Werk aus.
+- **Widerlegt:** Media3 `DefaultLoadControl` (richtig 1000 / 2000 ms statt 2500 / 5000); FFmpeg-HLS-Demuxer `max_reload` (richtig 100 statt 1000).
+- **Abweichend oder nur teilweise:** Apple verlangt mindestens 6 Segmente je Live-Liste und IDR am Segmentanfang, HEVC nur in fMP4; der Light-Bau von hls.js liest in TS kein HEVC und AC-3 (CEA-608 «vermutlich weg» ist nicht belegt); Landlock regelt UDP ab ABI 10, `BestEffort()` ist nicht zu verwenden; `dd_progid` steht nicht in der XMLTV-DTD; Docker-Multicast stützt sich nur auf Foren; Sprung zur Live-Kante in hls.js ist ab Werk aus; Tiefengrenze in `encoding/xml` gilt nur für `Unmarshal` und `DecodeElement`, nicht für `Decoder.Token` (Nachprüfung Nr. 32).
 - **Abschnitt 6:** je Widerspruch neu der Stand (entschieden durch Nachprüfung, entschieden in 04 und 05, entschieden in einem anderen Dokument, offen). W-5 und W-13 sind durch die Nachprüfung entschieden, W-11 teilweise.
 - **Abschnitt 7:** Was die Nachprüfung erledigt hat, ist gestrichen; neu aufgenommen sind die Punkte, die sie nicht prüfen konnte.
 - **Spalte «verwendet in»:** gegen die vorhandenen Dokumente 04 bis 18 per Stichwortsuche geprüft (nicht Zeile für Zeile gegen den Inhalt); 18 neu aufgenommen, wo Stufen betroffen sind.
 - **Quellenverzeichnis:** neuer Abschnitt 8.7 mit den Quellen der Nachprüfung; in 8.1, 8.2, 8.3 und 8.5 steht, wo die Nachprüfung eine Quelle nachträglich abgerufen hat.
 - **Stand der Angaben in Abschnitt 6:** aus 04, 16 und 20 übernommen (Stichprobe der Entscheidstellen); Dokumente 04 und 05 stehen in Fassung 4, 10 in Fassung 2.
+- Nach der Schlussprüfung (Review 7): Nachprüfung Nr. 32 (Tiefengrenze `encoding/xml`) ist «teilweise», nicht «widerlegt».
 
 ## 1. Vorgehen und Grenzen
 
@@ -172,7 +173,7 @@ Einstufung: **belegt** (abgerufene Quelle) · **Annahme** (aus Vorwissen, Forum 
 | FTS5: External-Content-Tabellen, `contentless_delete` ab SQLite 3.43.0, Trigram, `remove_diacritics` | belegt (100'000 von rund 172'000 Zeichen gelesen) | https://sqlite.org/fts5.html | 09, 12 |
 | Das Repo nutzt FTS5 schon (`00015_discover.sql`); Migrationen nur vorwärts | belegt (Repo) | `server/migrations/00015_discover.sql`, `server/internal/store/dump.go` | 09, 12 |
 | Go lädt keine externen Entities oder DTDs; `<!DOCTYPE`/`<!ENTITY` kommen als `Directive`-Token; XXE und Billion-Laughs praktisch ausgeschlossen | belegt (Nachprüfung Nr. 31; Go 1.24.0 gelesen, Go 1.27 nicht) | https://raw.githubusercontent.com/golang/go/go1.24.0/src/encoding/xml/xml.go | 12, 17 |
-| `maxUnmarshalDepth` (10 000) gilt nur für `Unmarshal` und `DecodeElement`, nicht für `Decoder.Token`; der EPG-Import muss Tiefe und Byte-Menge in der `Token`-Schleife selbst begrenzen | widerlegt (Nachprüfung Nr. 32): R4 nahm eine allgemeine Tiefengrenze seit Go 1.19 an | https://raw.githubusercontent.com/golang/go/go1.24.0/src/encoding/xml/read.go | 09, 12, 17 |
+| `maxUnmarshalDepth` (10 000) gilt nur für `Unmarshal` und `DecodeElement`, nicht für `Decoder.Token`; der EPG-Import muss Tiefe und Byte-Menge in der `Token`-Schleife selbst begrenzen | teilweise (Nachprüfung Nr. 32, abweichend): R4 nahm eine allgemeine Tiefengrenze seit Go 1.19 an | https://raw.githubusercontent.com/golang/go/go1.24.0/src/encoding/xml/read.go | 09, 12, 17 |
 | Quellenqualität (Xtream-`xmltv.php`, WebGrab+Plus, iptv-org/epg, `tv_grab_*`) | Annahme aus Vorwissen; zu messen | – | 09, 15 |
 | Zuordnung Sender zu EPG-Kanal in Jellyfin, TVHeadend, Threadfin, Dispatcharr, Channels DVR | Annahme aus Vorwissen (Quellcode nicht gelesen) | – | 09 |
 | Serien-Duplikaterkennung und verschobene Sendungen bei TVHeadend, MythTV, Jellyfin, Channels DVR | Annahme aus Vorwissen | – | 09, 11 |

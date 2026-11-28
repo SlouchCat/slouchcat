@@ -367,7 +367,7 @@ Quellen, ab H für Ziele).** `CloseIdleConnections` schliesst nur ruhende Verbin
 Entscheid des Koordinators):
 
 1. **Entfernen** einer Quelle und **Ändern** ihrer Adresse, ihrer Zugangsdaten, ihrer Kopfzeilen, ihrer Ursprünge
-   oder ihrer festen Ziele beenden **alle** Empfänger dieser Quelle innert 5 s (Annahme), auch laufende
+   oder ihrer festen Ziele beenden **alle** Empfänger dieser Quelle innert 5 s (Vorgabe, `04` 14.1), auch laufende
    Wiedergaben und Aufnahmen. Der Dialog nennt vorher die Zahl der betroffenen Zuschauer und Aufnahmen und verlangt
    eine Bestätigung. Eine Aufnahme bekommt eine Lücke mit Grund und wechselt, wenn vorhanden, auf eine Ersatzquelle;
    nach einer Änderung (nicht nach dem Entfernen) verbindet der Empfänger mit dem neuen Regelstand neu.
@@ -883,7 +883,7 @@ Drosselung je Profil (SM-39). FTS5-Operatoren (`OR`, `NEAR`, `*`, `^`, Spaltenfi
 
 | Punkt | Regel | Einordnung | Massnahme |
 |---|---|---|---|
-| **Unbegrenzte Puffer** | Es gibt keinen: Ring höchstens 15 s, beim Start reserviert, wächst nie an Ort (`04` T-7); Ringe im Byte-Budget mit Reservierung, Rückstau bei Gebrauch gezählt (`04` 8.1; Budget ab Werk ein Achtel des Arbeitsspeichers, höchstens 512 MB); Rückstau je Schreiber bis 64 MiB oder 60 s für Aufnahmen, bis 16 MiB für Sitzungspuffer; Deckel über alle Sitzungspuffer ab Werk der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB, Kürzen nie unter 5 Minuten; Höchstdauer je Puffer 60 min (`03` DR-07); Mindestreserve Timeshift der grössere Wert aus 5 GB und 5 %, Aufnahmen der grössere Wert aus 20 GB und 5 %, Ordner des Startpuffers 10 %. Alle Werte nach `04` Abschnitt 14.3 und 14.6. | spezifiziert | SM-31 |
+| **Unbegrenzte Puffer** | Es gibt keinen: Ring 15 s; bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 s, beim Start reserviert, wächst nie an Ort (`04` T-7); Ringe im Byte-Budget mit Reservierung, Rückstau bei Gebrauch gezählt (`04` 8.1; Budget ab Werk ein Achtel des Arbeitsspeichers, höchstens 512 MB); Rückstau je Schreiber bis 64 MiB oder 60 s für Aufnahmen, bis 16 MiB für Sitzungspuffer; Deckel über alle Sitzungspuffer ab Werk der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB, Kürzen nie unter 5 Minuten; Höchstdauer je Puffer 60 min (`03` DR-07); Mindestreserve Timeshift der grössere Wert aus 5 GB und 5 %, Aufnahmen der grössere Wert aus 20 GB und 5 %, Ordner des Startpuffers 10 %. Alle Werte nach `04` Abschnitt 14.3 und 14.6. | spezifiziert | SM-31 |
 | **Path Traversal** | Namen von Ordnern und Dateien bestehen **nur** aus Kennungen (ULID, Zahlen, feste Endungen), nie aus Sender-, Sendungs- oder Profilnamen und nie aus Werten der Quelle. Jeder Zugriff relativ zu einer geprüften, geöffneten Wurzel über `paths` (`os.Root`; Regel 4), `..` und Symlinks aus der Wurzel hinaus werden verworfen. Ein Test prüft, dass ein Titel mit `../` und `/` keinen Pfad ändert. | spezifiziert | SM-32 |
 | **Dateisystemrechte** | Ordner 0700, Dateien 0600, Eigentümer die UID des Servers; das `tmpfs` des Radios hat schon `mode=0700` (gebaut, `deploy/compose.yaml:39-40`). Das Aufnahme-Volume aus `compose.live.yaml` wird mit derselben UID eingehängt. | spezifiziert | SM-32 |
 | **Zugriffsschutz Timeshift** | Stückdateien eines Sitzungspuffers liest nur der Server, und nur für die eigene Live-Sitzung über deren Token `lt` (SM-35). Es gibt keine statische Auslieferung eines Ordners und keine Adresse, die einen Dateinamen enthält; Segmente werden nach Nummer im Verzeichnis der Sitzung gefunden. Ohne Recht «Timeshift» gibt es keinen Sitzungspuffer, und ältere Segmente als die drei neuesten sind 404 (`04` T-10). | spezifiziert | SM-34 |
@@ -1526,3 +1526,4 @@ Review 5 RB-05 und RB-17):
   Restrisiken neu bewertet (13.1); neue Bedrohungen BD-52 bis BD-66; neue offene Punkte O-13 bis O-17.
 - **Grundregel** «ohne Antwort gilt die wortlauttreue bzw. sichere Vorgabe» und Begriff «Baufreigabe» (Lesart).
 - Letzte Angleichung: SM-39 «Sitzung ohne Segmentabruf» in Stufe 1a (wie `04` 8.5, `17`); O-17 und RT-05 erledigt (`04` 14.9 Fassung 4); F-5 → `20` E-28-63, O-13 → E-28-68.
+- Nach der Schlussprüfung (Review 7): Ring nach T-7 (Unbegrenzte Puffer); «5 s» für das Ende der Empfänger als Vorgabe (`04` 14.1).

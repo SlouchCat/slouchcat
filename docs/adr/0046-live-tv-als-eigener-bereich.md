@@ -111,8 +111,8 @@ folgt der Altersgrenze» (ADR 0045) und mit «Medien nur lesend» (B-1).
 - Bekannte Grenze: Mit A-9 (Netzmodus «host») wird die Lücke «weltweite IPv6-Adresse im Heimnetz nicht
   erkennbar» wirksam; die Verwaltung und die Installationsanleitung nennen das.
 - Offene Fragen an Marco: `docs/planning/28-live-tv/20-offene-entscheidungen.md`; ihre Antworten kommen als
-  Nachtrag zu Frage 37 und zu diesem ADR. Solange eine Frage offen ist, gilt die wortlauttreue Vorgabe des
-  Auftrags, nicht die Empfehlung des Konzepts.
+  Nachtrag zu Frage 37 und zu diesem ADR. Ohne Marcos Antwort auf eine offene Frage gilt die wortlauttreue Vorgabe seines
+  Auftrags, bei Sicherheitsfragen die sichere; die Empfehlung des Konzepts gilt erst mit seiner Antwort.
 - Deaktivieren eines Senders beendet nichts Laufendes (T-29); eine entfernte oder geänderte Quelle beendet ihre
   Empfänger innert der Frist.
 

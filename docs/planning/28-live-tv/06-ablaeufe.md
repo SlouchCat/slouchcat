@@ -21,7 +21,7 @@ keine Zusagen.
 Begriffe, einmal erklärt: Ein **Eingangsstrom** ist der eine Empfang eines Senders von seiner Quelle. Ein
 **Haltegrund** ist ein Eintrag «wer braucht diesen Strom gerade» (Art und Besitzer); solange einer da ist,
 läuft der Strom. **Karenz** ist eine kurze Nachlaufzeit ohne Haltegrund, damit ein Wiedereinstieg sofort Bild
-hat. Der **Ring** ist der technische Startpuffer im Verteiler (höchstens 15 Sekunden). Der
+hat. Der **Ring** ist der technische Startpuffer im Verteiler (15 Sekunden; bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 Sekunden). Der
 **Sitzungspuffer** ist der persönliche Zeitversatz-Puffer einer Sitzung (nur mit Recht «Timeshift»).
 
 ## 1. Teilnehmer
@@ -345,7 +345,7 @@ ab (Fehlercode, Sitzung bleibt).
 ### 3.2 Benutzer startet einen bereits empfangenen Sender
 
 **Ausgangslage.** Sender K läuft schon: dauerhaft, vorgeladen, in Karenz oder weil ein anderes Profil schaut.
-Der Ring hält bis zu 15 Sekunden mit mindestens einer vollständigen Bildgruppe; die Streamparameter sind
+Der Ring hält 15 Sekunden (bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 Sekunden) mit mindestens einer vollständigen Bildgruppe; die Streamparameter sind
 gespeichert. **Der Benutzer sieht:** fast sofort Bild (Fall 1 und 2, Zielwert unter 1 Sekunde, zu prüfen (M-1); hängt am
 Startpuffer des Players und am Netz, `05` 5.2).
 
@@ -366,7 +366,7 @@ sequenceDiagram
   rect rgba(128,128,128,0.16)
     Note over STR,Q: Empfang ohne Abnehmer, Haltegrund dauerhaft, automatisch oder Vorladen
     Q-->>EMP: TS-Daten laufend
-    EMP->>VT: Pakete in den Ring, höchstens 15 s
+    EMP->>VT: Pakete in den Ring, 15 s; bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 s
   end
   rect rgba(66,135,245,0.14)
     Note over CL,SES: Zuschauer, Haltegrund Zuschauer
@@ -1937,3 +1937,4 @@ Fassung 1 → 2, Grundlage `04` und `05` Fassung 3 (Abschnitt 13.4, 14, 15.1) un
 - Restebereinigung nach Konsolidierung 1: Schalter je Quelle heisst «Vorladen für Sender dieser Quelle: an/aus»
   (Ablauf 3 und Ablauf zum Vorladen; Koordinator zu RM-01).
 - Restebereinigung nach Konsolidierung 1, Nachtrag: Deutung «Quelle lehnt eine weitere Verbindung ab» (N-8; `20` U-18).
+- Nach der Schlussprüfung (Review 7): Ring nach `04` T-7 (15 s, bei langen Segmenten das Vierfache der Segmentdauer, höchstens 30 s) an vier Stellen.

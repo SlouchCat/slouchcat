@@ -1194,6 +1194,8 @@ Tag» in `09`, Weg W im Live-Anteil, `04` 8.3, feste Ziele /28 in `04` 14.9 (`12
 in `04`, `16`, `18`, Untertitel «nicht erfüllt bis E» in `04` 7.4 und `16` (D-14), AK-L-083 ändert keinen Werkszustand
 (RG-11), die Merkzeilen in `13` (RG-18).
 
+**Schlussprüfung (Review 7):** Die 14 Reststellen sind behoben (Abnahmekriterien in `17`, Untertitel in `18`, Grundregel in `04-entscheidungen.md`, ADR 0046 und `09`, Ring nach T-7, Zählung 588, Nachprüfung Nr. 32, Vorgabe «5 s» in `12`); keine ist offen.
+
 ---
 
 ## Anhang · Zuordnung
@@ -1415,6 +1417,7 @@ Fassung 1 → 2, Grundlage: `review-4-gesamt.md` (RG-01 bis RG-22), `review-5-ar
 
 - Letzte Angleichung: Teil E.1 um die Spalte «Stand nach der letzten Angleichung» ergänzt (U-19 bis U-28 erledigt;
   U-14, U-16, U-25 offen).
+- Nach der Schlussprüfung (Review 7): Teil E um den Vermerk «14 Reststellen behoben» ergänzt.
 
 *Ende von `20-offene-entscheidungen.md`. Nichts in diesem Dokument ist gebaut; jede Vorgabe gilt, bis du anders
 entscheidest.*
