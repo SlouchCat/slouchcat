@@ -1,14 +1,16 @@
 # Konzept 28 · Persönliches Timeshift
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 Dieses Dokument legt fest, wie der persönliche Zeitversatz (Timeshift) eines Zuschauers gebaut wird: was
 der Sitzungspuffer ist, wie er entsteht, wächst, gekürzt und gelöscht wird, wie er mit der Umwandlung und
 mit Aufnahmen zusammenspielt, wie viel Platz er braucht und wo er liegt. Es baut auf den tragenden
-Entscheiden aus `04-architektur.md` (T-1 bis T-29, Fassung 3) und `05-streaming-und-fast-zapping.md`
-(Fassung 3) auf und weicht von keinem ab. **Alle Zahlen stammen aus `04` Abschnitt 14 «Massgebliche Werte»**;
+Entscheiden aus `04-architektur.md` (T-1 bis T-29, Fassung 4) und `05-streaming-und-fast-zapping.md`
+(Fassung 4) auf und weicht von keinem ab; wo `12-sicherheit.md` (Fassung 3) strenger ist, gilt `12`. **Alle Zahlen stammen aus `04` Abschnitt 14 «Massgebliche Werte»**;
 nennt dieses Dokument eine Zahl, steht dort derselbe Wert. Wo dort eine Frage an dich offen ist, steht hier nur
-der Verweis («`04` F-7»), keine neue Frage.
+der Verweis («`04` F-7»), keine neue Frage. **Solange du eine Frage nicht beantwortet hast, gilt die
+wortlauttreue Vorgabe**, bei Sicherheitsfragen die sichere; eine Empfehlung gilt erst mit deiner Antwort.
+«Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei verschiedene Schritte.
 
 Alles hier ist **spezifiziert**, nichts ist gebaut. «Gebaut» mit Datei und Zeile bezieht sich auf den
 Stand des Arbeitsbaums (Server 1.44.1). Kennungen dieses Dokuments: `F-n` Fragen an dich, `O-n` offene
@@ -20,7 +22,7 @@ dieses Dokuments).
 
 | Begriff | Bedeutung |
 |---|---|
-| **Ring** (technischer Startpuffer) | Der Speicher des Verteilers eines Senders (T-6, T-7): die letzten höchstens 15 Sekunden des Senders als TS-Pakete, für alle Abnehmer gemeinsam. Er gehört **keinem** Zuschauer. Sein einziger Zweck ist der schnelle Start. |
+| **Ring** (technischer Startpuffer) | Der Speicher des Verteilers eines Senders (T-6, T-7): die letzten 15 Sekunden des Senders als TS-Pakete, bei Sendern mit langen Segmenten das Vierfache der Segmentdauer, nie mehr als 30 Sekunden (T-7, `04` 14.3), für alle Abnehmer gemeinsam. Er gehört **keinem** Zuschauer. Sein einziger Zweck ist der schnelle Start. |
 | **Anlauf** | Der Anfang jeder Wiedergabe: die letzte vollständige Bildgruppe aus dem Ring und der Anfang der laufenden, also Bilder von bis zu zwei Bildgruppen **vor** dem Tastendruck (`05` Abschnitt 3.7). Ohne Anlauf gäbe es kein sofortiges Bild, weil ein Decoder mit einem Keyframe beginnen muss. |
 | **Sitzungspuffer** (persönlicher Timeshift-Puffer) | Eine eigene Kopie des Quell-TS **einer** Live-Sitzung ab dem Einstellen, als Stückdateien auf dem Speicherort «Timeshift» (T-10). Nur mit wirksamem Recht «Timeshift». |
 | **Stück** | Eine Datei des Sitzungspuffers mit rund 60 Sekunden Quell-TS, an einem Keyframe begonnen (Abschnitt 3). Kleinste Einheit, die gelöscht wird. |
@@ -39,13 +41,14 @@ durch eine Regel, sondern durch den Aufbau:
 
 | Mittel | Wirkung | Herkunft |
 |---|---|---|
-| Der Ring hält höchstens 15 Sekunden; die Grenze ist eine Konstante im Code, nur nach unten einstellbar. | Auch eine falsche Einstellung macht den Ring nicht zum Archiv. | T-7, `05` Abschnitt 3.6 |
+| Der Ring hält 15 Sekunden, bei langen Segmenten bis 30 Sekunden; 30 Sekunden sind eine Konstante im Code, und die Länge ist keine Einstellung. | Keine Einstellung macht den Ring zum Archiv. Die Grenze gegen ein Archiv ist das **Fenster der Sitzung**, nicht die Länge des Rings. | T-7, `05` Abschnitte 3.6, 3.7 |
 | Die Schnittstelle des Verteilers kennt für einen neuen Leser genau einen Einstieg: «ab der letzten vollständigen Bildgruppe». Es gibt kein «lies ab Uhrzeit». Leser gehen nur vorwärts. | Kein Codepfad kann ältere Daten aus dem Ring holen. | T-7, `05` Abschnitt 3.7 |
 | Ein Sitzungspuffer wird **nur** vom eigenen Leser am Ring gefüllt, nie aus einem anderen Sitzungspuffer, nie aus einer Aufnahme. | Zwei Zuschauer desselben Senders teilen nie den Zeitversatz. | T-10, `05` Abschnitt 3.7 |
-| Der Anlauf liegt in einem eigenen **Stück 0**, das gelöscht wird, sobald das Fenster beim Tastendruck beginnt (Abschnitt 4). | Nach spätestens 15 Sekunden liegt auf dem Datenträger nichts mehr, was vor dem Einschalten gesendet wurde. | dieses Dokument, Empfehlung zu `04` F-7 (a) |
+| Der Anlauf liegt in einem eigenen **Stück 0**, das gelöscht wird, sobald das Fenster beim Tastendruck beginnt (Abschnitt 4). | Nach spätestens einer Ringlänge (15, bei langen Segmenten bis 30 Sekunden) liegt auf dem Datenträger nichts mehr, was vor dem Einschalten gesendet wurde. | dieses Dokument, Empfehlung zu `04` F-7 (a) |
 | Der Server liefert einer Sitzung nur Segmente aus **ihrem** Fenster, geprüft über das Token `lt` mit Sitzung und Einstell-Nummer. Alles andere ist 404. | Auch eine erfundene Segmentnummer oder ein fremdes Token holt nichts. | T-21, `05` Abschnitt 4.4 |
 | Beim Umschalten, beim Sitzungsende und beim Serverstart wird der Sitzungspuffer gelöscht. | Was ein Zuschauer gepuffert hat, überlebt seine Sitzung auf diesem Sender nicht. | T-10, LTV-007.08, .09 |
 | Ohne Recht «Timeshift» gibt es keinen Sitzungspuffer, nur die drei neuesten Segmente aus dem Ring. | Kein Zurückspulen ohne Recht, im Server durchgesetzt. | T-10, RA-08 |
+| Eine Sitzung, die keine Segmente mehr holt, endet: ohne Sitzungspuffer nach 15 Minuten (nach gemeldeter Pause schon nach 60 Sekunden), mit Sitzungspuffer nach der Höchstdauer plus 15 Minuten. | Auch ein vergessener Tab hält keinen Puffer und keinen Eingang ohne Ende. | `04` 10.3, RT-11 |
 
 Prüfungen dazu stehen in `05` Abschnitt 3.7 (letzte Zeile) und kommen nach `17-test-und-abnahme.md`.
 
@@ -59,14 +62,15 @@ Sitzung mit laufender Nummer. Ein Sitzungspuffer gehört genau **einem Einstelle
 | **Einstellen** mit wirksamem Recht «Timeshift» | Die Zulassung (T-19) prüft Platz unter dem Deckel und über der Mindestreserve. Der Dienst legt den Ordner `<timeshift>/<sitzung>-<einstellnummer>/` an (nur Kennungen, Rechte 0700) und meldet einen Leser am Ring an. Das Stück 0 bekommt den Anlauf, ab dem ersten Keyframe nach dem Tastendruck beginnt Stück 1. | LTV-007.02, .03 |
 | **Einstellen ohne Recht** | Kein Ordner, keine Datei. Die Sitzung liest Segmente direkt aus dem Ring (T-10). | DR-22, RA-08 |
 | **Wiedergabe live** | Der Schreiber hängt Pakete an das laufende Stück, der Player holt Segmente an der Live-Kante. | – |
-| **Pause** | Im Player. Der Herzschlag (alle 10 Sekunden) meldet «Pause» und die Abspielstelle (T-21, `04` 10.3); fehlt die Angabe, gilt «spielt». Der Schreiber läuft weiter, weil er am Verteiler hängt, nicht am Player. Der Eingangsstrom läuft unverändert weiter; ein pausierter Zuschauer hält den Haltegrund «Zuschauer» (`04` Abschnitt 5.2). Zur Schauzeit zählen nur ausgelieferte Segmente, also keine Pause (`03` DR-12, `04` 13.4). | LTV-007.04, .14 |
+| **Pause** | Im Player. Der Herzschlag (alle 10 Sekunden) meldet «Pause» und die Abspielstelle (T-21, `04` 10.3); fehlt die Angabe, gilt «spielt». Der Schreiber läuft weiter, weil er am Verteiler hängt, nicht am Player. Der Eingangsstrom läuft unverändert weiter; ein pausierter Zuschauer hält den Haltegrund «Zuschauer» (`04` Abschnitt 5.2). Die Angabe dient **nur der Anzeige**: Die Schauzeit zählt jedes ausgelieferte Segment, gleich was der Client meldet; weil ein pausierter Player nichts holt, zählt die Pause von selbst nicht, Vorrat, den er in der Pause holt, zählt (`03` DR-12, `04` 10.3, `12` 10.3, RT-04). Holt die Sitzung keine Segmente mehr, endet sie nach der Höchstdauer des Zeitversatzes plus 15 Minuten (`04` 10.3, RT-11). Geht die Handy- oder TV-App in den Hintergrund, endet die Sitzung nach 30 Sekunden, nicht sofort (`04` 10.3). | LTV-007.04, .14 |
 | **Zurück** | Der Player springt im Fenster nach hinten. Im Direktweg ist das ein gewöhnlicher Sprung in der Liste; mit Umwandlung startet FFmpeg an der Pufferposition neu (Abschnitt 6). | LTV-007.05 |
 | **Vor** | Der Player springt nach vorn, höchstens bis zur Live-Kante; die Liste enthält nichts dahinter. | LTV-007.06 |
 | **Live** | Der Player springt an die Live-Kante (bei hls.js über den Startpunkt, den der Server nennt, `05` Abschnitt 5.3). | LTV-007.07 |
 | **Ende des Fensters** (Höchstdauer erreicht) | Das älteste Stück wird gelöscht (Abschnitt 3.3). | LTV-007.10 |
 | **Umschalten** | Der alte Sitzungspuffer wird **sofort** gelöscht (Leser abmelden, Stücke Datei für Datei löschen, Ordner löschen), dann beginnt für den neuen Sender ein neuer. Der alte Eingangsstrom endet ohne Karenz, wenn ihn niemand sonst hält (T-17). | LTV-007.08 |
 | **Ende der Sitzung** (Stopp, Abmelden, 60 Sekunden ohne Herzschlag, Entzug, Laufzeit des Tokens von 12 Stunden ohne Erneuerung) | Sitzungspuffer **sofort** gelöscht wie beim Umschalten. Die Karenz von 30 Sekunden nach einem Sitzungsende durch den Zuschauer (T-17, `04` 14.1) betrifft nur den Eingangsstrom, nie den Sitzungspuffer; ein Wiedereinstieg in der Karenz beginnt einen neuen Puffer. Nach einem Entzug gibt es keine Karenz. | LTV-007.09, T-21 |
-| **Sender wird deaktiviert** | nichts endet von selbst (T-29): Die Sitzung schaut weiter, ihr Puffer bleibt, bis der Zuschauer umschaltet oder geht. Nur der Befehl «sofort beenden» des Administrators beendet die Sitzung; dann wird der Puffer gelöscht. | T-29 |
+| **Sender wird deaktiviert** | nichts endet von selbst (T-29): Die Sitzung schaut weiter, ihr Puffer bleibt, bis der Zuschauer umschaltet oder geht, **spätestens bis das Token abläuft** (12 Stunden; für einen deaktivierten Sender wird es nicht erneuert). Zurück auf diesen Sender umschalten geht nicht (404). Der Befehl «sofort beenden» des Administrators beendet die Sitzung sofort; dann wird der Puffer gelöscht. | T-29 |
+| **Quelle des Senders entfernt oder geändert** (Adresse, Zugangsdaten, Ursprünge, feste Ziele, Ziel entzogen) | Die Empfänger der Quelle enden innert 5 Sekunden; es gibt keine Ersatzquelle derselben Quelle mehr. Hat der Sender eine Ersatzquelle aus einer anderen Quelle, wechselt der Eingangsstrom dorthin (neuer Zeitabschnitt, der Puffer bleibt mit einer Diskontinuität); sonst endet der Strom, und die Sitzung bekommt «Quelle weg». | T-29, `04` 5.3 |
 | **Speicherort «Timeshift» fällt aus** | Abschnitt 10.3. | `04` Abschnitt 9 |
 | **Entzug nur von «Timeshift»** | Sitzungspuffer gelöscht; die Sitzung läuft ohne Zeitversatz aus dem Ring weiter; eine zeitversetzte Wiedergabe springt an die Live-Kante. | `04` Abschnitt 9, `03` Abschnitt 2.4 |
 | **Serverstart nach Absturz** | Der Speicherort «Timeshift» wird geleert: nur unter dem eigenen Marker, nur Dateien und Ordner, deren Name dem eigenen Muster entspricht (`04` Abschnitt 5.3 Schritt 1, Abschnitt 10.10). Sitzungen überleben keinen Neustart. | LTV-019.19 |
@@ -94,14 +98,14 @@ Zeitabschnitts (T-6) und nach einer Lücke des Schreibers.
 | Grösse | Wert | Einordnung |
 |---|---|---|
 | Dauer eines Stücks | rund 60 s, endet am ersten Keyframe danach | `04` 14.5, Annahme, M-1 |
-| Stück 0 | nur der Anlauf (bis zu zwei Bildgruppen, höchstens 15 s abrufbar) | `04` 14.3, 15.1 (passt zu `04` F-7 (a)) |
+| Stück 0 | nur der Anlauf (bis zu zwei Bildgruppen; abrufbar höchstens eine Ringlänge, also 15, bei langen Segmenten bis 30 Sekunden) | `04` 14.3, `05` 3.7 (passt zu `04` F-7 (a)) |
 | Dateien je Stunde und Sitzung | rund 60 | Rechnung |
 | Name | `<nummer>.ts` (sechsstellig), im Ordner `<sitzung>-<einstellnummer>` | spezifiziert, T-25 |
 | Rechte | Ordner 0700, Dateien 0600 | `04` 14.6, T-25 |
 | Schreiben | gepuffert, Blöcke von 1 MiB; kein `fdatasync` | `04` 14.5, Annahme |
 | Rückstau des Schreibers | bis 16 MiB im Arbeitsspeicher, gezählt bei Gebrauch gegen das Byte-Budget | `04` 14.3, T-8, Annahme (M-14) |
 
-Warum nicht eine Datei je Segment (2 bis 10 Sekunden): Bei einer Stunde wären das bis 1'800 Dateien je
+Warum nicht eine Datei je Segment (meist 2 bis 10 Sekunden): Bei einer Stunde wären das bis 1'800 Dateien je
 Sitzung und ebenso viele Löschvorgänge; das ist auf einer HDD und einem Netzspeicher spürbar (Annahme, M-1).
 Warum nicht eine einzige Ringdatei: Überschreiben im Kreis braucht ein Verzeichnis, das sich selbst
 überholt, und macht «das Älteste fällt weg» schwer prüfbar (R5 Abschnitt 1.2 (b)).
@@ -120,7 +124,8 @@ Das Verzeichnis liegt nur im Arbeitsspeicher der Sitzung (T-22) und kennt je Ein
 | Segment | Nummer und Länge, sobald das Segment vollständig ist |
 
 Ein Segment im Direktweg ist ein **Byte-Bereich in einem Stück**: Es beginnt an einem Keyframe, fasst
-Bildgruppen zusammen, bis es mindestens 2 Sekunden lang ist, höchstens 10 Sekunden (`05` Abschnitt 4.4), und
+Bildgruppen zusammen, bis es mindestens 2 Sekunden lang ist; eine Obergrenze gibt es nicht, weil eine Bildgruppe nie
+geteilt wird (`05` Abschnitt 4.4), und
 reicht nie über die Grenze eines Stücks. Der Server setzt beim Ausliefern PAT und PMT davor, wie bei jedem
 Segment (`05` Abschnitt 4.4).
 
@@ -133,7 +138,7 @@ Segment (`05` Abschnitt 4.4).
 | Regel | Das Fenster ist nie länger als die Höchstdauer. Sobald das älteste Stück vollständig älter ist als «Live-Kante minus Höchstdauer», wird es gelöscht. Das Fenster schwankt also zwischen Höchstdauer minus einem Stück und der Höchstdauer. |
 | Liste | Das erste Segment der Liste rückt nach, `EXT-X-MEDIA-SEQUENCE` steigt um die Zahl der weggefallenen Segmente. |
 | Zuschauer an der gelöschten Stelle | Wer pausiert oder zurückgespult hat und dessen Stelle wegfällt, wird an den **neuen Anfang des Fensters** geführt, nicht an die Live-Kante. Der Player bekommt für das gelöschte Segment 404 und setzt am ersten Segment der Liste fort; der Herzschlag meldet «Älteste Minute weggefallen», die Oberfläche zeigt den Hinweis (`04` Abschnitt 7.5). |
-| Lange Pause | Eine Pause länger als die Höchstdauer endet also am Fensteranfang, mit dem Hinweis. Die Sitzung endet deshalb nicht. |
+| Lange Pause | Eine Pause länger als die Höchstdauer endet am Fensteranfang, mit dem Hinweis. Holt die Sitzung länger als die Höchstdauer plus 15 Minuten kein Segment, endet sie (`04` 10.3, RT-11); der Puffer wird gelöscht. |
 | Änderung der Höchstdauer | gilt sofort für alle laufenden Puffer: kürzer heisst, die überzähligen Stücke fallen beim nächsten Durchgang weg; länger heisst, die Puffer wachsen ab jetzt weiter (nichts kommt zurück). |
 
 Massgeblich sind 60 Minuten und der Deckel aus `04` 14.6; `15` LA-15 (2 Stunden, 64 GB) ist nach `04` 15.1
@@ -148,9 +153,9 @@ Umsetzung im Sitzungspuffer:
 
 1. Beim Einstellen schreibt der Schreiber den Anlauf in **Stück 0** und beginnt mit dem ersten Keyframe nach
    dem Tastendruck Stück 1. Fällt der Tastendruck mitten in eine lange Bildgruppe, beginnt Stück 1 am
-   nächsten Keyframe; bis dahin wächst Stück 0 (höchstens 15 Sekunden nach T-7).
+   nächsten Keyframe; bis dahin wächst Stück 0 (höchstens eine Ringlänge nach T-7).
 2. Die Liste enthält die Segmente des Stücks 0 nur, bis das erste Segment des Stücks 1 vollständig ist,
-   höchstens 15 Sekunden (`05` Abschnitt 3.7).
+   höchstens eine Ringlänge: 15, bei langen Segmenten bis 30 Sekunden (`05` Abschnitt 3.7).
 3. Danach beginnt das Fenster am ersten Segment von Stück 1. Die Segmente von Stück 0 beantwortet der Server
    mit 404, und Stück 0 wird gelöscht.
 4. Die Zeitleiste der Oberfläche beginnt beim Tastendruck.
@@ -168,7 +173,8 @@ Festgelegt in T-10 und `05` Abschnitt 4.4; hier nur, was das für den Zuschauer 
 
 | Punkt | Festlegung |
 |---|---|
-| Fenster | die drei neuesten Segmente direkt aus dem Ring, soweit sie dort noch liegen (bei langen Bildgruppen weniger), in den ersten Sekunden dazu der Anlauf |
+| Fenster | die drei neuesten Segmente direkt aus dem Ring, soweit sie dort noch liegen, in den ersten Sekunden dazu der Anlauf. Der Ring ist dafür bemessen (T-7): bis zu Segmenten von 7.5 Sekunden ganz, darüber nicht mehr voll. **Bei Sendern mit Segmenten über 10 Sekunden** fasst er keine drei Segmente; dort läuft eine Sitzung ohne Sitzungspuffer **nur über eine Umwandlung** (T-10, `05` 3.6), und ohne wirksame Sperre (Abschnitt 6) ist ein solcher Sender ohne Recht «Timeshift» nicht abspielbar. |
+| Pause | Meldet eine Sitzung ohne Sitzungspuffer «Pause», endet sie nach 60 Sekunden wie beim Gehen des Zuschauers; es gibt nichts zu puffern (`04` 10.3). |
 | Ältere Segmente | 404 |
 | Datei | keine |
 | Oberfläche | kein Knopf für Pause, Zurück, Live (DR-22) |
@@ -182,11 +188,12 @@ Pipes hinein und heraus (T-13); Entscheid nach T-14. Für Timeshift gilt:
 
 | Lage | Verhalten | Herkunft |
 |---|---|---|
+| **Ohne wirksame Sperre von FFmpeg** | Jede Umwandlung ist ein Live-FFmpeg und startet nur mit hart gesetzter Sperre (Landlock und Filter für Systemaufrufe). Fehlt sie auf dem Host, gibt es **nur den Direktweg**: Spulen, Pause und Live gehen im Zeitversatz weiter, aber Sender, die eine Umwandlung brauchen, sind nicht abspielbar; die Verwaltung zeigt «Eindämmung nicht verfügbar» mit dieser Folge. Das ist die sichere Vorgabe bis zu deiner Antwort auf `12` F-1. | `04` T-27, 10.8; `12` F-1 (→ `20` E-28-04) |
 | **Direktweg** (Original) | Segmente sind Byte-Bereiche der Stücke. Spulen, Pause, Live sind Sprünge des Players; kein Prozess. | T-12, `05` Abschnitt 4.5 |
 | **Umwandlung, Spulen** | Eine Anfrage nach einem Segment, das nicht erzeugt ist und nicht kurz bevorsteht, beendet FFmpeg und startet es an dieser Rastergrenze neu, mit dem Sitzungspuffer ab dem Keyframe davor als Eingang. Höchstens zwei Neustarts je Sitzung in 10 Sekunden. Ob die Segmente verschiedener Läufe nahtlos passen, misst `05` M-9; sonst gilt der Rückfall «spiele ab Uhrzeit» mit `EXT-X-DISCONTINUITY` (`05` Abschnitt 4.5). | `04` Abschnitt 7.5, 8.5 |
 | **Umwandlung, Qualitäts- oder Tonspurwechsel** | Neue Ausgabe-Generation an der aktuellen Stelle; der Sitzungspuffer bleibt. Weil der Puffer die Quelle hält, gilt die neue Qualität oder Tonspur auch für jede Stelle, an die der Zuschauer danach zurückspult. | `04` Abschnitt 7.5 |
 | **Umwandlung, Pause** | Go gibt FFmpeg nur so viel Eingang, wie der Client abholt, plus drei Segmente Vorlauf; FFmpeg blockiert danach beim Lesen. **Nach 60 Sekunden ohne Segmentanfrage endet der Prozess**; die Reservierung im Budget bleibt bei der Sitzung. Bei «Weiter» startet FFmpeg an der Stelle des nächsten verlangten Segments neu. | `04` Abschnitt 7.5, T-13 |
-| **Lange Sitzung, Überlauf der Quellzeit** | Kein FFmpeg-Lauf dauert länger als 24 Stunden und keiner geht über einen Überlauf der 33-Bit-Zeit (alle 26.5 Stunden): Go startet den Prozess an der nächsten Segmentgrenze bzw. am ersten Keyframe nach dem Überlauf neu, als neue Ausgabe-Generation; die Reservierung bleibt. Der Sitzungspuffer ist davon nicht berührt. | `04` 7.5, 14.7 |
+| **Lange Sitzung, Überlauf der Quellzeit** | Kein FFmpeg-Lauf dauert länger als 24 Stunden und keiner geht über einen Überlauf der 33-Bit-Zeit (alle 26.5 Stunden): Go startet einen neuen Prozess ab einem Keyframe der Quelle, mit Überlappung, als neue Ausgabe-Generation mit Diskontinuität; die Reservierung bleibt. Den Wechsel des Tokens nach 11 Stunden legt der Server mit diesem Neustart zusammen (`04` 10.3). Der Sitzungspuffer ist davon nicht berührt. | `04` 7.5, 14.7 |
 | **Ausgabestücke der Umwandlung** | mit Zeitversatz neben dem Sitzungspuffer, höchstens 5 Minuten; sie zählen zum Deckel (Abschnitt 9) und werden mit dem Sitzungspuffer gelöscht. | `04` Abschnitt 4.1 Ebene 6 |
 | **Umwandlung langsamer als Echtzeit** | Der Zuschauer fällt hinter die Live-Kante zurück; nichts geht verloren, solange die Höchstdauer reicht. Nach 30 Sekunden meldet die Sitzung «zu langsam». | `04` Abschnitt 8.3 |
 | **Neuer Zeitabschnitt im Puffer** (Codec, Spuren, Bildgrösse) | Neues Stück; der Entscheid (Direktweg oder Umwandlung) gilt je Zeitabschnitt. Beim Spulen über die Grenze wird er neu berechnet. | T-6, `05` Abschnitt 3.4 |
@@ -212,7 +219,9 @@ Rechtlich und fachlich bleiben (b) und (c) innerhalb des eigenen Puffers (nichts
 LTV-007.11). Technisch brechen sie T-16 und brauchen eine Kopie von bis zu der Höchstdauer beim Tastendruck
 (bei 8 Mbit/s und 60 Minuten 3.6 GB), während der Puffer weiter beschrieben und gekürzt wird.
 
-**Empfehlung: (a).** Frage F-1. Bis zu deiner Antwort gilt (a). Für die Aufnahme selbst gilt `11-dvr.md`
+Frage F-1. **Vorgabe bis zu deiner Antwort: (a).** Der Auftrag sagt nichts zum Beginn einer Sofortaufnahme bei
+Zeitversatz; (a) ist die Variante, die T-16 und Auftrag 8.1 (keine Aufnahme über eine Zuschauersitzung) wörtlich
+einhält. Empfehlung ebenfalls (a). Für die Aufnahme selbst gilt `11-dvr.md`
 Abschnitt 1 (Sofortaufnahme).
 
 Weitere Regeln:
@@ -363,7 +372,7 @@ sequenceDiagram
         P-->>S: Segment
         S-->>C: Segment
     end
-    Note over P: nach ≤ 15 s: Stück 0 gelöscht, Fenster beginnt beim Tastendruck
+    Note over P: nach höchstens einer Ringlänge: Stück 0 gelöscht, Fenster beginnt beim Tastendruck
     C->>C: Pause (nur im Player)
     Note over H,P: Ring und Schreiber laufen weiter
     opt mit Umwandlung
@@ -391,18 +400,28 @@ sequenceDiagram
 ## 13. Zustände der Sitzung
 
 Die Zustände beschreiben eine Live-Sitzung mit Recht «Timeshift» aus Sicht des Servers. Was der Player
-gerade tut (spielt, pausiert), sieht der Server nur an den Anfragen und am Herzschlag.
+gerade tut (spielt, pausiert), sieht der Server nur an den Anfragen und am Herzschlag. Massgeblich für den
+Eingangsstrom ist der Automat in `04` 5.1; die Zustände der Sitzung hier zeigt die API im Feld `state` (`08`).
 
 ```mermaid
 stateDiagram-v2
+    state "Startet" as Startet
     state "Anlauf" as Anlauf
+    state "Quelle weg" as Weg
     state "Live" as Live
     state "Zeitversetzt" as Versetzt
     state "Pause (Herzschlag)" as Ruht
     state "Ohne Zeitversatz" as Ohne
     state "Beendet" as Beendet
 
-    [*] --> Anlauf: einstellen, Puffer angelegt
+    [*] --> Startet: einstellen, Strom noch nicht «läuft»
+    Startet --> Anlauf: Strom läuft, Puffer angelegt
+    Startet --> Beendet: eine der drei Fristen des Starts abgelaufen (Fehlercode)
+    [*] --> Anlauf: einstellen auf empfangenen Sender, Puffer angelegt
+    Live --> Weg: Quelle bricht ab, Wiederverbindung läuft
+    Versetzt --> Weg: Quelle bricht ab (Puffer bleibt abspielbar)
+    Weg --> Live: Strom läuft wieder (Diskontinuität)
+    Weg --> Beendet: Leiter erschöpft
     [*] --> Ohne: einstellen ohne Recht, Deckel voll oder Ort fehlt
     Anlauf --> Live: erstes Segment nach dem Tastendruck, Stück 0 gelöscht
     Live --> Versetzt: Anfrage hinter der Live-Kante
@@ -423,7 +442,7 @@ stateDiagram-v2
     Anlauf --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
     Live --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
     Versetzt --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
-    Ruht --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
+    Ruht --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart, Höchstdauer plus 15 min ohne Segment
     Ohne --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
     Beendet --> [*]: Puffer gelöscht, Haltegrund gelöst
 ```
@@ -431,7 +450,25 @@ stateDiagram-v2
 «Pause» heisst: Der Herzschlag meldet «Pause» (T-21), der Player holt nichts. In diesem Zustand endet eine
 Umwandlung nach 60 Sekunden ohne Segmentanfrage; der Sitzungspuffer wächst weiter. Ein Fensterende während der
 Pause führt bei der nächsten Anfrage an den Fensteranfang (3.3). Der Befehl «sofort beenden» des Administrators
-nach dem Deaktivieren eines Senders (T-29) führt aus jedem Zustand nach «Beendet»; das blosse Deaktivieren nicht.
+nach dem Deaktivieren eines Senders (T-29), das Entfernen oder Ändern der Quelle ohne Ersatzquelle und der
+Ablauf des Tokens eines deaktivierten Senders führen aus jedem Zustand nach «Beendet»; das blosse Deaktivieren
+nicht. «Startet» hat drei getrennte Fristen (bis zum ersten Byte, bis «läuft», bis zum ersten Segment) und eine
+Gesamtfrist von 90 Sekunden (`04` 5.3); der Herzschlag nennt den Grund («verbindet», «wartet auf Keyframe»,
+«wartet auf Umwandlung»).
+
+Zuordnung zu den Zuständen der API (`08`, Feld `state`; RB-12):
+
+| Zustand hier | `08` `state` |
+|---|---|
+| Startet | `starting` |
+| Anlauf, Live | `live` |
+| Zeitversetzt | `shifted` |
+| Pause | `paused` |
+| Quelle weg | `reconnecting` |
+| Ohne Zeitversatz | `live` (ohne Fenster; die Antwort sagt, dass Zeitversatz gerade nicht möglich ist) |
+| Beendet | keine Sitzung mehr (410 auf den Herzschlag) |
+
+`recording_live` und `recording_done` gelten für die Wiedergabe von Aufnahmen (`11` 6.2).
 
 ## 14. Messpunkte, offene Punkte, Fragen
 
@@ -468,8 +505,8 @@ Wer 20 Minuten zurückliegt und «Aufnehmen» drückt, sieht eine Stelle, die sc
   Abweichung von T-16.
 - **(c) Mit dem ganzen Puffer** ab dem Einschalten. Wie (b), noch mehr Kopie.
 
-Empfehlung: **(a)**. (b) und (c) bleiben im eigenen Puffer, also nichts vor dem Einschalten; sie kosten aber
-eigenen Code für einen seltenen Fall.
+Vorgabe bis zu deiner Antwort: **(a)** (hält T-16 ein). Empfehlung: **(a)**. (b) und (c) bleiben im eigenen
+Puffer, also nichts vor dem Einschalten; sie kosten aber eigenen Code für einen seltenen Fall.
 
 ## 15. Abdeckung
 
@@ -535,3 +572,28 @@ Fassung 1 → 2 (Konsolidierung 1, Grundlage `04` Fassung 3 Abschnitte 13.4, 14,
 - Abschnitt 14.2: O-1 und O-2 erledigt durch `04` 14.6; O-3 teilweise belegt.
 - Zahlenformat auf de-CH umgestellt (Dezimalpunkt).
 - Restebereinigung nach Konsolidierung 1: Frage F-1 mit Verweis auf `20` E-28-37.
+
+Fassung 2 → 3 (Schlussbereinigung nach den Reviews 4, 5 und 6; Grundlage `04` und `05` Fassung 4, besonders
+`04` 13.5, 14 und 15.3, `12` Fassung 3, Entscheide des Koordinators nach Review 4):
+
+- Kopf: Stand 29. November 2026; Bezug auf `04` und `05` Fassung 4 und `12` Fassung 3; Grundregel «ohne Antwort
+  gilt die wortlauttreue Vorgabe, bei Sicherheit die sichere» (RG-01); «Konzept freigegeben» gegen «Baufreigabe»
+  (RG-06).
+- Begriffe und 1.1: Ring nach T-7 neu (15 Sekunden, bei langen Segmenten das Vierfache, höchstens 30, keine
+  Einstellung); die Grenze gegen ein Archiv ist das Fenster der Sitzung (RB-01). Neue Zeile: Sitzung ohne
+  Segmentabruf endet (RT-11).
+- Abschnitt 2: «Pause» des Herzschlags nur Anzeige, Schauzeit nach ausgelieferten Segmenten (RT-04, `12` 10.3);
+  Sitzungsende nach Höchstdauer plus 15 Minuten ohne Segmentabruf; App im Hintergrund endet nach 30 Sekunden
+  (`04` 15.3, RB-11). T-29: deaktivierter Sender höchstens bis zum Ablauf des Tokens, kein Zurückschalten; Quelle
+  entfernt oder geändert beendet ihre Empfänger innert 5 Sekunden (RB-05, RT-06).
+- Abschnitt 3: Segmente ohne Obergrenze von 10 Sekunden (`05` 4.4, RB-13); Stück 0 abrufbar höchstens eine
+  Ringlänge (15 bis 30 Sekunden).
+- Abschnitt 3.3: lange Pause endet nach der Höchstdauer plus 15 Minuten ohne Segmentabruf (statt «endet nicht»).
+- Abschnitt 4: Anlauf höchstens eine Ringlänge.
+- Abschnitt 5: Fenster ohne Sitzungspuffer nach T-7 und T-10; Sender mit Segmenten über 10 Sekunden nur über eine
+  Umwandlung; gemeldete Pause ohne Sitzungspuffer endet nach 60 Sekunden (`04` 10.3).
+- Abschnitt 6: kein Live-FFmpeg ohne wirksame Sperre, sonst nur Direktweg (RT-01, `12` F-1); Neustart nach
+  24 Stunden mit Überlappung und mit dem Tokenwechsel zusammengelegt (RB-18).
+- Abschnitte 7 und 14.3: F-1 mit Vorgabe und Empfehlung getrennt.
+- Abschnitt 13: Zustände «Startet» (drei Fristen des Starts, RB-02) und «Quelle weg»; Zuordnung zu `08` `state`
+  (RB-12); Ende durch Quelle entfernt und Tokenablauf eines deaktivierten Senders.
