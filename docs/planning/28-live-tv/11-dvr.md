@@ -1,18 +1,22 @@
 # Konzept 28 · Aufnahmen (DVR)
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 Dieses Dokument legt fest, wie Slouchcat Fernsehsendungen aufnimmt, plant, speichert, abspielt, schützt und
-wieder löscht. Es baut auf den tragenden Entscheiden aus `04-architektur.md` (T-1 bis T-28, Fassung 2) und
-`05-streaming-und-fast-zapping.md` (Fassung 2) auf, besonders T-1 (Planer im Dienst), T-6 (Zeitabschnitt),
-T-8 (Rückstau), T-9 (Live-Sitzung), T-16 (Aufnahme am Verteiler), T-17 (Haltegründe), T-19 (Zulassung) und
-T-25 (Speicherorte), und weicht von keinem ab. Programmverweise, verschobene Sendungen und Folgenerkennung
-kommen aus `09-epg.md` Abschnitte 6 und 7 und werden hier nur angewandt.
+wieder löscht. Es baut auf den tragenden Entscheiden aus `04-architektur.md` (T-1 bis T-29, Fassung 3) und
+`05-streaming-und-fast-zapping.md` (Fassung 3) auf, besonders T-1 (Planer im Dienst), T-6 (Zeitabschnitt),
+T-8 (Rückstau), T-9 (Live-Sitzung), T-16 (Aufnahme am Verteiler), T-17 (Haltegründe), T-19 (Zulassung),
+T-25 (Speicherorte) und T-29 (Deaktivieren beendet nichts Laufendes), und weicht von keinem ab. **Alle Zahlen
+stammen aus `04` Abschnitt 14 «Massgebliche Werte».** Schema und Schnittstellen legen allein
+`07-datenmodell.md` und `08-api.md` fest; Spalten- und Zustandsnamen hier folgen `07` Abschnitt 3.9.
+Programmverweise, verschobene Sendungen und Folgenerkennung kommen aus `09-epg.md` Abschnitte 6 und 7 und
+werden hier nur angewandt.
 
 Alles hier ist **spezifiziert**, nichts ist gebaut. «Gebaut» mit Datei und Zeile bezieht sich auf den Stand des
 Arbeitsbaums (Server 1.44.1). Kennungen dieses Dokuments: `F-n` Fragen an dich, `O-n` offene technische
 Punkte, `M-n` Messpunkte; sie zählen eigen. Kennungen anderer Dateien tragen die Dateinummer («`03` F-9»).
-Stufen nach `03-fachkonzept.md`: Aufnahmen **Stufe 5**, Serien und wiederkehrende Aufnahmen **Stufe 6**.
+Stufen nach `18-umsetzungsplan.md`: Aufnahmen **Stufe 5** (Baufreigabe nach V-7: M-1 und M-2 dieses
+Dokuments), Serien und wiederkehrende Aufnahmen **Stufe 6**.
 
 Begriffe, einmal erklärt: Eine **Planung** ist der Wunsch eines Profils (eine Sendung, ein Zeitraum, eine
 Serie). Eine **Regel** ist eine Planung, die immer wieder Termine erzeugt (Serie, wiederkehrend). Ein
@@ -66,8 +70,20 @@ Aufnahmen sind sofort ein Termin; Regeln erzeugen Termine.
 | Sender wieder sichtbar, Recht zurück | Termine der ruhenden Regeln des Profils | derselbe Job als Ereignis |
 
 Die Berechnung ist idempotent (gleicher Schlüssel ergibt denselben Termin). Sie ändert nie einen Termin, dessen
-Vorlauf schon begonnen hat. Entfällt eine Sendung im EPG, wird ihr noch nicht begonnener Termin aus einer
-Serienregel entfernt (er war nie eine Entscheidung des Profils); bei Einzelaufnahmen gilt dagegen 2.3.
+Vorlauf schon begonnen hat; im SQL ist das abgesichert, weil jede Änderung nur `WHERE state = 'scheduled'`
+schreibt (`07` 8.3, Review 2 RD-15). Entfällt eine Sendung im EPG, wird ihr noch nicht begonnener Termin aus
+einer Serienregel entfernt (er war nie eine Entscheidung des Profils); bei Einzelaufnahmen gilt dagegen 2.3.
+
+**Abgesagter Termin einer Regel:** Sagt das Profil einen einzelnen Termin einer Regel ab, wird die Zeile
+**nicht** gelöscht, sondern bleibt als `cancelled` mit Grund `skipped` bis zum Ende ihres Termins stehen. So legt
+`livetv.dvr.expand` ihn nicht neu an; danach räumt derselbe Job sie weg (`07` 3.9 und 9, W-17).
+
+**Schlüssel nach einer Verschiebung** (Review 2 RD-09): Der Schlüssel eines Serientermins (`rule_key`) enthält
+den Beginn laut EPG. Verschiebt `livetv.epg.reconcile` den Termin (`moved_auto`), setzt er den Schlüssel **in
+derselben Transaktion** auf den neuen Beginn; dasselbe gilt beim Zusammenführen zweier Sender (neue Sender-
+Kennung). Sonst rechnete der nächste `livetv.dvr.expand` einen zweiten Termin für dieselbe Sendung aus, und ein
+ausgelassener Termin käme nach einer Verschiebung zurück. Prüfung: «Sendung um 5 Minuten verschoben ergibt
+keinen zweiten Termin» (`17`).
 
 **Höchstzahl:** je Regel höchstens 50 geplante Termine (Annahme; Vorbild TVHeadend «Autorec maximum
 schedules», R5 Abschnitt 5.1). Wird sie erreicht, zeigt die Regel «weitere Termine folgen, wenn diese vorbei
@@ -97,17 +113,19 @@ gilt:
 | `ambiguous` | **bleibt auf der alten Zeit und läuft dann auch**, markiert «nicht eindeutig» mit Auswahl der Kandidaten (LTV-008.14 «sonst bleibt die Planung») | wie `exact` |
 | `missing` | bleibt auf der alten Zeit und läuft, markiert «nicht mehr im Programm» mit «behalten» und «löschen» | wie `exact` |
 
-`09` Abschnitt 6.3 lässt offen, ob ein nicht eindeutiger Termin ausgesetzt wird; dieses Dokument legt fest:
-**er läuft** zur alten Zeit, weil ein Ausfall die schlechtere Überraschung ist. Die Verlängerung laufender
-Aufnahmen braucht eine kleine Ergänzung am Job `livetv.epg.reconcile`: Er prüft auch laufende Aufnahmen, deren
-Verweis `exact` ist, auf ein späteres Ende (O-1).
+Ein nicht eindeutiger Termin **läuft** zur alten Zeit, weil ein Ausfall die schlechtere Überraschung ist; das
+ist abgestimmt (`04` 15.2), `09` 6.3 zieht nach. Die Verlängerung laufender Aufnahmen geschieht über den Job
+`livetv.epg.reconcile`: Er prüft auch laufende Aufnahmen, deren Verweis `exact` ist, auf ein späteres Ende, und
+gibt das neue Ende an den Planer (`04` 15.2; die Beschreibung des Jobs steht in `09`, O-1). reconcile schreibt
+Kernzeiten nur bei `state = 'scheduled'`; für eine laufende Aufnahme ändert er nur das Ende und nur nach hinten.
 
 Ob die Anpassung überhaupt wirkt, schaltet der Administrator global (`15` LA-14, Vorgabe an).
 
 ### 2.4 Schon aufgenommene Folgen
 
 Nach `09` Abschnitt 7.1 gilt eine Folge nur bei Stufe A (`xmltv_ns` mit Staffel und Folge) oder B
-(`dd_progid` mit Folgenteil) als **zuverlässig** erkannt; C und D nur, wenn das Profil die Option der Regel
+(`dd_progid` mit Folgenteil; `dd_progid` steht nicht in der XMLTV-Formatbeschreibung und ist eine verbreitete
+Gewohnheit, Nachprüfung Nr. 40) als **zuverlässig** erkannt; C und D nur, wenn das Profil die Option der Regel
 einschaltet. Verglichen wird nur mit den eigenen Aufnahmen des Profils (`03` DR-10), nie mit der Bibliothek.
 
 | Lage | Verhalten |
@@ -122,6 +140,24 @@ wenn die Aufnahme später gelöscht wird (vom Profil, durch die Aufbewahrungsfri
 Ohne Gedächtnis würde «behalte die letzten 3 Folgen» eine gelöschte Folge bei der nächsten Wiederholung wieder
 aufnehmen. Das Gedächtnis gehört der Regel und wird mit ihr gelöscht. In der Regel gibt es «Gedächtnis leeren»,
 falls ein Profil eine Folge doch noch einmal will.
+
+### 2.5 Doppelt gesendetes Anlegen (Idempotenz)
+
+Ein doppelter Druck auf «Aufnehmen» am Fernseher oder die Wiederholung einer App nach einer Zeitüberschreitung
+darf keine zweite Aufnahme anlegen (Review 2 RD-10). Regel: Trifft ein Anlegen auf eine bestehende, nicht
+abgesagte Zeile mit denselben Merkmalen, antwortet der Server mit **dieser** Zeile (200), statt eine neue
+anzulegen.
+
+| Art | Gleich heisst | Hinweis |
+|---|---|---|
+| Einzelaufnahme | Profil, Sender, Beginn laut EPG, normalisierter Titel; Zustand nicht `cancelled` oder `deleting` | wie bei Erinnerungen |
+| Sofortaufnahme | Profil und Sender, Zustand `waiting`, `recording` oder `recording_gap` | eine laufende Sofortaufnahme je Profil und Sender |
+| Manuelle Aufnahme | Profil, Sender, Beginn und Ende | – |
+| Serienregel | Profil, normalisierter Titel, Sender oder «alle Sender» | eine Regel je Serie und Senderwahl |
+| Wiederkehrende Regel | Profil, Sender, Wochentage, Beginn, Dauer | – |
+
+Die Eindeutigkeit setzt `07` als Teil-Index durch (für Einzelaufnahme und Serienregel nach RD-10; für die übrigen
+Arten nachzutragen, Abschnitt 14.1).
 
 ## 3. Planer
 
@@ -152,7 +188,12 @@ Dateien. Eine Pause dieser Jobarten verzögert nur Planung und Aufräumen; die V
    **Schreiben beenden** (Ende plus Nachlauf).
 3. Ein einziger Zeitgeber wartet auf das nächste Ereignis. Gewartet wird mit der monotonen Uhr, verglichen mit
    der Wanduhr (UTC). Nach jedem Aufwachen prüft er die Wanduhr erneut und arbeitet alle fälligen Ereignisse ab.
-4. Jede Änderung (neuer Termin, Absage, Verschiebung, Verlängerung) ersetzt den Eintrag und weckt den Zeitgeber.
+4. Jede Änderung (neuer Termin, Absage, Verschiebung, Verlängerung, Zusammenführen des Senders) ersetzt den
+   Eintrag und weckt den Zeitgeber. Damit ein Eintrag nie zur alten Zeit oder am alten Sender feuert, trägt jede
+   Aufnahme einen **Änderungszähler** (`rev`), den jede Änderung eines Termins erhöht. Der Zeitgeber merkt sich
+   ihn und startet nur mit `… WHERE id = ? AND state = 'scheduled' AND rev = ?`; trifft das keine Zeile, liest
+   er neu und plant neu (Review 2 RD-15; Spalte in `07` nachzutragen). Die Liste wird beim Start erst nach dem
+   Wiederanlauf der Aufnahmen geladen (`07` 8.4 Schritt 4).
 5. **Uhrsprung:** Einmal je Minute vergleicht der Planer monotone Uhr und Wanduhr. Weichen sie um mehr als
    2 Sekunden vom erwarteten Gang ab (NTP nach einem Stromausfall, von Hand verstellte Uhr), baut er die Liste
    neu auf (Annahme zur Schwelle; Vorbild R5 Abschnitt 5.5).
@@ -164,9 +205,9 @@ des Senders und Kontingent beim Anlegen und beim Start, nicht über ein Token ei
 
 | Zeitpunkt | Was | Wert |
 |---|---|---|
-| Beginn des Vorlaufs minus **Aufwärmzeit** | Haltegrund «Aufnahme» setzen (`04` Abschnitt 5.2). Läuft der Sender schon (Zuschauer, dauerhaft, andere Aufnahme), kostet das nichts; sonst baut die Stromverwaltung die Verbindung auf. | Aufwärmzeit 30 Sekunden, einstellbar 10 bis 120 (`15` LA-14; `04` Abschnitt 5.2). Sie deckt Verbindung, Programmtabellen und die erste Bildgruppe (Annahme, `05` M-2 misst die Zeit bis zum ersten Keyframe). |
+| Beginn des Vorlaufs minus **Aufwärmzeit** | Haltegrund «Aufnahme» setzen (`04` Abschnitt 5.2). Läuft der Sender schon (Zuschauer, dauerhaft, andere Aufnahme), kostet das nichts; sonst baut die Stromverwaltung die Verbindung **sofort und ohne Staffelung** auf (`04` 5.3). Ein Sender, der zurückgestellt ist (`04` 5.1), startet mit diesem Haltegrund wieder. | Aufwärmzeit **30 Sekunden vor dem Beginn des Vorlaufs**, einstellbar 10 bis 120 (`04` 14.1, ein Bezugspunkt für alle Dokumente). Sie deckt Verbindung, Programmtabellen und die erste Bildgruppe (Annahme, `05` M-2 misst die Zeit bis zum ersten Keyframe). |
 | Beginn des Vorlaufs | Leser am Ring anmelden. Er beginnt an der letzten vollständigen Bildgruppe (T-7), also einige Sekunden vor dem Zeitpunkt; das liegt im Vorlauf. Ab hier schreibt die Aufnahme. | – |
-| Ende plus Nachlauf | Leser abmelden, Teil schliessen, Haltegrund lösen (der Strom endet, wenn ihn niemand sonst hält). | – |
+| Ende plus Nachlauf | Leser abmelden, Teil schliessen, Haltegrund lösen. Hält ihn niemand sonst, «ruht» der Strom **sofort**: nach dem Ende einer Aufnahme gibt es keine Karenz (T-17, `04` 14.1). | – |
 
 Liegt beim Beginn des Vorlaufs noch kein Keyframe im Ring (Verbindung scheitert, Quelle langsam), wechselt die
 Aufnahme in «wartet auf Empfang» und schreibt ab dem ersten Keyframe; die Zeit dazwischen ist eine Lücke
@@ -200,14 +241,14 @@ die Regeln oben lassen sich nur mit gesetzter Zeitzone prüfen (M-7).
 | Zustand | Bedeutung | Wert in der Datenbank |
 |---|---|---|
 | geplant | Termin in der Zukunft | `scheduled` |
-| ruht | Recht entzogen oder Sender unsichtbar; nur, wenn du `03` F-7 (a) wählst | `suspended` |
+| ruht | Recht entzogen; nur, wenn du `03` F-7 (a) wählst | `suspended` |
 | wartet auf Empfang | Zeit ist da, aber noch kein Keyframe | `waiting` |
 | läuft | schreibt | `recording` |
 | läuft mit Lücke | schreibt nicht, wartet auf Quelle oder Speicherort | `recording_gap` |
 | fertig | Ende erreicht, ohne Lücke | `completed` |
 | unvollständig | mindestens ein Teil, aber Lücken (Grund je Lücke) | `incomplete` |
-| fehlgeschlagen | kein brauchbarer Teil; Grund (Kontingent voll, Server ausgelastet, Sender nicht verfügbar, Quelle nicht erreichbar, Speicher voll oder fehlt, Server lief nicht) | `failed` |
-| abgebrochen | vom Profil gestoppt oder abgesagt, oder Recht entzogen | `cancelled` |
+| fehlgeschlagen | kein brauchbarer Teil; Grund nach `07` 3.9 (`quota_full`, `server_busy`, `channel_unavailable`, `source_unreachable`, `source_encrypted`, `storage_full`, `storage_missing`, `server_not_running`) | `failed` |
+| abgebrochen | vom Profil gestoppt oder abgesagt, Recht entzogen, Sender gelöscht, oder ausgelassener Termin einer Regel (Grund `profile`, `right_revoked`, `channel_deleted`, `skipped`) | `cancelled` |
 | wird gelöscht | Zeile bleibt, bis alle Dateien entfernt sind (übersteht einen Absturz beim Löschen) | `deleting` |
 
 ```mermaid
@@ -240,7 +281,7 @@ stateDiagram-v2
     Laeuft --> Abgebr: Profil stoppt, Recht entzogen
     Luecke --> Abgebr: Profil stoppt, Recht entzogen
     Wartet --> Abgebr: Profil stoppt, Recht entzogen
-    Geplant --> Abgebr: Profil sagt ab (Zeile wird gelöscht)
+    Geplant --> Abgebr: Profil sagt ab (Einzeltermin gelöscht, Regeltermin bleibt als skipped)
     Fertig --> Loeschen: Profil, Frist, behalte N
     Unvoll --> Loeschen: Profil, Frist, behalte N
     Fehl --> Loeschen: Profil
@@ -249,7 +290,10 @@ stateDiagram-v2
 ```
 
 Eine vom Profil gestoppte Sofortaufnahme mit Daten gilt als **fertig** (sie endet, wie gewünscht). Eine
-abgebrochene Aufnahme mit Daten bleibt abspielbar. Eine abgesagte Planung ohne Daten wird sofort gelöscht.
+abgebrochene Aufnahme mit Daten bleibt abspielbar. Eine abgesagte Einzelplanung ohne Daten wird sofort
+gelöscht; ein abgesagter Termin einer Regel bleibt als `cancelled`/`skipped` bis zu seinem Ende (2.1). Eine vom
+Administrator nach dem Deaktivieren mit «sofort beenden» gestoppte Aufnahme ist «unvollständig», mit Lücke
+`stopped_by_admin` bis zum geplanten Ende (T-29, `07` 3.9).
 Kleine Paketfehler ohne Lücke ändern den Zustand nicht; sie stehen als Zähler am Teil (Abschnitt 5.5).
 
 ### 3.7 Neustart, Stromausfall, verpasster Start
@@ -263,8 +307,8 @@ Beim Start (`04` Abschnitt 5.3, Schritt 2):
 | «geplant» oder «wartet», Beginn vorbei, Ende in der Zukunft (verpasster Start) | **ab jetzt aufnehmen**, Lücke «Server lief nicht» vom geplanten Beginn bis jetzt; am Ende «unvollständig» |
 | «geplant», Ende schon vorbei | «fehlgeschlagen» mit Grund «Server lief nicht»; Meldung an das Profil; keine stille Löschung |
 
-Gestaffelt wie der übrige Start (`04` Abschnitt 5.3 Schritt 3: höchstens zwei Starts je Sekunde, nie zwei
-gleichzeitig bei derselben Quelle). Aufnahmen haben dabei Vorrang vor dauerhaftem Empfang.
+Aufnahmen verbinden beim Start **sofort und ohne Staffelung**; die Staffelung (höchstens zwei Starts je Sekunde)
+gilt nur für dauerhaften und zeitgesteuerten Empfang (`04` 5.3, 14.1, Rückmeldung `06` O-12).
 
 ## 4. Konflikte und Warnungen ohne Tuner
 
@@ -276,9 +320,9 @@ Zwei Aufnahmen zur selben Zeit sind kein Konflikt. Ein Konflikt (LTV-008.13, `03
 | Nr. | Konflikt | Prüfung | Folge beim Start, wenn er dann noch besteht |
 |---|---|---|---|
 | K-1 | **Kontingent** des Kontos reicht voraussichtlich nicht | belegt + erwartete Grösse aller künftigen und laufenden Aufnahmen des Kontos bis zu diesem Termin + erwartete Grösse dieses Termins > Kontingent | abgelehnt und gemeldet (E-4); Zustand «fehlgeschlagen», Grund «Kontingent voll» |
-| K-2 | **Platz** am Speicherort reicht voraussichtlich nicht über der Mindestreserve | frei − Mindestreserve − erwartete Grösse der früher beginnenden Aufnahmen < erwartete Grösse | nur Warnung; gestartet wird, solange der Platz **jetzt** über der Reserve liegt. Unterschreitet er sie später: Lücke «Speicher voll» (Abschnitt 5.6) |
+| K-2 | **Platz** am Speicherort reicht voraussichtlich nicht über der Mindestreserve | frei − Mindestreserve − erwartete Grösse der früher beginnenden Aufnahmen < erwartete Grösse | nur Warnung; gestartet wird, solange der Platz **jetzt** über der Reserve liegt. Unterschreitet er sie später: Lücke «Speicher voll» (Abschnitt 5.4) |
 | K-3 | **Serverdeckel** (T-19): Obergrenze der Eingangsströme oder, falls gesetzt, Höchstzahl gleichzeitiger Aufnahmen (`15` F-21) wäre allein durch Aufnahmen überschritten | Zahl verschiedener Sender aller Aufnahmen im Zeitraum (über alle Profile; ohne Titel) | Vorrang nach `04` F-5 und `03` F-4; bis zur Antwort: Platz ab 2 Minuten vor Beginn reserviert, nie eine laufende Wiedergabe beendet; reicht es nicht, «fehlgeschlagen», Grund «Server ausgelastet» |
-| K-4 | **Sender** deaktiviert oder verschwunden | Zustand des Senders | «fehlgeschlagen», Grund «Sender nicht verfügbar»; nicht verschoben (`03` DR-16) |
+| K-4 | **Sender** deaktiviert oder verschwunden | Zustand des Senders | Ein Termin, der danach **beginnen** soll: «fehlgeschlagen», Grund «Sender nicht verfügbar»; nicht verschoben (`03` DR-16). Eine **laufende** Aufnahme läuft bis zu ihrem Ende weiter (T-29); nur der Befehl «sofort beenden» stoppt sie. |
 | K-5 | **kein EPG mehr** für einen Termin aus dem EPG | Verweis `missing` oder Zuordnung gelöst | läuft zur alten Zeit (2.3) |
 | K-6 | **Recht entzogen** («Live-TV» oder «Aufnahmen») | wirksames Recht | nach `03` F-7; bis zur Antwort: ruht |
 
@@ -289,7 +333,7 @@ Lücke oder schlägt fehl.
 
 ### 4.2 Prognose des Platzbedarfs
 
-Erwartete Grösse = mittlere Bitrate des Senders ÷ 8 × (Ende + Nachlauf − Beginn + Vorlauf) × 1,05.
+Erwartete Grösse = mittlere Bitrate des Senders ÷ 8 × (Ende + Nachlauf − Beginn + Vorlauf) × 1.05.
 
 | Grösse | Herkunft |
 |---|---|
@@ -297,13 +341,13 @@ Erwartete Grösse = mittlere Bitrate des Senders ÷ 8 × (Ende + Nachlauf − Be
 | Zuschlag 5 % | gegen Schwankungen (Annahme; prüft M-1 mit `05` M-2) |
 | Sofortaufnahme «bis ich stoppe» | mit der Höchstdauer (Vorgabe 4 Stunden) |
 
-Beispiel: 90 Minuten Sendung, 2 + 10 Minuten Vor- und Nachlauf, 8 Mbit/s: 1 MB/s × 6'120 s × 1,05 ≈ 6,4 GB.
+Beispiel: 90 Minuten Sendung, 2 + 10 Minuten Vor- und Nachlauf, 8 Mbit/s: 1 MB/s × 6'120 s × 1.05 ≈ 6.4 GB.
 
 ### 4.3 Was der Benutzer wann sieht
 
 | Wann | Wo | Was |
 |---|---|---|
-| beim Anlegen | im Dialog, sofort | Konflikt mit Satz, zum Beispiel «Dein Kontingent reicht voraussichtlich nicht (noch 3,1 GB frei, gebraucht 6,4 GB).» Speichern geht trotzdem (der Planer warnt, E-4). |
+| beim Anlegen | im Dialog, sofort | Konflikt mit Satz, zum Beispiel «Dein Kontingent reicht voraussichtlich nicht (noch 3.1 GB frei, gebraucht 6.4 GB).» Speichern geht trotzdem (der Planer warnt, E-4). |
 | nach jeder Änderung, nach EPG-Import, täglich, 10 Minuten vor Beginn | in «Geplante Aufnahmen» als Kennzeichen am Termin | derselbe Satz |
 | wenn ein Termin **neu** in einen Konflikt gerät | Meldung in der Glocke des Profils, einmal je Termin und Konfliktart | «Aufnahme X am … : Kontingent reicht voraussichtlich nicht» |
 | beim Start abgelehnt | Meldung nach Abschnitt 11 | «nicht aufgenommen: …» |
@@ -330,7 +374,7 @@ H.222.0 belegt; Aussagen, die R5 als Annahme führt, sind hier markiert):
 | Wechsel der Spuren mitten drin | ja (neue PMT) | nur mit neuer Datei (Annahme) | nur mit neuem Kopfstück (Annahme) |
 | lesbar nach hartem Abbruch | ja, Pakete synchronisieren neu | weitgehend, ohne Index und Dauer (Annahme) | bis zum letzten vollständigen Fragment |
 | Index zum Spulen | **keiner**, eigener nötig | eingebaut | eingebaut |
-| Zeitstempel | 33 Bit, Überlauf nach rund 26,5 h | 64 Bit | 64 Bit |
+| Zeitstempel | 33 Bit, Überlauf nach rund 26.5 h | 64 Bit | 64 Bit |
 
 **Entscheid (Empfehlung, folgt T-16):** **MPEG-TS** mit eigenem Index je Teil. Nur TS erfüllt «alle
 empfangenen Ton- und Untertitelspuren bleiben» ohne Ausnahme. Die Nachteile (kein eingebauter Index,
@@ -366,9 +410,9 @@ um (`04` T-3); das ist verlustfreies Umpacken. Nach der Aufnahme wird nichts umg
 
 | Punkt | Festlegung | Einordnung |
 |---|---|---|
-| Schreiber | je Aufnahme eine Go-Routine mit eigenem Leser am Ring und eigenem Rückstau im Arbeitsspeicher: bis 64 MiB oder 60 Sekunden bei der gespeicherten Bitrate, das Kleinere, gezählt gegen das Byte-Budget | spezifiziert (T-8, RA-07, `05` Abschnitt 3.5) |
-| Pufferung | Blöcke von 1 bis 4 MiB | Empfehlung (R5 Abschnitt 4.3) |
-| `fdatasync` | alle **10 Sekunden** und beim Schliessen eines Teils; danach Bytes und Ende des gesicherten Stands in die Datenbank (`04` Abschnitt 4.2: Fortschritt eines Teils alle 10 Sekunden) | Empfehlung; `fdatasync` schreibt Daten ohne nicht nötige Metadaten (R5 Beleg 15) |
+| Schreiber | je Aufnahme eine Go-Routine mit eigenem Leser am Ring und eigenem Rückstau im Arbeitsspeicher: bis 64 MiB oder 60 Sekunden bei der gespeicherten Bitrate, das Kleinere. Er wird **nicht** vorab reserviert, sondern zählt bei Gebrauch und teilt sich den Rest des Byte-Budgets neben den Ringen; **keine Aufnahme scheitert am Byte-Budget** (`04` T-19, 8.1, 14.3) | spezifiziert; Grösse Annahme (M-14) |
+| Pufferung | Blöcke von 1 MiB | `04` 14.5, Annahme |
+| `fdatasync` | alle **10 Sekunden** und beim Schliessen eines Teils; danach Bytes und Ende des gesicherten Stands in die Datenbank, **ausserhalb** jeder Transaktion, die auf etwas anderes wartet (`04` 14.5; `07` 8.1: kein Datei- oder Netzzugriff in einer Transaktion) | Annahme; `fdatasync` schreibt Daten ohne nicht nötige Metadaten (R5 Beleg 15) |
 | Ordner | nach dem Anlegen einer Datei auch den Ordner sichern (Verzeichniseintrag) | Annahme; auf SMB und NFS vom Mount abhängig, M-1 |
 | Verlust bei Stromausfall | höchstens die letzten rund 10 Sekunden; sie werden als Lücke «Server lief nicht» geführt | Folge |
 | Fehler | `ENOSPC` und `EIO` können erst bei `fdatasync` oder `close` kommen (R5 Beleg 15); jeder Fehler ist ein Zustand des Speicherorts, kein Programmfehler | spezifiziert (`04` Abschnitt 9) |
@@ -393,10 +437,11 @@ um (`04` T-3); das ist verlustfreies Umpacken. Nach der Aufnahme wird nichts umg
 | Wechsel auf Ersatzquelle | Verteiler meldet Quellwechsel (neuer Zeitabschnitt) | neuer Teil; Lücke nur für die Zeit ohne Daten, Grund «Quelle gewechselt»; der Teil merkt sich die Quelle | LTV-020.14 |
 | Abbruch und Wiederverbindung zur selben Quelle | Verteiler meldet Diskontinuität | **derselbe Teil**, Diskontinuität im Index; Lücke mit Zeitangabe für die Zeit ohne Daten, Grund «Quelle unterbrochen» | LTV-020.12 |
 | Zeitsprung der Quelle bei gleichen Parametern (Werbeeinblendung) | Diskontinuität | derselbe Teil, Vermerk im Index, keine Lücke | T-6 |
-| Überlauf der 33-Bit-Zeit (alle 26,5 Stunden) | Go entfaltet die Zeit (`05` Abschnitt 3.4) | Pakete unverändert; der Index führt beide Zeiten und einen Eintrag «Überlauf»; die Wiedergabe setzt dort eine Diskontinuität (Abschnitt 6) | LTV-020.18 |
+| Überlauf der 33-Bit-Zeit (alle 26.5 Stunden) | Go entfaltet die Zeit (`05` Abschnitt 3.4) | Pakete unverändert; der Index führt beide Zeiten und einen Eintrag «Überlauf»; die Wiedergabe setzt dort eine Diskontinuität (Abschnitt 6) | LTV-020.18 |
 | kurzer Paketverlust (Zähler springt) | Zählerfehler je PID im Verteiler | Zähler «Datenfehler» am Teil, keine Lücke; die Pakete bleiben, wie sie kamen | LTV-020.11 |
 | Pakete mit Fehlerkennzeichen der Quelle | Kennzeichen im Paketkopf | unverändert geschrieben, gezählt; Decoder verdecken solche Stellen (Annahme) | LTV-020.11 |
 | Daten ohne Paketraster, kaputte Tabellen | Der Empfänger synchronisiert neu (`04` Abschnitt 3.2, Anforderungen an `live/mpegts`); in den Ring kommen nur gültige Pakete | nichts im Teil; dauert es an, ist es «Quelle weg» | LTV-020.11 |
+| Sender deaktiviert oder aus der Liste verschwunden | Stromverwaltung (T-29) | nichts: die Aufnahme läuft bis zu ihrem Ende weiter, solange der Strom liefert. Nur «sofort beenden» schliesst den Teil, Lücke `stopped_by_admin` bis zum geplanten Ende, Zustand «unvollständig» | LTV-002.11 |
 | Verschlüsselung erkannt | `05` Abschnitt 2.5 | Quelle endet mit Zustand «verschlüsselt»; Lücke, Grund «Quelle verschlüsselt» | – |
 | Programmfehler beim Lesen fremder Daten | Abfangen an der Wurzel der Go-Routine (T-27) | Fehler der Quelle, Quarantäne, Wiederverbindung; die Aufnahme bekommt eine Lücke, der Server läuft weiter | – |
 
@@ -457,6 +502,7 @@ Fortschritt an `items` (gebaut: Tabelle `progress` mit Fremdschlüssel auf `item
 | Beginn | Beim ersten Abspielen beginnt die Wiedergabe am **Kern** (Beginn der Sendung), nicht am Anfang des Vorlaufs (Startpunkt in der Liste); danach am gespeicherten Fortschritt. |
 | Direktweg oder Umwandlung | Entscheid je Sitzung und je Zeitabschnitt mit der Funktion aus T-14, aus den Streamparametern **des Teils** (gespeichert beim Schreiben) und den Fähigkeiten des Geräts (LTV-020.22). |
 | Spulen | Direktweg: Sprung im Player. Umwandlung: Suchmodell wie beim Zeitversatz (`05` Abschnitt 4.5): FFmpeg startet an der Rastergrenze neu, Eingang aus dem Teil ab dem Keyframe davor, höchstens zwei Neustarts in 10 Sekunden; Rückfall nach `05` M-9. |
+| Lange Aufnahmen | Kein FFmpeg-Lauf dauert länger als 24 Stunden und keiner geht über einen Überlauf der Quellzeit (Eintrag «Überlauf» im Index) oder über eine Teilgrenze: Go startet den Prozess dort neu, als neue Ausgabe-Generation (`04` 7.5, 14.7). Bei einer Sofortaufnahme von höchstens 4 Stunden und den üblichen Sendungen greift meist nur die Regel zum Überlauf. |
 | Ton- und Untertitelwahl | wie bei Live (T-12, `04` Abschnitt 7.3, 7.4), weil alle Spuren im Teil liegen |
 | Laufende Aufnahme | Liste ohne `EXT-X-ENDLIST`, sie wächst: Segmente bis zum letzten vollständigen Segment, das der Schreiber geschrieben hat (der Schreiber meldet es im Arbeitsspeicher; gelesen wird aus der Datei, auch vor `fdatasync`). Am Ende der Aufnahme kommt `EXT-X-ENDLIST` dazu. Wer an der Spitze schaut, schaut fast live; das ist kein Timeshift und braucht keinen Sitzungspuffer. |
 | Grenzen | Die Wiedergabe einer Aufnahme ist ein Strom und zählt zu Stream-, Bandbreiten- und Auflösungsgrenze und zur Schauzeit (`03` DR-12, T-26). |
@@ -490,14 +536,34 @@ Stream-Handler nutzt sie; eine nicht sichtbare Aufnahme ist 404, nie 403. Kennun
 
 **Lücke «Altersgrenze nachträglich gesetzt»:** Was das Kennzeichen heisst, entscheidet `04` F-10. Bis zu deiner
 Antwort gilt die Empfehlung dort, (b): Jede Aufnahme merkt sich **beim Anlegen**, ob ihr Profil eine
-Altersgrenze hatte; nur solche sieht das Hauptprofil. Wählst du (a) oder (c), fällt das Feld weg und die
-Abfrage prüft die aktuelle Altersgrenze des Profils.
+Altersgrenze hatte (`owner_age_limited`, `07` 3.9); nur solche sieht das Hauptprofil. Wählst du (a) oder (c),
+fällt das Feld weg und die Abfrage prüft die aktuelle Altersgrenze des Profils. Die **Gegenrichtung** (die
+Altersgrenze wird später entfernt, das Kind wird volljährig) ist nicht entschieden: Review 2 RD-18 schlägt vor,
+beides zu verlangen (Kennzeichen beim Anlegen **und** heute wirksame Grenze unter 18). Das gehört als Ergänzung
+zu `04` F-10; bis dahin gilt dieser Vorschlag, weil er Profile ohne Altersgrenze «ganz privat» hält (E-3). Ob die
+Altersgrenze des Kontos mitzählt, ist `07` F-1. Liste und Einzelabruf nutzen dieselbe Bedingung; Termine eines
+Profils (`scheduled`, `suspended`, `waiting`) sieht das Hauptprofil bis zur Antwort auf `14` F-4 nur als Zahl.
 
-**Profil oder Konto gelöscht** (`03` DR-04): Laufende Aufnahmen des Profils enden zuerst. Aufnahmen, Planungen,
-Regeln, Folgengedächtnis und Fortschritt werden mitgelöscht: Die Zeilen gehen in «wird gelöscht», der Job
-`livetv.dvr.purge` entfernt die Dateien Datei für Datei über `paths`, danach die Zeilen. Der Löschdialog nennt
-vorher Zahl und Grösse der Aufnahmen. Das ist Löschen auf Befehl, keine automatische Löschung im Sinn von
-ADR 0032.
+**Profil oder Konto gelöscht** (`03` DR-04, Review 2 RD-01). Ein Aufnahmeschreiber, der seinen Teil schliesst,
+schreibt selbst in die Datenbank; der Haken beim Löschen des Profils läuft aber **in** der Löschtransaktion und
+hält die einzige Schreibverbindung. Ein synchrones Stoppen im Haken würde den ganzen Server blockieren. Deshalb
+zweistufig:
+
+1. **Vor** der Löschtransaktion, ausserhalb jeder Transaktion: `live` sperrt neue Starts des Profils (Sperre im
+   Arbeitsspeicher), beendet seine Live-Sitzungen, löst die Haltegründe seiner laufenden Aufnahmen und wartet,
+   bis deren Schreiber die Teile geschlossen und den Stand geschrieben haben (höchstens 10 Sekunden, Annahme;
+   bleibt ein Schreiber hängen, bricht das Löschen mit einer Fehlermeldung ab, und nichts ist gelöscht). Die so
+   beendeten Aufnahmen werden «abgebrochen».
+2. **In** der Transaktion schreibt der Haken nur SQL und wartet auf nichts: alle Aufnahmen des Profils, die nicht
+   laufen, auf `deleting`. Ist danach noch eine laufende Zeile übrig, gibt er einen Fehler zurück, und das
+   Löschen scheitert.
+3. Nach dem Commit entfernt `livetv.dvr.purge` die Dateien Datei für Datei über `paths`, danach die Zeilen
+   (`07` 10.1, 10.5). Planungen, Regeln, Folgengedächtnis und Fortschritt gehen mit dem Profil.
+
+Beim Konto gilt dasselbe für jedes seiner Profile (`07` 10.2). Der Löschdialog nennt vorher Zahl und Grösse der
+Aufnahmen. Das ist Löschen auf Befehl, keine automatische Löschung im Sinn von ADR 0032. Dass die Haken von
+`auth` heute je einer Funktion gehören und von `wishes` belegt sind, regelt `07` (Review 2 RD-13). Prüfung:
+Löschen eines Profils mit laufender Aufnahme unter `-race` mit Zeitgrenze (`17`).
 
 **Recht entzogen** (`03` Abschnitt 2.4, `03` F-7): Vorhandene Aufnahmen sind für das Profil 404 und bleiben
 gespeichert und im Kontingent. Planungen und laufende Aufnahmen nach `03` F-7; bis zur Antwort gilt dort (a):
@@ -512,10 +578,11 @@ Hauptprofil kann Aufnahmen von Profilen mit Altersgrenze weiter löschen (`03` D
 |---|---|---|
 | Geltung | je Konto; Summe aller Aufnahmen aller Profile des Kontos | LTV-009.09, `03` DR-06 |
 | Vorgabe | `03` F-2 (Empfehlung 100 GB) | offen |
-| Belegt | Summe der Bytes aller Teile aller Aufnahmen des Kontos, auch «wird gelöscht», bis die Dateien weg sind | Empfehlung |
+| Belegt | **eine** benannte Abfrage in `liveq` für alle Stellen (Start, Planer, Vorschau, Verwaltung, API), über alle Aufnahmen des Kontos ausser `scheduled`, `suspended`, `cancelled`: fehlende Dateien zählen 0, laufende (`waiting`, `recording`, `recording_gap`) das Grössere aus geschrieben und erwartet, alle übrigen (auch `deleting`, bis die Dateien weg sind) die geschriebenen Bytes. Kein laufend geführter Zähler, damit nichts auseinanderläuft (Review 2 RD-14). | spezifiziert |
 | Laufende Aufnahme | zählt mit dem Grösseren aus geschrieben und erwartet (4.2), damit eine lange Sendung nicht erst am Ende scheitert | `03` DR-06 |
 | Prüfung beim Planen | Konflikt K-1 (Warnung, Speichern geht) | E-4 |
-| Prüfung beim Start | belegt + erwartete Grösse > Kontingent: **abgelehnt und gemeldet** an das Profil **und** das Hauptprofil; Zustand «fehlgeschlagen», Grund «Kontingent voll». Nichts wird deshalb gelöscht. | E-4 |
+| Prüfung beim Start | belegt + erwartete Grösse > Kontingent: **abgelehnt und gemeldet** an das Profil **und** das Hauptprofil (Abschnitt 11, ohne Titel bei Profilen ohne Altersgrenze); Zustand «fehlgeschlagen», Grund «Kontingent voll». Nichts wird deshalb gelöscht. | E-4 |
+| Zwei Starts zugleich | Starten zwei Aufnahmen desselben Kontos gleichzeitig (zwei Serien um 20:15), dürfen nicht beide «noch» hineinpassen. Prüfung und Übergang nach `recording` sind **ein** Schritt in derselben Schreibtransaktion: die Bedingung «Belegung + erwartete Grösse ≤ Kontingent» steht im bedingten `UPDATE … SET state = 'recording'`. Die eine Schreibverbindung reiht die beiden nacheinander; die zweite sieht die erste schon mitgezählt (Review 2 RD-14, `07` 8.1, 8.3). | spezifiziert |
 | Während der Aufnahme | Wächst sie über das Kontingent (höhere Bitrate, Verlängerung): **`03` F-9**; bis zur Antwort gilt dort (a): sie läuft zu Ende, danach werden neue Aufnahmen abgelehnt, bis Platz frei ist | offen `03` F-9 |
 | Kontingent nachträglich verkleinert | nichts wird gelöscht; neue Aufnahmen werden abgelehnt, bis die Belegung darunter liegt | Empfehlung |
 
@@ -543,7 +610,7 @@ automatisches Löschen bei vollem Kontingent und keines bei vollem Speicherort (
 | Grenze | Vorgabe (Vorschlag) | Wirkung |
 |---|---|---|
 | Aufnahmen insgesamt höchstens (je Speicherort) | ohne Grenze (`15` LA-16) | wie Mindestreserve: keine neuen Teile darüber |
-| Mindestreserve am Speicherort «Aufnahmen» | 20 GB (`15` LA-16) | darunter: keine neuen Aufnahmen und keine neuen Teile; laufende bekommen eine Lücke «Speicher voll» (`04` Abschnitt 8.3) |
+| Mindestreserve am Speicherort «Aufnahmen» | der grössere Wert aus 20 GB und 5 % (`04` 14.6, Vorgabe) | darunter: keine neuen Aufnahmen und keine neuen Teile; laufende bekommen eine Lücke «Speicher voll» (`04` Abschnitt 8.3) |
 | Warnen ab | Mindestreserve + 10 % (`15` LA-16) | Meldung an den Administrator (LTV-019.16) |
 | Gleichzeitige Aufnahmen | `15` F-21 (Empfehlung: einstellbar, Vorgabe ohne Grenze) | Konflikt K-3 |
 
@@ -554,9 +621,9 @@ Umsetzung ist nicht beschlossen (LTV-009.12). Gemeinsam ist allen Varianten: **e
 
 | Variante | Platz (1 h, 8 Mbit/s, 2 Profile) | Privatsphäre | Löschen | Kontingent | verschiedener Vor-/Nachlauf | Dateisysteme |
 |---|---|---|---|---|---|---|
-| **D0 getrennte Dateien** | 7,2 GB | vollständig getrennt | trivial | einfach | trivial | alle |
-| **D1 Hardlinks** derselben Teile | 3,6 GB + Ränder | in der App getrennt; im Dateisystem verbunden (Zähler der Verweise), für den Administrator mit Shell sichtbar | Daten bleiben bis zum letzten Verweis | volle Grösse je Profil zurechnen, sonst ändert das Löschen des einen das Kontingent des anderen | verlangt gleiche Teilgrenzen; Ränder je Profil eigene Teile | nur im selben Dateisystem; auf SMB oft nicht (Annahme) |
-| **D2 Zählung in der Datenbank** (eine Datei, Verweise mit Bereich) | 3,6 GB + Ränder | wie D1, nur in der Datenbank sichtbar | Zähler; Datei weg bei 0 | wie D1 | Bereich je Verweis, Wiedergabe schneidet zu | alle |
+| **D0 getrennte Dateien** | 7.2 GB | vollständig getrennt | trivial | einfach | trivial | alle |
+| **D1 Hardlinks** derselben Teile | 3.6 GB + Ränder | in der App getrennt; im Dateisystem verbunden (Zähler der Verweise), für den Administrator mit Shell sichtbar | Daten bleiben bis zum letzten Verweis | volle Grösse je Profil zurechnen, sonst ändert das Löschen des einen das Kontingent des anderen | verlangt gleiche Teilgrenzen; Ränder je Profil eigene Teile | nur im selben Dateisystem; auf SMB oft nicht (Annahme) |
+| **D2 Zählung in der Datenbank** (eine Datei, Verweise mit Bereich) | 3.6 GB + Ränder | wie D1, nur in der Datenbank sichtbar | Zähler; Datei weg bei 0 | wie D1 | Bereich je Verweis, Wiedergabe schneidet zu | alle |
 | **D3 Reflink** (Kopie, die Blöcke teilt) | wie D1 | Dateien unabhängig | trivial | wie D0 | trivial | nur Btrfs, XFS, ZFS mit Block-Cloning (R5 Beleg 19); nicht ext4, kaum Netzspeicher |
 
 Risiken von D1 und D2: Ein Fehler in Zählung oder Verweisen löscht die Aufnahme eines anderen Profils oder hält
@@ -655,30 +722,42 @@ Posteingang (Glocke) je Profil und die externen Kanäle (E-Mail, Push, Telegram)
 Aufnahmemeldungen nutzen, ist `03` F-3; bis zur Antwort gilt dort (a): Glocke des Profils und die Kanäle des
 Kontos mit dem Profilnamen vorn, ein Schalter je Ereignisart in den Kontoeinstellungen.
 
-| Ereignis | Empfänger | Kanäle | Neue Ereignisart |
+Die Namen der Einträge folgen `07` 3.11 (Glocke: `notifications.kind`) und `08` (Ereignisse der externen
+Kanäle: `live_recording_done`, `live_recording_failed`).
+
+| Ereignis | Empfänger | Kanäle | Glocke (`07`) / externes Ereignis |
 |---|---|---|---|
-| Aufnahme fertig | Profil | Glocke und Kanäle | `live_recording_done` |
-| Aufnahme unvollständig (mit Lücken) | Profil | Glocke und Kanäle | `live_recording_failed` |
-| Aufnahme fehlgeschlagen (mit Grund) | Profil | Glocke und Kanäle | `live_recording_failed` |
-| Aufnahme abgelehnt, Kontingent voll | Profil **und** Hauptprofil (E-4) | Glocke und Kanäle | `live_recording_failed` |
-| Termin verschoben, nicht eindeutig, nicht mehr im Programm | Profil | nur Glocke (`09` Abschnitt 6.3) | – |
-| Termin gerät in einen Konflikt | Profil | nur Glocke (4.3) | – |
+| Aufnahme fertig | Profil | Glocke und Kanäle | `live_recording_done` / `live_recording_done` |
+| Aufnahme unvollständig (mit Lücken) | Profil | Glocke und Kanäle | `live_recording_incomplete` / `live_recording_failed` |
+| Aufnahme fehlgeschlagen (mit Grund) | Profil | Glocke und Kanäle | `live_recording_failed` / `live_recording_failed` |
+| Aufnahme abgelehnt, Kontingent voll | Profil | Glocke und Kanäle | `live_recording_rejected` / `live_recording_failed` |
+| dieselbe Ablehnung, für das **Hauptprofil** (E-4) | Hauptprofil des Kontos | Glocke und Kanäle | **eigene Art** (Vorschlag aus Review 2 RD-07: `live_quota_rejected_profile`, in `07` nachzutragen) / `live_recording_failed` |
+| Termin verschoben, nicht eindeutig, nicht mehr im Programm | Profil | nur Glocke (`09` Abschnitt 6.3) | `live_schedule_moved`, `live_schedule_unclear` |
+| Termin gerät in einen Konflikt | Profil | nur Glocke (4.3) | `live_schedule_conflict` |
 | Speicherort voll, fehlt, Reserve unterschritten | Administratoren | bestehendes Ereignis «Fehler» mit Entprellung (`04` Abschnitt 10.2) | – |
 | Sender einer laufenden oder in 30 Minuten beginnenden Aufnahme länger als 10 Minuten gestört | Administratoren | bestehendes Ereignis «Fehler» | – |
 | verwaiste Dateien gefunden | Administratoren | nur Verwaltung | – |
 
-Regeln: Eine Meldung je Aufnahme und Ereignis. Bei Profilen mit PIN nennt eine Meldung über externe Kanäle
-keinen Titel und keinen Sender (`03` DR-05). Eine Meldung an den Administrator nennt nie Titel, Sender oder
-Profil, nur Konto, Zahl und Speicherort.
+Regeln: Eine Meldung je Aufnahme, Empfänger und Ereignis. Bei Profilen mit PIN nennt eine Meldung über externe
+Kanäle keinen Titel und keinen Sender (`03` DR-05). Eine Meldung an den Administrator nennt nie Titel, Sender
+oder Profil, nur Konto, Zahl und Speicherort.
+
+**Meldung «Kontingent voll» an das Hauptprofil** (Review 2 RD-07): Sie darf das Hauptprofil nichts über die
+Aufnahme eines Profils **ohne** Altersgrenze wissen lassen (LTV-009.07, E-3). Sie nennt deshalb nur den
+Profilnamen und den Grund, ohne Titel, Sender und Zeiten: «Eine Aufnahme von Lea wurde abgelehnt: Kontingent
+voll.» Titel, Sender und Zeit stehen nur darin, wenn die Aufnahme für das Hauptprofil ohnehin sichtbar ist
+(Profil mit Altersgrenze nach Abschnitt 7). Dieselbe Regel gilt für die externen Kanäle. Prüfung: Eine Meldung
+an das Hauptprofil für ein erwachsenes Profil enthält keinen Titel (Bytesuche, `17`).
 
 ## 12. Betrieb
 
 | Lage | Verhalten | Herkunft |
 |---|---|---|
 | **Serverneustart** | Abschnitt 3.7 und 5.7; Planer baut seine Liste aus der Datenbank neu auf | `04` Abschnitt 5.3 |
-| **Update bei laufender Aufnahme** | Vor dem Auslösen fragt die Verwaltung `live`, ob Aufnahmen laufen oder in den nächsten 15 Minuten beginnen; dann Warnung mit Bestätigung (Empfehlung in `04` F-6). Nach dem Update: wie Neustart, mit Lücke. | `04` Abschnitt 9, F-6 |
+| **Update bei laufender Aufnahme** | Vor dem Auslösen fragt die Verwaltung `live`, ob Aufnahmen laufen oder in den nächsten **15 Minuten** beginnen (`04` 14.8); dann Warnung mit Bestätigung (Empfehlung in `04` F-6). Nach dem Update: wie Neustart, mit Lücke. | `04` Abschnitt 9, F-6 |
+| **Sender deaktiviert** | Laufende Aufnahmen laufen weiter (T-29); neue Termine schlagen fehl (K-4). Die Verwaltung zeigt beim Deaktivieren die Zahl laufender Aufnahmen ohne Profil und Titel und bietet «sofort beenden» an. | T-29 |
 | **Pause von Jobarten** | hält nie eine Aufnahme an: Planer und Schreiber laufen im Dienst, nicht im Jobsystem. Pausiert sind höchstens Termine berechnen, Aufbewahrung, Dateien entfernen, Prüfung auf verwaiste Dateien. | T-1, `04` Abschnitt 10.1 |
-| **Herunterfahren** | Docker beendet nach 10 Sekunden hart, solange `compose.yaml` keine Stoppfrist setzt (`04` Abschnitt 5.3). `live` beginnt beim Signal **gleichzeitig** mit dem Warten auf offene Anfragen (gebaut: `server/cmd/slouchcat/main.go:68`, 10 Sekunden) seinen eigenen Abschluss: keine neuen Aufnahmen, je Schreiber Rückstau und Puffer schreiben, `fdatasync`, Index schliessen, gesicherten Stand in die Datenbank (Ziel unter 3 Sekunden für alle), dann FFmpeg beenden. Die Aufnahmen bleiben «läuft», damit der Start sie fortsetzt. Mit Stufe 5 bekommt die Standard-Compose-Datei `stop_grace_period: 30s`. | `04` Abschnitt 5.3, 10.6 |
+| **Herunterfahren** | Docker beendet nach 10 Sekunden hart, solange `compose.yaml` keine Stoppfrist setzt (`04` Abschnitt 5.3). `live` beginnt beim Signal **gleichzeitig** mit dem Warten auf offene Anfragen (gebaut: `server/cmd/slouchcat/main.go:68`, 10 Sekunden) seinen eigenen Abschluss: keine neuen Aufnahmen, je Schreiber Rückstau und Puffer schreiben, `fdatasync`, Index schliessen, gesicherten Stand in die Datenbank (Ziel unter 3 Sekunden für alle, `04` 14.8, Annahme), dann FFmpeg beenden. Die Aufnahmen bleiben «läuft», damit der Start sie fortsetzt. Mit Stufe 5 bekommt die Standard-Compose-Datei `stop_grace_period: 30s` (`04` 14.8). | `04` Abschnitt 5.3, 10.6 |
 | **Harter Abbruch** (Stromausfall, `kill -9`) | TS bleibt lesbar; beim Start 5.7 | – |
 
 ## 13. Abläufe
@@ -805,24 +884,39 @@ sequenceDiagram
 
 ## 14. Tabellenbedarf, Messpunkte, offene Punkte, Fragen
 
-### 14.1 Tabellenbedarf für `07-datenmodell.md`
+### 14.1 Schema: Verweis auf `07-datenmodell.md`
 
-Bedarfsliste, kein Schema; `07-datenmodell.md` ist die einzige Quelle für Namen und Typen. Alle Tabellen in
-`liveq` (T-24), Kennungen als ULID, Zeiten in UTC (Millisekunden), Migration nach Vorlage (Regel 5).
+Das Schema steht allein in `07-datenmodell.md` Abschnitt 3.9 (`live_recording_rules`, `live_rule_episodes`,
+`live_recordings`, `live_recording_parts`, `live_recording_gaps`), 3.1 (`live_storage`, `live_config`), 3.11
+(`accounts.live_quota_bytes`, `notifications`) und Abschnitt 10 (Löschvorgänge). Die Tabelle aus Fassung 1 ist
+entfallen. Dieses Dokument verwendet die Namen und Zustände von `07`.
 
-| Tabelle (Arbeitsname) | Felder (Bedarf) | Beziehungen |
+Bedarf aus dieser Fassung, den `07` noch nicht hat (zum Nachtragen in `07`):
+
+| Bedarf | Grund | Stelle hier |
 |---|---|---|
-| `live_recording_rules` | Art (Serie, wiederkehrend), Profil, Konto, Sender oder «alle Sender», normalisierter Titel und Programmverweis der Ausgangssendung (Serie), Wochentage, lokale Beginnzeit, Dauer, Zeitzone (wiederkehrend), Vor- und Nachlauf, Aufbewahrungsfrist, «behalte N», Optionen der Folgenerkennung (C, D), Zustand (aktiv, ruht), angelegt, geändert | Profil (löschen mit dem Profil), Sender (bleibt bei unsichtbarem Sender, `03` DR-16) |
-| `live_recordings` | Art (Sofort, Einzel, manuell, aus Regel), Profil, Konto, Kennzeichen «Profil hatte beim Anlegen eine Altersgrenze» (nach `04` F-10), Sender, Regel (leer möglich), Schlüssel gegen Doppelte, Kernbeginn, Kernende, Vor- und Nachlauf, «bis ich stoppe», Programmverweis (Spaltengruppe aus `09` Abschnitt 6.2), Titel und Angaben der Sendung (Kopie), Folgenmerkmale, Zustand, Grund, Konfliktkennzeichen, erwartete Grösse, Frist, «behalten», Fortschritt (Position, gesehen, zuletzt), angelegt, begonnen, beendet | Profil, Konto, Sender, Regel |
-| `live_recording_parts` | Aufnahme, Nummer, Speicherort, Dateiname, Zeitraum (Uhrzeit), erste und letzte entfaltete Zeit, Bytes des gesicherten Stands, Datenfehler, Quelle, Streamparameter des Zeitabschnitts, Zustand (offen, geschlossen, hängt, fehlt) | Aufnahme (löschen mit ihr), Speicherort |
-| `live_recording_gaps` | Aufnahme, Beginn, Ende (Uhrzeit), Grund (Quelle unterbrochen, Quelle gewechselt, Quelle nicht erreichbar, Quelle verschlüsselt, Speicher voll, Speicher fehlt, Datenträger zu langsam, Server lief nicht), Teil davor | Aufnahme |
-| `live_rule_episodes` | Regel, Folgenmerkmale (System, Wert, Quelle), Zeitpunkt | Regel (löschen mit ihr) |
-| `live_storage` (gemeinsam mit `10-timeshift.md`) | Rolle (Startpuffer, Timeshift, Aufnahmen), Pfad, Kennung des Markers, Dateisystemtyp, Gerätenummer, Mindestreserve, Obergrenze, Zustand (bereit, knapp, voll, fehlt, nur lesen), letzte Prüfung | Teile verweisen auf Aufnahme-Speicherorte |
-| Einstellungen (Einzeilentabelle nach `radio_config`, `04` Abschnitt 10.5) | Standard-Vor- und -Nachlauf, Vorschlag der Frist, längste Sofortaufnahme, Anpassung an das EPG an/aus, Aufwärmzeit, Höchstzahl gleichzeitiger Aufnahmen | – |
-| Konto (Erweiterung) | Kontingent für Aufnahmen | – |
+| Spalte `rev` (Änderungszähler) in `live_recordings` | Zeitgeber feuert nie zur alten Zeit oder am alten Sender (Review 2 RD-15) | 3.2 |
+| `rule_key` wird bei Verschiebung durch reconcile und beim Zusammenführen in derselben Transaktion neu gesetzt; Definition des Schlüssels in `07` | keine Doppel nach einer Verschiebung (RD-09) | 2.1 |
+| Teil-Eindeutigkeit für Einzelaufnahme und Serienregel (RD-10) sowie für Sofort-, manuelle und wiederkehrende Aufnahme | Idempotenz | 2.5 |
+| Glocke-Art für die Ablehnung beim Hauptprofil (Vorschlag `live_quota_rejected_profile`), Detail ohne Titel | RD-07 | 11 |
+| Benannte Abfrage der Belegung und Kontingentbedingung im Startübergang | RD-14 | 8.1 |
+| Haken beim Löschen nur mit SQL; Stoppen davor | RD-01 | 7 |
+| Zugriffsbedingung des Hauptprofils mit heute wirksamer Altersgrenze | RD-18, `04` F-10 | 7 |
 
-Die Belegung je Konto wird aus den Teilen gerechnet, nicht eigens gespeichert. Meldungen nutzen die bestehenden
-Tabellen des Meldesystems.
+### 14.1a Abgleich mit `14` LD-02 und LD-03
+
+Die Dialoge in `14` zeigen Felder, die dieses Dokument nicht festlegt und `07` nicht modelliert (`07` W-10,
+W-11, O-3). Vorschlag zur Klärung mit `14` (nichts davon ist verbindlicher Umfang des Auftrags):
+
+| Feld in `14` | Lage | Vorschlag |
+|---|---|---|
+| LD-02 Erkennung «nach Titel», Satz «Ähnliche Titel können mitkommen» | widerspricht `09` 7.3 (nur vollständige Titelgleichheit) | `14` passt an: kein «ähnlich»; der Satz entfällt |
+| LD-02 «Angesehene zuerst» beim Behalten | widerspricht E-4 («die letzten N») und 8.2 (älteste nach Beginn) | `14` passt an: «löscht die älteste» |
+| LD-02 «Folgen nicht doppelt aufnehmen» an/aus | 2.4 erkennt Folgen immer, wenn zuverlässig | Schalter ist ohne Schaden möglich (aus = jede Ausstrahlung); bis zur Klärung nicht modelliert (O-6) |
+| LD-02 Zeitfenster und Wochentage einer Serie | in 2.1 nicht vorgesehen; ein vom Profil gewählter Filter, kein Suchwort | spätere Ergänzung; bis zur Klärung nicht modelliert (O-6) |
+| LD-02 «Nur Erstausstrahlungen» | XMLTV kennt `new` und `previously-shown`, beide optional (Nachprüfung Nr. 40) | spätere Ergänzung, nur wenn die Quelle es liefert; bis zur Klärung nicht modelliert (O-6) |
+| LD-03 «Wiederholung endet nie / am Datum / nach N» | in 2.1 nicht vorgesehen | spätere Ergänzung; bis zur Klärung nicht modelliert (O-6) |
+| LD-03 «Name» | `07` hat `name` an der Regel | übernommen |
 
 ### 14.2 Messpunkte (zu messen)
 
@@ -831,23 +925,28 @@ Tabellen des Meldesystems.
 | M-1 | `fdatasync`, Sichern des Ordners und `fallocate` auf SSD, HDD, SMB und NFS im Container; Treffsicherheit der Prognose (4.2) gegen die wirkliche Grösse | CT 190, NAS | Baufreigabe Stufe 5 |
 | M-2 | Netzspeicher fällt während eines offenen Teils weg (`umount -l`, Netz getrennt, NFS hart eingehängt): Fehler statt Schreiben ins leere Verzeichnis? Hält ein hängender Schreibaufruf das Herunterfahren auf? | CT 190, NAS | Baufreigabe Stufe 5 |
 | M-3 | Pünktlichkeit des Planers: Abstand zwischen geplantem und erstem geschriebenem Keyframe, mit ruhendem und mit laufendem Sender; Zeitumstellung mit gestellter Uhr | Testquellen, CT 190 | Abnahme Stufe 5 |
-| M-4 | Wiedergabe einer Aufnahme mit mehreren Teilen, Lücken, Überlauf und als laufende Aufnahme in hls.js, Safari und Media3 | Testquellen | Abnahme Stufe 5 |
+| M-4 | Wiedergabe einer Aufnahme mit mehreren Teilen, Lücken, Überlauf und als laufende Aufnahme in hls.js und Media3 (Safari ungeprüft, kein Gerät, `04` 12.1) | Testquellen | Abnahme Stufe 5 |
 | M-5 | Zeit für den Neuaufbau eines Index je GB nach einem harten Abbruch | CT 190 | Bau Stufe 5 |
 | M-6 | Wie oft zwei Profile dieselbe Sendung aufnehmen (Anlass für F-2) | Zählung im Testbetrieb, ohne Titel | nach Stufe 5 |
 | M-7 | Zonendaten im Image und Verhalten mit `TZ` unter UTC (CT 190) | Image | Bau Stufe 6 |
 
 Dazu gelten aus `05`: M-2 (Bitraten deiner Sender, Grundlage der Prognose), M-9 (Spulen mit Umwandlung),
-M-12 (Langlauf), M-14 (Schreiblast und Rückstau bei Netzspeicher und anlaufender Platte).
+M-12 (Langlauf des Empfängers: 72 Stunden als Tor zur Baufreigabe der Stufe 3, 7 Tage als Abnahme der Stufe 3,
+`04` 14.8), M-14 (Schreiblast und Rückstau bei Netzspeicher und anlaufender Platte), M-22 (Überlauf der
+Zeitstempel). M-1 und M-2 dieses Dokuments sind mit `05` M-14 die Vorprüfung V-7 vor der Baufreigabe der
+Stufe 5 (`18`).
 
 ### 14.3 Offene Punkte
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | `livetv.epg.reconcile` prüft heute nur künftige Verweise (`09` Abschnitt 6.3); für «laufende Aufnahmen verlängern» muss er laufende Aufnahmen mit Verweis `exact` auf ein späteres Ende prüfen. | `09` |
+| O-1 | **entschieden** (`04` 15.2): `livetv.epg.reconcile` prüft auch laufende Aufnahmen mit Verweis `exact` auf ein späteres Ende; offen ist nur, dass `09` 6.3 es nachträgt, ebenso «nicht eindeutig läuft zur alten Zeit». | `09` |
 | O-2 | Satzformat des Index (feste Länge, Version, Prüfsumme je Block) | Bau |
 | O-3 | Untertitel als Teletext und DVB-Untertitel in der Wiedergabe von Aufnahmen: dieselben Grenzen wie bei Live (`04` Abschnitt 7.4, O-5) | `16` |
 | O-4 | Schwelle «gesehen» für Aufnahmen aus `playback` übernehmen | Bau |
 | O-5 | Höchstzahl 50 Termine je Regel und Horizont 14 Tage für wiederkehrende Regeln bestätigen | `15` |
+| O-6 | Felder aus `14` LD-02 und LD-03, die dieses Dokument nicht festlegt (Abschnitt 14.1a): aufnehmen oder aus den Mockups streichen | `14`, `07` |
+| O-7 | Wartefrist beim Löschen eines Profils mit laufender Aufnahme (Vorschlag 10 Sekunden, Abschnitt 7) | `07`, Bau |
 
 ### 14.4 Fragen an dich
 
@@ -967,3 +1066,40 @@ Aufnahmen häufig sind.
 | LTV-020.20 unvollständige abspielbar | 5.7, 6.2 | spezifiziert |
 | LTV-020.21 nicht erhaltbare Spuren | 5.1 | Frage F-1 |
 | LTV-020.22 Umwandlung bei der Wiedergabe | 6.2 | spezifiziert |
+
+## 16. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Konsolidierung 1; Grundlage `04` Fassung 3 Abschnitte 13.4, 14, 15, `07-datenmodell.md`,
+`anhang/reviews/review-2-datenmodell-api.md`, `anhang/nachpruefung-quellen.md`, Sammelliste der Rückmeldungen):
+
+- Kopf und Einleitung: `04` T-1 bis T-29 Fassung 3, `05` Fassung 3; alle Zahlen aus `04` Abschnitt 14; Schema
+  nur in `07`; Stufen nach `18` (5 und 6, Baufreigabe V-7).
+- 2.1: abgesagter Termin einer Regel bleibt als `cancelled`/`skipped` (`07` 3.9, W-17); `rule_key` wird bei
+  Verschiebung und Zusammenführen neu gesetzt (RD-09); Änderungen nur bei `state = 'scheduled'` (RD-15).
+- 2.3: nicht eindeutiger Termin läuft zur alten Zeit, Verlängerung laufender Aufnahmen über
+  `livetv.epg.reconcile`, beides abgestimmt (`04` 15.2); `09` zieht nach.
+- 2.4: `dd_progid` als Gewohnheit, nicht als Teil des Formats (Nachprüfung Nr. 40).
+- 2.5 neu: Idempotenz beim Anlegen von Aufnahme und Regel (RD-10).
+- 3.2: Änderungszähler `rev` gegen Feuern zur alten Zeit (RD-15); Laden nach dem Wiederanlauf.
+- 3.3: Aufwärmzeit 30 Sekunden vor dem Beginn des **Vorlaufs** (`04` 14.1, ein Bezugspunkt); Aufnahmen
+  verbinden sofort ohne Staffelung; zurückgestellte Sender starten mit dem Haltegrund wieder; keine Karenz nach
+  dem Ende einer Aufnahme (T-17).
+- 3.6, 3.7: Gründe und Werte nach `07` 3.9; «sofort beenden» ergibt «unvollständig» mit Lücke
+  `stopped_by_admin`; Start nach Neustart ohne Staffelung (Rückmeldung `06` O-12).
+- 4.1 K-4, 5.5, 12: Deaktivieren oder Verschwinden eines Senders beendet keine laufende Aufnahme (T-29).
+- 5.3: Rückstau zählt bei Gebrauch, keine Aufnahme scheitert am Byte-Budget (`04` T-19, 8.1); Schreibblock
+  1 MiB; Stand in die Datenbank ausserhalb wartender Transaktionen.
+- 6.2: kein FFmpeg-Lauf länger als 24 Stunden oder über einen Überlauf (`04` 7.5).
+- 7: Löschen eines Profils oder Kontos mit laufender Aufnahme zweistufig, Stoppen vor der Transaktion, Haken
+  nur SQL (RD-01); Gegenrichtung der Altersgrenze und gleiche Bedingung für Liste und Einzelabruf (RD-18).
+- 8.1: eine benannte Abfrage für die Belegung, kein laufender Zähler; Prüfung und Start in einer
+  Schreibtransaktion gegen zwei gleichzeitige Starts (RD-14).
+- 8.3: Mindestreserve «Aufnahmen» der grössere Wert aus 20 GB und 5 % (`04` 14.6; Rückmeldung `10` Punkt 5).
+- 11: Namen der Meldungen nach `07` 3.11 und `08`; eigene Art und Meldung ohne Titel an das Hauptprofil bei
+  «Kontingent voll» (RD-07).
+- 12: Update-Warnfenster 15 Minuten und Stoppfrist 30 Sekunden aus `04` 14.8.
+- 14.1: Tabellenbedarf ersetzt durch Verweis auf `07` und eine Liste, was `07` noch nachtragen muss; 14.1a neu:
+  Abgleich mit `14` LD-02 und LD-03 (W-10, W-11); O-1 entschieden, O-6 und O-7 neu; M-4 ohne Apple-Geräte;
+  `05` M-12 mit 72 Stunden und 7 Tagen.
+- Fragen F-1 und F-2 unverändert (beide «vor Stufe 5» in `18`).
+- Zahlenformat auf de-CH umgestellt (Dezimalpunkt).

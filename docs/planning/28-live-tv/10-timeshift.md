@@ -1,18 +1,20 @@
 # Konzept 28 · Persönliches Timeshift
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 Dieses Dokument legt fest, wie der persönliche Zeitversatz (Timeshift) eines Zuschauers gebaut wird: was
 der Sitzungspuffer ist, wie er entsteht, wächst, gekürzt und gelöscht wird, wie er mit der Umwandlung und
 mit Aufnahmen zusammenspielt, wie viel Platz er braucht und wo er liegt. Es baut auf den tragenden
-Entscheiden aus `04-architektur.md` (T-1 bis T-28, Fassung 2) und `05-streaming-und-fast-zapping.md`
-(Fassung 2) auf und weicht von keinem ab. Wo dort eine Frage an dich offen ist, steht hier nur der Verweis
-(«`04` F-7»), keine neue Frage.
+Entscheiden aus `04-architektur.md` (T-1 bis T-29, Fassung 3) und `05-streaming-und-fast-zapping.md`
+(Fassung 3) auf und weicht von keinem ab. **Alle Zahlen stammen aus `04` Abschnitt 14 «Massgebliche Werte»**;
+nennt dieses Dokument eine Zahl, steht dort derselbe Wert. Wo dort eine Frage an dich offen ist, steht hier nur
+der Verweis («`04` F-7»), keine neue Frage.
 
 Alles hier ist **spezifiziert**, nichts ist gebaut. «Gebaut» mit Datei und Zeile bezieht sich auf den
 Stand des Arbeitsbaums (Server 1.44.1). Kennungen dieses Dokuments: `F-n` Fragen an dich, `O-n` offene
 technische Punkte, `M-n` Messpunkte; sie zählen eigen. Kennungen anderer Dateien tragen die Dateinummer
-(«`05` M-14»). Timeshift gehört zu **Stufe 4** (`03-fachkonzept.md`).
+(«`05` M-14»). Timeshift gehört zu **Stufe 4** (`18-umsetzungsplan.md`); Baufreigabe nach V-7 (`05` M-14, M-1
+dieses Dokuments).
 
 ## 1. Begriffe
 
@@ -57,13 +59,15 @@ Sitzung mit laufender Nummer. Ein Sitzungspuffer gehört genau **einem Einstelle
 | **Einstellen** mit wirksamem Recht «Timeshift» | Die Zulassung (T-19) prüft Platz unter dem Deckel und über der Mindestreserve. Der Dienst legt den Ordner `<timeshift>/<sitzung>-<einstellnummer>/` an (nur Kennungen, Rechte 0700) und meldet einen Leser am Ring an. Das Stück 0 bekommt den Anlauf, ab dem ersten Keyframe nach dem Tastendruck beginnt Stück 1. | LTV-007.02, .03 |
 | **Einstellen ohne Recht** | Kein Ordner, keine Datei. Die Sitzung liest Segmente direkt aus dem Ring (T-10). | DR-22, RA-08 |
 | **Wiedergabe live** | Der Schreiber hängt Pakete an das laufende Stück, der Player holt Segmente an der Live-Kante. | – |
-| **Pause** | Nur im Player. Der Schreiber läuft weiter, weil er am Verteiler hängt, nicht am Player. Der Eingangsstrom läuft unverändert weiter; ein pausierter Zuschauer hält den Haltegrund «Zuschauer» (`04` Abschnitt 5.2). | LTV-007.04, .14 |
+| **Pause** | Im Player. Der Herzschlag (alle 10 Sekunden) meldet «Pause» und die Abspielstelle (T-21, `04` 10.3); fehlt die Angabe, gilt «spielt». Der Schreiber läuft weiter, weil er am Verteiler hängt, nicht am Player. Der Eingangsstrom läuft unverändert weiter; ein pausierter Zuschauer hält den Haltegrund «Zuschauer» (`04` Abschnitt 5.2). Zur Schauzeit zählen nur ausgelieferte Segmente, also keine Pause (`03` DR-12, `04` 13.4). | LTV-007.04, .14 |
 | **Zurück** | Der Player springt im Fenster nach hinten. Im Direktweg ist das ein gewöhnlicher Sprung in der Liste; mit Umwandlung startet FFmpeg an der Pufferposition neu (Abschnitt 6). | LTV-007.05 |
 | **Vor** | Der Player springt nach vorn, höchstens bis zur Live-Kante; die Liste enthält nichts dahinter. | LTV-007.06 |
 | **Live** | Der Player springt an die Live-Kante (bei hls.js über den Startpunkt, den der Server nennt, `05` Abschnitt 5.3). | LTV-007.07 |
 | **Ende des Fensters** (Höchstdauer erreicht) | Das älteste Stück wird gelöscht (Abschnitt 3.3). | LTV-007.10 |
 | **Umschalten** | Der alte Sitzungspuffer wird **sofort** gelöscht (Leser abmelden, Stücke Datei für Datei löschen, Ordner löschen), dann beginnt für den neuen Sender ein neuer. Der alte Eingangsstrom endet ohne Karenz, wenn ihn niemand sonst hält (T-17). | LTV-007.08 |
-| **Ende der Sitzung** (Stopp, Abmelden, 60 Sekunden ohne Herzschlag, Entzug, Höchstdauer je Einstellen von 12 Stunden) | Sitzungspuffer gelöscht wie beim Umschalten. | LTV-007.09, T-21 |
+| **Ende der Sitzung** (Stopp, Abmelden, 60 Sekunden ohne Herzschlag, Entzug, Laufzeit des Tokens von 12 Stunden ohne Erneuerung) | Sitzungspuffer **sofort** gelöscht wie beim Umschalten. Die Karenz von 30 Sekunden nach einem Sitzungsende durch den Zuschauer (T-17, `04` 14.1) betrifft nur den Eingangsstrom, nie den Sitzungspuffer; ein Wiedereinstieg in der Karenz beginnt einen neuen Puffer. Nach einem Entzug gibt es keine Karenz. | LTV-007.09, T-21 |
+| **Sender wird deaktiviert** | nichts endet von selbst (T-29): Die Sitzung schaut weiter, ihr Puffer bleibt, bis der Zuschauer umschaltet oder geht. Nur der Befehl «sofort beenden» des Administrators beendet die Sitzung; dann wird der Puffer gelöscht. | T-29 |
+| **Speicherort «Timeshift» fällt aus** | Abschnitt 10.3. | `04` Abschnitt 9 |
 | **Entzug nur von «Timeshift»** | Sitzungspuffer gelöscht; die Sitzung läuft ohne Zeitversatz aus dem Ring weiter; eine zeitversetzte Wiedergabe springt an die Live-Kante. | `04` Abschnitt 9, `03` Abschnitt 2.4 |
 | **Serverstart nach Absturz** | Der Speicherort «Timeshift» wird geleert: nur unter dem eigenen Marker, nur Dateien und Ordner, deren Name dem eigenen Muster entspricht (`04` Abschnitt 5.3 Schritt 1, Abschnitt 10.10). Sitzungen überleben keinen Neustart. | LTV-019.19 |
 | **Verwaiste Ordner im Betrieb** | Der Aufräumer im Dienst `live` (Minutentakt, kein Job) löscht Ordner, zu denen seit 60 Sekunden keine aktive Sitzung gehört (`04` Abschnitt 9). Er kennt die Namen aus dem eigenen Verzeichnis und aus dem Namensmuster. | LTV-019.19 |
@@ -81,20 +85,21 @@ ohnehin gelöscht wird. Deshalb gibt es für ihn weder `fdatasync` noch ein Verz
 
 ### 3.1 Stücke
 
-**Empfehlung:** Ein Stück ist eine Datei mit rund **60 Sekunden** Quell-TS (Vorbild TVHeadend mit 60-s-Dateien,
-R5 Abschnitt 1.1, dort als Beleg aus dem Quelltext). Ein Stück endet am ersten Keyframe nach 60 Sekunden und
+Ein Stück ist eine Datei mit rund **60 Sekunden** Quell-TS (`04` 14.5, Annahme; Vorbild TVHeadend mit
+60-s-Dateien je Puffer, belegt am Quelltext, `anhang/nachpruefung-quellen.md` Nr. 44). Ein Stück endet am
+ersten Keyframe nach 60 Sekunden und
 das nächste beginnt mit PAT, PMT und diesem Keyframe. Ein Stück endet ausserdem an jeder Grenze eines
 Zeitabschnitts (T-6) und nach einer Lücke des Schreibers.
 
 | Grösse | Wert | Einordnung |
 |---|---|---|
-| Dauer eines Stücks | rund 60 s, endet am ersten Keyframe danach | Empfehlung, M-1 |
-| Stück 0 | nur der Anlauf (bis zu zwei Bildgruppen, höchstens 15 s) | Empfehlung (Abschnitt 4) |
+| Dauer eines Stücks | rund 60 s, endet am ersten Keyframe danach | `04` 14.5, Annahme, M-1 |
+| Stück 0 | nur der Anlauf (bis zu zwei Bildgruppen, höchstens 15 s abrufbar) | `04` 14.3, 15.1 (passt zu `04` F-7 (a)) |
 | Dateien je Stunde und Sitzung | rund 60 | Rechnung |
 | Name | `<nummer>.ts` (sechsstellig), im Ordner `<sitzung>-<einstellnummer>` | spezifiziert, T-25 |
-| Rechte | Ordner 0700, Dateien 0600 | spezifiziert, T-25 |
-| Schreiben | gepuffert, Blöcke von 1 MiB; kein `fdatasync` | Empfehlung |
-| Rückstau des Schreibers | bis 16 MiB im Arbeitsspeicher, gezählt gegen das Byte-Budget | spezifiziert, T-8, `05` Abschnitt 3.5 |
+| Rechte | Ordner 0700, Dateien 0600 | `04` 14.6, T-25 |
+| Schreiben | gepuffert, Blöcke von 1 MiB; kein `fdatasync` | `04` 14.5, Annahme |
+| Rückstau des Schreibers | bis 16 MiB im Arbeitsspeicher, gezählt bei Gebrauch gegen das Byte-Budget | `04` 14.3, T-8, Annahme (M-14) |
 
 Warum nicht eine Datei je Segment (2 bis 10 Sekunden): Bei einer Stunde wären das bis 1'800 Dateien je
 Sitzung und ebenso viele Löschvorgänge; das ist auf einer HDD und einem Netzspeicher spürbar (Annahme, M-1).
@@ -124,15 +129,15 @@ Segment (`05` Abschnitt 4.4).
 | Punkt | Festlegung |
 |---|---|
 | Einstellung | Höchstdauer je Zuschauer, global für alle, vom Administrator (LTV-007.10, LTV-019.12). |
-| Vorgabe | **60 Minuten** als Vorschlag (`03` DR-07). Wählbar wie in `15-administration.md` LA-15 (15 Minuten bis 4 Stunden). |
+| Vorgabe | **60 Minuten** ab Werk, wählbar 15, 30, 60, 120 oder 240 Minuten (`04` 14.6, `03` DR-07). |
 | Regel | Das Fenster ist nie länger als die Höchstdauer. Sobald das älteste Stück vollständig älter ist als «Live-Kante minus Höchstdauer», wird es gelöscht. Das Fenster schwankt also zwischen Höchstdauer minus einem Stück und der Höchstdauer. |
 | Liste | Das erste Segment der Liste rückt nach, `EXT-X-MEDIA-SEQUENCE` steigt um die Zahl der weggefallenen Segmente. |
 | Zuschauer an der gelöschten Stelle | Wer pausiert oder zurückgespult hat und dessen Stelle wegfällt, wird an den **neuen Anfang des Fensters** geführt, nicht an die Live-Kante. Der Player bekommt für das gelöschte Segment 404 und setzt am ersten Segment der Liste fort; der Herzschlag meldet «Älteste Minute weggefallen», die Oberfläche zeigt den Hinweis (`04` Abschnitt 7.5). |
 | Lange Pause | Eine Pause länger als die Höchstdauer endet also am Fensteranfang, mit dem Hinweis. Die Sitzung endet deshalb nicht. |
 | Änderung der Höchstdauer | gilt sofort für alle laufenden Puffer: kürzer heisst, die überzähligen Stücke fallen beim nächsten Durchgang weg; länger heisst, die Puffer wachsen ab jetzt weiter (nichts kommt zurück). |
 
-Die Werte in `15-administration.md` (LA-15: Vorgabe 2 Stunden) und `03` DR-07 (60 Minuten) weichen
-voneinander ab; dieses Dokument folgt DR-07, weil `04` und `05` darauf verweisen. Abgleich: O-1.
+Massgeblich sind 60 Minuten und der Deckel aus `04` 14.6; `15` LA-15 (2 Stunden, 64 GB) ist nach `04` 15.1
+anzupassen (O-1 erledigt).
 
 ## 4. Rückspulgrenze
 
@@ -181,6 +186,7 @@ Pipes hinein und heraus (T-13); Entscheid nach T-14. Für Timeshift gilt:
 | **Umwandlung, Spulen** | Eine Anfrage nach einem Segment, das nicht erzeugt ist und nicht kurz bevorsteht, beendet FFmpeg und startet es an dieser Rastergrenze neu, mit dem Sitzungspuffer ab dem Keyframe davor als Eingang. Höchstens zwei Neustarts je Sitzung in 10 Sekunden. Ob die Segmente verschiedener Läufe nahtlos passen, misst `05` M-9; sonst gilt der Rückfall «spiele ab Uhrzeit» mit `EXT-X-DISCONTINUITY` (`05` Abschnitt 4.5). | `04` Abschnitt 7.5, 8.5 |
 | **Umwandlung, Qualitäts- oder Tonspurwechsel** | Neue Ausgabe-Generation an der aktuellen Stelle; der Sitzungspuffer bleibt. Weil der Puffer die Quelle hält, gilt die neue Qualität oder Tonspur auch für jede Stelle, an die der Zuschauer danach zurückspult. | `04` Abschnitt 7.5 |
 | **Umwandlung, Pause** | Go gibt FFmpeg nur so viel Eingang, wie der Client abholt, plus drei Segmente Vorlauf; FFmpeg blockiert danach beim Lesen. **Nach 60 Sekunden ohne Segmentanfrage endet der Prozess**; die Reservierung im Budget bleibt bei der Sitzung. Bei «Weiter» startet FFmpeg an der Stelle des nächsten verlangten Segments neu. | `04` Abschnitt 7.5, T-13 |
+| **Lange Sitzung, Überlauf der Quellzeit** | Kein FFmpeg-Lauf dauert länger als 24 Stunden und keiner geht über einen Überlauf der 33-Bit-Zeit (alle 26.5 Stunden): Go startet den Prozess an der nächsten Segmentgrenze bzw. am ersten Keyframe nach dem Überlauf neu, als neue Ausgabe-Generation; die Reservierung bleibt. Der Sitzungspuffer ist davon nicht berührt. | `04` 7.5, 14.7 |
 | **Ausgabestücke der Umwandlung** | mit Zeitversatz neben dem Sitzungspuffer, höchstens 5 Minuten; sie zählen zum Deckel (Abschnitt 9) und werden mit dem Sitzungspuffer gelöscht. | `04` Abschnitt 4.1 Ebene 6 |
 | **Umwandlung langsamer als Echtzeit** | Der Zuschauer fällt hinter die Live-Kante zurück; nichts geht verloren, solange die Höchstdauer reicht. Nach 30 Sekunden meldet die Sitzung «zu langsam». | `04` Abschnitt 8.3 |
 | **Neuer Zeitabschnitt im Puffer** (Codec, Spuren, Bildgrösse) | Neues Stück; der Entscheid (Direktweg oder Umwandlung) gilt je Zeitabschnitt. Beim Spulen über die Grenze wird er neu berechnet. | T-6, `05` Abschnitt 3.4 |
@@ -204,7 +210,7 @@ Stelle, die schon vorbei ist.
 
 Rechtlich und fachlich bleiben (b) und (c) innerhalb des eigenen Puffers (nichts vor dem Einschalten,
 LTV-007.11). Technisch brechen sie T-16 und brauchen eine Kopie von bis zu der Höchstdauer beim Tastendruck
-(bei 8 Mbit/s und 60 Minuten 3,6 GB), während der Puffer weiter beschrieben und gekürzt wird.
+(bei 8 Mbit/s und 60 Minuten 3.6 GB), während der Puffer weiter beschrieben und gekürzt wird.
 
 **Empfehlung: (a).** Frage F-1. Bis zu deiner Antwort gilt (a). Für die Aufnahme selbst gilt `11-dvr.md`
 Abschnitt 1 (Sofortaufnahme).
@@ -228,18 +234,18 @@ Ob sie denselben oder verschiedene Sender schauen, ändert an dieser Form nichts
 
 | Bitrate | je Zuschauer und Stunde | Höchstdauer | 1 Zuschauer | 5 Zuschauer | 20 Zuschauer |
 |---|---|---|---|---|---|
-| 4 Mbit/s (SD, gutes HD) | 1,8 GB | 30 min | 0,9 GB | 4,5 GB | 18 GB |
-| 4 Mbit/s | 1,8 GB | 2 h | 3,6 GB | 18 GB | 72 GB |
-| 8 Mbit/s (HD) | 3,6 GB | 30 min | 1,8 GB | 9 GB | 36 GB |
-| 8 Mbit/s | 3,6 GB | 2 h | 7,2 GB | 36 GB | 144 GB |
-| 16 Mbit/s (HD hoch, UHD tief) | 7,2 GB | 30 min | 3,6 GB | 18 GB | 72 GB |
-| 16 Mbit/s | 7,2 GB | 2 h | 14,4 GB | 72 GB | 288 GB |
+| 4 Mbit/s (SD, gutes HD) | 1.8 GB | 30 min | 0.9 GB | 4.5 GB | 18 GB |
+| 4 Mbit/s | 1.8 GB | 2 h | 3.6 GB | 18 GB | 72 GB |
+| 8 Mbit/s (HD) | 3.6 GB | 30 min | 1.8 GB | 9 GB | 36 GB |
+| 8 Mbit/s | 3.6 GB | 2 h | 7.2 GB | 36 GB | 144 GB |
+| 16 Mbit/s (HD hoch, UHD tief) | 7.2 GB | 30 min | 3.6 GB | 18 GB | 72 GB |
+| 16 Mbit/s | 7.2 GB | 2 h | 14.4 GB | 72 GB | 288 GB |
 
 **Schreiblast** (unabhängig von der Höchstdauer, solange die Sitzungen laufen):
 
 | Bitrate | 1 Zuschauer | 5 Zuschauer | 20 Zuschauer |
 |---|---|---|---|
-| 4 Mbit/s | 0,5 MB/s | 2,5 MB/s | 10 MB/s |
+| 4 Mbit/s | 0.5 MB/s | 2.5 MB/s | 10 MB/s |
 | 8 Mbit/s | 1 MB/s | 5 MB/s | 20 MB/s |
 | 16 Mbit/s | 2 MB/s | 10 MB/s | 40 MB/s |
 
@@ -257,8 +263,8 @@ der Grund für den Deckel. Die wirklichen Bitraten deiner Sender misst `05` M-2,
 |---|---|---|
 | **je Sitzung** | Höchstdauer (Abschnitt 3.3); ein Sitzungspuffer je Sitzung, weil eine Sitzung nur einen Sender zugleich hat | spezifiziert |
 | **je Konto** | keine eigene Timeshift-Grenze. Begrenzt wird über die bestehende Grenze gleichzeitiger Ströme des Kontos und Profils (T-26, DR-12): Jede Live-Wiedergabe ist ein Strom, also höchstens so viele Sitzungspuffer. | Empfehlung |
-| **global: Deckel** | Summe aller Sitzungspuffer und Ausgabestücke auf dem Speicherort «Timeshift». Vorgabe nach `04` Abschnitt 10.10: der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB; einstellbar (LTV-019.10). | spezifiziert in `04`, Zahl Annahme |
-| **global: Mindestreserve** | Vorgabe 5 GB oder 5 % (`04` Abschnitt 10.10); unter der Reserve entsteht kein neues Stück (LTV-019.13). | spezifiziert in `04`, Zahl Annahme |
+| **global: Deckel** | Summe aller Sitzungspuffer und Ausgabestücke auf dem Speicherort «Timeshift». Ab Werk der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB; einstellbar (LTV-019.10). | `04` 14.6, Annahme (M-14) |
+| **global: Mindestreserve** | der grössere Wert aus 5 GB und 5 %; unter der Reserve entsteht kein neues Stück (LTV-019.13). | `04` 14.6, Vorgabe |
 | **global: Live-Sitzungen** | Serverdeckel 20, einstellbar 1 bis 200 (`04` Abschnitt 8.5) | spezifiziert in `04` |
 | **global: Sitzungen mit Zeitversatz** | nur falls du `04` F-8 (c) wählst | offen, `04` F-8 |
 
@@ -266,7 +272,7 @@ der Grund für den Deckel. Die wirklichen Bitraten deiner Sender misst `05` M-2,
 
 1. Slouchcat kürzt den **grössten** Sitzungspuffer um sein ältestes Stück, dann wieder den grössten, bis der
    Platz reicht (`03` DR-07). Kein Puffer wird dabei unter 5 Minuten gekürzt, und keiner ganz gelöscht
-   (Annahme zur Zahl). Die betroffene Sitzung meldet über den Herzschlag die neue Rückspulgrenze; wer an der
+   (`04` 14.6, Annahme). Die betroffene Sitzung meldet über den Herzschlag die neue Rückspulgrenze; wer an der
    gekürzten Stelle stand, wird an den Fensteranfang geführt (wie 3.3).
 2. Reicht das nicht, bekommt eine **neue** Sitzung keinen Sitzungspuffer und läuft ohne Zeitversatz aus dem
    Ring, mit dem Hinweis «Zeitversatz gerade nicht möglich» (`04` Abschnitt 8.3). Bestehende Sitzungen laufen
@@ -307,8 +313,8 @@ anders, gilt der Ort als «fehlt», und der Server schreibt **nirgends sonst** h
 | Lage | Verhalten | Zuschauer sieht |
 |---|---|---|
 | Reserve oder Deckel erreicht | Abschnitt 9 (kürzen, dann neue Sitzungen ohne Puffer) | gegebenenfalls kürzere Rückspulgrenze; neue Sitzung: «Zeitversatz gerade nicht möglich» |
-| Schreibfehler (kein Platz, Ein-/Ausgabefehler) oder Marker fehlt | Die betroffenen Sitzungspuffer enden und werden, soweit möglich, gelöscht. Die Sitzungen laufen ohne Zeitversatz aus dem Ring weiter. Der Ort bekommt den Zustand «voll» oder «fehlt»; der Administrator bekommt eine Meldung (`04` Abschnitt 10.2). | Wer zeitversetzt schaute, springt an die Live-Kante; Hinweis «Zeitversatz gerade nicht möglich». Live läuft weiter. |
-| Ort wieder in Ordnung | Neue Sitzungspuffer entstehen beim nächsten Einstellen. | – |
+| Schreibfehler (kein Platz, Ein-/Ausgabefehler) oder Marker fehlt, Dateisystem anders | Die betroffenen Sitzungspuffer enden; ihre Stücke werden nicht mehr ausgeliefert und gelöscht, soweit der Ort noch erreichbar ist. Die Sitzungen laufen ohne Zeitversatz aus dem Ring weiter (neue Ausgabe-Generation). Kein Ausweichen auf einen anderen Ordner. Der Ort bekommt den Zustand «voll» oder «fehlt»; der Administrator bekommt eine Meldung (`04` Abschnitt 9, 10.2). | Wer zeitversetzt schaute oder pausiert hatte, springt an die Live-Kante; Hinweis «Zeitversatz gerade nicht möglich» über den Herzschlag. Live läuft weiter. |
+| Ort wieder in Ordnung | Ist der Ort **60 Sekunden lang** wieder in Ordnung, beginnt für **jede laufende Sitzung** mit Recht ein neuer Sitzungspuffer; ihre Rückspulgrenze ist dieser Zeitpunkt (`04` Abschnitt 9, 14.6). | Hinweis verschwindet; Pause und Zurück gehen wieder ab diesem Zeitpunkt |
 | Datenträger stockt kurz | Der Rückstau von 16 MiB fängt es auf; reicht er nicht, entsteht im Puffer eine Diskontinuität mit neuem Stück. | kurzer Sprung beim Zurückspulen über diese Stelle |
 
 Ein voller Datenträger bringt den Server nicht zum Absturz (LTV-019.20): Jeder Schreibfehler ist ein Zustand
@@ -320,7 +326,7 @@ Die Liste baut Go je Anfrage (`05` Abschnitt 4.4). Für Timeshift:
 
 | Merkmal | Festlegung |
 |---|---|
-| Art der Liste | Live-Liste **ohne** `EXT-X-PLAYLIST-TYPE`. Mit `EVENT` dürften keine Segmente wegfallen; das Fenster muss aber am Ende der Höchstdauer gleiten (Annahme aus RFC 8216, R5 Abschnitt 1.2). |
+| Art der Liste | Live-Liste **ohne** `EXT-X-PLAYLIST-TYPE`. Mit `EVENT` dürfen Segmente nur am Ende angefügt werden; eine Liste mit gleitendem Fenster darf das Tag nicht tragen, und das Fenster gleitet am Ende der Höchstdauer (belegt, RFC 8216 Abschnitte 4.3.3.5 und 6.2.2; `anhang/nachpruefung-quellen.md` Nr. 3). |
 | Fenster | von der Rückspulgrenze bis zur Live-Kante; `EXT-X-MEDIA-SEQUENCE` steigt, wenn Segmente wegfallen |
 | Uhrzeit | `EXT-X-PROGRAM-DATE-TIME` am ersten Segment und nach jeder Diskontinuität |
 | Startpunkt | `EXT-X-START` und Antwort auf «einstellen» (`05` Abschnitt 4.4, 5.3) |
@@ -330,9 +336,9 @@ Was die Player daraus machen, ist **Annahme**, bis die Messpunkte vorliegen:
 
 | Player | Erwartetes Verhalten | Messpunkt |
 |---|---|---|
-| hls.js (Web) | Das Fenster der Liste ist der spulbare Bereich; Pause und Rücksprung im Fenster ohne Neuladen; der Startpunkt kommt ausdrücklich vom Server. | `05` M-3 |
-| Safari, iPhone (nativ) | Zeigt bei einem ausreichend langen Live-Fenster eine Zeitleiste zum Spulen; die Startregel (drei Zieldauern vor dem Ende) betrifft nur den Start. | `05` M-5 |
-| Media3 (Handy, TV) | Live-Fenster mit Spulen, `EXT-X-PROGRAM-DATE-TIME` als Uhrzeit; Verhalten hinter dem Fenster (gelöschtes Segment) prüft `05` M-4. | `05` M-4, M-19 |
+| hls.js (Web) | Das Fenster der Liste ist der spulbare Bereich; Pause und Rücksprung im Fenster ohne Neuladen; der Startpunkt kommt ausdrücklich vom Server. Mit Zeitversatz bleibt `liveMaxLatencyDurationCount` auf dem Standard (unbegrenzt): hls.js springt ab Werk nie von selbst an die Live-Kante (belegt, Nachprüfung Nr. 10). Fällt das Segment unter der Abspielstelle heraus, setzt der **Client** selbst am Fensteranfang fort; wie hls.js dort reagiert, misst `05` M-3. Ohne Zeitversatz gilt `liveMaxLatencyDurationCount` 4 (`04` 14.10). | `05` M-3 |
+| Safari, iPhone (nativ) | Zeigt bei einem ausreichend langen Live-Fenster eine Zeitleiste zum Spulen; die Startregel (drei Zieldauern vor dem Ende, belegt) betrifft nur den Start. Ungeprüft und nicht zugesagt, weil kein Gerät vorhanden ist (`04` 12.1). | `05` M-5 |
+| Media3 (Handy, TV) | Live-Fenster mit Spulen, `EXT-X-PROGRAM-DATE-TIME` als Uhrzeit. Fällt die Stelle hinter das Fenster, meldet Media3 den Fehler `ERROR_CODE_BEHIND_LIVE_WINDOW` (belegt, Nachprüfung Nr. 18); die App fängt ihn ab und setzt am **Fensteranfang** fort, nicht an der Live-Kante (`05` 5.3). | `05` M-4, M-19 |
 
 Die Matrix je Client führt `16-client-kompatibilitaet.md`.
 
@@ -392,7 +398,7 @@ stateDiagram-v2
     state "Anlauf" as Anlauf
     state "Live" as Live
     state "Zeitversetzt" as Versetzt
-    state "Ruht (keine Anfragen)" as Ruht
+    state "Pause (Herzschlag)" as Ruht
     state "Ohne Zeitversatz" as Ohne
     state "Beendet" as Beendet
 
@@ -401,8 +407,8 @@ stateDiagram-v2
     Anlauf --> Live: erstes Segment nach dem Tastendruck, Stück 0 gelöscht
     Live --> Versetzt: Anfrage hinter der Live-Kante
     Versetzt --> Live: Anfrage an der Live-Kante
-    Live --> Ruht: keine Segmentanfrage, Herzschlag läuft
-    Versetzt --> Ruht: keine Segmentanfrage, Herzschlag läuft
+    Live --> Ruht: Herzschlag meldet «Pause»
+    Versetzt --> Ruht: Herzschlag meldet «Pause»
     Ruht --> Versetzt: Anfrage im Fenster (Umwandlung startet neu)
     Ruht --> Live: Anfrage an der Live-Kante
     Live --> Ohne: Recht «Timeshift» entzogen, Schreibfehler, Ort fehlt
@@ -413,6 +419,7 @@ stateDiagram-v2
     Versetzt --> Anlauf: umschalten
     Ruht --> Anlauf: umschalten
     Ohne --> Anlauf: umschalten mit Recht und Platz
+    Ohne --> Live: Ort seit 60 s wieder in Ordnung, neuer Puffer ab jetzt
     Anlauf --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
     Live --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
     Versetzt --> Beendet: Stopp, 60 s ohne Herzschlag, Entzug «Live-TV», Neustart
@@ -421,9 +428,10 @@ stateDiagram-v2
     Beendet --> [*]: Puffer gelöscht, Haltegrund gelöst
 ```
 
-«Ruht» heisst: Der Player holt nichts (Pause), der Herzschlag kommt weiter. In diesem Zustand endet eine
-Umwandlung nach 60 Sekunden; der Sitzungspuffer wächst weiter. Ein Fensterende während «Ruht» führt bei der
-nächsten Anfrage an den Fensteranfang (3.3).
+«Pause» heisst: Der Herzschlag meldet «Pause» (T-21), der Player holt nichts. In diesem Zustand endet eine
+Umwandlung nach 60 Sekunden ohne Segmentanfrage; der Sitzungspuffer wächst weiter. Ein Fensterende während der
+Pause führt bei der nächsten Anfrage an den Fensteranfang (3.3). Der Befehl «sofort beenden» des Administrators
+nach dem Deaktivieren eines Senders (T-29) führt aus jedem Zustand nach «Beendet»; das blosse Deaktivieren nicht.
 
 ## 14. Messpunkte, offene Punkte, Fragen
 
@@ -442,9 +450,9 @@ M-14 (Schreiblast, Rückstau bei Netzspeicher und anlaufender Platte), M-19 (lan
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | Vorgabe der Höchstdauer: `03` DR-07 nennt 60 Minuten, `15` LA-15 2 Stunden; Deckel: `04` Abschnitt 10.10 nennt «20 % oder 50 GB», `15` LA-15 64 GB. Eine Quelle muss gelten (Vorschlag: `03` und `04`). | `15`, `20` |
-| O-2 | Kleinste Länge, auf die der Deckel einen Puffer kürzt (Vorschlag 5 Minuten). | `13` |
-| O-3 | Verhalten von hls.js und Media3, wenn das Segment unter der Abspielstelle gelöscht ist (404 mitten im Abspielen): springen sie selbst an den Fensteranfang, oder muss der Client nachhelfen? | `05` M-3, M-4, `16` |
+| O-1 | **erledigt durch `04` 14.6:** 60 Minuten, Deckel der kleinere Wert aus 20 % und 50 GB; `15` passt an (`04` 15.1). | – |
+| O-2 | **erledigt durch `04` 14.6:** 5 Minuten (Annahme). | – |
+| O-3 | Segment unter der Abspielstelle gelöscht: Media3 meldet «hinter dem Fenster», die App setzt am Fensteranfang fort (belegt, Nachprüfung Nr. 18); hls.js springt ab Werk nicht, der Client setzt selbst fort, das Verhalten misst `05` M-3. Offen bleibt nur die Messung. | `05` M-3, `16` |
 
 ### 14.3 Fragen an dich
 
@@ -498,3 +506,31 @@ eigenen Code für einen seltenen Fall.
 | LTV-019.19 verwaiste temporäre Dateien | 2 | spezifiziert |
 | LTV-019.20 voller Datenträger ohne Absturz | 10.3 | spezifiziert |
 | LTV-019.22 Prüfungen | 10.2 | spezifiziert |
+
+## 16. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2 (Konsolidierung 1, Grundlage `04` Fassung 3 Abschnitte 13.4, 14, 15 und
+`anhang/nachpruefung-quellen.md`):
+
+- Kopf und Einleitung: Bezug auf `04` T-1 bis T-29 Fassung 3 und `05` Fassung 3; alle Zahlen aus `04`
+  Abschnitt 14; Stufe nach `18-umsetzungsplan.md` (Stufe 4, Baufreigabe V-7).
+- Abschnitt 2: Herzschlag meldet «spielt» oder «Pause», Schauzeit zählt ausgelieferte Segmente (`04` T-21,
+  13.4, Rückmeldung `06` O-11). Karenz nur für den Eingangsstrom nach Sitzungsende durch den Zuschauer, nie für
+  den Sitzungspuffer, nie nach Entzug (`04` T-17). Neue Zeilen: Deaktivieren eines Senders beendet nichts
+  (T-29); Ausfall des Speicherorts.
+- Abschnitt 3: Stückdauer, Schreibblock, Rückstau mit Status aus `04` 14.3 und 14.5; TVHeadend-Vorbild belegt
+  (Nachprüfung Nr. 44). Höchstdauer 60 Minuten mit den Werten 15 bis 240 aus `04` 14.6; Abschnitt über die
+  Abweichung zu `15` ersetzt durch den Verweis auf `04` 15.1.
+- Abschnitt 6: Zeile «kein FFmpeg-Lauf länger als 24 Stunden, keiner über einen Überlauf» (`04` 7.5).
+- Abschnitt 9: Mindestreserve «der grössere Wert aus 5 GB und 5 %» statt «5 GB oder 5 %»; kleinste
+  Kürzung 5 Minuten aus `04` 14.6.
+- Abschnitt 10.3: Ausfall des Speicherorts nach `04` Abschnitt 9 (Rückmeldung `06` O-8): auch eine pausierte
+  Wiedergabe springt an die Live-Kante; nach 60 Sekunden in Ordnung bekommt jede laufende Sitzung einen neuen
+  Puffer (Fassung 1: erst beim nächsten Einstellen).
+- Abschnitt 11: `EXT-X-PLAYLIST-TYPE` belegt (Nachprüfung Nr. 3); hls.js `liveMaxLatencyDurationCount`
+  unbegrenzt mit Zeitversatz, 4 ohne, kein Sprung zur Live-Kante ab Werk (Nachprüfung Nr. 10, `04` 14.10);
+  Media3 «hinter dem Fenster» belegt (Nr. 18); Apple-Geräte ungeprüft.
+- Abschnitt 13: Zustand «Pause» aus dem Herzschlag statt aus fehlenden Anfragen; Rückweg «Ort wieder in
+  Ordnung»; «sofort beenden» (T-29).
+- Abschnitt 14.2: O-1 und O-2 erledigt durch `04` 14.6; O-3 teilweise belegt.
+- Zahlenformat auf de-CH umgestellt (Dezimalpunkt).
