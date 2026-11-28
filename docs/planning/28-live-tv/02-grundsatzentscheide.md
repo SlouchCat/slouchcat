@@ -1,0 +1,157 @@
+# Konzept 28 · Grundsatzentscheide
+
+Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+
+> **Kurz gesagt.** Marcos Auftrag vom 28. November 2026 legt 21 Grundsatzentscheide fest (LTV-001 bis LTV-021).
+> Diese Datei fasst sie in je einem Satz zusammen, zeigt, wo der Auftrag von diesem Repo abweicht (er wurde für
+> das alte Repo geschrieben), hält Marcos vier Antworten vom 28. November 2026 fest, nennt die Ausnahmen von
+> bestehenden Regeln, die Live-TV braucht, und enthält den Entwurf für Frage 37 im Entscheidungsprotokoll.
+> Die einzelnen Anforderungen stehen in `03-fachkonzept.md`.
+
+Dieses Papier ändert keine Zeile Code und keine Regel. Massgeblich bleiben Spec, Entscheidungsprotokoll und ADR;
+bei Widerspruch gilt Entscheidungsprotokoll > Plan > Spec (`CLAUDE.md`). Alles in Konzept 28 ist
+**spezifiziert**, nichts ist gebaut.
+
+Wortlaut des Auftrags: `anhang/auftrag-2026-11-28.md` (Zeilenangaben «Z.» beziehen sich auf diese Datei).
+
+## Lesart
+
+1. **Der speziellere Entscheid geht dem allgemeineren vor** (Auftrag Z. 362). LTV-001 zählt den Umfang auf; die
+   Detailentscheide LTV-002 bis LTV-020 schränken ihn ein (Z. 387). Beispiel: LTV-001 nennt «Persönliches
+   Timeshift», LTV-007 legt fest, dass es kein gemeinsames Archiv gibt; es gilt LTV-007.
+2. **Marcos Antworten vom 28. November 2026** (Abschnitt 3) sind spezieller als der Auftrag und gehen ihm vor, wo
+   sie eine Einzelfrage entscheiden. Sie ändern keinen der 21 Entscheide, sondern legen eine Detailregel fest, die
+   der Auftrag Marco zur Entscheidung vorlegen liess (LTV-015, Z. 971).
+3. **Abschnitt 5 des Auftrags** (Technik des alten Repos) gilt nur in seinem Sinn, nicht wörtlich (Abschnitt 2).
+4. **Die Marken [MVP], [1.1], [1.x], [Later]** gibt es in diesem Repo nicht. Umfang wird Stufen zugeordnet
+   (Stufe 0, 1, 2 …; jede Stufe ein Release). Die Zuordnung ist ein Vorschlag an Marco.
+
+---
+
+## 1. Die 21 Grundsatzentscheide
+
+Spalte «Entscheid» gibt den Auftrag in einem Satz wieder; «schliesst ein» und «schliesst aus» nennen nur, was der
+Auftrag selbst sagt (mit Zeile). Die Anforderungen dazu: `03-fachkonzept.md`, Abschnitt 3.
+
+| Kennung | Thema | Entscheid in einem Satz | Schliesst ein | Schliesst aus |
+|---|---|---|---|---|
+| LTV-001 | Funktionsumfang (C, vollwertig) | Slouchcat bekommt einen eigenständigen Live-TV-Bereich mit dem Umfang der Detailentscheide (Z. 368, 387). | Internet-TV, Senderverwaltung, EPG und Programmzeitschrift, Fast Zapping, zentraler Empfang, Stream-Sharing, persönliches Timeshift, DVR, Serienaufnahmen, Senderfavoriten, Erinnerungen, Streamüberwachung, Administration (Z. 372–385) | alles, was ein Detailentscheid ausschliesst (Z. 387) |
+| LTV-002 | Empfangsstrategie (C, hybrid) | Jeder Sender wird nach einer von vier Strategien empfangen: permanent, automatisch, bei Bedarf oder zeitgesteuert, mit globaler Vorgabe und Einstellung je Sender (Z. 393–412). | Vorladen benachbarter Sender, Start für geplante Aufnahmen, Freigabe nicht benötigter Ströme, Schutz laufender Wiedergaben und Aufnahmen, Wiederherstellung nach Neustart (Z. 413–418) | – (keine ausdrücklichen Ausschlüsse) |
+| LTV-003 | Empfangsquellen (B, erweitertes IPTV) | Slouchcat nimmt M3U/M3U8 als Datei und URL, einzelne Stream-URLs und Xtream-Codes-Live-APIs an und empfängt HTTP(S), HLS, MPEG-TS, DASH ohne DRM, RTSP, RTMP, UDP, RTP und Multicast (Z. 426–441). | Zugangsdaten, eigene Header und User-Agents, mehrere Quellen je Sender mit Rangfolge und automatischem Wechsel (Z. 442–447); Kompatibilitätsmatrix (Z. 453) | physische Tuner, HDHomeRun, SAT>IP, TVHeadend, DVB-C/S/S2/T/T2, DRM-Streams, Umgehung von Kopierschutz, Xtream-VOD und -Serien (Z. 457–467) |
+| LTV-004 | Transcoding (B, individuell) | Ein Sender wird möglichst nur einmal empfangen und intern an alle Zuschauer und Aufnahmen verteilt; muss umgewandelt werden, bekommt jeder Zuschauer seinen eigenen Umwandlungsprozess (Z. 473–488). | Original, Remux, eigenes Video-/Audio-Transcoding, eigene Auflösung, Bitrate, Ton- und Untertitelwahl, Hardwarebeschleunigung, Software-Rückfall, bestehende Limits (Z. 492–502); sauberer Lebenszyklus (Z. 506–523) | gemeinsam genutzte Transcoding-Ausgaben (Z. 504) |
+| LTV-005 | EPG (B, erweitert) | Slouchcat liest Programmdaten aus XMLTV (Datei, URL, komprimiert, mehrere Quellen), ordnet sie Sendern zu und zeigt sie in einer Programmzeitschrift mit Suche, Aufnahmeplanung und Erinnerungen (Z. 535–553). | Zeitzonen, Sommerzeit, fehlerhafte und unvollständige Daten, geänderte Zeiten, Anpassung geplanter Aufnahmen (Z. 557–563); nichts erfinden (Z. 565); Wiedergabe ohne EPG (Z. 567) | intelligente Zusammenführung konkurrierender Quellen je Sender, KI-Empfehlungen, Verknüpfung mit den Bibliotheken (Z. 571–573) |
+| LTV-006 | Senderverwaltung (B, erweitert) | Der Administrator pflegt Sender in einer leistungsfähigen Verwaltung; jeder Sender hat eine stabile Identität unabhängig von seiner Stream-URL (Z. 577, 599). | M3U-Gruppen, eigene Gruppen, Mehrfachzuordnung, (de)aktivieren, umbenennen, Logos, Sortierung, Kanalnummern, Zusammenführen, Rangfolge der Quellen, Land, Sprache, Kategorien, Massenbearbeitung, Duplikaterkennung (Z. 581–597) | Sendergruppen als Benutzergruppen, ein neues Benutzergruppenmodell (Z. 601–603) |
+| LTV-007 | Timeshift (A, persönlicher Puffer) | Jeder Zuschauer hat ab dem Einschalten seinen eigenen Zeitversatz-Puffer zum Pausieren und Spulen, der beim Senderwechsel und Beenden gelöscht wird (Z. 607–616). | Pause, Zurück- und Vorspulen, Sprung zu Live, Höchstdauer durch den Administrator (Z. 611–617) | gemeinsames Archiv, Zurückspulen vor das eigene Einschalten, Startpuffer als Archiv (Z. 619–625) |
+| LTV-008 | DVR (B, erweitert) | Slouchcat nimmt Sendungen sofort, geplant, manuell, als Serie und wiederkehrend auf, auch ohne angemeldeten Benutzer, und nutzt dafür möglichst den bestehenden Eingangsstrom (Z. 633–660). | Vor-/Nachlauf, Folgenerkennung (sofern zuverlässig), parallele Aufnahmen, Fristen, Kontingente je Konto, Konflikte, EPG-Anpassung, Übersichten, Wiedergabe, Löschen, unvollständige Aufnahmen; Neustart, Stromausfall, Netz, Speicher (Z. 633–662) | Werbeerkennung, KI, suchwortbasierte Aufnahmen, Aufnahmen nach Personen oder Mannschaften, Übernahme in die Bibliotheken (Z. 666–670) |
+| LTV-009 | Aufnahmeeigentum (A, privat je Profil) | Aufnahmen, Planungen, Serienregeln, Fortschritt und Löschen gehören allein dem Profil; das Kontingent gilt je Konto (Z. 674–688). | Schutz vor anderen Profilen und Konten (Z. 684–686), Trennung von Technik und Inhalt für den Administrator (Z. 692); Deduplizierung darf untersucht werden (Z. 694) | gemeinsam sichtbare Aufnahmebibliotheken (Abschnitt 16) |
+| LTV-010 | Fast Zapping (B, erweitert) | Senderwechsel sollen sehr schnell sein: bestehende Ströme sofort nutzen, kleine Startpuffer, Vorladen benachbarter, häufiger und favorisierter Sender (Z. 698–710). | Untersuchung von GOP, Segmenten, LL-HLS, TS, Clients (Z. 716–735); Zielwerte als zu prüfende Grössen (Z. 741–746); reproduzierbarer Benchmark (Z. 748–762) | vorsorglich gestartete individuelle Umwandlungen (Z. 712) |
+| LTV-011 | Streamüberwachung (B, erweitert) | Slouchcat prüft Ströme, verbindet neu, erkennt Ausfälle, Standbild und fehlende Spuren, wechselt auf Ersatzquellen und meldet längere Ausfälle dem Administrator (Z. 768–780). | Unterscheidung legitimer Sonderfälle (Z. 782–784), Schutz vor Endlosschleifen und Prüfflut (Z. 788–792), bestehendes Benachrichtigungssystem (Z. 794) | ein umfangreiches historisches Qualitätsbewertungssystem (Z. 796) |
+| LTV-012 | Benutzerrechte (A, einfach) | Live-TV, Aufnahmen und Timeshift werden je Konto und je Profil erlaubt oder verboten, ein Profil hat nie mehr Rechte als sein Konto, und der Server setzt alles durch (Z. 804–820). | bestehende Grenzen für Ströme, Bandbreite, Auflösung und Zugriff (Z. 808–812) | Rechte je Sender oder Sendergruppe (Z. 816) |
+| LTV-013 | Catch-up TV (ausgeschlossen) | Slouchcat bietet kein Catch-up TV; permanenter Empfang ist keine Aufzeichnung (Z. 824, 836). | persönliches Timeshift und gezielte Aufnahmen bleiben (Z. 834) | Anbieterarchive, verpasste Sendungen, Catch-up-URLs, rollierende Serverarchive, Daueraufzeichnung (Z. 828–832) |
+| LTV-014 | Oberfläche (B, modern) | Live-TV bekommt einen eigenen, ruhigen Bereich im bestehenden Design mit Startseite, Senderübersicht, Programmzeitschrift, Sendungsdetails, Player, «Meine Aufnahmen» und «Geplante Aufnahmen» (Z. 840–935). | Desktop, Smartphone, Tablet, Android TV, Google TV, weitere Clients der Roadmap (Z. 939–945) | ein neues Designsystem (Z. 947); Fire TV ist in diesem Repo Nicht-Ziel (Abschnitt 2) |
+| LTV-015 | Jugendschutz (Freigabe, keine Altersprüfung) | Für Live-TV gibt es keine automatische Altersprüfung; das Hauptprofil schaltet Live-TV für ein Profil mit Altersgrenze ausdrücklich frei oder sperrt es (Z. 951–961). | Zugriff auf alle Sender des Kontos bei Freigabe, volle Unsichtbarkeit ohne Freigabe (Z. 960–961); Administrator-Deckel bleibt (Z. 963); dokumentierte Ausnahme (Z. 965) | Altersprüfung je Sender oder Sendung, altersabhängige EPG-Filterung, dynamische Sperren; Ausweitung auf Filme, Serien, andere Bibliotheken (Z. 956–959, 967) |
+| LTV-016 | Multi-View und PiP (A, ausgeschlossen) | Ein Player zeigt genau einen Sender (Z. 975). | gleichzeitige Wiedergabe auf verschiedenen Geräten im Rahmen der Limits (Z. 983) | Multi-View, Bild-in-Bild, mehrere Sender in einem Player (Z. 979–981) |
+| LTV-017 | Anbieterverwaltung (A, keine Limits) | Slouchcat verwaltet keine Verbindungslimits je IPTV-Anbieter; die allgemeinen Ressourcenlimits gelten, Zugangsdaten werden sicher gespeichert (Z. 987, 997–999). | Verantwortung des Administrators für die Bedingungen seiner Anbieter (Z. 1001) | Verbindungskontingente, Abonnements, Laufzeiten, Verteilung auf mehrere Zugänge, Verbrauchsabrechnung (Z. 991–995) |
+| LTV-018 | Senderaktualisierung (B, automatisch) | Senderlisten werden automatisch und von Hand aktualisiert, ohne dass Pflege, Favoriten, Zuordnungen und Planungen verloren gehen oder ein fehlerhafter Import eine funktionierende Liste zerstört (Z. 1007–1021). | stabile IDs, transaktionale Aktualisierung, geänderte Namen und URLs, fehlende, doppelte, unvollständige Listen (Z. 1023–1034) | ein komplexes Freigabe- oder Versionierungssystem (Z. 1036) |
+| LTV-019 | Speicherverwaltung (B, erweitert) | Startpuffer, Timeshift und Aufnahmen haben getrennt einstellbare Speicherorte mit Limits, Reserve, Bereinigung und Warnungen, und ein voller oder fehlender Datenträger bringt Slouchcat nicht zum Absturz (Z. 1040–1072). | RAM-Disk, SSD, NVMe, HDD, Netzspeicher, Linux-Dateisysteme (Z. 1048–1053); Schutz laufender Aufnahmen, Aufräumen nach Abstürzen (Z. 1065–1066) | Verteilung auf mehrere Datenträger, Archivierung, Verschieben, nachträgliches Komprimieren (Z. 1076–1079) |
+| LTV-020 | Aufnahmequalität (A, Original) | Aufnahmen werden ohne Neucodierung mit allen empfangenen Ton- und Untertitelspuren gespeichert; verlustfreies Umpacken ist erlaubt (Z. 1083–1093). | Begründung des Containers, robuste Behandlung gestörter Ströme (Z. 1095–1108); Vorlage an Marco, falls Spuren verloren gingen (Z. 1110); Transcoding bei der Wiedergabe (Z. 1112) | Neucodierung, nachträgliche Komprimierung, reduzierte Aufnahmequalität (Z. 1085, 1090–1091) |
+| LTV-021 | Entwicklung (C, Konzept vor Bau) | Live-TV wird zuerst vollständig konzipiert und mit klickbaren Mockups gezeigt; gebaut wird erst nach Marcos ausdrücklicher Freigabe (Z. 1116, 1134). | Ist-Analyse, Soll-, Architektur-, Daten-, API-, Sicherheits-, Performance-, Speicher-, Testkonzept, Mockups, Spezifikationen, Roadmap, Abnahmekriterien (Z. 1120–1132) | produktive Implementierung vor der Freigabe (Z. 1134) |
+
+---
+
+## 2. Abweichungen zwischen Auftrag und Repo
+
+Der Auftrag nennt das Repo `SlouchCat/server` (Z. 228) mit NestJS, PostgreSQL, Redis, BullMQ, `.deb` und DEC-001.
+Gemeint ist das aktuelle Go-Produkt `SlouchCat/slouchcat` (Marco, 28. November 2026). Belege aus der Ist-Analyse
+(Rohbericht A1 Abschnitte 4 und 6.1, A3), Stand `1220769b`: Server 1.44.1, Vertrag 1.44.0, letzte Migration 00086,
+letzte ADR 0045, letzte Frage 36.
+
+| Nr. | Aussage des Auftrags | Wirklichkeit in diesem Repo | Umgang in Konzept 28 |
+|---|---|---|---|
+| AB-1 | Stack: Node.js, TypeScript, NestJS, Fastify, PostgreSQL, Drizzle, Redis, BullMQ (Z. 289–299) | Go-Server, SQLite mit einer Schreibverbindung (`docs/adr/0001-stack.md:32`), eigene Job-Queue in SQLite (`docs/adr/0001-stack.md:35`, ADR 0002, ADR 0017), ein Container (`docs/planning/03-plan-v1.md:39`); Web-App React, TanStack, hls.js | Es gelten `CLAUDE.md` und die ADR dieses Repos. Der Sinn von Abschnitt 5 bleibt: ein Serverprozess, kein Microservice, kein zweiter Container, keine externe Middleware, kein zweites Benutzer-, Rechte-, Job- oder Transcoding-System, Homelab-Grösse. «PostgreSQL» (Z. 1652) heisst hier SQLite; «Redis-Last» (Z. 1447) entfällt, an ihre Stelle tritt die Last auf der einen Schreibverbindung (siehe `13-ressourcen-und-performance.md`). |
+| AB-2 | Native Linux-Installation als `.deb` (Z. 306, 1501) | Nicht-Ziel: «Kein natives Paket» (`docs/spec/01-anforderungen-v1.md:41`, `:86`); nur Docker (`deploy/Dockerfile`) | bleibt Nicht-Ziel; als «nicht dabei» geführt (`03-fachkonzept.md` Abschnitt 7). Der hiesige «Installer» sind Compose-Dateien und Overrides. |
+| AB-3 | Fire TV als zu berücksichtigender Client (Z. 944) | Nicht-Ziel: «TV-Apps (Apple TV, webOS, Tizen, Fire TV)» (`docs/spec/01-anforderungen-v1.md:58-60`, `CLAUDE.md` Regel 11); Konzept 26 E-1 «Fire TV nicht» (`docs/planning/04-entscheidungen.md:139`) | bleibt Nicht-Ziel; Clients sind Web-App (Desktop, Smartphone, Tablet), Android-Handy-App und Android-TV-App (deckt Google TV ab). |
+| AB-4 | DEC-001 schliesst Live-TV, IPTV, EPG und DVR aus und wird geändert (Z. 273–275); `docs/spec/00_Glossar_und_Entscheidungen.md` (Z. 236) | Eine DEC-Nummerierung und diese Datei gibt es nicht. Das Nicht-Ziel steht in `CLAUDE.md` Regel 11 («Live-TV», `CLAUDE.md:75`), in der Spec «Non-Goals» (`docs/spec/01-anforderungen-v1.md:56-57`, auch `:29`, `:44`), im Plan (`docs/planning/03-plan-v1.md:30`) und in Frage 23 («Musikbibliothek, Fotos, Live-TV und DVR bleiben Nicht-Ziele», `docs/planning/04-entscheidungen.md:90`) | Die Aufhebung geschieht wie bei Webradio und den Android-Apps: Frage 37 im Entscheidungsprotokoll bei der Freigabe (Entwurf Abschnitt 5), benannte Ausnahme in Regel 11 und Nachtrag in der Spec erst mit Stufe 0 des Baus (Abschnitt 4). Die Liste aller Stellen steht in `21-aenderungen-an-dokumenten.md`. |
+| AB-5 | Marken [MVP], [1.1], [1.x], [Later] (Z. 1881–1886) | gibt es nicht; Umfang je Konzept in Stufen, jede Stufe ein Release oder von Marco gebündelt (`docs/planning/16-webradio.md:680`, `docs/planning/26-android-tv.md:764`) | Jede Anforderung trägt eine Stufe (Vorschlag); die Reihenfolge legt `18-umsetzungsplan.md` fest. Die bisherige Entwicklungspriorität ändert das nicht. |
+| AB-6 | «Bestehende gleichzeitige Streamlimits» (Z. 808) | gebaut je Konto und je Profil (`server/migrations/00063_minimum_age_accounts.sql:41`, `server/migrations/00061_profiles_open_language.sql:49`, Durchsetzung `server/internal/playback/limits.go:159-197`); gezählt werden nur Wiedergabesitzungen von Titeln (`playback_sessions.item_id NOT NULL`, `server/migrations/00032_playback_prefs.sql:58-63`); Webradio zählt bewusst nicht (K16 F-19) | Live-TV zählt zu den bestehenden Stream-, Bandbreiten- und Auflösungsgrenzen und zur Schauzeit (festgelegte Auslegung). Wie gezählt wird, ist neu (`04-architektur.md`). |
+| AB-7 | «Bestehende Bandbreitenbeschränkungen» (Z. 811) | gebaut (`00063…:39` `max_bitrate_kbps`, `server/internal/playback/decide.go:392`) | übernommen |
+| AB-8 | «Bestehende Auflösungsbeschränkungen» (Z. 812) | gebaut (`00063…:40` `max_height`, `decide.go:391`); eine Grenze unter der Quellauflösung erzwingt heute eine Umwandlung (`decide.go:391-426`) | übernommen; bei Live-TV ist das je Zuschauer ein eigener Umwandlungsprozess (LTV-004, siehe `13-ressourcen-und-performance.md`) |
+| AB-9 | «Bestehende Transcoding-Berechtigungen» (Z. 810) | **fehlt**: es gibt kein Recht «darf umwandeln» (keine Spalte, kein Recht; nur das gemeinsame Budget der Umwandlungen, `server/internal/transcode/download.go:207-223`) | Kein neues Recht (Annahme, Empfehlung aus A1 Q-9); es gelten das Budget der Umwandlungen und die Grenzen AB-6 bis AB-8. Ein Recht «darf umwandeln» wäre ein Zusatz, den der Auftrag nicht beschliesst. |
+| AB-10 | «Bestehende lokale und externe Zugriffsbeschränkungen» (Z. 809) | **fehlt als Recht**: kein Recht «nur im Heimnetz»; von aussen gelten dieselben Konten und Rechte (Spec K-8, `docs/spec/01-anforderungen-v1.md:102`); `SLOUCHCAT_TRUSTED_PROXIES` dient nur der Client-IP (`server/internal/config/config.go:241`); Handy-App E-18 «HTTP überall mit Warnung» | Live-TV gilt innen und aussen gleich (K-8). Keine neue Heimnetz-Regel (Annahme, Empfehlung aus A1 Q-10). |
+| AB-11 | «Kinderprofile» und «Hauptnutzer» (Z. 949–953) | Einen Profiltyp «Kinderprofil» gibt es nicht; «Kind» heisst Altersgrenze unter 18 (`server/migrations/00061_profiles_open_language.sql:39` `max_rating`, `server/internal/model/ratings.go:26`, ADR 0045 `docs/adr/0045-wunschrecht-folgt-der-altersgrenze.md:28-29`). Der Hauptnutzer ist das Hauptprofil eines Kontos (`is_default`, `00061…:43`; `requirePrimary`, `server/internal/auth/profiles.go:16-17`) | «Kinderprofil» = jedes Profil mit Altersgrenze unter 18; «Hauptnutzer» = Hauptprofil des Kontos (festgelegte Auslegung). |
+| AB-12 | «Bestehende Favoriten» (Z. 1490) | Titel-Favoriten gibt es nicht mehr; sie gingen in der Merkliste auf (Frage 27; `server/migrations/00054_watchlist_follow.sql:46`). Radio hat eigene Senderfavoriten mit Reihenfolge (`server/migrations/00038_radio.sql:123-129`) | Senderfavoriten je Profil nach dem Vorbild der Radio-Favoriten; die Merkliste bleibt für Titel. |
+| AB-13 | Systemüberwachung mit CPU-, GPU-, RAM-Werten (Z. 1225–1227, 1494) | **teilweise**: Version, erkannte Hardware, Dateisysteme, freier Platz (`api/openapi.yaml:7251` `getSystemInfo`, `server/internal/admin/dashboard.go:385`); **keine** Messung von CPU-, GPU- oder RAM-Last (`server/internal/admin/system.go:44-50`) | Die Anzeige verlangt der Auftrag; sie ist neu und wird spezifiziert (`15-administration.md`, `13-ressourcen-und-performance.md`), nicht als vorhanden vorausgesetzt. |
+| AB-14 | «Bestehende Suche» (Z. 1491) | gebaut nur für Titel, Personen, Sammlungen (`api/openapi.yaml:5951`, `server/migrations/00015_discover.sql:142`) | Programmsuche ist neu; ob sie auch in der allgemeinen Suche erscheint, ist F-5 (`03-fachkonzept.md`). |
+| AB-15 | «Bestehendes Benachrichtigungssystem» (Z. 794) | gebaut, Kanäle E-Mail, Web-Push, Telegram, Push an die Handy-App über den Weiterleitungsdienst; Einstellungen **je Konto**, nicht je Profil (`server/migrations/00016_admin.sql:27-35`); Push immer mit normaler Dringlichkeit (`server/internal/notify/push/push.go:174`) | wird genutzt; neue Ereignisarten sind nötig. Erinnerungen je Profil über Kanäle je Konto: F-3. |
+| AB-16 | «Bestehende Hintergrundjobs» (Z. 1493) | gebaut, aber ein Zeitplan je Jobart, Takt 60 s, Lease 5 min; ungeeignet für sekundengenaue und stundenlange Aufnahmen (Rohbericht A3 Abschnitt 4) | Import, Abgleich, Prüfung, Aufräumen laufen im bestehenden Jobsystem; Aufnahme und Dauerempfang brauchen einen eigenen Dienst im selben Prozess (wie das Radio-Relay), kein zweites Jobsystem (`04-architektur.md`). |
+| AB-17 | «Explizite Freigaben lokaler Quellen gemäss bestehender Sicherheitspolitik» (Z. 1332) | Eine solche Freigabe gibt es nicht. Der Netzwächter sperrt Heimnetz, Loopback, Link-local und Multicast (`server/internal/netguard/netguard.go:48-50`); Webradio F-15 «keine Sender im lokalen Netz» (ADR 0025) | neue, eng gefasste Ausnahme nur für Live-TV (Abschnitt 4, A-3) |
+| AB-18 | «Kinderprofil-Einstellungen» als bestehende Seite (Z. 1578) | keine eigene Seite; Altersgrenze, PIN, Grenzen stehen in der Profilverwaltung des Hauptprofils | Die Live-TV-Schalter erscheinen in der bestehenden Profilverwaltung (`14-oberflaeche.md`). |
+| AB-19 | Mockups mit «echten Senderlogos» (Z. 1601) | öffentliches Repo; keine Senderlogos, Sendungsbilder, echten Senderlisten ins Repo (Leitplanken; Vorbild Konzept 25: Bilder nur lokal) | Im Repo nur neutrale, selbst erzeugte Platzhalter; echte Logos höchstens lokal und ausserhalb von git (`19-mockups.md`). |
+| AB-20 | Commits, Push und Aktualisierung von `CURRENT_STATUS.md` in der Konzeptphase (Z. 2021–2025) | In Konzeptphasen bleibt `docs/dev/CURRENT_STATUS.md` unverändert (Rohbericht A1 7.4; PR #63, #97, #159, #174, #180); er wird mit dem Bau nachgeführt | Der Koordinator committet; `CURRENT_STATUS.md` erst mit dem Bau. |
+
+---
+
+## 3. Marcos Antworten vom 28. November 2026
+
+Wiedergegeben nach den Leitplanken des Koordinators (`LEITPLANKEN.md` Abschnitte 2 bis 4); der genaue Fragetext
+stand im Gespräch mit Marco. Vermerk «gegen die Empfehlung» nur, wo die Leitplanken ihn festhalten oder die
+Empfehlung der Ist-Analyse (A1) nachweislich anders lautete.
+
+| Nr. | Frage | Marcos Wahl | Gegen die Empfehlung? |
+|---|---|---|---|
+| E-1 | Zielprodukt: altes Repo `SlouchCat/server` oder aktuelles Go-Produkt? | **Das Konzept gilt für das aktuelle Go-Produkt.** Abschnitt 5 des Auftrags gilt nur im Sinn (Abschnitt 2, AB-1). | nein |
+| E-2 | Umfang der Mockups | **Mockups für Web, Android TV und Handy-App.** | **ja.** Empfohlen war «Web + TV» (die Handy-App folgt der Web-Ansicht in Handy-Breite). Marco wählte «Web + TV + Handy-App»: jeder Client bekommt sein eigenes Mockup im Geräterahmen. |
+| E-3 | Aufnahmen von Profilen mit Altersgrenze («Kinderprofile») | **Das Hauptprofil des Kontos darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und abspielen.** Aufnahmen von Profilen ohne Altersgrenze bleiben ganz privat (nur das Profil selbst). Der Administrator sieht nie Titel fremder Aufnahmen, nur Belegung je Konto und technische Zustände. | **ja.** Empfohlen war (A1 Q-7 c): Hauptprofil sieht Liste und Grösse und darf löschen, spielt aber nicht ab. Marco erlaubt zusätzlich das Abspielen. |
+| E-4 | Kontingent des Kontos ist voll | **Die neue Aufnahme wird abgelehnt und gemeldet** (an das Profil und an das Hauptprofil); der Planer warnt vorher. **Automatisch gelöscht wird nur, was das Profil selbst eingestellt hat:** Aufbewahrungsfrist und «behalte die letzten N Folgen» einer Serienaufnahme. | nein (entspricht A1 Q-11 «(a) plus (c)») |
+
+**Folge von E-3 für LTV-009:** Der Auftrag sagt «Andere Profile desselben Accounts dürfen diese Aufnahmen nicht
+sehen oder abspielen» (Z. 684). E-3 ist die speziellere, spätere Entscheidung zu genau der Detailfrage, die
+LTV-015 Marco vorlegen liess (Z. 969–971); sie gilt nur für das Hauptprofil und nur für Profile mit
+Altersgrenze. Für alle anderen Profile bleibt Z. 684 wörtlich.
+
+---
+
+## 4. Benannte Ausnahmen von bestehenden Regeln
+
+Jede Ausnahme gilt nur für Live-TV und nur so weit, wie die Spalte «Grenze» sagt. Sie wird erst mit Stufe 0 des
+Baus in Regeln und Spec eingetragen, nicht mit diesem Papier.
+
+| Nr. | Bestehende Regel | Ausnahme für Live-TV | Grenze der Ausnahme | Beleg im Auftrag |
+|---|---|---|---|---|
+| A-1 | **Nicht-Ziel Live-TV und DVR** (`CLAUDE.md` Regel 11; Spec «Non-Goals» `docs/spec/01-anforderungen-v1.md:56-57`; Frage 23) | Live-TV mit Programmzeitschrift, persönlichem Timeshift und Aufnahmen (DVR) von **Fernsehsendern** ist erlaubt. | Webradio bleibt unverändert und ohne Aufnahmen (K16 F-1). Keine Plattform-Streams (YouTube, Twitch), kein DRM und keine Umgehung. Keine weiteren TV-Apps (Fire TV, Apple TV, webOS, Tizen bleiben Nicht-Ziele). Kein eigener Dienst von Slouchcat im Internet für Live-TV. Alles aus der Ausschlussliste (Abschnitt 16) bleibt verboten. | Z. 273–281, LTV-001 |
+| A-2 | **Altersmodell**: ein Profil sieht Inhalte über seiner Altersstufe nirgends (Spec K-3 `:97`), unbekannte Freigabe gilt unter 18 als gesperrt (AN-1, Frage 6), Kinderprofil-Vertragstest (Plan 10.2, `docs/planning/03-plan-v1.md:671-683`) | Live-TV kennt keine Altersregel. Ein Profil mit Altersgrenze sieht Live-TV, wenn das Hauptprofil es freigibt, dann alle Sender des Kontos ohne Prüfung von Sender, Sendung oder Programmdaten. Das gilt auch für die eigenen Aufnahmen dieses Profils. | Gilt **nicht** für Filme, Serien, Hörbücher, Podcasts und andere bisher altersgefilterte Bibliotheken; deren Jugendschutz bleibt unverändert. Live-TV-Sender, -Sendungen und -Aufnahmen erscheinen nie auf der Startseite, in Top Picks, in Sammlungen oder in Downloads der Bibliothek. Der Administrator-Deckel je Konto bleibt verbindlich. | LTV-015, Z. 951–967 |
+| A-3 | **«Nichts im lokalen Netz»** für fremd bestimmte Adressen (ADR 0025 F-15; Netzwächter sperrt privat, Loopback, Link-local, Multicast, `server/internal/netguard/netguard.go:48-50`) | Quellen im Heimnetz sowie UDP, RTP und Multicast sind für Live-TV erlaubt. | Nur Quellen, die **der Administrator** in der Verwaltung einträgt; jede Quelle mit lokalem Ziel braucht eine **ausdrückliche Freigabe je Quelle**. Konten und Profile tragen keine Quellen ein. Die Freigabe gilt nur für die eingetragene Quelle, nicht für Adressen, auf die sie weiterleitet oder verweist (Playlist-, Segment-, Schlüssel-, Logo-, EPG-Bild-URLs); diese prüft der Netzwächter weiter (`12-sicherheit.md`). Radio, Podcasts und Bilder bleiben unverändert. | LTV-003 Z. 439–441; Z. 1331–1333 |
+| A-4 | **ADR 0032 «Dateien löschen nur auf Befehl des Administrators, nichts löscht automatisch»** (auch Spec B-1 Nachtrag `:105`) | Slouchcat löscht Aufnahmen automatisch, wenn das **Profil selbst** eine Aufbewahrungsfrist oder «behalte die letzten N Folgen» einer Serienaufnahme gewählt hat. Timeshift- und Startpuffer-Dateien sind flüchtig und werden beim Senderwechsel, beim Beenden und nach Abstürzen bereinigt. | Keine andere automatische Löschung von Aufnahmen: nicht bei vollem Kontingent (E-4), nicht durch eine Vorgabe des Administrators, die das Profil nicht übernommen hat (F-10 in `03-fachkonzept.md`), nie eine laufende Aufnahme. Bibliotheksdateien bleiben unter ADR 0032. | LTV-008 Z. 643, LTV-019 Z. 1061–1062, E-4 |
+| A-5 | **ADR 0045 «Ein Recht folgt der Altersgrenze»** (Trigger setzen das Wunschrecht unter 18 aus und weisen das Einschalten ab, `server/migrations/00086_wishes_rights_follow_rating.sql:86-120`) | Die drei Live-TV-Rechte sind **nicht** an die Altersgrenze gekoppelt. Das Hauptprofil kann sie für ein Profil mit Altersgrenze einschalten; eine neue oder geänderte Altersgrenze schaltet sie nicht von selbst um. | Gilt nur für «Live-TV», «Aufnahmen», «Timeshift». Das Wunschrecht bleibt unter ADR 0045. Welche Werte ein neues Profil mit Altersgrenze ab Werk hat, regelt `03-fachkonzept.md` (DR-01, F-1). | LTV-015 Z. 953–955, Z. 963 |
+| A-6 | **Privatsphäre des Profilmodells** (Aufnahmen privat je Profil, Z. 684–690) | Das Hauptprofil darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und abspielen. | Nur das Hauptprofil desselben Kontos, nur Profile mit Altersgrenze. Profile ohne Altersgrenze bleiben ganz privat. Andere Konten und der Administrator sehen keine Titel fremder Aufnahmen, nur Belegung je Konto und technische Zustände. | E-3; LTV-015 Z. 969–971 |
+| A-7 | **Medien nur lesend** (Spec B-1, Medien `:ro` eingebunden, `deploy/compose.yaml:36`; Ausnahme bisher nur ADR 0029 für Podcasts) *(von der Redaktion erkannt)* | Slouchcat schreibt Aufnahmen, Timeshift- und Startpuffer-Dateien in eigene, schreibbare Speicherorte. | Nur in ausdrücklich eingerichtete Live-TV-Speicherorte, nur über `paths` (Regel 4), nie in Bibliotheksordner. | LTV-019 Z. 1040–1044 |
+| A-8 | **Kinderprofil-Vertragstest** (Plan 10.2: keine Kennung ohne Freigabe in `scoped`-Antworten) *(von der Redaktion erkannt)* | Sender, Sendungen und Aufnahmen sind keine Titel mit Altersfreigabe; der Test zählt sie nicht als Verstoss. | Der Test bleibt für alle Titel unverändert; Live-TV-Antworten tragen keine `ItemRef` (`08-api.md`). | LTV-015 Z. 965 |
+
+---
+
+## 5. Entwurf für Frage 37 im Entscheidungsprotokoll
+
+Noch **nicht** eingetragen. Wird bei der Freigabe in `docs/planning/04-entscheidungen.md` als eine Zeile
+ergänzt; Platzhalter in spitzen Klammern füllt erst die Freigabe.
+
+> | <Datum der Freigabe> | **Konzept 28 «Live-TV» freigegeben: Internetfernsehen mit Programmzeitschrift,
+> persönlichem Timeshift und privaten Aufnahmen je Profil** (Frage 37, `docs/planning/28-live-tv/`, Fassung <n>;
+> klickbare Mockups `docs/planning/mockups/28-live-tv/` für Web, Android TV und Handy-App; ADR 0046 ff.
+> reserviert). **Ausnahme vom Nicht-Ziel «Live-TV und DVR»** (`01-anforderungen-v1.md` «Non-Goals», Regel 11):
+> Live-TV, EPG, persönliches Timeshift und Aufnahmen von Fernsehsendern; löst für Live-TV und Aufnahmen den
+> Teilsatz «Live-TV und DVR bleiben Nicht-Ziele» aus Frage 23 ab. Webradio bleibt ohne Aufnahmen (K16 F-1).
+> **Grundlage:** Marcos Auftrag vom 28. November 2026 mit 21 verbindlichen Grundsatzentscheiden LTV-001 bis
+> LTV-021 (wörtlich im Anhang des Konzepts). **Von Marco am 28. November 2026 entschieden:** **E-1** das Konzept
+> gilt für das Go-Produkt, Abschnitt 5 des Auftrags nur im Sinn. **E-2** Mockups für Web, Android TV und
+> Handy-App. **E-3** das Hauptprofil darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und
+> abspielen; Aufnahmen von Profilen ohne Altersgrenze bleiben privat; der Administrator sieht keine Titel fremder
+> Aufnahmen (gegen die Empfehlung, die das Abspielen nicht vorsah). **E-4** bei vollem Kontingent wird die neue
+> Aufnahme abgelehnt und gemeldet; automatisch gelöscht wird nur nach der Aufbewahrungsfrist und «behalte N» des
+> Profils. **Benannte Ausnahmen** (Konzept 28, `02-grundsatzentscheide.md` Abschnitt 4): Altersmodell (LTV-015,
+> nicht für Filme, Serien und andere Bibliotheken), Quellen im Heimnetz und Multicast nur vom Administrator mit
+> Freigabe je Quelle, automatisches Löschen nur nach Wahl des Profils (ADR 0032), keine Kopplung an die
+> Altersgrenze (ADR 0045). **Antworten auf F-1 bis F-<n>:** <je eine Zeile, wörtlich>. **Bauauftrag:** <Datum,
+> Umfang>; für jede noch offene Frage gilt die Empfehlung des Papiers. | Live-TV und DVR waren Nicht-Ziele; die
+> Ausnahmen und Regeländerungen kommen mit Stufe 0 des Baus. Gebaut wird in Stufen nach
+> `18-umsetzungsplan.md`. | Spec Non-Goals, Plan, `CLAUDE.md` Regel 11, ADR 0025, ADR 0032, ADR 0045,
+> `api/openapi.yaml`
