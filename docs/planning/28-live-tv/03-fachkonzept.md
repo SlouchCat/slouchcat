@@ -1,6 +1,6 @@
 # Konzept 28 · Fachkonzept Live-TV
 
-Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+Stand: 29. November 2026 · Fassung 3 · Status: Entwurf nach Gesamtreview, nicht freigegeben
 
 > **Kurz gesagt.** Diese Datei ist die vollständige Fachspezifikation für Live-TV in Slouchcat. Sie macht aus
 > jeder Aufzählungszeile und jedem verbindlichen Satz der Abschnitte 6 bis 17 des Auftrags genau eine prüfbare
@@ -11,7 +11,7 @@ Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, 
 Dieses Papier ändert keine Zeile Code und keine Regel. **Status jeder Anforderung in dieser Datei:
 «spezifiziert».** Nichts davon ist gebaut. Technische Lösungen legt diese Datei nicht fest; sie verweist auf
 `04-architektur.md` bis `13-ressourcen-und-performance.md`. Die Grundsatzentscheide, die Abweichungen des
-Auftrags vom Repo, Marcos Antworten E-1 bis E-4 und die benannten Ausnahmen A-1 bis A-9 stehen in
+Auftrags vom Repo, Marcos Antworten E-1 bis E-4 und die benannten Ausnahmen A-1 bis A-13 stehen in
 `02-grundsatzentscheide.md`. Zahlenwerte (Fristen, Grenzen, Vorgaben) nennt diese Datei nur als Fachregel;
 massgeblich für jede Zahl ist `04-architektur.md` Abschnitt 14 «Massgebliche Werte». Was sich gegenüber Fassung 1
 geändert hat, steht am Ende («Änderungen gegenüber der vorigen Fassung»).
@@ -25,6 +25,15 @@ Abschnitt 16). `DR-nn` ist eine fachliche Detailregel dieser Datei (Abschnitt 5)
 (Abschnitt 6). Abnahmekriterien (`AK-L-nnn`) stehen in `17-test-und-abnahme.md`, die Rückverfolgung in
 `22-anforderungsmatrix.md`.
 
+**Was ohne Marcos Antwort gilt (Grundregel).** Solange Marco eine Frage nicht beantwortet hat, gilt die
+**wortlauttreue Vorgabe**, also das, was sein Auftrag wörtlich verlangt; bei Sicherheitsfragen die sichere
+Variante. Die Empfehlung gilt erst mit seiner Antwort. Eine Freigabe des Konzepts «ohne Einzelantworten» setzt die
+Vorgaben in Kraft, nicht die Empfehlungen. Jede Frage in Abschnitt 6 nennt ihre Vorgabe.
+
+**Zwei Arten Freigabe.** «Konzept freigegeben» heisst: Marco hat das Konzept angenommen. «Baufreigabe einer Stufe»
+heisst: Marco hat den Bau genau dieser Stufe beauftragt. Live-TV ist kein Nicht-Ziel mehr (Frage 37, Regel 11),
+aber gebaut wird je Stufe erst nach Marcos ausdrücklicher Baufreigabe.
+
 **Spalte «Z.»** nennt die Zeile in `anhang/auftrag-2026-11-28.md`. Jede Aufzählungszeile der Abschnitte 6 bis 17
 kommt genau einmal vor; verbindliche Sätze ausserhalb von Aufzählungen ebenfalls. Die Tabelle in Abschnitt 1 von
 `02-grundsatzentscheide.md` deckt das Register (Abschnitt 6 des Auftrags, Z. 340–360) ab.
@@ -37,7 +46,7 @@ und ist erst mit der zweiten ganz erfüllt.
 |---|---|
 | K | Konzeptphase: Der Nachweis ist dieses Konzept selbst (Dokument oder Mockup); keine Baustufe. |
 | V | Vor dem Bau: Fragen an Marco und Messversuche vor der Baufreigabe (`18` Abschnitt 2). |
-| 0 | Regeln und Grundlagen: Ausnahmen A-1 bis A-9 in Regeln und Spec, Schutz von Zugangsdaten in Logs, Härtung der Compose-Datei. Keine Funktion für Zuschauer. |
+| 0 | Regeln und Grundlagen: Ausnahmen A-1 bis A-13 in Regeln und Spec, Schutz von Zugangsdaten in Logs, Härtung der Compose-Datei. Keine Funktion für Zuschauer. |
 | 1a | Sender schauen: Quellen über HTTP(S), HLS mit TS und MPEG-TS aus M3U-Datei, M3U-Adresse, Einzel-URL und Xtream-Live, nur öffentliche Ziele; Empfang bei Bedarf; ein Eingang je Sender; Original, Umpacken, Umwandlung je Zuschauer; Player ohne Timeshift; Rechte «Live-TV»; Import mit stabiler Identität, Aktualisierung von Hand; Senderverwaltung (Grundteil); Senderübersicht, Favoriten, zuletzt gesehen; Grundüberwachung. |
 | 1b | Senderverwaltung erweitert: Zusammenführen und Duplikate, eigene Gruppen, Massenbearbeitung, Kanalnummern und Sortierung, Logo-Upload, automatische Aktualisierung nach Zeitplan, Importbericht mit zurückgehaltener Liste. |
 | 2 | Programmzeitschrift: XMLTV, Zuordnung, Zeitraster, Sendungsdetails, Programmsuche, Live-TV-Startseite, Erinnerungen. |
@@ -80,8 +89,11 @@ umschalten, eine Programmzeitschrift zeigen, live pausieren und Sendungen privat
   erscheinen nicht auf der Slouchcat-Startseite, nicht in Top Picks, Sammlungen, Merkliste oder Downloads der
   Bibliothek (festgelegte Auslegung; Aufnahmen nur in «Meine Aufnahmen» des Profils).
 - **Webradio bleibt unverändert** und ohne Aufnahmen.
-- Kein Download und kein Offline-Abspielen von Aufnahmen in Konzept 28 (festgelegte Auslegung).
-- Keine Plattform-Streams (YouTube, Twitch), kein DRM und keine Umgehung.
+- Kein Download und kein Offline-Abspielen von Aufnahmen: Der Auftrag verlangt es nicht, Konzept 28 plant es nicht
+  (Auslegung des Koordinators, kein Ausschluss durch Marco; `02` Abschnitt 3.1).
+- Kein DRM und keine Umgehung (LTV-003). Plattform-Streams (YouTube, Twitch) sind keine IPTV-Quellen im Sinn von
+  LTV-003 und werden nicht eigens unterstützt; das ist eine Auslegung des Koordinators, die Marco bestätigen soll
+  (`02` Abschnitt 3.1).
 - Was ausdrücklich nicht dazugehört: Abschnitt 7.
 
 ### 1.3 Begriffe
@@ -176,10 +188,11 @@ Server mit **404, nie 403**. Ein deaktivierter Sender, eine fremde Aufnahme und 
 |---|---|---|
 | «Live-TV» (Konto oder Profil) | Laufende Wiedergaben des betroffenen Profils enden; der Player zeigt eine verständliche Meldung. Ziel: Wiedergabe spätestens 10 Sekunden nach dem Entzug weg (Annahme, `04` 14.4); gemessen in `17-test-und-abnahme.md` (Ablauf 15 in `06-ablaeufe.md`). | Bereich unsichtbar (404). Timeshift und Aufnahmen wirken nicht mehr (setzen Live-TV voraus); für Planungen und Aufnahmen gilt dann die Zeile «Aufnahmen». |
 | «Timeshift» | Der persönliche Puffer wird gelöscht; die Wiedergabe springt auf Live und läuft ohne Pause weiter. | Pause, Spulen und Sprung zu Live sind ausgeblendet. |
-| «Aufnahmen» | Was mit einer laufenden Aufnahme geschieht: F-7. | Vorhandene Aufnahmen sind für das Profil 404 und **bleiben** gespeichert und im Kontingent, bis das Recht zurückkommt oder gelöscht wird; was mit geplanten Aufnahmen geschieht: F-7. Das Hauptprofil kann Aufnahmen von Profilen mit Altersgrenze weiter löschen (DR-03). |
-| Profil bekommt eine Altersgrenze | Nichts ändert sich von selbst (A-5). | Ob das Hauptprofil danach auch die **älteren** Aufnahmen dieses Profils sieht, ist `04` F-10; bis zur Antwort gilt dort die Empfehlung (b): Es sieht nur Aufnahmen, die angelegt wurden, als das Profil schon eine Altersgrenze hatte (DR-02). |
-| Profil verliert die Altersgrenze | Nichts ändert sich von selbst (A-5). | Aufnahmen, die vorher mit Altersgrenze angelegt wurden, bleiben nach `04` F-10 (b) für das Hauptprofil sichtbar; neue sind privat. |
-| Sender wird deaktiviert | Laufende Wiedergaben laufen weiter, bis der Zuschauer geht; laufende Aufnahmen bis zu ihrem Ende. Nur der ausdrückliche Befehl «sofort beenden» des Administrators beendet beides (`04` T-29). | Für alles Neue unsichtbar (DR-16). |
+| «Aufnahmen» | Was mit einer laufenden Aufnahme geschieht: F-7. | Vorhandene Aufnahmen sind für das Profil 404 und **bleiben** gespeichert und im Kontingent, bis das Recht zurückkommt oder gelöscht wird; was mit geplanten Aufnahmen geschieht: F-7. Ob das Hauptprofil Aufnahmen seiner Profile mit Altersgrenze weiter löschen kann: DR-03. |
+| Profil bekommt eine Altersgrenze | Nichts ändert sich von selbst (A-5). | Das Hauptprofil sieht nur Aufnahmen, die angelegt wurden, als das Profil schon eine Altersgrenze hatte, und nur, solange es noch eine hat (Vorgabe von `20` E-28-07 Teil A (b), `07` 4.3; DR-02). Ältere Aufnahmen bleiben privat. |
+| Profil verliert die Altersgrenze | Nichts ändert sich von selbst (A-5). | Alle Aufnahmen des Profils werden privat, auch die, die mit Altersgrenze entstanden (Vorgabe `20` E-28-07 Teil A (b)). |
+| Sender wird deaktiviert | Laufende Wiedergaben laufen weiter, bis der Zuschauer geht, **höchstens 12 Stunden** (das Token wird für einen deaktivierten Sender nicht erneuert); laufende Aufnahmen bis zu ihrem Ende, eine Sofortaufnahme höchstens bis zu ihrer Höchstdauer. Nur der ausdrückliche Befehl «sofort beenden» des Administrators beendet beides sofort (`04` T-29). Deaktivieren ist kein Sicherheitsmittel. | Für alles Neue unsichtbar (DR-16). |
+| Quelle entfernt oder geändert (Adresse, Zugangsdaten, Ursprünge, feste Ziele) | Alle Empfänger der Quelle enden innert 5 Sekunden nach der Bestätigung; Zuschauer sehen «Sender nicht verfügbar», Aufnahmen bekommen eine Lücke und wechseln, wo möglich, auf eine Ersatzquelle, sonst «unvollständig» (`04` T-29). | Ein Empfänger verbindet nie mit einem Regelstand, der nicht mehr gilt. |
 
 ---
 
@@ -213,13 +226,13 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
-| LTV-002.01 | 393–395 | Ein Sender mit Strategie «permanent» wird rund um die Uhr empfangen, auch ohne Zuschauer und ohne Aufnahme. | 3 | 05 | T |
+| LTV-002.01 | 393–395 | Ein Sender mit Strategie «permanent» wird rund um die Uhr empfangen, auch ohne Zuschauer und ohne Aufnahme. Er weicht auch bei Mangel keinem neuen Zuschauer, keiner neuen Aufnahme und keinem Vorladen (DR-28). | 3 | 05 | T |
 | LTV-002.02 | 397–399 | Mit Strategie «automatisch» hält Slouchcat häufig genutzte Sender nach Nutzung und freien Mitteln bereit und gibt sie bei Mangel zuerst frei. | 3 | 05 | T |
 | LTV-002.03 | 401–403 | Mit Strategie «bei Bedarf» startet Slouchcat den Empfang erst, wenn ein Profil den Sender wählt oder eine Aufnahme ihn braucht. | 1a | 05 | T |
-| LTV-002.04 | 405–407 | Mit Strategie «zeitgesteuert» empfängt Slouchcat den Sender nach einem Zeitplan, den der Administrator festlegt. | 3 | 05 | T |
+| LTV-002.04 | 405–407 | Mit Strategie «zeitgesteuert» empfängt Slouchcat den Sender nach einem Zeitplan, den der Administrator festlegt. In seinem Fenster gilt er wie ein dauerhaft empfangener Sender (DR-28). | 3 | 05 | T |
 | LTV-002.05 | 411 | Der Administrator legt eine globale Standardstrategie fest, die für jeden Sender ohne eigene Strategie gilt. | 3 | 15 | T |
 | LTV-002.06 | 412 | Der Administrator kann je Sender eine eigene Strategie wählen, die der globalen vorgeht. | 3 | 15 | T |
-| LTV-002.07 | 413 | Slouchcat lädt benachbarte Sender (nach Kanalnummer) vor, wenn die Mittel reichen (LTV-010). | 3 | 05 | T |
+| LTV-002.07 | 413 | Slouchcat lädt benachbarte Sender (nach Kanalnummer) vor, wenn die Mittel reichen (LTV-010). Vorladen wird nur global und je Sender gesteuert, nie je Quelle (DR-29). | 3 | 05 | T |
 | LTV-002.08 | 414 | Slouchcat startet den Empfang für eine geplante Aufnahme selbst und rechtzeitig vor dem Vorlauf. | 5 | 11 | T |
 | LTV-002.09 | 415 | Slouchcat beendet einen Eingangsstrom, den kein Zuschauer, keine Aufnahme, keine Strategie und kein Vorladen mehr braucht, nach einer kurzen Frist (Karenz nach Sitzungsende durch den Zuschauer, Vorgabe 30 Sekunden; sonst sofort; Werte `04` 14.1). | 1a | 05 | T |
 | LTV-002.10 | 416 | Slouchcat beendet nie einen Eingangsstrom, solange eine Wiedergabe ihn nutzt, auch nicht zugunsten von Vorladen oder automatischem Empfang. | 1a | 05 | T |
@@ -244,7 +257,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-003.11 | 436 | Slouchcat bezieht Live-Sender (nur Live) über eine Xtream-Codes-kompatible Schnittstelle. | 1a | 09 | T |
 | LTV-003.12 | 437 | Slouchcat empfängt RTSP-Ströme. | L | 05 | T |
 | LTV-003.13 | 438 | Slouchcat empfängt RTMP-Ströme. | L | 05 | T |
-| LTV-003.14 | 439 | Slouchcat empfängt UDP-Ströme an festen Zielen der Quelle (A-3; veröffentlichte UDP-Ports A-9). | H | 05 | T |
+| LTV-003.14 | 439 | Slouchcat empfängt UDP-Ströme an festen Zielen der Quelle (A-3: ab Werk eine Adresse mit einem Port; veröffentlichte UDP-Ports A-9). | H | 05 | T |
 | LTV-003.15 | 440 | Slouchcat empfängt RTP-Ströme an festen Zielen der Quelle (A-3, A-9). | H | 05 | T |
 | LTV-003.16 | 441 | Slouchcat empfängt Multicast-Ströme an festen Zielen der Quelle (A-3; Netzmodus «host» oder eigenes Netz nach `04` F-11, A-9). | H | 05 | T |
 | LTV-003.17 | 442 | Slouchcat empfängt Ströme, die eine Anmeldung verlangen (Benutzer und Passwort oder Token), mit sicher gespeicherten Zugangsdaten (LTV-017.02). | 1a | 12 | T |
@@ -280,7 +293,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-004.06 | 482 | Eine zusätzliche Aufnahme desselben Senders öffnet möglichst keine weitere Eingangsverbindung. | 5 | 17 | T |
 | LTV-004.07 | 484 | Jeder Zuschauer hat eine eigene, unabhängige Wiedergabesitzung. | 1a | 05 | T |
 | LTV-004.08 | 486 | Passen Originalqualität und Format zum Gerät, rechnet Slouchcat Bild und Ton nicht neu. | 1a | 05 | T |
-| LTV-004.09 | 488 | Braucht ein Zuschauer eine Umwandlung, bekommt er einen eigenen Umwandlungsprozess. | 1a | 05 | T |
+| LTV-004.09 | 488 | Braucht ein Zuschauer eine Umwandlung, bekommt er einen eigenen Umwandlungsprozess, aber nur mit wirksamer Eindämmung von FFmpeg (DR-30). | 1a | 05 | T |
 | LTV-004.10 | 492 | Slouchcat gibt den Strom in Originalform weiter, wenn das Gerät ihn kann. | 1a | 05 | T |
 | LTV-004.11 | 493 | Slouchcat packt den Strom verlustfrei um (Remux), wenn nur der Container nicht passt. | 1a | 05 | T |
 | LTV-004.12 | 494 | Slouchcat wandelt das Bild je Zuschauer um, wenn Gerät oder Grenze es verlangen. | 1a | 05 | T |
@@ -288,7 +301,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-004.14 | 496 | Jeder Zuschauer kann innerhalb seiner Grenzen eine eigene Auflösung bekommen. | 1a | 05 | T |
 | LTV-004.15 | 497 | Jeder Zuschauer kann innerhalb seiner Grenzen eine eigene Bitrate bekommen. | 1a | 05 | T |
 | LTV-004.16 | 498 | Jeder Zuschauer wählt seine Tonspur selbst, ohne andere Zuschauer zu beeinflussen. | 1a | 05 | T |
-| LTV-004.17 | 499 | Jeder Zuschauer wählt seine Untertitelspur selbst, ohne andere Zuschauer zu beeinflussen; in 1a für Clients, die DVB-Untertitel zeichnen (Media3), im Browser erst mit WebVTT (Stufe E). | 1a; E | 05 | T |
+| LTV-004.17 | 499 | Jeder Zuschauer wählt seine Untertitelspur selbst, ohne andere Zuschauer zu beeinflussen. Stand je Client (`04` 7.4): Handy- und TV-App ab 1a mit Spurwahl, soweit Media3 das Format liest (Untertitel im Bildstrom belegt, DVB-Untertitel zu messen, M-24); Browser bis Stufe E **keine** wählbaren Untertitel; Teletext-Untertitel bis Stufe E in **keinem** Client. Bis Stufe E ist die Anforderung damit nur teilweise erfüllt; Zeitpunkt ist eine Frage an Marco (`20` E-28-56, Vorgabe: Untertitel gehören zum Umfang, bis Stufe E «nicht erfüllt»). | 1a; E | 05 | T |
 | LTV-004.18 | 500 | Slouchcat nutzt für Umwandlungen die bestehende Hardwarebeschleunigung. | 1a | 05 | T |
 | LTV-004.19 | 501 | Ohne verfügbare Hardware fällt Slouchcat wie heute auf Software zurück, gemäss der bestehenden Konfiguration. | 1a | 05 | T |
 | LTV-004.20 | 502 | Live-TV hält die bestehenden Konto- und Ressourcenlimits ein (Ströme, Bandbreite, Auflösung, Budget der Umwandlungen; DR-12). | 1a | 13 | T |
@@ -456,7 +469,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-010.03 | 703 | Die Player starten Live-Ströme mit optimierten Einstellungen für einen schnellen Start. | 1a; 3 | 05 | M |
 | LTV-010.04 | 704 | Slouchcat hält je empfangenem Sender einen kleinen technischen Startpuffer. | 3 | 05 | T |
 | LTV-010.05 | 705 | Slouchcat lädt benachbarte Sender vor (wie LTV-002.07). | 3 | 05 | T |
-| LTV-010.06 | 706 | Slouchcat lädt häufig genutzte Sender vor. | 3 | 05 | T |
+| LTV-010.06 | 706 | Slouchcat lädt häufig genutzte Sender vor (global und je Sender gesteuert, DR-29). | 3 | 05 | T |
 | LTV-010.07 | 707 | Slouchcat berücksichtigt beim Vorladen die Senderfavoriten der aktiven Zuschauer. | 3 | 05 | T |
 | LTV-010.08 | 708 | Slouchcat gibt vorgeladene Ströme frei, wenn sie nicht mehr gebraucht werden (wie LTV-002.09). | 3 | 05 | T |
 | LTV-010.09 | 709 | Die Grösse der Startpuffer ist auf schnellen Start bei geringem Speicher abgestimmt. | 3 | 05 | M |
@@ -615,7 +628,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-014.49 | 903 | Der Player zeigt aktuelle und kommende Sendung. | 2 | 14 | T |
 | LTV-014.50 | 904 | Im Player lässt sich eine Aufnahme starten (mit Recht «Aufnahmen»). | 5 | 14 | T |
 | LTV-014.51 | 905 | Im Player lässt sich die Tonspur wählen. | 1a | 14 | T |
-| LTV-014.52 | 906 | Im Player lässt sich die Untertitelspur wählen (Browser ab Stufe E, wie LTV-004.17). | 1a; E | 14 | T |
+| LTV-014.52 | 906 | Im Player lässt sich die Untertitelspur wählen; Stand je Client und Stufe wie LTV-004.17 (Browser erst ab Stufe E, Teletext erst ab Stufe E). | 1a; E | 14 | T |
 | LTV-014.53 | 907 | Im Player lässt sich die Qualität wählen, innerhalb der Grenzen. | 1a | 14 | T |
 | LTV-014.54 | 908 | Der Player hat einen Vollbildmodus. | 1a | 14 | T |
 | LTV-014.55 | 909 | Der Player zeigt verständliche Ladezustände. | 1a | 14 | S |
@@ -642,12 +655,13 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-014.74 | 935 | Die Oberfläche ist modern, ruhig, übersichtlich und konsistent mit dem bestehenden Design. | 1a | 19 | S |
 | *Clients* | | | | | |
 | LTV-014.75 | 939 | Live-TV läuft in der Web-App am Desktop. | 1a | 16 | T |
-| LTV-014.76 | 940 | Live-TV läuft auf dem Smartphone (Web-App und Handy-App, F-6). | 1a; Apps | 16 | T |
-| LTV-014.77 | 941 | Live-TV läuft auf dem Tablet (Web-App und Handy-App, F-6). | 1a; Apps | 16 | T |
+| LTV-014.76 | 940 | Live-TV läuft auf dem Smartphone (Web-App und Handy-App, F-6). Safari auf dem iPhone ist vorgesehen wie die übrigen Browser, aber ungeprüft, solange kein Gerät da ist (`20` E-28-12). | 1a; Apps | 16 | T |
+| LTV-014.77 | 941 | Live-TV läuft auf dem Tablet (Web-App und Handy-App, F-6). Safari auf dem iPad ist vorgesehen, aber ungeprüft, solange kein Gerät da ist (`20` E-28-12). | 1a; Apps | 16 | T |
 | LTV-014.78 | 942 | Live-TV läuft in der Android-TV-App (F-6). | Apps | 16 | T |
 | LTV-014.79 | 943 | Live-TV läuft auf Google-TV-Geräten über die Android-TV-App (F-6). | Apps | 16 | T |
-| LTV-014.X-01 | 944 | Nicht dabei: Fire TV (Nicht-Ziel des Repos, AB-3). | – | 02 | S |
+| LTV-014.X-01 | – | *entfällt (Gesamtreview RG-08):* Fassung 1 und 2 führten Z. 944 hier als Ausschluss «Fire TV». Z. 944 ist jetzt LTV-014.82. | – | – | – |
 | LTV-014.80 | 945 | Weitere bestehende Clients sind berücksichtigt; geplante weitere Clients gibt es nicht (Apple TV, webOS, Tizen, iOS sind Nicht-Ziele). | K | 16 | S |
+| LTV-014.82 | 944 | Slouchcat berücksichtigt Fire TV: Das Konzept prüft, ob die Android-TV-App auf Fire OS läuft, und zeigt, was dafür nötig wäre; einen eigenen Fire-TV-Client und eine Zusage gibt es nicht. Das Repo führt Fire TV bisher als Nicht-Ziel; ob der Auftrag das ändert, ist eine Auslegung, die Marco bestätigen soll (`02` Abschnitt 3.1). | K | 16 | S |
 | LTV-014.81 | 947 | Live-TV erfindet kein neues Designsystem. | 1a | 14 | S |
 
 ### LTV-015 Kinderprofile und Jugendschutz
@@ -683,7 +697,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
-| LTV-017.X-01 | 987 | Nicht dabei: eine Verwaltung von Verbindungslimits je IPTV-Anbieter, auch kein vom Administrator eingetragenes Limit je Quelle. | – | – | S |
+| LTV-017.X-01 | 987 | Nicht dabei: eine Verwaltung von Verbindungslimits je IPTV-Anbieter, auch kein vom Administrator eingetragenes Limit je Quelle. Auch kein Schalter «Vorladen» je Quelle (DR-29). | – | – | S |
 | LTV-017.X-02 | 991 | Nicht dabei: anbieterbezogene Verbindungskontingente. | – | – | S |
 | LTV-017.X-03 | 992 | Nicht dabei: Abonnementverwaltung. | – | – | S |
 | LTV-017.X-04 | 993 | Nicht dabei: Abonnementlaufzeiten. | – | – | S |
@@ -798,7 +812,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-021.12 | 1130 | Konzept 28 enthält die Änderungen an bestehenden Spezifikationen. | K | 21 | S |
 | LTV-021.13 | 1131 | Konzept 28 enthält eine Entwicklungsroadmap. | K | 18 | S |
 | LTV-021.14 | 1132 | Konzept 28 enthält Abnahmekriterien. | K | 17 | S |
-| LTV-021.15 | 1134 | Vor Marcos ausdrücklicher Freigabe entsteht kein Produktivcode. | K | – | S |
+| LTV-021.15 | 1134 | Vor Marcos ausdrücklicher Baufreigabe einer Stufe entsteht für diese Stufe kein Produktivcode. | K | – | S |
 
 ---
 
@@ -960,7 +974,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 | LTV-Q-10.07 | 1329 | Die Prüfung gilt für IPv4. | 1a | 12 | T |
 | LTV-Q-10.08 | 1330 | Die Prüfung gilt für IPv6. | 1a | 12 | T |
 | LTV-Q-10.09 | 1331 | Interne Netze sind nur über eine freigegebene Quelle erreichbar (A-3). | H | 12 | T |
-| LTV-Q-10.10 | 1332 | Lokale Quellen brauchen eine ausdrückliche Freigabe des Administrators je Quelle (AB-17). | H | 12 | T |
+| LTV-Q-10.10 | 1332 | Lokale Quellen brauchen eine ausdrückliche Freigabe des Administrators je Quelle als feste Ziele: ab Werk je Eintrag eine Adresse mit einem Port; ein kleines Netz (höchstens 16 Adressen) oder bis 16 Ports nur mit zweiter Bestätigung und nie mit dem Gateway (A-3, `12` 4.5). | H | 12 | T |
 | LTV-Q-10.11 | 1333 | Risiken von Multicast und UDP sind behandelt (Netzmodus des Containers, fremde Gruppen). | H | 12 | S |
 | LTV-Q-10.12 | 1334 | Verschachtelte HLS- und DASH-Manifeste werden in jeder Stufe geprüft. | 1a | 12 | T |
 | LTV-Q-10.13 | 1335 | Segment-Adressen werden geprüft. | 1a | 12 | T |
@@ -1013,7 +1027,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 | LTV-Q-10.60 | 1398 | Die bestehenden Kontogrenzen gelten. | 1a | 12 | T |
 | LTV-Q-10.61 | 1399 | Alle Freigaben werden im Server durchgesetzt. | 1a | 12 | T |
 | LTV-Q-10.62 | 1400 | Unsichtbare Inhalte liefern 404. | 1a | 12 | T |
-| LTV-Q-10.63 | 1402 | Alle bestehenden Sicherheitsanforderungen gelten weiter, ausser den benannten Ausnahmen A-1 bis A-9. | 0 | 12 | S |
+| LTV-Q-10.63 | 1402 | Alle bestehenden Sicherheitsanforderungen gelten weiter, ausser den benannten Ausnahmen A-1 bis A-13. | 0 | 12 | S |
 | LTV-Q-10.64 | 1404 | Kein Sicherheitsmechanismus wird stillschweigend gelockert. | K | 12 | S |
 | LTV-Q-10.65 | 1406 | Das Sicherheitskonzept wird unabhängig geprüft. | K | 23 | S |
 
@@ -1340,8 +1354,8 @@ der Bau übernimmt, solange Marco nichts anderes sagt) oder **offen** (Frage F-n
 | Nr. | Regel | Einordnung |
 |---|---|---|
 | DR-01 | **Werkseinstellung für Profile mit Altersgrenze** (DR-25): Ein neues Profil mit Altersgrenze hat alle drei Schalter aus. Das Hauptprofil schaltet sie einzeln ein (LTV-015 «ausdrücklich»). Eine später gesetzte oder geänderte Altersgrenze schaltet nichts um (A-5). Die Werkseinstellung für Konten und Profile ohne Altersgrenze und der Bestand bei Einführung sind F-1. | Empfehlung (Profile mit Altersgrenze); offen F-1 (übrige) |
-| DR-02 | **Wer sieht die Aufnahme eines Profils mit Altersgrenze:** das Profil selbst (sehen, abspielen, löschen, planen) und das Hauptprofil des Kontos (sehen, abspielen, löschen; nicht ändern, nicht stoppen). Ob die Aufnahme dazugehört, entscheidet ein Merkmal, das sie beim Anlegen bekommt: «Profil hatte eine Altersgrenze» (DR-25); eine spätere Änderung der Grenze ändert das Merkmal nicht (`04` F-10, Empfehlung b, bis zur Antwort so). Das Hauptprofil sieht sie in einem eigenen Bereich «Aufnahmen meiner Profile» der Profilverwaltung, nicht vermischt mit seinen eigenen Aufnahmen. Niemand sonst sieht sie; die Suche der Bibliothek, Startseite, Sammlungen und Downloads zeigen sie nie. Der Administrator sieht nur die Belegung des Kontos. Welche Knöpfe eine Aufnahme zeigt, meldet der Server (Regel 12). | festgelegt (E-3); Merkmal beim Anlegen: offen `04` F-10; Ort in der Oberfläche: Empfehlung |
-| DR-03 | **Löschen durch das Hauptprofil** geht auch dann, wenn das Recht «Aufnahmen» des Profils oder des Kontos aus ist, damit das Kontingent frei gemacht werden kann. **Abspielen durch das Hauptprofil** setzt voraus, dass beim Hauptprofil selbst «Live-TV» wirksam ist. | Annahme |
+| DR-02 | **Wer sieht die Aufnahme eines Profils mit Altersgrenze:** das Profil selbst (sehen, abspielen, löschen, planen) und das Hauptprofil des Kontos (sehen, abspielen, löschen; nicht ändern, nicht stoppen). Ob eine Aufnahme dazugehört, entscheidet die **Vorgabe von `20` E-28-07 Teil A (b)**: Die Aufnahme entstand, als ihr Profil eine Altersgrenze hatte (Merkmal beim Anlegen), **und** das Profil hat heute noch eine; wer die Grenze verliert, wird für alle Aufnahmen privat (`07` 4.3). Als Altersgrenze zählt die wirksame Grenze nach DR-25. Ausser den Aufnahmen sieht das Hauptprofil die geplanten Aufnahmen des Profils nur als Zahl (Vorgabe `20` E-28-43). Das Hauptprofil sieht sie in einem eigenen Bereich «Aufnahmen meiner Profile» der Profilverwaltung, nicht vermischt mit seinen eigenen Aufnahmen. Niemand sonst sieht sie; die Suche der Bibliothek, Startseite, Sammlungen und Downloads zeigen sie nie. Der Administrator sieht nur die Belegung des Kontos. Welche Knöpfe eine Aufnahme zeigt, meldet der Server (Regel 12). **Restrisiko:** Gegen das Hauptprofil schützt die Aufnahmen eines Profils ohne Altersgrenze nur dessen PIN, und das Hauptprofil kann jede PIN ersetzen (gebaut; `12` R-12, Frage `12` F-5). | festgelegt (E-3); Zeitpunkt und Umfang: Vorgabe `20` E-28-07, E-28-43; Ort in der Oberfläche: Empfehlung |
+| DR-03 | **Hauptprofil und eigenes Recht:** Sehen, Abspielen und Löschen der Aufnahmen seiner Profile mit Altersgrenze setzt voraus, dass beim Hauptprofil selbst «Live-TV» wirksam ist (Konto und Hauptprofil). Ist es das nicht, ist auch für das Hauptprofil alles unsichtbar (404), und Platz wird erst frei, wenn das Recht zurückkommt (**Vorgabe `20` E-28-42 (b)**, wortlauttreu zu «ohne Recht unsichtbar»). Mit der Antwort (a) dürfte das Hauptprofil ohne eigenes Live-TV die Liste sehen und löschen, nicht abspielen; das ist dann die benannte Ausnahme A-12 (`02`). Ist nur das Recht «Aufnahmen» des Profils oder Kontos aus, kann das Hauptprofil mit eigenem Live-TV weiter sehen und löschen. | Vorgabe `20` E-28-42 (b); Empfehlung (a) |
 | DR-04 | **Profil oder Konto gelöscht:** Aufnahmen, Planungen, Serienregeln, Favoriten, Erinnerungen und Fortschritt des Profils werden mitgelöscht. Der bestehende Löschdialog nennt Zahl und Grösse der Aufnahmen. Laufende Aufnahmen des Profils enden vorher. | Empfehlung (aus A1 Q-7 e) |
 | DR-05 | **Meldungen bei PIN-Profilen:** Eine Meldung über externe Kanäle (E-Mail, Push, Telegram) für ein Profil mit PIN nennt keinen Sendungs- oder Sendertitel, sondern nur «Eine Aufnahme ist fertig» bzw. «Eine Sendung beginnt gleich» mit Profilname; der Link führt in den Live-TV-Bereich, den die PIN schützt. Das ist die Regel aus Konzept 25 F-15. | Empfehlung |
 | DR-25 | **Eine Definition «Profil mit Altersgrenze»** für alle Stellen dieses Konzepts (Werkseinstellung DR-01, Einsicht des Hauptprofils DR-02, Meldungen DR-06, Sichtbarkeit A-2, A-6): ein Profil, dessen **wirksame** Altersgrenze unter 18 liegt, also der kleinere Wert aus der Grenze des Profils und der Grenze seines Kontos (wie ADR 0045 rechnet; Leitplanken «jedes Profil mit Altersgrenze unter 18»). Einen Profiltyp «Kinderprofil» gibt es nicht. Ob die Grenze des Kontos mitzählt, fragt `07` F-1; bis zur Antwort gilt diese Definition, auch in `07` (`owner_age_limited`). | festgelegt (Leitplanken); Kontogrenze: offen `07` F-1 |
@@ -1359,7 +1373,7 @@ der Bau übernimmt, solange Marco nichts anderes sagt) oder **offen** (Frage F-n
 |---|---|---|
 | DR-07 | **Höchstdauer:** ab Werk 60 Minuten je Zuschauer, wählbar 15, 30, 60, 120 oder 240 Minuten (LTV-007.10). Dazu ein Deckel über alle Puffer des Speicherorts, ab Werk der kleinere Wert aus 20 % des beim Einrichten freien Platzes und 50 GB. Ist er erreicht, kürzt Slouchcat den grössten Puffer von hinten (den ältesten Teil), aber keinen unter 5 Minuten; reicht das nicht, bekommen neue Sitzungen keinen Puffer und sehen nur Live. Ist der eigene Puffer voll, fällt sein ältester Teil weg; Live läuft weiter. Werte: `04` 14.6. | Vorgabe (60 min, `04` 14.6); Deckel und Kürzen: Annahme (`04` 10.10, M-14) |
 | DR-22 | **Timeshift und Aufnahmen setzen Live-TV voraus.** Ohne wirksames Recht «Timeshift» zeigt der Player keine Pause, und der **Server** hält für die Sitzung nur das kleine Fenster, das der Player zum Abspielen braucht (drei neueste Segmente, `04` 14.4); ältere Segmente sind 404. So ist das Recht im Server durchgesetzt, nicht nur in der Oberfläche (Regel 12). | Annahme; Fenster: Vorgabe (`04` T-10) |
-| DR-26 | **Hintergrund und Bildschirm aus** (Handy- und TV-App): Geht die App in den Hintergrund oder der Bildschirm aus, hält der Player an und die App beendet die Sitzung; spätestens endet sie nach 60 Sekunden ohne Herzschlag. Eine kurze Unterbrechung unter 60 Sekunden übersteht die Sitzung. Danach stellt die App neu ein; ein Timeshift-Puffer geht verloren. Ton im Hintergrund gibt es für Live-TV nicht (das wäre Radio), Bild-in-Bild des Systems schliesst LTV-016 aus. Offen sind der Browser-Tab im Hintergrund und die Bildübertragung auf ein anderes Gerät (`04` O-25, M-3, M-5). | festgelegt (`04` 10.3) |
+| DR-26 | **Hintergrund und Bildschirm aus** (Handy- und TV-App): Geht die App in den Hintergrund oder der Bildschirm aus, hält der Player sofort an; der Herzschlag läuft noch **30 Sekunden** weiter. Kommt der Zuschauer in dieser Zeit zurück (Anruf, Blick in eine andere App), spielt die Sitzung weiter, mit Recht «Timeshift» an der alten Stelle. Nach 30 Sekunden beendet die App die Sitzung; wer später zurückkommt, stellt neu ein, ein Timeshift-Puffer ist dann weg. Ton im Hintergrund gibt es für Live-TV nicht (das wäre Radio), Bild-in-Bild des Systems schliesst LTV-016 aus. Offen sind der Browser-Tab im Hintergrund und die Bildübertragung auf ein anderes Gerät (`04` O-25, M-3, M-5). | festgelegt (`04` 10.3, Fassung 4) |
 
 ### 5.4 Erinnerungen
 
@@ -1381,8 +1395,11 @@ der Bau übernimmt, solange Marco nichts anderes sagt) oder **offen** (Frage F-n
 | Nr. | Regel | Einordnung |
 |---|---|---|
 | DR-11 | **Konflikte ohne Tuner:** Es gibt keine Tuner und kein Verbindungslimit je Anbieter (LTV-017). Ein Konflikt ist deshalb nur: (a) das Kontingent des Kontos reicht voraussichtlich nicht; (b) der Speicherort hat voraussichtlich zu wenig Platz über der Reserve; (c) der Sender ist deaktiviert oder nicht mehr vorhanden; (d) das Recht «Aufnahmen» fehlt; (e) eine serverweite Ressourcengrenze (zum Beispiel höchste Zahl gleichzeitiger Eingangsströme oder Prozesse, `13-ressourcen-und-performance.md`) wäre zur geplanten Zeit überschritten. Zwei Aufnahmen desselben oder verschiedener Sender zur selben Zeit sind **kein** Konflikt. Wer bei (e) Vorrang hat: F-4. | Empfehlung (R5 5.7, ohne Anbieterlimit); offen F-4 |
-| DR-12 | **Zählung:** Jede Live-Wiedergabe (live oder im Timeshift) und jede Wiedergabe einer Aufnahme zählt als ein Strom zur Grenze gleichzeitiger Ströme von Profil und Konto und unterliegt Bandbreiten- und Auflösungsgrenze. Aufnahmeprozesse, Vorladen und permanenter Empfang zählen nicht, denn niemand schaut. Die Abspielzeit von Live-TV und Aufnahmen zählt zur täglichen Schauzeit des Profils; eine Pause zählt nicht. Ist die Schauzeit erreicht, endet die Wiedergabe mit dem bestehenden Hinweis; laufende Aufnahmen laufen weiter. Die Statistik zählt Live-TV-Schauzeit je Profil, ohne Sender (wie heute ohne Titel bei Radio). | festgelegt (Zählung zu den Grenzen); Einzelheiten: Annahme |
+| DR-12 | **Zählung:** Jede Live-Wiedergabe (live oder im Timeshift) und jede Wiedergabe einer Aufnahme zählt als ein Strom zur Grenze gleichzeitiger Ströme von Profil und Konto und unterliegt Bandbreiten- und Auflösungsgrenze. Aufnahmeprozesse, Vorladen und permanenter Empfang zählen nicht, denn niemand schaut. **Schauzeit:** Sie zählt nach dem, was der **Server beobachtet**: jedes ausgelieferte, verschiedene Segment einer Sitzung mit seiner Dauer, auch wenn der Client «Pause» meldet; die Angabe des Clients dient nur der Anzeige und der Drosselung einer Umwandlung (Regel 12; `12` 10.3, SM-50). Eine Pause, in der der Client keine Segmente holt, zählt damit nicht. Eine Sitzung ohne Sitzungspuffer endet nach 60 Sekunden gemeldeter Pause; jede Sitzung endet nach 15 Minuten ohne Segmentabruf, mit Sitzungspuffer nach der Höchstdauer des Zeitversatzes plus 15 Minuten (`04` 14). Ist die Schauzeit erreicht, endet die Wiedergabe mit dem bestehenden Hinweis; laufende Aufnahmen laufen weiter. Die Statistik zählt Live-TV-Schauzeit je Profil, ohne Sender (wie heute ohne Titel bei Radio). | Zählung zu den Grenzen: Auslegung des Koordinators (`02` 3.1); Schauzeit nach Beobachtung: festgelegt (`12`); Einzelheiten: Annahme |
 | DR-24 | **Mehrere Geräte:** Ein Profil darf auf mehreren Geräten zugleich verschiedene oder gleiche Sender schauen, solange die Grenze gleichzeitiger Ströme es zulässt (LTV-016.02); jede Wiedergabe hat ihren eigenen Timeshift-Puffer. | festgelegt |
+| DR-28 | **Dauerempfang weicht nicht** (LTV-002 «unabhängig davon, ob jemand zuschaut»): Ein laufender Sender mit Strategie «permanent» und ein Zeitplan-Sender in seinem Fenster weichen keinem neuen Zuschauer, keiner neuen Aufnahme und keinem Vorladen. Reicht die Kapazität nicht, weichen zuerst Vorgeladenes, «automatisch» gehaltene Ströme und Ströme in der Karenz; reicht auch das nicht, wird die **neue** Anfrage abgelehnt («ausgelastet»). «Zurückgestellt» heisst ein Dauersender nur, wenn er **nicht starten kann** (zum Beispiel beim Hochfahren mehr Dauersender eingestellt als Eingangsströme, die Quelle gibt ihm keine Verbindung, oder Speichernot des Betriebssystems); das wird dem Administrator mit Ursache und Zahl der Versuche gemeldet. Die Variante «ein Zuschauer geht einem Dauersender ohne Abnehmer vor» ist nur Variante der Frage `04` F-4 (`20` E-28-30). | Vorgabe, wortlauttreu (`04` T-17, Gesamtreview RG-02) |
+| DR-29 | **Vorladen, «automatisch» und Quellen mit wenigen Verbindungen** (LTV-002, LTV-010, LTV-017): Es gibt **keinen Schalter und keine Zahl je Quelle**. Vorladen, automatischer Empfang und Prüfungen werden nur **global** (an oder aus, Obergrenzen) und **je Sender** über die Empfangsstrategie gesteuert. Ab Werk ist das Vorladen an, mit vorsichtigen Obergrenzen (je Sitzung und Richtung 1 Sender, `04` 14.2). Wer einen Zugang mit nur einer Verbindung hat, schaltet das Vorladen global aus; die Verwaltung sagt das in einem Hinweis. Ohne Einstellung schützt eine Laufzeitregel: Lehnt eine Quelle eine weitere Verbindung ab (Muster A) oder trennt sie beim Aufbau einer zweiten die ältere (Muster B), weicht zuerst Vorgeladenes dieser Quelle, und vorsorglicher Empfang (Vorladen, automatisch, Prüfung) dieser Quelle **ruht von selbst** für 30 Minuten, bei Wiederholung 6 Stunden, dann 24 Stunden; bei Muster B öffnet der Server dort so lange keine zweite Verbindung (Ein-Strom-Betrieb). Die Diagnose zeigt das je Quelle mit «seit» und «bis». Das ist Fehlerbehandlung aus Beobachtung, keine Verwaltung eines Limits. Ob es doch einen Schalter oder eine Zahl je Quelle geben soll, fragt `04` F-3 (`20` E-28-02 mit E-28-29); den Werkszustand des globalen Vorladens fragt `04` F-9. | Vorgabe, wortlauttreu (`04` T-17, T-18, Gesamtreview RG-03) |
+| DR-30 | **Umwandlung nur mit wirksamer Eindämmung:** FFmpeg verarbeitet Live-Daten nur, wenn die Sperre des Prozesses (Landlock hart, Seccomp) beim Start vollständig greift. Fehlt sie auf dem Host, bleibt der Direktweg ohne FFmpeg, die Umwandlung für Live-TV ist aus, und die Verwaltung zeigt dauernd «Eindämmung nicht verfügbar: Live-TV nur im Original» mit Grund; Sender, die ohne Umwandlung nicht spielen, sind «nur mit Umwandlung abspielbar». Damit sind LTV-004.09, .12 und .13 auf einem solchen Host nicht erfüllt; «trotzdem erlauben» ist nur die ausdrückliche Wahl des Betreibers nach `12` F-1 (c) (dann Ausnahme A-13). | sichere Vorgabe bis zu Marcos Antwort (`12` F-1, `20` E-28-04; `04` T-27) |
 
 ### 5.7 Suche, Favoriten, Verlauf
 
@@ -1397,13 +1414,13 @@ der Bau übernimmt, solange Marco nichts anderes sagt) oder **offen** (Frage F-n
 
 | Nr. | Regel | Einordnung |
 |---|---|---|
-| DR-16 | **Deaktiviert** (Administrator) oder **nicht mehr vorhanden** (Import): Der Sender ist für alles Neue sofort unsichtbar (404: kein Einstellen, keine neue Aufnahme, kein Vorladen, keine Prüfung). **Laufendes endet nicht von selbst** (`04` T-29): laufende Wiedergaben laufen, bis der Zuschauer geht, laufende Aufnahmen bis zu ihrem Ende; vorgeladener oder durch eine Strategie gehaltener Empfang endet sofort. Nur der ausdrückliche Befehl «sofort beenden» in der Verwaltung, mit Zahl der Betroffenen und Bestätigung, beendet auch Wiedergaben und Aufnahmen; eine so beendete Aufnahme heisst «unvollständig, Sender deaktiviert». Favoriten, Kanalnummer, Gruppen, EPG-Zuordnung und Aufnahmeplanungen **bleiben gespeichert** und wirken wieder, sobald der Sender zurück ist. Eine Planung, die fällig wird, während der Sender fehlt, schlägt fehl mit Grund «Sender nicht verfügbar»; sie wird nicht verschoben. Vorhandene Aufnahmen bleiben abspielbar. Slouchcat löscht einen Sender nie automatisch; nur der Administrator löscht ihn, mit Rückfrage, die Favoriten und Planungen nennt. **Neu importierte Sender** sind ab Werk aktiv (Einstellung je Quelle); `15` F-14 fragt die Gegenvariante «ab Werk inaktiv», bis zur Antwort gilt diese Regel. | festgelegt (T-29); Werkszustand neuer Sender: Empfehlung, offen `15` F-14 |
+| DR-16 | **Deaktiviert** (Administrator) oder **nicht mehr vorhanden** (Import): Der Sender ist für alles Neue sofort unsichtbar (404: kein Einstellen, keine neue Aufnahme, kein Vorladen, keine Prüfung). **Laufendes endet nicht von selbst** (`04` T-29): laufende Wiedergaben laufen, bis der Zuschauer geht, höchstens 12 Stunden (das Token wird nicht erneuert); laufende Aufnahmen bis zu ihrem Ende, eine Sofortaufnahme höchstens bis zu ihrer Höchstdauer; vorgeladener oder durch eine Strategie gehaltener Empfang endet sofort. Nur der ausdrückliche Befehl «sofort beenden» in der Verwaltung, mit Zahl der Betroffenen und Bestätigung, beendet auch Wiedergaben und Aufnahmen; eine so beendete Aufnahme heisst «unvollständig, Sender deaktiviert». Deaktivieren ist kein Sicherheitsmittel: Wird eine **Quelle** entfernt oder geändert, enden ihre Empfänger innert 5 Sekunden (Abschnitt 2.4). Favoriten, Kanalnummer, Gruppen, EPG-Zuordnung und Aufnahmeplanungen **bleiben gespeichert** und wirken wieder, sobald der Sender zurück ist. Eine Planung, die fällig wird, während der Sender fehlt, schlägt fehl mit Grund «Sender nicht verfügbar»; sie wird nicht verschoben. Vorhandene Aufnahmen bleiben abspielbar. Slouchcat löscht einen Sender nie automatisch; nur der Administrator löscht ihn, mit Rückfrage, die Favoriten und Planungen nennt. **Neu importierte Sender** sind ab Werk aktiv (Einstellung je Quelle); `15` F-14 fragt die Gegenvariante «ab Werk inaktiv», bis zur Antwort gilt diese Regel. | festgelegt (T-29, `04` Fassung 4); Werkszustand neuer Sender: Empfehlung, offen `15` F-14 |
 
 ### 5.9 Administrator und Privatsphäre
 
 | Nr. | Regel | Einordnung |
 |---|---|---|
-| DR-17 | In «Aktive Wiedergaben» sieht der Administrator Live-Wiedergaben wie heute Titel (W-6): Konto, Profil, Gerät, **Sender**, Qualität, Umwandlung, und kann sie beenden. **Aufnahmen** erscheinen bei einem Eingangsstrom nur als Zahl, ohne Konto, ohne Profil und ohne Titel; die Verwaltung zeigt nirgends, welches Konto gerade welchen Sender aufnimmt, denn Konto und Sender zusammen verraten über das öffentliche Programm den Titel. In «DVR und Speicher» sieht er je Konto Belegung, Zahl und Fehlerzustände, keine Titel, Sender oder Zeiten. Fehlersuche an einer einzelnen Aufnahme geht nur über ihre Kennung im Protokoll. | Annahme (Wiedergaben wie W-6); festgelegt (Aufnahmen, E-3; review-2 RD-06) |
+| DR-17 | In «Aktive Wiedergaben» sieht der Administrator Live-Wiedergaben wie heute Titel (W-6): Konto, Profil, Gerät, **Sender**, Qualität, Umwandlung, und kann sie beenden. **Aufnahmen** erscheinen bei einem Eingangsstrom nur als Zahl, ohne Konto, ohne Profil und ohne Titel; die Verwaltung zeigt nirgends, welches Konto gerade welchen Sender aufnimmt, denn Konto und Sender zusammen verraten über das öffentliche Programm den Titel. In «DVR und Speicher» sieht er je Konto Belegung, Zahl und Fehlerzustände, keine Titel, Sender oder Zeiten. Die Zahl laufender Aufnahmen je Eingang erscheint erst ab 2, sonst nur «Aufnahmen laufen»; die Kachel der Wiedergabe einer Aufnahme in «Aktive Wiedergaben» zeigt nur grobe Technik (Direktweg oder Umwandlung, Zielqualität), keine Quellparameter, damit sich eine private Aufnahme nicht über zwei Seiten einem Eingang zuordnen lässt (`12` SM-45, RT-19). Fehlersuche an einer einzelnen Aufnahme geht nur über ihre Kennung im Protokoll. | Annahme (Wiedergaben wie W-6); festgelegt (Aufnahmen, E-3; review-2 RD-06) |
 | DR-27 | **Update während Aufnahmen:** Läuft eine Aufnahme oder beginnt eine in den nächsten 15 Minuten, warnt der Updater vor dem Update und nennt die Zahl (ohne Titel); der Administrator entscheidet. Beim Herunterfahren schliesst Slouchcat laufende Aufnahmen sauber (Stoppfrist des Containers 30 Sekunden ab Stufe 5). | Vorgabe (`04` 14.8, `04` F-6) |
 | DR-23 | **Ort in der Navigation:** Live-TV ist ein Eintrag der Hauptnavigation und, wie Webradio, ein Eintrag in «Meine Medien», den der Administrator ordnen und ausblenden kann. Ohne Recht fehlt beides. Die Slouchcat-Startseite bekommt keine Live-TV-Reihe. | Annahme |
 
@@ -1411,9 +1428,13 @@ der Bau übernimmt, solange Marco nichts anderes sagt) oder **offen** (Frage F-n
 
 ## 6. Fragen an Marco
 
-Nur echte fachliche Weichen. Was Marco am 28. November 2026 beantwortet hat (E-1 bis E-4) und was die Leitplanken
-festlegen (Rechte-Modell, Zählung zu den Grenzen, kein Anbieterlimit, keine Heimnetz-Regel, kein Download), wird
-nicht erneut gefragt. Für jede Frage gilt die Empfehlung, solange Marco nichts anderes sagt.
+Nur echte fachliche Weichen. Was Marco entschieden hat (die 21 Grundsatzentscheide und seine Antworten E-1 bis E-4),
+wird nicht erneut gefragt. Die Auslegungen des Koordinators (Rechte-Zuständigkeit, Zählung zu den Grenzen,
+kein Anbieterlimit, Quellen im Heimnetz, Fire TV, Plattform-Streams, kein Download von Aufnahmen, Safari ohne
+Gerät) sind keine Entscheide Marcos; sie stehen zum Bestätigen in `02` Abschnitt 3.1 und in `20`.
+
+**Was ohne Antwort gilt:** die Zeile «Vorgabe bis zur Antwort», wortlauttreu zum Auftrag (Grundregel, Lesart).
+Die Empfehlung gilt erst, wenn Marco sie wählt. Die endgültige Nummer jeder Frage steht in `20` (E-28-nn).
 
 ### F-1 Werkseinstellung der Live-TV-Rechte → `20` E-28-09
 
@@ -1430,6 +1451,8 @@ bequemsten, belastet aber sofort Leitung und Anbieter. (c) bringt dem Hauptprofi
 Antwort (a) um; wer bei mehreren Administratoren «das Konto des Administrators» ist, fragt `07` F-2. `15` LA-22
 («für bestehende Konten alles aus») weicht ab und folgt dieser Frage.
 
+**Vorgabe bis zur Antwort:** (a) (der Auftrag nennt keine Zahl; `20` E-28-09).
+
 ### F-2 Vorgabewert des Aufnahme-Kontingents je Konto → `20` E-28-39
 
 - **(a)** 100 GB je Konto (wie das Download-Budget, Frage 8), der Administrator ändert je Konto.
@@ -1440,6 +1463,8 @@ Folgen: Eine Stunde HD braucht je nach Sender rund 2 bis 4 GB (Annahme, zu messe
 `13-ressourcen-und-performance.md`); 100 GB sind damit etwa 25 bis 50 Stunden. (b) verhindert Überraschungen,
 macht das Recht «Aufnahmen» aber bis zur Einstellung wirkungslos. (c) lässt ein Konto den ganzen Speicherort
 füllen. **Empfehlung: (a)**, Zahl nach der ersten Messung überprüfen.
+
+**Vorgabe bis zur Antwort:** (a) 100 GB (der Auftrag verlangt ein Limit je Konto, nennt aber keine Zahl; `20` E-28-39).
 
 ### F-3 Über welche Kanäle gehen Erinnerungen und Aufnahme-Meldungen? → `20` E-28-22
 
@@ -1457,6 +1482,8 @@ die App nicht offen hat. (c) ändert das Benachrichtigungsmodell für alle Ereig
 hinaus. **Empfehlung: (a).** Hinweis: Push hat heute normale Dringlichkeit und kann sich auf Android verzögern;
 die Pünktlichkeit ist zu messen.
 
+**Vorgabe bis zur Antwort:** (a) (nutzt das bestehende Benachrichtigungssystem, Auftrag Z. 794; `20` E-28-22).
+
 ### F-4 Vorrang, wenn Serverressourcen nicht reichen → `20` E-28-40
 
 Auftrag Z. 1460–1462 verlangt Schutz laufender Wiedergaben und Aufnahmen und zuerst weniger Vorladen; offen ist,
@@ -1472,6 +1499,8 @@ Folgen: (a) unterbricht nie jemanden, kann aber eine geplante Aufnahme verlieren
 Kosten eines Zuschauers. (c) ist einfach, aber unberechenbar. **Empfehlung: (a)**, mit Warnung im Planer, wenn
 eine Grenze zur geplanten Zeit absehbar knapp ist.
 
+**Vorgabe bis zur Antwort:** (a), wortlauttreu zu «Schutz aktiver Wiedergaben» und «Schutz laufender Aufnahmen» (LTV-002). Ein laufender Dauersender weicht dabei ebenfalls nicht (DR-28). `20` E-28-40.
+
 ### F-5 Programmsuche auch in der allgemeinen Suche? → `20` E-28-23
 
 - **(a)** nur im Live-TV-Bereich (Sender und Sendungen).
@@ -1480,6 +1509,8 @@ eine Grenze zur geplanten Zeit absehbar knapp ist.
 Folgen: (a) lässt Bibliothekssuche und ihren Jugendschutz unberührt (A-2 verlangt, dass Live-TV dort nie
 auftaucht, wo altersgefiltert wird) und braucht keinen Umbau der Suche. (b) ist bequemer, mischt aber
 ungefilterte Sendungen in eine Liste, die für Titel altersgefiltert ist. **Empfehlung: (a).**
+
+**Vorgabe bis zur Antwort:** (a); die senderübergreifende Programmsuche (LTV-005.15) ist damit erfüllt (`20` E-28-23).
 
 ### F-6 Welche Clients in welcher Stufe? → `20` E-28-01
 
@@ -1492,6 +1523,8 @@ die Verträglichkeitsregeln für `x-clients`. (a) ist am schnellsten gebaut, lä
 ohne Live-TV. (c) verlängert jede Stufe deutlich. **Empfehlung: (b)**, ausgearbeitet in `18-umsetzungsplan.md`
 Abschnitt 5: Die TV-App-Ausgabe einer Stufe darf nach dem Server-Release folgen (eigener Tag, ohne neuen
 Vertrag); die Handy-App folgt gesammelt nach Stufe 5 oder 6, bis dahin Live-TV auf dem Handy über die Web-App.
+
+**Vorgabe bis zur Antwort:** (b) (der Auftrag legt keine Reihenfolge fest; `20` E-28-01).
 
 ### F-7 Was geschieht mit Planungen und laufenden Aufnahmen, wenn das Recht «Aufnahmen» (oder «Live-TV») entzogen wird? → `20` E-28-41
 
@@ -1506,6 +1539,8 @@ Folgen: (a) verliert nichts, was das Profil eingerichtet hat, und passt zu «Auf
 Vorhandene Aufnahmen sind in allen Varianten 404 und bleiben (Abschnitt 2.4). **Empfehlung: (a).** Stand: `04` O-9
 und `11` verweisen hierher. Abgrenzung: Das Deaktivieren eines **Senders** ist kein Entzug eines Rechts und
 beendet nichts Laufendes (DR-16, `04` T-29).
+
+**Vorgabe bis zur Antwort:** (a): Entzug wird sofort durchgesetzt (Z. 1726), Planungen bleiben erhalten (LTV-018.13); `20` E-28-41.
 
 ### F-8 Serienaufnahme ohne zuverlässige Folgenkennung → `20` E-28-52
 
@@ -1522,6 +1557,8 @@ um. `09` Abschnitt 7.2 nennt «höchstens eine je Tag» noch als Wahl; das ist V
 eigener Entscheid; `09` ist nachzuführen. Ob gleiche Aufnahmen mehrerer Profile einmal gespeichert werden, ist
 eine andere Frage (`11` F-2, LTV-009.12).
 
+**Vorgabe bis zur Antwort:** (a): Der Auftrag verlangt keine Begrenzung auf eine Ausstrahlung je Tag, und «sofern zuverlässig» (Z. 641) heisst ohne Kennung keine Erkennung; `20` E-28-52.
+
 ### F-9 Laufende Aufnahme wächst über das Kontingent → `20` E-28-46
 
 Die erwartete Grösse (DR-06) kann zu klein sein, etwa bei höherer Bitrate oder Nachlauf.
@@ -1531,6 +1568,8 @@ Die erwartete Grösse (DR-06) kann zu klein sein, etwa bei höherer Bitrate oder
 
 Folgen: (a) schützt die laufende Aufnahme (LTV-019.18) und überschreitet das Kontingent um höchstens eine
 Aufnahme; (b) hält das Kontingent hart ein, schneidet aber das Ende ab. **Empfehlung: (a).**
+
+**Vorgabe bis zur Antwort:** (b), wortlauttreu zu «Speicherplatzlimits pro Account» (Z. 644) und «Account-Speicherlimits werden eingehalten» (Z. 1714): Die Aufnahme stoppt am Kontingent und gilt als unvollständig. Die Empfehlung (a) weicht davon ab und gilt erst mit Marcos Antwort. `20` E-28-46 nennt in Fassung 1 noch (a) als Vorgabe und ist nachzuziehen.
 
 ### F-10 Wirkt eine Standard-Aufbewahrungsfrist des Administrators automatisch? → `20` E-28-47
 
@@ -1542,6 +1581,9 @@ gelöscht wird, was das Profil selbst eingestellt hat (E-4).
 
 Folgen: (a) hält E-4 wörtlich ein; (b) löscht Aufnahmen, deren Profil nie eine Frist gewählt hat, und ist eine
 zweite Ausnahme von ADR 0032. **Empfehlung: (a);** ab Werk ist der Vorschlag «unbegrenzt».
+
+**Vorgabe bis zur Antwort:** (a), wortlauttreu zu Marcos Antwort E-4 (automatisch gelöscht wird nur, was das Profil
+selbst eingestellt hat); `20` E-28-47.
 
 ---
 
@@ -1588,14 +1630,14 @@ neue Zeile in Konzept oder Bau, die eine davon berührt, ist ein roter Befund.
 
 | Nicht-Ziel | Beleg | Bezug zu Live-TV |
 |---|---|---|
-| Fire TV, Apple TV, webOS, Tizen, native iOS-Apps | Spec `:58-60`, Regel 11, K26 E-1 | LTV-014.X-01 |
+| Apple TV, webOS, Tizen, native iOS-Apps | Spec `:58-60`, Regel 11 | LTV-014.80. Fire TV steht nicht mehr hier: Der Auftrag verlangt, es zu berücksichtigen (LTV-014.82); ob es Nicht-Ziel bleibt, ist eine Auslegung zum Bestätigen (`02` 3.1). |
 | Natives Installationspaket (`.deb`), Cloud-Betrieb | Spec `:41`, `:86-89` | LTV-Q-12.X-01; kein Slouchcat-Dienst im Internet für Live-TV |
 | Aufnahmen von Webradio; Musikbibliothek; Fotos | K16 F-1, Spec Non-Goals | Webradio bleibt unverändert |
-| Download von YouTube-Inhalten; Plattform-Streams als Quelle (YouTube, Twitch) | Spec `:90`, Regel 11; Leitplanken | keine Plattform-Streams |
+| Download von YouTube-Inhalten | Spec `:90`, Regel 11 | Eine Aufnahme eines YouTube-Stroms wäre ein solcher Download. Plattform-Streams als Quelle zum Schauen schliesst der Auftrag nicht aus; dass Konzept 28 sie nicht unterstützt, ist eine Auslegung zum Bestätigen (`02` 3.1). |
 | Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer | Spec `:67` | Die Freigabe ist ein Schalter des Hauptprofils, keine Anfrage des Kindes. |
 | Mandantenfähigkeit | Spec `:85` | Sender gelten für einen Haushalt (einen Server). |
 | Algorithmische Empfehlungen, Plugins, Trakt-Login | Regel 11 | keine Empfehlungen im Live-TV-Bereich |
-| Download und Offline-Abspielen von Aufnahmen | Leitplanken (für Konzept 28) | später als eigene Frage, nicht vorbereitet |
+| Download und Offline-Abspielen von Aufnahmen | kein Nicht-Ziel: vom Auftrag nicht verlangt, in Konzept 28 nicht geplant | später als eigene Frage, nicht vorbereitet (`02` 3.1) |
 
 ---
 
@@ -1605,7 +1647,7 @@ neue Zeile in Konzept oder Bau, die eine davon berührt, ist ein roter Befund.
 |---|---|---|---|---|---|
 | LTV-001 | 16 | 0 | LTV-012 | 13 | 1 |
 | LTV-002 | 13 | 0 | LTV-013 | 2 | 6 |
-| LTV-003 | 25 | 11 | LTV-014 | 81 | 1 |
+| LTV-003 | 25 | 11 | LTV-014 | 82 | 0 |
 | LTV-004 | 38 | 1 | LTV-015 | 14 | 0 |
 | LTV-005 | 28 | 3 | LTV-016 | 2 | 3 |
 | LTV-006 | 20 | 1 | LTV-017 | 3 | 6 |
@@ -1613,12 +1655,12 @@ neue Zeile in Konzept oder Bau, die eine davon berührt, ist ein roter Befund.
 | LTV-008 | 26 | 5 | LTV-019 | 22 | 4 |
 | LTV-009 | 12 | 0 | LTV-020 | 22 | 0 |
 | LTV-010 | 43 | 1 | LTV-021 | 15 | 0 |
-| LTV-011 | 21 | 1 | **Summe** | **453** | **46** |
+| LTV-011 | 21 | 1 | **Summe** | **454** | **45** |
 
 Querschnitt: LTV-Q-08 47, LTV-Q-09 83, LTV-Q-10 65, LTV-Q-11 46, LTV-Q-12 29 (+1 Ausschluss), LTV-Q-13 71,
 LTV-Q-14 47, LTV-Q-15 50, LTV-Q-17 36; zusammen 474 Anforderungen und 1 Ausschluss. Ausschlussliste
-Abschnitt 16: 29 (LTV-X-01 bis LTV-X-29). Detailregeln: DR-01 bis DR-27. Fragen: F-1 bis F-10. Die Zahl der Anforderungen ist gegenüber Fassung 1
-unverändert; geändert haben sich Stufen und Wortlaut (Abschnitt «Änderungen»).
+Abschnitt 16: 29 (LTV-X-01 bis LTV-X-29). Detailregeln: DR-01 bis DR-30. Fragen: F-1 bis F-10. Gegenüber Fassung 2 wurde Z. 944 (Fire TV) vom Ausschluss
+LTV-014.X-01 (jetzt «entfällt») zur Anforderung LTV-014.82; sonst ist die Zahl unverändert.
 
 **Was der Auftrag in sich offen oder widersprüchlich lässt** (Einzelheiten in `02-grundsatzentscheide.md`
 Abschnitt 2 und `20-offene-entscheidungen.md`):
@@ -1630,7 +1672,7 @@ Abschnitt 2 und `20-offene-entscheidungen.md`):
 3. Aufbewahrungsfristen in der Verwaltung (Z. 1293) und «automatische Bereinigung» (Z. 1062) gegen E-4: F-10.
 4. LTV-012 setzt «bestehende» Transcoding-Rechte und Heimnetz-Beschränkungen voraus (Z. 809–810), die es nicht
    gibt: AB-9, AB-10.
-5. LTV-014 nennt Fire TV (Z. 944), Abschnitt 12 die `.deb`-Installation (Z. 1501): Nicht-Ziele (AB-2, AB-3).
+5. LTV-014 nennt Fire TV (Z. 944) unter «Berücksichtige»: jetzt LTV-014.82 mit Auslegung zum Bestätigen (AB-3). Abschnitt 12 nennt die `.deb`-Installation (Z. 1501): Nicht-Ziel (AB-2).
 6. Abschnitt 13.4 verlangt echte Senderlogos (Z. 1601), das öffentliche Repo verbietet sie: AB-19.
 7. Abschnitt 9.1 verlangt CPU-, GPU- und RAM-Werte als bestehend (Z. 1225–1227); sie fehlen: AB-13.
 8. «Konflikterkennung» (Z. 645) ohne Tuner und ohne Anbieterlimit (LTV-017): Bedeutung erst durch DR-11.
@@ -1683,3 +1725,40 @@ neu vergeben oder gestrichen.
   mit Dateinamen; Überschriften von LTV-009, LTV-016, LTV-017, LTV-020 mit dem Thema des Registers; Stufen von
   LTV-010.03, .10, LTV-011.12, LTV-019.08, LTV-Q-08.25, LTV-Q-10.36, LTV-Q-10.46, LTV-Q-12.03 nach `18` um die Stufe
   der Abnahme ergänzt; Fragen mit Verweis auf `20`. Quelle: `22` Abschnitt 7.
+
+### Fassung 3 (Schlussbereinigung nach den Schlussreviews 4, 5 und 6, 29. November 2026)
+
+- **Grundregel (RG-01):** Ohne Marcos Antwort gilt die wortlauttreue Vorgabe, bei Sicherheitsfragen die sichere;
+  die Empfehlung erst mit seiner Antwort. Lesart und Einleitung von Abschnitt 6 umgeschrieben; jede Frage F-1 bis
+  F-10 hat jetzt ihre Zeile «Vorgabe bis zur Antwort» und den Verweis auf `20`.
+- **F-9 (Kontingent während einer Aufnahme):** Vorgabe ist (b), weil sie wortlauttreu zu «Speicherplatzlimits pro
+  Account» ist; (a) bleibt Empfehlung. `20` E-28-46 nennt noch (a) und ist nachzuziehen.
+- **Zwei Arten Freigabe (RG-06):** «Konzept freigegeben» und «Baufreigabe einer Stufe» in der Lesart getrennt;
+  LTV-021.15 spricht von der Baufreigabe.
+- **Auslegungen sind keine Entscheide Marcos (RG-08):** Fire TV ist kein Ausschluss mehr (LTV-014.X-01 entfällt,
+  neu LTV-014.82 «berücksichtigt»); Plattform-Streams und «kein Download von Aufnahmen» als Auslegung zum
+  Bestätigen (1.2, 7.2); Safari, iPhone, iPad «vorgesehen, ungeprüft ohne Gerät» (LTV-014.76, .77).
+- **DR-28 neu, Dauerempfang (RG-02):** Ein laufender Dauersender weicht niemandem; die neue Anfrage wird
+  abgelehnt; «zurückgestellt» nur, wenn er nicht starten kann.
+- **DR-29 neu, Vorladen und Quellen (RG-03):** kein Schalter und keine Zahl je Quelle; Steuerung global und je
+  Sender; Ruhen von selbst nach Muster A oder B (30 Minuten, 6 Stunden, 24 Stunden), Ein-Strom-Betrieb.
+- **DR-30 neu, Umwandlung nur mit wirksamer Eindämmung (RT-01):** sonst nur Direktweg, Zustand sichtbar.
+- **T-29 nach `04` Fassung 4 (RB-05, RT-06):** Deaktivieren lässt Laufendes höchstens 12 Stunden weiterlaufen
+  (Sofortaufnahme bis zur Höchstdauer); Entfernen oder Ändern einer Quelle beendet ihre Empfänger innert
+  5 Sekunden (Abschnitt 2.4, DR-16).
+- **Schauzeit (RT-04):** zählt nach dem, was der Server ausliefert; Sitzung endet nach 15 Minuten ohne
+  Segmentabruf (DR-12).
+- **Untertitel (RG-05):** LTV-004.17 und LTV-014.52 sagen je Client und Stufe dasselbe wie `04` 7.4; bis Stufe E
+  teilweise erfüllt, Frage `20` E-28-56.
+- **Aufnahmen von Profilen mit Altersgrenze:** DR-02 und Abschnitt 2.4 nach der Vorgabe von `20` E-28-07 (Merkmal
+  beim Anlegen **und** heute noch Altersgrenze; verliert das Profil die Grenze, wird alles privat; RT-20);
+  geplante Aufnahmen nur als Zahl (E-28-43); Restrisiko PIN-Ersatz (RT-07). DR-03 nach der Vorgabe von E-28-42
+  (b): ohne eigenes Live-TV ist auch für das Hauptprofil alles unsichtbar; A-12 gilt erst mit (a).
+- **DR-17 (RT-19):** Zahl laufender Aufnahmen je Eingang erst ab 2; Wiedergabe einer Aufnahme nur mit grober Technik.
+- **DR-26 (RB-11):** Hintergrund: 30 Sekunden Herzschlag, dann endet die Sitzung.
+- **Feste Ziele (RT-05):** ab Werk Einzeladresse mit Port; Netz höchstens 16 Adressen nur mit zweiter Bestätigung
+  (LTV-003.14, LTV-Q-10.10).
+- **Stand je Grundsatzentscheid nach Review 4:** LTV-002 (RG-02, RG-03) durch DR-28 und DR-29; LTV-004
+  (Untertitel, Teletext) durch LTV-004.17 und E-28-56, Umwandlung ohne Sperre durch DR-30; LTV-014 (Fire TV,
+  Safari, Untertitel) durch LTV-014.82, .76, .77, .52; LTV-017 (Schalter je Quelle) durch DR-29: Es gibt keinen.
+
