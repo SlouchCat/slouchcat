@@ -19,7 +19,8 @@ liegt, Merge `be977fb5`).
   Handy-App 1.0.5 (`versionCode` 6). Die TV-App bleibt bei 1.0.1; sie trägt die Texte nicht.
 - **Geprüft:** `node scripts/i18n/check.ts --all --strict` ohne Fehler; die GitHub-CI von PR #234 hat
   den Inhalt vollständig geprüft (Lauf 45977212910, Gate `ci` grün, Emulator-Lauf grün).
-- **Offen:** CT 190 hebt Marco selbst auf 1.44.1.
+- **CT 190:** Marco hat die Testinstanz am 28. November 2026 per Updater auf 1.44.1 gehoben
+  (`/api/v1/healthz`: `version` 1.44.1, `contractVersion` 1.44.0, `status` ok). Offen: nichts.
 
 ## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, PR #232)
 
