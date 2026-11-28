@@ -1,0 +1,53 @@
+/* Konzept 28 «Live-TV», phone and tablet mockup: additions of the core (profile colours, Live-TV chip row,
+   LS-02 rows, logo sizes). Colours only from variables. */
+:root { --av-a1: #e8794a; --av-a2: #62aef0; --av-a3: #5fcf8f; }
+#rail > * { flex-shrink: 0; }
+.lh-tabs { padding-top: 0; padding-bottom: 10px; }
+.lh-tabs .chip { border-radius: 18px; }
+.lh-wrap { flex-wrap: wrap; overflow: visible; }
+.lh-sample { padding: 24px var(--gut) 8px; font-size: 12.5px; color: var(--tx3); }
+.lh-count { font-size: 13px; color: var(--tx3); padding-right: 8px; white-space: nowrap; }
+.lh-ph b { margin-top: 8px; }
+
+/* logo sizes in the app */
+.lv-logo { width: 48px; height: 30px; border-radius: 6px; font-size: 11px; }
+
+/* ---------- LS-02 ---------- */
+.lh-tools { display: flex; gap: 8px; align-items: center; padding: 4px var(--gut) 8px; }
+.lh-search { position: relative; flex: 1; min-width: 0; display: block; }
+.lh-search svg { position: absolute; left: 14px; top: 17px; color: var(--tx3); pointer-events: none; }
+.lh-search .inp { padding-left: 44px; height: 50px; border-radius: 25px; }
+.lh-filter { flex: none; min-height: 50px; }
+.lh-filter.on { border-color: var(--tx); color: var(--tx); }
+.lh-active { padding-bottom: 8px; }
+.lh-skel { display: flex; flex-direction: column; gap: 10px; }
+.lh-list { border-top: 1px solid var(--line); }
+.lh-row { position: relative; display: flex; align-items: flex-start; border-bottom: 1px solid var(--line); }
+.lh-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 0 12px var(--gut); }
+.lh-main:active { background: var(--s1); }
+.lh-top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.lh-no { width: 22px; text-align: right; font-size: 14px; font-weight: 700; color: var(--tx3); font-variant-numeric: tabular-nums; flex: none; }
+.lh-name { font-size: 16px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-top .lv-badge { font-size: 12px; }
+.lh-now { display: flex; flex-direction: column; gap: 3px; padding-left: 32px; min-width: 0; }
+.lh-now b { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-now small { font-size: 12.5px; color: var(--tx3); }
+.lh-now .lv-prog { margin-top: 3px; max-width: 280px; }
+.lh-now.none { font-size: 14px; color: var(--tx2); }
+.lh-now.warn { flex-direction: row; align-items: center; gap: 6px; color: var(--warn); font-size: 14px; font-weight: 600; }
+.lh-next { display: none; }
+.lh-heart { margin-top: 6px; color: var(--tx2); }
+.lh-heart.on { color: var(--live-rec); }
+.lh-more { margin-top: 6px; margin-right: 4px; color: var(--tx2); }
+.lh-row.bad .lv-logo { opacity: 0.7; }
+@container app (min-width: 700px) {
+  .lh-tools { max-width: 720px; }
+  .lh-main { display: grid; grid-template-columns: minmax(270px, 1fr) 1.4fr 1fr; align-items: center; gap: 16px; }
+  .lh-now { padding-left: 0; }
+  .lh-next { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .lh-next small { font-size: 12px; color: var(--tx3); }
+  .lh-next b { font-size: 14px; font-weight: 500; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lh-heart, .lh-more { margin-top: 0; align-self: center; }
+  .lv-logo { width: 56px; height: 34px; }
+}
+.card { border-color: var(--frame); } /* frames at least 3:1 (RM-04) */

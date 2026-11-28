@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slouchcat Handy-App · Live-TV (Mockup Konzept 28)</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="../shared/live-ui.css">
+<link rel="stylesheet" href="../shared/live-mock.css">
+<link rel="stylesheet" href="css/live-core.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<header id="tools" aria-label="Mockup-Leiste">
+  <span class="mk">Mockup</span>
+  <strong>Slouchcat · Handy-App · Live-TV</strong>
+  <div class="seg" role="group" aria-label="Gerät">
+    <button type="button" data-tool="view" data-v="phone">Handy</button>
+    <button type="button" data-tool="view" data-v="tablet">Tablet</button>
+  </div>
+  <div class="seg" role="group" aria-label="Ausrichtung">
+    <button type="button" data-tool="rot" data-v="p">Hochformat</button>
+    <button type="button" data-tool="rot" data-v="l">Querformat</button>
+  </div>
+  <span id="lvm"></span>
+  <label class="jump">Seite
+    <select id="jump" aria-label="Zu einer Seite springen"></select>
+  </label>
+  <button type="button" class="tbtn" data-tool="reset">Neu starten</button>
+  <a class="tbtn" href="../index.html">Alle Einstiege</a>
+</header>
+<main id="stage">
+  <div id="fit">
+    <div id="device">
+      <div id="cam" aria-hidden="true"></div>
+      <div id="status" aria-hidden="true"><span id="clock" data-lv-now="time">20:41</span><span class="sico"></span></div>
+      <div id="app">
+        <nav id="rail" aria-label="Navigation"></nav>
+        <div id="col">
+          <div id="scroll"><div id="view"></div></div>
+          <div id="mini"></div>
+          <nav id="tabs" aria-label="Navigation"></nav>
+        </div>
+      </div>
+      <div id="overlays"></div>
+      <div id="gesture" aria-hidden="true"></div>
+    </div>
+  </div>
+</main>
+<script src="../shared/live-data.js"></script>
+<script src="../shared/live-sim.js"></script>
+<script src="../shared/live-ui.js"></script>
+<script src="../shared/live-register.js"></script>
+<script src="../shared/live-mock.js"></script>
+<script src="js/reg-kern.js"></script>
+<script src="js/reg-handy.js"></script>
+<script src="js/core.js"></script>
+<script src="js/live-core.js"></script>
+<script src="js/channels.js"></script>
+<script src="js/pages.js"></script>
+<script src="js/pages-2.js"></script>
+<script src="js/pages-3.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

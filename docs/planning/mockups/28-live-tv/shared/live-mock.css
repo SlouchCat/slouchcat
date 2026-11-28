@@ -1,0 +1,16 @@
+/* Mockup controls «Zustände» (shared/live-mock.js): deliberately not in the product's look. */
+:root { --lvm-bg: #fffbe0; --lvm-tx: #111; --lvm-mk: #ffe14d; --lvm-line: #d8d2a0; --lvm-muted: #444; --lvm-focus: #1a5fd0; --lvm-shadow: rgba(0, 0, 0, 0.6); }
+.lvm { position: relative; display: inline-flex; font-family: system-ui, sans-serif; font-size: 13px; }
+.lvm .lvm-btn { height: 32px; padding: 0 14px; border-radius: 9999px; background: var(--lvm-mk); color: var(--lvm-tx); font-weight: 700; border: 2px dashed var(--lvm-tx); white-space: nowrap; cursor: pointer; }
+.lvm .lvm-panel { position: fixed; top: 60px; right: 16px; z-index: 500; width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 80px); overflow: auto; background: var(--lvm-bg); color: var(--lvm-tx); border: 2px dashed var(--lvm-tx); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 16px 48px var(--lvm-shadow); white-space: normal; text-align: left; line-height: 1.4; }
+.lvm .lvm-top { display: flex; align-items: center; gap: 8px; } .lvm .lvm-top b { flex: 1; font-size: 15px; }
+.lvm h3 { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lvm-muted); margin: 6px 0 6px; }
+.lvm p { color: var(--lvm-muted); margin: 4px 0 0; }
+.lvm section { border-top: 1px solid var(--lvm-line); padding-top: 6px; }
+.lvm .lvm-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lvm .lvm-o { height: 30px; padding: 0 10px; border-radius: 8px; background: #fff; border: 1px solid var(--lvm-tx); color: var(--lvm-tx); font-weight: 600; cursor: pointer; }
+.lvm .lvm-o[aria-pressed='true'] { background: var(--lvm-tx); color: var(--lvm-mk); }
+.lvm .lvm-o:focus-visible, .lvm .lvm-btn:focus-visible, .lvm a:focus-visible { outline: 3px solid var(--lvm-focus); outline-offset: 2px; }
+.lvm a { color: var(--lvm-tx); font-weight: 700; text-decoration: underline; }
+.lvm .lvm-clock { font-weight: 700; color: var(--lvm-tx); }
+.lvm .lvm-end { border-top: 1px solid var(--lvm-line); padding-top: 10px; }

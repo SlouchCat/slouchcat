@@ -74,7 +74,7 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
     `packet`, `sealedtoken` und `fcmtoken` für das Google-Token; `password` steht schon drin). In `android/`
     nur über `com.slouchcat.core.api.log.Log` (gleiche Schlüsselendungen wie der Server, Werte als Felder);
     `android.util.Log`, `println` und `printStackTrace` meldet die Lint-Regel `SlouchcatDirectLog`.
-11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
+11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
     und Konzept 27 und die Android-TV-App nach Frage 34 und Konzept 26; Apple TV, webOS, Tizen, Fire TV und
     native iOS-Apps bleiben Nicht-Ziele), Plugins,
     algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung (Seerr bleibt die Wunschverwaltung;
@@ -88,6 +88,19 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
     das Einrichten eines Fernsehers per Scan und die Push-Weiterleitung an die Handy-App, zwei getrennt
     betriebene Dienste aus dem Modul `relay/`. Sie halten keine Konten und keine Inhalte und sehen Pakete
     und Meldungen nur verschlüsselt), YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
+    **Live-TV ist kein Nicht-Ziel mehr (Frage 37, Konzept 28). Stand: konzipiert. «Konzept freigegeben» und
+    «Baufreigabe einer Stufe» sind zwei getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für
+    Live-TV dasselbe wie für ein Nicht-Ziel.** Gemeint ist Internetfernsehen aus IPTV-Quellen mit
+    Programmzeitschrift, persönlichem Timeshift und Aufnahmen von Fernsehsendern (`docs/planning/28-live-tv/`,
+    ADR 0046 vorgeschlagen). Die Freigabe des Konzepts erlaubt noch keinen Bau; gebaut wird je Stufe erst nach
+    Marcos ausdrücklicher Baufreigabe dieser Stufe. Bis dahin: keinen Code, keine Migration, keinen Vertrag,
+    nichts vorbereiten. Auch nach einer Baufreigabe verboten bleiben physische Tuner, SAT>IP, HDHomeRun,
+    TVHeadend, DVB, DRM und jede Umgehung, Catch-up und serverweite Archive, gemeinsame Timeshift-Puffer und
+    Aufnahmebibliotheken, Xtream-VOD und -Serien, Multi-View und Bild-in-Bild, Verbindungslimits je Anbieter,
+    Werbeerkennung, KI, Übernahme von Aufnahmen in die Bibliothek und alles Weitere aus der Ausschlussliste
+    (`docs/planning/28-live-tv/anhang/auftrag-2026-11-28.md` Abschnitt 16). Webradio bleibt ohne Aufnahmen.
+    Fire TV bleibt Nicht-Ziel dieses Repos; ob Marcos Auftrag (LTV-014 «berücksichtige Fire TV») daran etwas
+    ändert, führt Konzept 28 als offene Frage an Marco. Die übrigen Nicht-Ziele oben gelten unverändert.
 12. **Entscheid im Server, offline nur Nachschlagen.** Der Client implementiert keine Sichtbarkeits- oder
     Altersregel (Plan 2.1, Prinzip 1).
 

@@ -26,7 +26,7 @@
 |-----------|--------|-------------|--------------------------|
 | Konten, Profile und Zugriff | active | Hauptbenutzer (E-Mail-Konto), Netflix-artige Profile, Altersstufen, PIN, Bibliotheksrechte, Schauzeit-Limits, Gäste per Einladung, Remote-Zugriff | Kriterien K-1 bis K-8 |
 | Video-Bibliothek und Metadaten | active | Filme und Serien: Scannen, Erkennen, TMDB/TVDB, Versionen, Trailer, Extras, Pflegewerkzeuge | Kriterien B-1 bis B-9 |
-| Hörbücher und Podcasts | active | Hörbücher mit Kapiteln, Podcast-Abos per Feed, Fortschritt je Profil | Kriterien H-1 bis H-4; **Musik, Fotos, Live-TV zurückgestellt** (Runde 4) |
+| Hörbücher und Podcasts | active | Hörbücher mit Kapiteln, Podcast-Abos per Feed, Fortschritt je Profil | Kriterien H-1 bis H-4; **Musik, Fotos, Live-TV zurückgestellt** (Runde 4). *Nachtrag 28. November 2026: Live-TV ist kein Nicht-Ziel mehr (Frage 37, Konzept 28). Stand: konzipiert. «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel. Siehe Nachtrag vom 28. November 2026 am Ende.* |
 | Wiedergabe und Transcoding | active | Direct Play, GPU-Transcoding zu HLS, Tonemapping, Qualitätsregeln, Komfortfunktionen, Geräte-Fähigkeiten | Kriterien W-1 bis W-10 |
 | Entdecken und Kuratierung | active | Startseite mit Karussell „User-Empfehlungen“ (bis Konzept 17 „Cat's Empfehlungen“) und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung (seit Konzept 20 Stufe 3: Merkliste mit Benachrichtigung, siehe E-8) | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18); Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen (Frage 25, ADR 0028) |
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
@@ -40,8 +40,8 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 ## Constraints
 - Betrieb ausschliesslich als Docker-Compose-Stack auf Linux (Heimserver oder NAS); GPU-Beschleunigung optional (NVENC, QuickSync, VAAPI). Kein natives Paket, keine Cloud-Variante in Version 1.
 - Ein Server pro Haushalt. Hauptbenutzer-Konto mit E-Mail-Adresse; Profile darunter nur mit Namen; Gäste erhalten eigene Konten per Einladungslink.
-- Genau ein Client in Version 1: Web-App als PWA für Desktop, Handy und Tablet. Offline-Speicher liegt im Browser; dessen Grenzen (Quota, iOS-Eviction) sind in der Architektur zu adressieren.
-- Medientypen Version 1: Filme, Serien, Hörbücher, Podcasts. Architektur hält Musik, Fotos und Live-TV offen, baut sie aber nicht.
+- Genau ein Client in Version 1: Web-App als PWA für Desktop, Handy und Tablet. Offline-Speicher liegt im Browser; dessen Grenzen (Quota, iOS-Eviction) sind in der Architektur zu adressieren. *(Nachtrag 28. November 2026: Seit 21. November 2026 kommen die native Android-Handy-App und die Android-TV-App dazu, Fragen 34 und 35, siehe Non-Goals.)*
+- Medientypen Version 1: Filme, Serien, Hörbücher, Podcasts. Architektur hält Musik, Fotos und Live-TV offen, baut sie aber nicht. *(Nachtrag 28. November 2026: Live-TV ist kein Nicht-Ziel mehr (Frage 37, Konzept 28). Stand: konzipiert. «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel. Live-TV ist ein eigener Bereich, kein Medientyp der Bibliothek. Musik und Fotos bleiben offen und ungebaut.)*
 - Untertitel-Beschaffung erfolgt über Bazarr, nicht in Slouchcat. Anzeige und Umschalten vorhandener Untertitel sind Slouchcats Aufgabe.
 - Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20). *(Nachtrag 17. November 2026, Frage 33, ADR 0037: Wünsche verwaltet Seerr. Slouchcat legt sie dort im Namen des Seerr-Benutzers des Kontos an, zeigt ihren Zustand und meldet die Verfügbarkeit; eine eigene Wunschverwaltung baut es nicht.)*
 - YouTube-Trailer werden eingebettet oder gestreamt, nicht heruntergeladen (Nutzungsbedingungen). Die Suche nach passenden Trailern darf über eine KI-API laufen, muss aber nicht.
@@ -54,7 +54,12 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 
 ## Non-Goals
 - Musik, Fotos, Live-TV und DVR (spätere Versionen). Ausnahme seit 6. November 2026: Live-Webradio
-  (Frage 23 im Entscheidungsprotokoll, Konzept 16, ADR 0025); Musikbibliothek und DVR bleiben Nicht-Ziele.
+  (Frage 23 im Entscheidungsprotokoll, Konzept 16, ADR 0025); Musikbibliothek und Aufnahmen von Webradio bleiben
+  Nicht-Ziele. Ausnahme seit 28. November 2026: Live-TV mit EPG, Timeshift und DVR für Fernsehsender aus
+  IPTV-Quellen (ADR 0046 vorgeschlagen). Live-TV ist kein Nicht-Ziel mehr (Frage 37, Konzept 28). Stand:
+  konzipiert. «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei getrennte Schritte; beide stehen
+  aus. Bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel. Was ausgeschlossen bleibt, steht
+  im Nachtrag vom 28. November 2026 am Ende. Fotos bleiben Nicht-Ziel.
 - TV-Apps (Apple TV, webOS, Tizen, Fire TV) und native iOS-Apps (spätere Versionen). Ausnahme seit
   21. November 2026: die native Android-Handy-App (Frage 35 im Entscheidungsprotokoll, Konzept 27) und die
   Android-TV-App (Frage 34, Konzept 26) sind Ziel.
@@ -94,7 +99,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 ### Konten, Profile und Zugriff (K)
 - [ ] K-1 Der Hauptbenutzer meldet sich mit E-Mail-Adresse und Passwort an; Profile darunter tragen nur einen Namen und optional ein Bild.
 - [ ] K-2 Der Hauptbenutzer legt Profile an, ändert und löscht sie und setzt je Profil eine Altersstufe (FSK 0, 6, 12, 16, 18), eine optionale PIN und Bibliotheksrechte.
-- [ ] K-3 Ein Profil sieht Inhalte über seiner Altersstufe nirgends: nicht auf der Startseite, nicht in Top Picks, nicht in der Suche, nicht in Sammlungen, nicht in Downloads. Negativtest mit Kinderprofil ist Pflicht für jede Liste.
+- [ ] K-3 Ein Profil sieht Inhalte über seiner Altersstufe nirgends: nicht auf der Startseite, nicht in Top Picks, nicht in der Suche, nicht in Sammlungen, nicht in Downloads. Negativtest mit Kinderprofil ist Pflicht für jede Liste. *(Nachtrag 28. November 2026: vorgesehene benannte Ausnahme für Live-TV nach Frage 37, siehe Nachtrag vom 28. November 2026 am Ende; für Titel der Bibliothek gilt K-3 unverändert.)*
 - [ ] K-4 Der Wechsel in ein PIN-geschütztes Profil verlangt die PIN; falsche Eingaben werden gebremst.
 - [ ] K-5 Je Profil lässt sich ein tägliches Schauzeit-Limit setzen; bei Erreichen stoppt die Wiedergabe mit Hinweis, und der Hauptbenutzer sieht einen Verlaufsbericht je Profil.
 - [ ] K-6 Der Hauptbenutzer erzeugt Einladungslinks; ein Gast erstellt damit ein eigenes Konto mit eigenen Profilen und eingeschränkten Rechten.
@@ -185,7 +190,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 | Nur der eigene Haushalt nutzt den Server | Runde 1: Haushalt, Gäste oder Mandanten? | Haushalt plus eingeladene Gäste, kein Mandantenmodell |
 | Server soll überall laufen | Runde 2: Docker, nativ, Cloud? | Nur Docker auf Linux, GPU optional |
 | Offline braucht native Apps | Runde 3: Clients dieser Version? | Nur Web/PWA; Offline über Browser-Speicher, Risiko dokumentiert |
-| „Alle Medientypen" | Runde 4 (Contrarian): nur Filme und Serien? | Filme, Serien, Hörbücher, Podcasts; Musik, Fotos, Live-TV später |
+| „Alle Medientypen" | Runde 4 (Contrarian): nur Filme und Serien? | Filme, Serien, Hörbücher, Podcasts; Musik, Fotos, Live-TV später (Nachtrag 28. November 2026: Live-TV ist kein Nicht-Ziel mehr, Frage 37; konzipiert, Konzept- und Baufreigabe stehen aus; siehe Nachtrag am Ende) |
 | Downloads laufen ab | Runde 5: Ablauf nach 30 Tagen? | Kein Ablauf; Entzug nur durch Profil oder Hauptbenutzer |
 | Startseite braucht Algorithmus-Empfehlungen | Runde 6 (Simplifier): kleinste Startseite? | Top-Picks-Karussell plus fünf Reihen, keine Algorithmen |
 | „Transcoding muss funktionieren" ist eine Anforderung | Runde 7: prüfbare Kriterien? | Zehn Kriterien inklusive Geräte-Fähigkeitsprofilen |
@@ -380,3 +385,73 @@ und stehen in den Non-Goals; neu ist I-8. Je Integration eine eigene Adresse mit
 Pfad-Umsetzungstabelle im Admin, ein Ereignisprotokoll der letzten 20 Meldungen und eine Kachel im Dashboard.
 Der in M8 angelegte Benachrichtigungskanal „Beschaffung“ wird vollständig entfernt, weil sein Erzeuger (I-1)
 entfällt.
+
+## Nachtrag vom 28. November 2026 – Live-TV als eigener Funktionsbereich
+
+Dieser Abschnitt stammt nicht aus dem ursprünglichen Interview, sondern aus Marcos Auftrag vom
+28. November 2026. Verbindlich protokolliert als Frage 37 in `docs/planning/04-entscheidungen.md`; ausgearbeitet in
+Konzept 28 (`docs/planning/28-live-tv/`, Wortlaut des Auftrags in `anhang/auftrag-2026-11-28.md`).
+
+**Entscheid:** Marco hat am 28. November 2026 entschieden, dass Live-TV (Internetfernsehen aus IPTV-Quellen mit
+Programmzeitschrift, persönlichem Timeshift und Aufnahmen) einen eigenen Funktionsbereich bildet. **Live-TV ist kein
+Nicht-Ziel mehr (Frage 37, Konzept 28). Stand: konzipiert. «Konzept freigegeben» und «Baufreigabe einer Stufe»
+sind zwei getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein
+Nicht-Ziel** (Grundsatz LTV-021): kein Live-TV-Code, keine Migration, keine Vertragsfassung. Die Kriterien für Live-TV
+(Baustein L) und die Abnahmekriterien `AK-L-nnn` stehen im Konzept und kommen mit Stufe 0 des Baus in diese Spec.
+
+**Umfang** (21 Grundsatzentscheide LTV-001 bis LTV-021, `02-grundsatzentscheide.md`):
+
+- Quellen: M3U/M3U8 als Datei oder Adresse, einzelne Stream-Adressen, Xtream-Codes-Live; Empfang über HTTP(S),
+  HLS, MPEG-TS, DASH ohne DRM, RTSP, RTMP, UDP, RTP und Multicast; Senderverwaltung mit stabiler Identität.
+- Empfang: jeder Sender möglichst nur einmal, intern an alle Zuschauer und Aufnahmen verteilt; Umwandlung je
+  Zuschauer einzeln; schnelles Umschalten; Streamüberwachung mit Ersatzquellen.
+- Programmzeitschrift aus XMLTV mit Suche, Aufnahmeplanung und Erinnerungen; Wiedergabe auch ohne EPG.
+- Persönliches Timeshift je Zuschauer ab dem Einschalten, gelöscht beim Senderwechsel und Beenden.
+- Aufnahmen (DVR) von Fernsehsendern in Originalqualität, privat je Profil, Kontingent je Konto; Rechte
+  «Live-TV», «Aufnahmen», «Timeshift» je Konto und je Profil.
+
+**Ausgeschlossen bleibt** (vollständig: Auftrag Abschnitt 16): physische Tuner, SAT>IP, HDHomeRun, TVHeadend,
+DVB-Empfang, DRM-Streams und jede Umgehung von Kopierschutz, Catch-up TV und serverweite Archive, gemeinsame
+Timeshift-Puffer, gemeinsam sichtbare Aufnahmebibliotheken, Xtream-VOD und -Serien, Multi-View und Bild-in-Bild,
+Verbindungslimits und Abonnementverwaltung je Anbieter, automatische Werbeerkennung, KI-Funktionen, automatische
+Altersprüfung von Sendungen, Komprimierung und Konvertierung von Aufnahmen, Übernahme von Aufnahmen in Film- und
+Serienbibliotheken, suchwortbasierte Aufnahmen, neue Benutzergruppen, externe Transcoding-Nodes, eigene
+Live-TV-Microservices und Pflicht-Middleware. Webradio bleibt unverändert und ohne Aufnahmen (Frage 23, F-1).
+Alle übrigen Non-Goals gelten unverändert, auch «TV-Apps (Apple TV, webOS, Tizen, Fire TV)».
+
+**Auslegungen des Koordinators, die Marco noch bestätigen oder ändern kann** (keine Entscheide Marcos; Fragen in
+`docs/planning/28-live-tv/20-offene-entscheidungen.md`): Fire TV (der Auftrag nennt es unter «berücksichtige»;
+Vorgabe: berücksichtigt, aber kein eigener Client und keine Zusage, das Nicht-Ziel bleibt bis zu Marcos Antwort);
+Plattform-Streams wie YouTube oder Twitch (der Auftrag nennt sie nicht; keine IPTV-Quellen im Sinn von LTV-003);
+Download und Offline von Aufnahmen (nicht verlangt, nicht geplant); Safari, iPhone und iPad (vorgesehen wie die
+übrigen Browser, ungeprüft, solange kein Gerät da ist); kein eigener Dienst von Slouchcat im Internet für
+Live-TV.
+
+**Benannte Ausnahmen von bestehenden Kriterien** (je nur für Live-TV, Grenzen in `02-grundsatzentscheide.md`
+Abschnitt 4, A-1 bis A-13; Stand: vorgeschlagen, nicht gebaut):
+
+- **K-3 und AN-1 (Altersmodell):** gelten für Live-TV nicht. Das Hauptprofil schaltet Live-TV für ein Profil mit
+  Altersgrenze frei oder sperrt es; freigegeben sieht es alle Sender des Kontos ohne Prüfung von Sender, Sendung
+  oder Programmdaten. Für Filme, Serien, Hörbücher, Podcasts und alle Bibliotheken gilt K-3 unverändert;
+  Sender, Sendungen und Aufnahmen erscheinen nie auf der Startseite, in Top Picks, Sammlungen oder Downloads der
+  Bibliothek (ob Sendungen in der allgemeinen Suche erscheinen, ist eine offene Frage, E-28-23).
+- **Sichtbarkeit privater Aufnahmen:** Aufnahmen gehören dem Profil. Nur das Hauptprofil desselben Kontos darf
+  die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und abspielen; Profile ohne Altersgrenze bleiben
+  ganz privat. Der Administrator sieht keine Titel fremder Aufnahmen, nur Belegung und technische Zustände.
+  Das Hauptprofil verwaltet diese Aufnahmen auch ohne eigenes Recht «Live-TV» (A-12).
+- **ADR 0032 und B-1 (nichts löscht automatisch, Medien nur lesend):** Aufnahmen werden nur nach der
+  Aufbewahrungsfrist oder «behalte die letzten N Folgen» gelöscht, die das Profil selbst gewählt hat; ein volles
+  Kontingent lehnt die neue Aufnahme ab und meldet sie. Aufnahmen und Puffer liegen in eigenen, schreibbaren
+  Live-TV-Speicherorten, nie in Bibliotheksordnern.
+- **«Nichts im lokalen Netz» (ADR 0025):** Quellen im Heimnetz sowie UDP, RTP und Multicast nur, wenn der
+  Administrator sie mit festen Einzelzielen je Quelle freigibt (je Eintrag eine Adresse mit einem Port; ein kleines
+  Netz bis /28 nur mit zweiter Bestätigung und nie mit dem Gateway); Loopback und Link-Local nie. Radio, Podcasts
+  und Bilder bleiben unverändert.
+- **ADR 0025 «FFmpeg sieht keine Adresse» und Regel 3:** FFmpeg liest DASH und HLS mit fMP4 nur über den
+  Weiterleiter des Servers, nur mit erzwungener Sperre, erst nach der Messung M-10 und nie im Netzmodus «host»
+  (A-10); `execve` für die Hülle vor FFmpeg nur im Paket `transcode` (A-11). Eine Umwandlung ohne Sperre nur bei
+  ausdrücklicher Wahl des Betreibers (A-13, nur falls Marco diese Variante wählt).
+- **ADR 0045:** Die drei Live-TV-Rechte folgen nicht der Altersgrenze; das Wunschrecht bleibt unter ADR 0045.
+
+**Verweis:** Konzept 28 (`docs/planning/28-live-tv/`), Mockups `docs/planning/mockups/28-live-tv/`, Übersicht
+der Dokumentänderungen `docs/planning/28-live-tv/21-aenderungen-an-dokumenten.md`, ADR 0046 (vorgeschlagen).

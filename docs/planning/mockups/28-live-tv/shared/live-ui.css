@@ -1,0 +1,72 @@
+/* Konzept 28 «Live-TV»: styles of the shared display parts (shared/live-ui.js). Uses the colour variables
+   that all three clients define (--bg --elev --s1 --s2 --s3 --tx --tx2 --tx3 --frame --ctl --danger --warn
+   --ok --info). The live tokens below are the proposal of 14-oberflaeche.md 6.12 (dark theme). Sizes are
+   set by each client (logo width and height, font sizes). */
+:root {
+  --live-rec: #ff5a52;          /* live.record.base: recording dot, «nimmt auf» */
+  --live-rec-on: #16080a;       /* live.record.on: text on a filled recording surface */
+  --live-now: #ffd24a;          /* live.now-line: now line, time mark of the axis */
+  --live-cur: #2f3546;          /* live.cell.current: one step lighter than surface 2 */
+  --live-past: #13151b;         /* live.cell.past: between bg and surface 1 */
+  --live-gap-a: #1b1e27;        /* live.cell.gap: stripes of surface 1 … */
+  --live-gap-b: #343a4c;        /* … and surface 3 (stripes ≥ 3:1 apart, text ≥ 8:1 on both) */
+  --live-plate: #e9eaee;        /* light neutral plate behind channel logos (logos are black, dark blue or tall) */
+  --live-plate-tx: #20242f;     /* initials on the plate when the logo file is missing */
+  --live-shimmer: rgba(255, 255, 255, 0.06); /* moving light of the simulated picture */
+  --live-tag-bg: rgba(11, 12, 16, 0.8);
+}
+
+/* channel logo: plate, logo contained with padding, no frame; initials when the file is missing */
+.lv-logo { position: relative; display: inline-grid; place-items: center; flex: none; width: 64px; height: 40px; border-radius: 8px; background: var(--live-plate); overflow: hidden; vertical-align: middle; }
+.lv-logo img { width: 100%; height: 100%; object-fit: contain; padding: 12%; box-sizing: border-box; }
+.lv-logo b { display: none; color: var(--live-plate-tx); font-weight: 800; font-size: 0.8em; letter-spacing: 0.02em; line-height: 1; }
+.lv-logo.no-img b { display: block; }
+/* page styles like «.x b { display: block }» must never show the initials next to a loaded logo */
+.lv-logo > b { display: none !important; font-size: 0.8em !important; margin: 0 !important; }
+.lv-logo.no-img > b { display: block !important; }
+
+/* programme picture 16:9, no frame; fallback: logo on a calm surface or the title */
+.lv-pic { position: relative; display: block; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--s2); border-radius: inherit; }
+.lv-pic > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lv-pic .lv-pic-fb { position: absolute; inset: 0; display: none; place-items: center; background: linear-gradient(160deg, var(--s3), var(--s1)); }
+.lv-pic.no-img .lv-pic-fb { display: grid; }
+.lv-pic .lv-pic-fb .lv-logo { width: 34%; height: auto; aspect-ratio: 16 / 10; }
+.lv-pic .lv-pic-fb.title b { padding: 0 12%; text-align: center; color: var(--tx); font-weight: 700; }
+
+/* progress of a running programme */
+.lv-prog { display: block; height: 4px; border-radius: 4px; background: var(--s3); overflow: hidden; }
+.lv-prog > i { display: block; height: 100%; background: var(--tx); border-radius: 4px; transition: width 0.6s linear; }
+.lv-prog.rec > i { background: var(--live-rec); }
+
+/* recording and reminder badges: symbol always with a word or an accessible name */
+.lv-badge { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-weight: 600; color: var(--tx2); }
+.lv-badge .sym { font-size: 0.9em; line-height: 1; }
+.lv-badge.recording .sym, .lv-badge.scheduled .sym, .lv-badge.series .sym { color: var(--live-rec); }
+.lv-badge.warning .sym { color: var(--warn); }
+.lv-badge.failed .sym { color: var(--danger); }
+.lv-badge.incomplete .sym { color: var(--warn); }
+.lv-badge.recording .sym { animation: lv-pulse 1.6s ease-in-out infinite; }
+@keyframes lv-pulse { 50% { opacity: 0.35; } }
+
+/* «keine Programmdaten»: stripes, text stays readable */
+.lv-gap { background: repeating-linear-gradient(135deg, var(--live-gap-a) 0 10px, var(--live-gap-b) 10px 20px); color: var(--tx); }
+.lv-gap-text { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--live-gap-a); color: var(--tx); }
+
+/* footnote on every page */
+.lv-sample { color: var(--tx3); font-size: 13px; padding: 24px 0 8px; }
+
+/* simulated playback: a still surface with a slow shimmer, clearly labelled */
+.lv-vid { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(120% 90% at 30% 30%, var(--s3), var(--bg) 70%); }
+.lv-vid-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(0.9); }
+.lv-vid-move { position: absolute; inset: -20%; background: linear-gradient(115deg, transparent 35%, var(--live-shimmer) 50%, transparent 65%); animation: lv-shimmer 7s linear infinite; }
+.lv-vid.paused .lv-vid-move { animation-play-state: paused; }
+.lv-vid.bad .lv-vid-move { display: none; }
+.lv-vid-logo { position: absolute; right: 4%; top: 6%; opacity: 0.85; }
+.lv-vid-tag { position: absolute; left: 3%; bottom: 4%; padding: 4px 10px; border-radius: 6px; background: var(--live-tag-bg); color: var(--tx2); font-size: 13px; }
+@keyframes lv-shimmer { from { transform: translateX(-30%); } to { transform: translateX(30%); } }
+@media (prefers-reduced-motion: reduce) { .lv-vid-move, .lv-badge.recording .sym { animation: none; } .lv-prog > i { transition: none; } }
+
+/* skeleton blocks for «lädt» */
+.lv-skel { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--s1), var(--s2), var(--s1)); background-size: 200% 100%; animation: lv-skel 1.4s ease-in-out infinite; }
+@keyframes lv-skel { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .lv-skel { animation: none; } }

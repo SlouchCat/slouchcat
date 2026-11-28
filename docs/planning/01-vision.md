@@ -78,3 +78,14 @@ Cloud-Betrieb und native Installationspakete.
 1. Seerr-Bereich über die API mit eigener Oberfläche (Empfehlung) oder als Einbettung.
 2. Ankündigungen über dieselben Kanäle wie die Benachrichtigungen (Empfehlung) oder nur In-App und E-Mail.
 3. Trailer-Suche über die YouTube-API (Empfehlung) oder über eine KI-API als austauschbaren Anbieter.
+
+## Nachtrag vom 28. November 2026
+
+Die Vision bleibt, wie sie ist. Seit Version 1 gehören einzelne frühere Nicht-Ziele dazu, je mit einem Eintrag im
+Entscheidungsprotokoll: Live-Webradio ohne Aufnahmen (seit 6. November 2026, Frage 23), die native
+Android-Handy-App und die Android-TV-App (seit 21. November 2026, Fragen 34 und 35, mit den zwei kleinen Diensten
+im Internet für das Einrichten des Fernsehers und die Push-Meldungen) und Live-TV aus IPTV-Quellen mit
+Programmzeitschrift, persönlichem Timeshift und Aufnahmen von Fernsehsendern (seit 28. November 2026, Frage 37,
+Konzept 28). Live-TV ist konzipiert; «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei getrennte
+Schritte, beide stehen aus, und bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel. Die übrigen Nicht-Ziele oben gelten weiter; die geltende Fassung samt Ausnahmen steht in der Spec
+(«Non-Goals») und in `CLAUDE.md` Regel 11.

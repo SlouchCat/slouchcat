@@ -1,5 +1,24 @@
 # Aktueller Stand
 
+## Konzept 28 «Live-TV»: Entwurf, nichts gebaut, nichts freigegeben (28. November 2026, Zweig `claude/konzept-live-tv`)
+
+Marcos Auftrag vom 28. November 2026: Live-TV wird ein eigener Funktionsbereich (Internetfernsehen aus
+IPTV-Quellen mit Programmzeitschrift, persönlichem Timeshift und Aufnahmen; 21 Grundsatzentscheide LTV-001 bis
+LTV-021). Frage 37 im Entscheidungsprotokoll, ADR 0046 vorgeschlagen. Live-TV ist kein Nicht-Ziel mehr
+(Frage 37, Konzept 28). Stand: konzipiert. «Konzept freigegeben» und «Baufreigabe einer Stufe» sind zwei
+getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für Live-TV dasselbe wie für ein Nicht-Ziel.
+
+- **Stand:** Konzept 28 liegt als Entwurf auf dem Zweig `claude/konzept-live-tv` vor (Ordner
+  `docs/planning/28-live-tv/`, klickbare Mockups für Web, Android TV und Handy-App in
+  `docs/planning/mockups/28-live-tv/`). **Nichts gebaut, nichts freigegeben:** kein Code in Server, Web-App
+  oder Apps, keine Migration, Vertrag unverändert 1.44.0.
+- **Nachgeführte Dokumente:** Spec, Plan, Vision, Frage 37, ADR 0046, `CLAUDE.md` Regel 11,
+  `docs/dev/HANDOVER.md` und dieses Dokument nennen denselben Stand (Übersicht
+  `docs/planning/28-live-tv/21-aenderungen-an-dokumenten.md`).
+- **Nächster Schritt:** Marcos Prüfung des Konzepts und der Mockups, seine Entscheide zu den offenen Fragen
+  (`docs/planning/28-live-tv/20-offene-entscheidungen.md`), die Freigabe des Konzepts und danach, als eigener
+  Schritt, die ausdrückliche Baufreigabe je Stufe.
+
 ## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026, PR #241)
 
 PR #241, Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom

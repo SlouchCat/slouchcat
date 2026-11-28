@@ -1,0 +1,248 @@
+/* Web Zuschauer A: eigene Stile (LS-01, LS-03, LS-05, LS-06, LS-15, LS-21 bis LS-26).
+   Nur Variablen aus app.css, core.css und ../shared/live-ui.css. Handy zuerst, Breiten über Container-Abfragen. */
+
+/* ---------- shared: rows of cards (Row), link cards, dock ---------- */
+.va-start { display: flex; flex-direction: column; gap: 28px; }
+.va-row { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.va-rowhead { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-height: 36px; }
+.va-rowhead h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.va-rmeta { font-size: 13px; color: var(--tx3); }
+.va-all { margin-left: auto; font-size: 14px; }
+.va-paging { margin-left: auto; display: none; gap: 4px; }
+.va-all + .va-paging { margin-left: 8px; }
+.va-rowmenu { margin-left: auto; display: inline-flex; }
+.va-rowhead:has(.lmenu) { position: relative; z-index: 5; }
+.va-all + .va-rowmenu, .va-rowmenu + .va-paging { margin-left: 4px; }
+@container app (min-width: 768px) { .va-paging { display: inline-flex; } }
+/* the scroller carries empty space below the cards so a card menu is not cut off; the next section paints above it */
+.va-scroll { margin: 0 calc(var(--gut) * -1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-behavior: smooth; padding-bottom: 150px; margin-bottom: -150px; scroll-padding: 0 var(--gut); }
+.va-scroll::-webkit-scrollbar { display: none; }
+.va-cards { display: flex; gap: 14px; padding: 6px var(--gut) 16px; width: max-content; }
+.va-card { position: relative; width: 208px; flex: none; border-radius: 12px; }
+@container app (min-width: 768px) { .va-card { width: 264px; } .va-card.chan { width: 232px; } }
+.va-card.chan { width: 188px; }
+.va-main { display: flex; flex-direction: column; gap: 8px; width: 100%; border-radius: 12px; text-align: left; color: var(--tx); }
+.va-main:focus-visible { outline-offset: 3px; }
+.va-art { position: relative; display: block; border-radius: 12px; overflow: hidden; background: linear-gradient(160deg, var(--s3), var(--s1)); transition: transform 0.16s; }
+.va-art .lv-pic { border-radius: 12px; }
+.va-main:hover .va-art, .va-main:focus-visible .va-art { transform: scale(1.03); }
+.va-art.chan { display: grid; place-items: center; aspect-ratio: 16 / 9; }
+.va-art.chan .lv-logo.wide { width: 56%; height: auto; aspect-ratio: 16 / 10; font-size: 22px; border-radius: 8px; }
+.va-pl { position: absolute; left: 8px; bottom: 8px; }
+.va-pl .lv-logo { width: 44px; height: 26px; font-size: 11px; border-radius: 5px; }
+.va-no { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 6px; background: var(--scrim); color: var(--tx); font-size: 12px; font-weight: 700; }
+.va-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 2px; }
+.va-t { font-size: 15px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.va-s { font-size: 13px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-m { font-size: 12px; color: var(--tx3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-m.warnline { display: inline-flex; align-items: center; gap: 6px; color: var(--warn); }
+.va-body .lv-prog { margin-top: 4px; }
+.va-flag, .va-bdg { display: inline-flex; gap: 6px; padding: 0 2px; font-size: 12px; }
+.va-menu { position: absolute; right: 6px; top: 6px; z-index: 2; }
+.va-menu .btn { background: var(--scrim); border: 1px solid var(--ctl); color: var(--tx); }
+.va-menu .btn:hover { background: var(--s3); }
+.va-card.chan .va-menu { top: 6px; }
+.va-genres { padding-top: 2px; }
+.va-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@container app (min-width: 900px) { .va-links { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.va-lc { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 16px; border-radius: 12px; background: var(--elev); border: 1px solid var(--frame); min-width: 0; }
+.va-lc:hover { background: var(--s2); }
+.va-lc-ic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--s3); color: var(--tx); }
+.va-lc-t { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.va-lc-t b { font-size: 15px; font-weight: 600; }
+.va-lc-t span { font-size: 13px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; }
+.va-lc-go { color: var(--tx3); flex: none; }
+.va-tvlink { max-width: 560px; }
+.va-skel { display: flex; flex-direction: column; gap: 28px; }
+.va-skelrow { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.va-skelcards { display: flex; gap: 14px; overflow: hidden; }
+.va-skelcards .lv-skel { flex: none; max-width: 70%; }
+.va-dock { position: sticky; bottom: 16px; z-index: 5; display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 8px 8px 8px 16px; border-radius: 9999px; background: var(--s3); border: 1px solid var(--ctl); box-shadow: 0 8px 24px var(--scrim); max-width: 420px; }
+.va-dock-ic { color: var(--accent); display: inline-flex; }
+.va-dock-t { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.va-dock-t b { font-size: 14px; }
+.va-dock-t span { font-size: 12px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-pgbody { min-width: 0; }
+.va-hint { color: var(--tx2); font-size: 14px; max-width: 70ch; }
+
+/* card menu: opens inside the scroller's free space */
+.va-card .lmenu { top: calc(100% + 2px); min-width: 220px; }
+.va-card.chan .lmenu, .va-card .lmenu { right: 0; }
+
+/* ---------- LS-03 ---------- */
+.va-segnav { display: inline-flex; gap: 4px; padding: 4px; border-radius: 9999px; background: var(--s1); border: 1px solid var(--frame); align-self: flex-start; }
+.va-segnav a { display: inline-flex; align-items: center; height: 32px; padding: 0 16px; border-radius: 9999px; font-size: 14px; font-weight: 500; color: var(--tx2); }
+.va-segnav a:hover { color: var(--tx); }
+.va-segnav a[aria-current='page'] { background: var(--s3); color: var(--tx); font-weight: 600; }
+.va-ordlist { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.va-ord { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.va-ordmain { display: flex; align-items: center; gap: 12px; flex: 1 1 220px; min-width: 0; padding: 6px 8px; border-radius: 10px; }
+.va-ordmain:hover { background: var(--s1); }
+.va-ordn { width: 24px; text-align: right; font-weight: 700; color: var(--tx3); font-variant-numeric: tabular-nums; }
+.va-ordname { display: flex; flex-direction: column; min-width: 0; }
+.va-ordname span { font-size: 12px; color: var(--tx3); }
+.va-ordacts { display: flex; gap: 4px; flex-wrap: wrap; }
+.va-ordacts .btn { padding: 0 10px; }
+.va-ordacts .vt { display: none; }
+@container app (min-width: 768px) { .va-ordacts .vt { display: inline; } }
+.btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- program rows (LS-05, LS-06, LS-15) ---------- */
+.va-tools { display: flex; flex-direction: column; gap: 12px; }
+@container app (min-width: 768px) { .va-tools { flex-direction: row; flex-wrap: wrap; align-items: flex-end; } }
+.va-tools .fsearch, .va-sbig { flex: none; width: 100%; }
+@container app (min-width: 768px) { .va-tools .fsearch { flex: 1 1 280px; width: auto; max-width: 420px; } .va-sbig { flex: 1 1 320px; width: auto; max-width: 520px; } }
+.va-when { gap: 6px; }
+.va-when .pill { height: 36px; padding: 0 14px; }
+.va-when .pill[aria-current='true'], .va-chip[aria-current='true'] { background: var(--tx); color: var(--bg); border-color: transparent; font-weight: 600; }
+.va-facets { display: none; flex-wrap: wrap; gap: 8px; }
+.va-fbtn { align-self: flex-start; }
+@container app (min-width: 768px) { .va-facets { display: flex; } .va-fbtn { display: none; } }
+.va-facets .fsel .sel { min-width: 150px; width: auto; }
+.va-count { color: var(--tx2); font-size: 14px; margin-bottom: 8px; }
+.va-plist { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.va-dayh { padding: 20px 8px 6px; border-bottom: 1px solid var(--line); }
+.va-dayh h2 { font-size: 16px; font-weight: 700; color: var(--tx); }
+.va-prow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 8px; border-bottom: 1px solid var(--line); }
+.va-prow:hover { background: var(--s1); }
+.va-prow.now { background: var(--live-cur); }
+.va-prow.past { background: var(--live-past); }
+.va-pmain { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 10px 8px 4px; border-radius: 8px; min-width: 0; }
+.va-pmain:focus-visible { outline-offset: -3px; }
+.va-time { font-size: 13px; font-weight: 700; color: var(--tx2); font-variant-numeric: tabular-nums; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+.va-past { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--tx2); padding: 0 6px; border: 1px solid var(--frame); border-radius: 4px; }
+.va-ch { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.va-ch .lv-logo { width: 44px; height: 26px; font-size: 11px; border-radius: 5px; }
+.va-chn { font-size: 13px; font-weight: 600; color: var(--tx); }
+.va-pt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 100%; }
+.va-pt b { font-size: 15px; font-weight: 600; }
+.va-ep { font-size: 14px; color: var(--tx2); }
+.va-gn { font-size: 12px; color: var(--tx2); }
+.va-pg { display: flex; align-items: center; gap: 10px; max-width: 320px; margin-top: 4px; }
+.va-pg .lv-prog { flex: 1; }
+.va-prow > .va-bdg { grid-column: 1; grid-row: 2; padding: 0 8px 8px; align-items: center; }
+.va-acts { grid-column: 2; grid-row: 2; display: inline-flex; align-items: center; gap: 4px; padding: 0 4px 6px 0; }
+.va-act.on { color: var(--live-rec); }
+.va-act.va-rem.on { color: var(--live-now); }
+.va-rec.run svg { animation: lv-pulse 1.6s ease-in-out infinite; }
+.va-play { padding: 0 12px; }
+@container app (min-width: 768px) {
+  .va-prow { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .va-pmain { grid-column: 1; display: grid; grid-template-columns: 124px 170px minmax(0, 1fr); gap: 0 16px; padding: 10px 8px; align-items: center; }
+  .va-day .va-pmain { grid-template-columns: 124px minmax(0, 1fr); }
+  .va-pt { flex: none; }
+  .va-prow > .va-bdg { grid-column: 2; grid-row: 1; padding: 0; min-width: 28px; justify-content: flex-end; }
+  .va-acts { grid-column: 3; grid-row: 1; padding: 0 4px 0 0; min-width: 118px; justify-content: flex-end; }
+}
+@container app (max-width: 767px) { .va-play span { display: none; } .va-play { width: 32px; padding: 0; } }
+.va-gaprow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 8px; border-bottom: 1px solid var(--line); }
+.va-gaprow .va-time { color: var(--tx); }
+.va-gaprow .va-gaprec { margin-left: auto; }
+
+/* ---------- LS-06 ---------- */
+.va-det { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container app (min-width: 900px) { .va-det { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 32px; align-items: start; } }
+.va-detpic { border-radius: 16px; overflow: hidden; }
+.va-detpic .lv-pic { border-radius: 16px; }
+.va-detpic .lv-pic .lv-pic-fb .lv-logo { width: 30%; font-size: 26px; }
+.va-detinfo { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.va-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--tx2); font-size: 15px; }
+.va-metach { display: inline-flex; align-items: center; gap: 8px; color: var(--tx); border-radius: 8px; }
+.va-metach .lv-logo { width: 48px; height: 28px; font-size: 12px; border-radius: 6px; }
+.va-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.va-status { display: flex; align-items: center; gap: 12px; color: var(--tx2); }
+.va-status .lv-prog { width: 160px; flex: none; }
+.va-status.past { display: block; }
+.va-rounds { gap: 4px 8px; }
+.va-rounds .round { width: 88px; }
+.va-rounds .btn.round { height: auto; width: 88px; padding: 4px; border: 0; border-radius: 8px; gap: 4px; flex-direction: column; font-size: 12px; font-weight: 500; line-height: 1.5; color: var(--tx2); background: none; }
+.va-rounds .btn.round:hover { background: none; }
+.va-rounds .round.on .c { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.va-rounds .round:hover { color: var(--tx); }
+.va-rounds .lmenu { right: auto; left: 0; }
+.va-desc { color: var(--tx2); max-width: 66ch; }
+.va-desc.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.va-descw { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.va-sec { display: flex; flex-direction: column; gap: 8px; }
+.va-sec .st { font-size: 20px; font-weight: 600; }
+.va-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; max-width: 760px; }
+.va-facts dt { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--tx3); }
+.va-facts dd { color: var(--tx); }
+.va-detskel { display: grid; gap: 20px; }
+
+/* ---------- LS-15 ---------- */
+.page.live h1 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.va-biglogo.lv-logo { width: 84px; height: 50px; font-size: 18px; border-radius: 8px; }
+.va-chno { font-size: 16px; font-weight: 500; color: var(--tx3); letter-spacing: 0; }
+.va-days ul { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+.va-chip { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 9999px; background: var(--s1); border: 1px solid var(--ctl); color: var(--tx2); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.va-chip:hover { color: var(--tx); background: var(--s2); }
+.va-chip[aria-current='true']:hover { background: var(--tx); color: var(--bg); }
+.heart.on { color: var(--live-rec); }
+
+/* ---------- LS-21 profile form ---------- */
+.va-pftabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.va-pft { display: inline-flex; align-items: center; gap: 10px; padding: 6px 16px 6px 8px; border-radius: 9999px; background: var(--s1); border: 1px solid var(--ctl); }
+.va-pft small { display: block; font-size: 12px; color: var(--tx2); line-height: 1.2; }
+.va-pft[aria-pressed='true'] { background: var(--tx); color: var(--bg); border-color: transparent; }
+.va-pft[aria-pressed='true'] small { color: var(--bg); }
+.va-pf { gap: 20px; }
+.va-pfgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 760px; }
+@container app (min-width: 768px) { .va-pfgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.va-sw { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; max-width: 760px; padding: 4px 0; }
+.va-swt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.va-swt span { font-size: 14px; color: var(--tx2); }
+.va-swt .va-swn { color: var(--warn); font-weight: 500; }
+.va-sw.off .va-swt b { color: var(--tx2); }
+.sw[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+.va-pflive { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------- LS-22 notification settings ---------- */
+.va-evl { display: flex; flex-direction: column; }
+.va-ev { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.va-ev:first-child { border-top: 0; }
+.va-evt { display: flex; flex-direction: column; min-width: 0; }
+.va-evt span { font-size: 14px; color: var(--tx2); }
+.va-evc { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.va-nc { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; }
+.va-ncl { font-size: 14px; color: var(--tx2); }
+.va-evh { display: none; }
+@container app (min-width: 768px) {
+  .va-ev { flex-direction: row; align-items: center; justify-content: space-between; gap: 24px; }
+  .va-evc { flex: none; display: grid; grid-template-columns: repeat(3, 84px); gap: 0; }
+  .va-nc { justify-content: center; }
+  .va-ncl { display: none; }
+  .va-evh { display: flex; justify-content: flex-end; padding-bottom: 4px; font-size: 12px; font-weight: 600; color: var(--tx2); }
+  .va-evh > span:last-child { display: grid; grid-template-columns: repeat(3, 84px); text-align: center; }
+}
+
+/* ---------- LS-23 inbox ---------- */
+.va-inbox { display: flex; flex-direction: column; gap: 8px; }
+.va-in { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 16px; border-radius: 12px; background: var(--elev); }
+.va-in.unread { box-shadow: inset 3px 0 0 var(--accent); }
+.va-inmain { display: flex; align-items: center; gap: 14px; flex: 1 1 280px; min-width: 0; border-radius: 8px; }
+.va-inic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--s3); color: var(--tx); }
+.va-inic.warn { color: var(--warn); }
+.va-int { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.va-int b { font-weight: 600; font-size: 15px; }
+.va-int span { font-size: 14px; color: var(--tx2); }
+.va-intime { font-size: 12px; color: var(--tx3); white-space: nowrap; }
+.va-inacts { display: inline-flex; gap: 8px; margin-left: auto; }
+
+/* ---------- LS-25 radio ---------- */
+.va-audl { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+.va-aud { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 12px; background: var(--elev); border: 1px solid transparent; }
+.va-aud.on { border-color: var(--frame); background: var(--s2); }
+.va-audic { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--s3); }
+.va-prio { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 16px; border-radius: 12px; background: var(--s1); border: 1px solid var(--frame); max-width: 760px; }
+.va-prio p { flex: 1 1 280px; color: var(--tx2); }
+
+/* ---------- LS-26 home (unchanged) ---------- */
+.va-hero { padding: 0 var(--gut); }
+.va-hero h1 { font-size: 36px; font-weight: 700; line-height: 1.1; }
+@container app (min-width: 768px) { .va-hero h1 { font-size: 52px; } }
+.va-homefoot { padding: 0 var(--gut); }
+
+/* the Live-TV tab bar shrinks to the page width on a phone: in core.css (.lhead, .ltabs) */
+/* muted text on the highlighted running row: tx2 keeps 8:1 on live-cur (RM-04) */
+.va-prow.now .va-m, .va-prow.now .va-gn, .va-prow.now [data-lv-now] { color: var(--tx2); }
