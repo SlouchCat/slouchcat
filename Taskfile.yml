@@ -119,8 +119,21 @@ tasks:
   check:fast:
     desc: >-
       Fast checks of what changed, web, server, relay and the Android apps side by side
-      (web:check:fast, server:check:fast, relay:check:fast, android:check:fast)
-    deps: [web:check:fast, server:check:fast, relay:check:fast, android:check:fast]
+      (web:check:fast, server:check:fast, relay:check:fast, android:check:fast), and the CI
+      workflow checks when their files changed (workflows:check:fast)
+    deps: [web:check:fast, server:check:fast, relay:check:fast, android:check:fast, workflows:check:fast]
+
+  # ci:workflows, but only when one of its inputs changed since its last green run here (task
+  # keeps the checksums in .task/). Seconds; mostly it is up to date and does nothing.
+  workflows:check:fast:
+    desc: ci:workflows when the workflows, their scripts or the checker changed since its last run
+    sources:
+      - .github/**/*
+      - .tool-versions
+      - scripts/ci-failures*.sh
+      - server/tools/ciworkflows/**/*
+    cmds:
+      - task: ci:workflows
 
   apicheck:
     desc: >-
@@ -143,6 +156,7 @@ tasks:
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
+      - task: ci:workflows
       - task: ci:server
       - task: ci:relay
       - task: ci:android
@@ -243,6 +257,36 @@ tasks:
     desc: Self-test of scripts/heavy-slot.sh, the slot lock heavy local runs wait for
     cmds:
       - scripts/heavy-slot.test.sh
+
+  # The checks of the CI workflows themselves (docs/perf/ci-optimierungsplan.md, M7), seconds:
+  # actionlint (with shellcheck on every run: block, when shellcheck is installed), the rule that
+  # every job is watched by the gate (server/tools/ciworkflows), and the self-tests of the CI
+  # scripts. In CI the job "server (generators, linters)" runs it.
+  ci:workflows:
+    desc: 'The CI workflow checks of `task ci`: actionlint, every job watched by the gate, script self-tests'
+    cmds:
+      - |
+        set -eu
+        want=$(awk '$1 == "actionlint" { print $2; exit }' .tool-versions)
+        if ! command -v actionlint >/dev/null; then
+          echo "actionlint is not installed: go install github.com/rhysd/actionlint/cmd/actionlint@v$want" >&2
+          exit 1
+        fi
+        have=$(actionlint -version | head -1)
+        [ "$have" = "$want" ] || echo "note: actionlint $have, .tool-versions pins $want" >&2
+        command -v shellcheck >/dev/null || echo "note: shellcheck is not installed, run: blocks are not checked" >&2
+        actionlint
+      - cd server && go run ./tools/ciworkflows/cmd/ciworkflows ../.github/workflows/ci.yml ../.github/ci-informational-jobs.txt
+      - .github/scripts/already-tested.test.sh
+      - scripts/ci-failures.test.sh
+
+  # zizmor's audit of the workflows, offline (no token, no network), for a person or an agent
+  # before a workflow change; not a CI check yet. pipx install zizmor (version: see the skill
+  # .claude/skills/slouchcat-ci). Findings are judged, not suppressed.
+  workflows:audit:
+    desc: zizmor's offline audit of .github/ (local only, needs zizmor)
+    cmds:
+      - zizmor --offline .github/
 
   # What broke in a CI run, without loading whole job logs into an agent's context: failed steps,
   # class, proven flakes, annotations and the error lines (docs/perf/ci-optimierungsplan.md, M3).

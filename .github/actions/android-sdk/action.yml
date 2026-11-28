@@ -1,0 +1,44 @@
+# The Android set-up the jobs android, android-contract and android-emulator share: the check of
+# the Gradle wrapper, JDK 21 (the runner's own) and the SDK packages the build needs. It used to be
+# the same two steps three times in ci.yml, with the wrapper's hash three times
+# (docs/perf/ci-optimierungsplan.md, M7). No third-party action.
+name: Set up JDK 21 and the Android SDK
+description: Checks the Gradle wrapper, selects JDK 21 and installs the SDK packages of the build
+
+inputs:
+  extra-packages:
+    description: >-
+      SDK packages beyond those of the build, space separated (the emulator job: "emulator" and
+      its system image). Empty for the build jobs.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # The wrapper jar is a binary in the repository: it must be the one Gradle publishes for the
+    # version in gradle-wrapper.properties (sha256 of gradle-9.9.2-wrapper.jar). A Gradle update
+    # changes both, the properties and this line.
+    - name: Check the Gradle wrapper
+      shell: bash
+      run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
+    # The package list goes through the environment, never into the script itself.
+    - name: JDK 21 and the Android SDK packages
+      shell: bash
+      env:
+        EXTRA_PACKAGES: ${{ inputs.extra-packages }}
+      run: |
+        set -euo pipefail
+        echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+        echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+        sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        # `yes` ends with SIGPIPE once sdkmanager stops reading; only sdkmanager's status counts.
+        log=$(mktemp)
+        if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+        # One word per package is the point of the unquoted expansion.
+        # shellcheck disable=SC2086
+        if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" $EXTRA_PACKAGES >"$log" 2>&1; then
+          cat "$log"
+          exit 1
+        fi

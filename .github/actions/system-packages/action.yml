@@ -29,19 +29,22 @@ inputs:
 runs:
   using: composite
   steps:
+    # The group goes through the environment, not into the script (as everywhere in these actions).
     - name: Read the package list
       id: packages
       shell: bash
+      env:
+        GROUP: ${{ inputs.group }}
       run: |
         set -euo pipefail
-        list=$(awk -v group="${{ inputs.group }}" \
+        list=$(awk -v group="$GROUP" \
           '$1 == group { print $2 }' .github/ci-packages.txt | sort -u | tr '\n' ' ')
         if [ -z "${list// /}" ]; then
-          echo "::error file=.github/ci-packages.txt::no package for group '${{ inputs.group }}'" >&2
+          echo "::error file=.github/ci-packages.txt::no package for group '$GROUP'" >&2
           exit 1
         fi
         echo "list=${list% }" >> "$GITHUB_OUTPUT"
-        echo "Packages for ${{ inputs.group }}: ${list% }"
+        echo "Packages for $GROUP: ${list% }"
 
     # The key holds the package list and -- when Playwright is involved -- the lock file that pins
     # the Playwright version, because `playwright install-deps` derives its own library list from

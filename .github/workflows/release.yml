@@ -69,10 +69,12 @@ jobs:
         id: version
         run: |
           tag="${GITHUB_REF_NAME}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "updater_image=ghcr.io/${GITHUB_REPOSITORY,,}-updater" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$tag"
+            echo "version=${tag#v}"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+            echo "updater_image=ghcr.io/${GITHUB_REPOSITORY,,}-updater"
+          } >> "$GITHUB_OUTPUT"
 
       # Decides what kind of release this tag is, before any image is pushed (the image tags depend
       # on it). fetch-depth 0 above brought all tags of the repository.
