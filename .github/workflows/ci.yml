@@ -138,8 +138,15 @@ jobs:
       - uses: ./.github/actions/task
 
       # The first three steps of `task ci:server`; the fourth, server:test, is the job below.
-      # golangci-lint and sqlc need no ffmpeg and no test media.
-      - run: task server:gen server:gen:check server:lint
+      # golangci-lint and sqlc need no ffmpeg and no test media. One step each, and the later ones
+      # also after a red one, so a generator's drift does not hide a lint finding.
+      - run: task server:gen
+
+      - run: task server:gen:check
+        if: success() || failure()
+
+      - run: task server:lint
+        if: success() || failure()
 
       # The checks of the workflows themselves, `task ci:workflows` (docs/perf/ci-optimierungsplan.md,
       # M7): actionlint with the runner's shellcheck, every job watched by the gate
@@ -574,12 +581,22 @@ jobs:
   # no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official Playwright
   # Docker image, which brings its own Chromium and its own libraries.
   # ---------------------------------------------------------------------------------------------
+  # Two halves side by side since 28 November 2026, like "android": the linters and Vitest ran one
+  # after the other (126 to 214 s and 239 to 412 s), and a red linter hid the Vitest result.
+  # ci:web is exactly ci:web:lint and ci:web:test (Taskfile.yml); the gate needs both.
   web:
-    name: web (generators, linters, unit tests)
+    name: web (${{ matrix.name }})
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      # Each half reports its own result.
+      fail-fast: false
+      matrix:
+        include:
+          - { part: lint, name: 'generators, linters' }
+          - { part: test, name: 'unit tests' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -587,7 +604,9 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      - run: task ci:web
+      - run: task "ci:web:$WEB_PART"
+        env:
+          WEB_PART: ${{ matrix.part }}
 
   storybook:
     name: web (Storybook screenshots)

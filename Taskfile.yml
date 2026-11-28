@@ -208,13 +208,26 @@ tasks:
     cmds:
       - task: android:check:release
 
+  # Two CI jobs side by side since 28 November 2026 (ADR 0013, addendum): the linters and Vitest
+  # took 126 to 214 s and 239 to 412 s one after the other in one job, and a prettier finding hid
+  # the Vitest result. Together they are ci:web, which `task ci` runs.
   ci:web:
-    desc: The web linters and unit tests of `task ci` (CI job "web")
+    desc: The web linters and unit tests of `task ci` (CI job "web", both halves)
+    cmds:
+      - task: ci:web:lint
+      - task: ci:web:test
+
+  ci:web:test:
+    desc: 'CI job "web (unit tests)": Vitest across the workspace'
+    cmds:
+      - task: web:test
+
+  ci:web:lint:
+    desc: 'CI job "web (generators, linters)": generators and their drift check, linters, the small self-tests'
     cmds:
       - task: web:gen
       - task: web:gen:check
       - task: web:lint
-      - task: web:test
       # The structure of every shipped language file (concept 22, 4.9): plural forms, placeholders
       # ({{count}} in ru `_many`, ja `_other`), `$t()`, markup, white space at the edges. Missing
       # texts are counted, not errors; `task i18n:check` before a release is strict.
