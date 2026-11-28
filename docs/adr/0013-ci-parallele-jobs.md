@@ -467,6 +467,49 @@ freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Absc
   Schritte aus; die zwei späteren laufen auch nach einem roten Vorgänger, aber nicht nach einem roten
   `server:gen` (halb erzeugter Code gäbe nur Folgefehler).
 
+## Nachtrag vom 28. November 2026, Welle 3: Cache-Haushalt, Release-Härtung
+
+**Anlass:** Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig umzusetzen
+(`docs/perf/ci-optimierungsplan.md`, M6 und H2). Messwerte: `docs/perf/ci.md`, Abschnitt 11.
+
+### Weniger Cache-Einträge je Push auf main (M6)
+
+- **Befund:** Die Caches des Repos stehen dauernd an der Grenze von 10 GB, und GitHub verdrängt dann,
+  was am längsten nicht benutzt wurde. Jeder Push auf `main` legte acht neue `go-race`-Einträge an
+  (rund 1,6 GB, Schlüssel mit Lauf-ID) und zwei `gradle-build`-Einträge (rund 1,7 GB). Am
+  28. November waren die apt-Caches von `server` und `android-e2e`, zuletzt um 08:56 benutzt, um
+  10:32 weg; jeder Server-Job lud danach 63 MB und installierte 87 Pakete neu, bis ein main-Lauf um
+  15:44 sie wieder speicherte. In PR-Läufen scheitert das Speichern ohnehin am Wettlauf der acht
+  Gruppen («Unable to reserve cache … another job may be creating this»).
+- **Entscheid:** `go-race` hat einen Eintrag **je Tag** und Gruppe (Datum UTC im Schlüssel). Ein
+  Cache desselben Tages übersetzt nur, was seit dem Speichern geändert wurde. `gradle-build` bleibt bei
+  einem Eintrag je Push: Ein veralteter Build-Cache machte die Android-Jobs am 26. November drei- bis
+  viermal langsamer.
+- Der Gradle-Abhängigkeits-Cache (`gradle-deps-…`, vorher `gradle-…`, 2,3 GB) trägt den Build-Cache
+  nicht mehr mit, der darin eine veraltete Kopie seines ersten Laufs war; der Build-Cache hat seinen
+  eigenen Cache. Er wird nur noch auf `main` gespeichert, nur wenn sein Schlüssel fehlte, und vor dem
+  Speichern wird `build-cache-1` gelöscht. Ein Ausschlussmuster (`!…/build-cache-1`) wirkt dafür
+  nicht: `actions/cache` gibt `~/.gradle/caches` als ein Verzeichnis an tar (Review vom 28. November
+  2026). Die Pfadliste bleibt gleich, damit der alte Eintrag als Rückfallebene gefunden wird (die
+  Cache-Version ist ein Hash der Pfadliste). Bisher speicherte jeder PR, der eine Build-Datei änderte,
+  eine eigene Kopie von rund 2,5 GB.
+- `go-race` speichert nur, wenn der Eintrag des Tages fehlte.
+- `android-contract` liest die Caches des Jobs `android` mit (wie der Emulator-Job), statt eine eigene
+  Kopie (`gradle-e2e-…`, 0,5 GB) zu halten; beide lesen zusätzlich den Debug-Build-Cache von `main`.
+
+### Release-Workflows (H2)
+
+- `release.yml`: keine Rechte auf Workflow-Ebene, der Job nennt seine eigenen; der Checkout hinterlegt
+  kein Token; Tag, Version, Image-Namen und Digests erreichen Manifest und `gh release` über `env:`.
+- `release.yml` und `release-relay.yml` prüfen wie `release-android.yml`, dass der getaggte Commit in
+  `main` oder einem Zweig `release/*` liegt (Backports), jeweils im ersten Job. Geprüft: `v1.44.1` besteht, ein Commit ausserhalb
+  jedes Zweigs scheitert. Gegen einen Tag, der nicht sein soll, schützt das Tag-Ruleset (H1, Marco);
+  diese Prüfung fängt das Versehen.
+- **Release-Images ohne Build-Cache** (`no-cache: true`): Code, der in einem CI-Lauf auf `main` läuft
+  (eine Entwicklungsabhängigkeit etwa), könnte Cache-Einträge schreiben, die der Release ins
+  veröffentlichte Image übernähme (Sicherheitsprüfung, B-5). Gemessen auf dem Runner: 3,5 bis 4,0 min
+  statt 2,3 bis 2,5 min je Release.
+
 ## Nachtrag vom 28. November 2026: Pull Requests prüfen, was ihre Änderung erreichen kann (M9)
 
 **Anlass:** Marcos Auftrag vom 28. November 2026, den Rest des Plans selbständig umzusetzen

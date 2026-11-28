@@ -283,7 +283,7 @@ jobs:
 
       # Also after red tests: what was compiled is valid either way.
       - name: Save the -race build cache
-        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.race-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/go-build
@@ -383,18 +383,23 @@ jobs:
       # The Gradle wrapper's hash, JDK 21 and the SDK packages (.github/actions/android-sdk).
       - uses: ./.github/actions/android-sdk
 
-      # The dependencies, the wrapper and Robolectric's jars, without the build cache: that has a
-      # cache of its own (below), and the copy inside this one stayed that of the cache's first run
-      # (2.3 GB, 28 November 2026). The old key's entry is still a fallback for the first run.
+      # The dependencies, the wrapper and Robolectric's jars. Restored here, saved at the end of the
+      # job by main alone and only when the key missed (step "Save the Gradle dependencies"), with
+      # the build cache taken out first: that has a cache of its own, and the copy inside this one
+      # stayed that of the cache's first run (2.3 GB, 28 November 2026). The path list is the old
+      # one on purpose: the cache version is a hash of it, so the old entry (key gradle-Linux-…) is
+      # still found as a fallback, and the readers in android-contract and android-emulator find
+      # this one. An exclusion pattern would not help: actions/cache hands ~/.gradle/caches to tar
+      # as one directory.
       - name: Gradle caches
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: gradle-deps
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # Robolectric keeps the Android framework jars it downloads (about 150 MB) under ~/.m2.
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.m2/repository/org/robolectric
-            !~/.gradle/caches/build-cache-1
           key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
           restore-keys: |
             gradle-deps-${{ runner.os }}-
@@ -460,6 +465,23 @@ jobs:
             android/**/build/test-results/
           if-no-files-found: ignore
 
+      # The dependencies cache of step "Gradle caches": main alone, only when its key missed (a
+      # version changed), and without the build cache, which "Save the Gradle build cache" above
+      # kept already. A pull request that changes a build file saves nothing; the merge does.
+      - name: Take the build cache out of the dependencies
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.gradle-deps.outputs.cache-hit != 'true'
+        run: rm -rf ~/.gradle/caches/build-cache-1
+
+      - name: Save the Gradle dependencies
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.gradle-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
+          key: ${{ steps.gradle-deps.outputs.cache-primary-key }}
+
   # ---------------------------------------------------------------------------------------------
   # Android against a real server (concept 27 section 12, «Vertrag»): the contract test of the
   # Kotlin client against bin/slouchcat with fresh data. A job of its own: it needs Go and ffmpeg,
@@ -503,7 +525,6 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.m2/repository/org/robolectric
-            !~/.gradle/caches/build-cache-1
           key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
           restore-keys: |
             gradle-deps-${{ runner.os }}-
@@ -614,14 +635,13 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.m2/repository/org/robolectric
-            !~/.gradle/caches/build-cache-1
           key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
           restore-keys: |
             gradle-deps-${{ runner.os }}-
             gradle-${{ runner.os }}-
 
-      # The debug build cache of main, read only: the dependencies cache above no longer carries a
-      # build cache (it was a stale copy), and the APKs are the debug variant "android" builds.
+      # The debug build cache of main, read only, over whatever the dependencies cache above
+      # brought: the APKs are the debug variant "android" builds.
       - name: The debug build cache of main (read only)
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

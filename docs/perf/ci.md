@@ -403,3 +403,54 @@ im Median 7,8 min (P95 11,6).
 
 Über mindestens 10 volle PR-Läufe nachmessen (`.omc/research/ci-optimierung/skripte/`); weniger als
 10 als vorläufig melden.
+
+## 11. Nachtrag vom 28. November 2026: Cache-Haushalt und Release-Build (Welle 3)
+
+### Caches
+
+Inventar am 28. November 2026 gegen 16:45: 126 Einträge, 10,67 GiB (Grenze 10). Die grössten
+Familien: `gradle-build-…-release` 2,57 GiB in drei Einträgen, `gradle-Linux` 2,30 GiB, `gradle-build-
+…-debug` 1,55 GiB in zwei, `gradle-e2e` 0,46 GiB, `setup-go` 0,43 GiB (dazu 0,27 GiB im Bereich eines
+PR), `playwright` 0,38 GiB, `go-race` acht Gruppen je 0,12 bis 0,20 GiB.
+
+Gemessen am PR-Lauf 46158298349 und am main-Lauf 46161151377:
+- `apt-debs-noble-server` und `-android-e2e`: «Cache not found»; jeder Server-Job lud 63 MB und
+  installierte 87 Pakete. Der main-Lauf speicherte sie um 15:44 neu (60 MB je Eintrag), nachdem sie
+  zwischen 08:56 und 10:32 verdrängt worden waren. Im PR-Lauf scheiterten die anderen Gruppen am
+  Speichern: «Unable to reserve cache … another job may be creating this».
+- Treffer bei `setup-go`, `testmedia`, `playwright`, `apt-debs-noble-e2e` und `gradle-e2e`.
+
+Neu je Push auf `main`: bisher acht `go-race`-Einträge und zwei `gradle-build`-Einträge (rund 3,3 GiB),
+jetzt höchstens zwei `gradle-build`-Einträge, `go-race` einmal am Tag (rund 1,6 GiB). Entfallen:
+`gradle-e2e` (0,46 GiB), die Kopie des Abhängigkeits-Caches in jedem PR, der eine Build-Datei ändert
+(rund 2,5 GiB), und der Build-Cache im Abhängigkeits-Cache (geschätzt rund 0,5 bis 0,8 GiB). Den
+Eintrag `gradle-Linux-…` (2,36 GiB) liest nach dem ersten neuen Speichern niemand mehr; er fällt mit
+der nächsten Verdrängung weg. **Nachmessen:** nach einer Woche Belegung und
+Einträge je Familie; Ziel: die apt- und setup-go-Caches bleiben im Inventar, Belegung unter 9 GiB.
+
+### Release-Images ohne Cache
+
+Wegwerf-Lauf 46161828658, beide Release-Images (Server und Updater, je amd64 und arm64), ohne Push,
+je zweimal:
+
+| Variante | Job | Server-Image | Updater-Image |
+|---|---|---|---|
+| mit dem gha-Cache der CI | 2,5 · 2,3 min | 1,7 · 1,5 min | 0,1 · 0,1 min |
+| ohne Cache (`no-cache`) | 4,0 · 3,5 min | 2,8 · 2,8 min | 0,3 · 0,3 min |
+
+Ein Release dauert damit rund 1,3 min länger (bisher Median 3,5 min).
+
+### Instabile Tests (M8)
+
+Untersucht die fünf häufigsten und jüngsten Kandidaten aus der Auswertung aller roten Logs:
+
+| Test | Befund | Änderung |
+|---|---|---|
+| `admin-library-delete.spec.ts:73` (Firefox) | Der Lösch-Job war 31 ms nach der 202 fertig, die Seite ersetzte den Wartezustand samt «Zum Job» nach rund 65 ms, bevor der Test ihn las. Mit der Reihenfolge des Runners nachgestellt: 9 von 10 rot. | Der Test hält die Abfragen der Seite an, bis er den Wartezustand gelesen hat; Service Worker gesperrt wie in `admin-libraries`. Danach 10 von 10 (Firefox) und 20 von 20 (Chromium) grün. |
+| `RadioScreenTest > theFocusedFavoriteTileCarriesTheStar` (TV) | Der Test lud die Startseite über das Netz; kam deren «Try again» spät, nahm sie den Fokus aus der Seitenleiste. Nachgestellt: derselbe Fehler. | Eigene leere Startseite (`FakeHome`). 11 von 11 grün. |
+| `hdr.spec.ts` (Start in 5 s) | Messung korrekt, ffmpeg ohne GPU braucht die Zeit; alle 9 roten Läufe lagen vor dem Entscheid vom 26.11. (5,5 s ohne GPU, `d90a9547`), seither 24 grüne Läufe. | keine |
+| `AudioServiceTest > headphonesPulledOutPauseTheSound` | am 23.11. behoben (`815a7afb`), seither 69 grüne Android-Jobs. | keine |
+| `admin-wishes`, `admin-metadata` (18.11.) | keine Flakes: Fehler der App bzw. Zeitlimit, beide am 18.11. behoben. | keine |
+
+Offen als Frage an Marco: Lädt die Startseite der TV-App spät, nimmt sie auch auf einem echten
+Fernseher den Fokus aus der Seitenleiste.

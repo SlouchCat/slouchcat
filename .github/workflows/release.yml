@@ -144,8 +144,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.image) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
@@ -165,8 +167,8 @@ jobs:
           create-storage-record: false
 
       # The updater companion (ADR 0024) is released with the server, from the same commit, but
-      # it is a separate image: only it gets the Docker socket. Its own cache scope keeps the two
-      # builds from overwriting each other's cache.
+      # it is a separate image: only it gets the Docker socket. Built without cache, like the server
+      # image above.
       - name: Build and push the updater image for linux/amd64 and linux/arm64
         id: build-updater
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -179,8 +181,10 @@ jobs:
           tags: |
             ${{ steps.version.outputs.updater_image }}:${{ steps.version.outputs.version }}
             ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.updater_image) || '' }}
-          cache-from: type=gha,scope=updater
-          cache-to: type=gha,mode=max,scope=updater
+          # No build cache: a release is built from nothing, so no cache entry that code in a CI run
+          # on main could have written reaches the published image (security review of
+          # 28 November 2026, B-5). Measured on the runner: 3.5 to 4.0 min instead of 2.3 to 2.5.
+          no-cache: true
           provenance: mode=max
           sbom: true
 
