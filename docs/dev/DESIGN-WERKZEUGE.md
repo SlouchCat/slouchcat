@@ -47,7 +47,7 @@ Prüfdatum für alles: 28. November 2026. Die Begriffe sind die aus dem Auftrag.
 | `impeccable` ohne Engine | 4.11.1 | Installiert und erfolgreich getestet |
 | `impeccable`-Engine (Binary, Hooks) | engine 0.1.31 | Benötigt meine Zustimmung |
 | `taste-skill` | 2.5.1 | Nicht kompatibel |
-| 7 Design-Agents und `library-docs` | im Repo | Installiert, aber noch nicht vollständig getestet (neue Sitzung nötig) |
+| 7 Design-Agents und `library-docs` | im Repo | Installiert und erfolgreich getestet (`design-qa` mit beiden Browser-Servern; die übrigen geladen, nicht einzeln aufgerufen) |
 | Playwright MCP | 0.0.86 | Installiert und erfolgreich getestet |
 | Chrome DevTools MCP | 1.14.0 | Installiert und erfolgreich getestet |
 | Context7 MCP (entfernt, ohne Schlüssel) | Dienst | Installiert und erfolgreich getestet |
@@ -352,15 +352,16 @@ Sobald eine Galerie für mehrere Geräte im Heimnetz gebraucht wird:
 | Claude Code | frische Sitzung im Repo: 8 Projekt-Agents und 25 von 25 Skills geladen, keine Plugin-Fehler; ausserhalb des Repos 0 von 25 |
 | Android TV | `sc_tv` startet in 12 s; Slouchcat-TV-App gestartet; Screenshot 1920×1080; `uiautomator dump` zeigt den Fokus; DPAD_LEFT wechselt in die Seitenleiste, DPAD_DOWN zum nächsten Eintrag |
 | Skills | `ui-ux-pro-max` Suche läuft offline; Sperre ausserhalb des Projekts greift im Skill-Werkzeug |
+| Agent mit eigenen MCP-Servern | nach dem Merge (PR #238) in einer neuen Sitzung: `design-qa` gegen eine Probeseite auf `127.0.0.1`; Playwright öffnet, liest den Snapshot, klickt «Hochzählen» (Zähler 0 → 1), schliesst; Chrome DevTools öffnet, liest Snapshot und Konsole (Hinweis `autocomplete`, 404 des fehlenden Favicons), schliesst. Acht Aufrufe ohne Wiederholung, Server-Log bestätigt die Zugriffe |
+| Gesperrte Werkzeuge | derselbe Agent sah 23 statt 25 Playwright- und 32 statt 33 DevTools-Werkzeuge: `browser_run_code_unsafe`, `browser_file_upload` und `upload_file` fehlen wie vorgesehen |
 
 ## Offen
 
-- **Neue Sitzung nach dem Merge.** Die Desktop-App liest Agents, Skills und Einstellungen auch für
-  Worktree-Sitzungen aus dem Haupt-Checkout. Bis der Zweig in `main` ist und der Haupt-Checkout
-  nachgezogen ist (`git -C <haupt-checkout> merge --ff-only origin/main`), sind die Design-Agents
-  nicht da und die Skills dort aus. Danach in einer neuen Sitzung einmal prüfen: «Starte design-qa
-  gegen eine Probeseite und lass ihn je ein Playwright- und ein DevTools-Werkzeug aufrufen.» Erst
-  das belegt die MCP-Server und vorgeladenen Skills innerhalb der Agents.
+- **Neue Agents und Einstellungen brauchen eine neue Sitzung.** Die Desktop-App liest Agents, Skills
+  und Einstellungen auch für Worktree-Sitzungen aus dem Haupt-Checkout und nur beim Start; nach einer
+  Änderung den Haupt-Checkout nachziehen (`git -C <haupt-checkout> merge --ff-only origin/main`) und
+  eine neue Sitzung öffnen. Die vorgeladenen Skills der Agents sind nicht einzeln nachgewiesen; sie
+  stehen in der Liste der Sitzung, und Claude Code meldet fehlende nur im Debug-Log.
 - **Terminal-CLI nicht angemeldet.** `claude -p` im Terminal meldet «Not logged in»; die Desktop-App
   hat eine eigene Anmeldung. Für Kopflos-Läufe einmal `claude` im Terminal starten und `/login`.
 
