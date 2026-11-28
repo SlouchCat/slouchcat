@@ -6,7 +6,8 @@ freigegeben und umgesetzt: neue Dauertabelle, sieben statt sechs e2e-Shards (Mar
 Messung, `docs/perf/ci.md`, Abschnitt 10), Web-Job in zwei Hälften, `server-lint` in Einzelschritten.
 Die Lint-Hälfte des Web-Jobs bleibt ein Schritt (ein roter Generator-Abgleich verdeckt dort noch die
 Linter; eigene kleine Massnahme, wenn gewünscht). **Welle 3** (Marcos Auftrag vom 28. November 2026, den
-Rest selbständig umzusetzen): M6 Cache-Haushalt und H2 Release-Härtung (ADR 0013, Nachtrag Welle 3;
+Rest selbständig umzusetzen): M6 Cache-Haushalt, H2 Release-Härtung und M8 (zwei Flakes behoben, drei
+waren schon behoben; ADR 0013, Nachtrag Welle 3;
 `docs/perf/ci.md`, Abschnitt 11). Die Ursache der Verdrängung war anders als zuerst angenommen: nicht
 die Grösse der Caches allein, sondern die vielen neuen Einträge je Push auf main. Alle anderen Massnahmen warten auf
 seine Freigabe und werden danach einzeln, messbar und mit einem Revert umkehrbar umgesetzt

@@ -437,3 +437,18 @@ je zweimal:
 | ohne Cache (`no-cache`) | 4,0 · 3,5 min | 2,8 · 2,8 min | 0,3 · 0,3 min |
 
 Ein Release dauert damit rund 1,3 min länger (bisher Median 3,5 min).
+
+### Instabile Tests (M8)
+
+Untersucht die fünf häufigsten und jüngsten Kandidaten aus der Auswertung aller roten Logs:
+
+| Test | Befund | Änderung |
+|---|---|---|
+| `admin-library-delete.spec.ts:73` (Firefox) | Der Lösch-Job war 31 ms nach der 202 fertig, die Seite ersetzte den Wartezustand samt «Zum Job» nach rund 65 ms, bevor der Test ihn las. Mit der Reihenfolge des Runners nachgestellt: 9 von 10 rot. | Der Test hält die Abfragen der Seite an, bis er den Wartezustand gelesen hat; Service Worker gesperrt wie in `admin-libraries`. Danach 10 von 10 (Firefox) und 20 von 20 (Chromium) grün. |
+| `RadioScreenTest > theFocusedFavoriteTileCarriesTheStar` (TV) | Der Test lud die Startseite über das Netz; kam deren «Try again» spät, nahm sie den Fokus aus der Seitenleiste. Nachgestellt: derselbe Fehler. | Eigene leere Startseite (`FakeHome`). 11 von 11 grün. |
+| `hdr.spec.ts` (Start in 5 s) | Messung korrekt, ffmpeg ohne GPU braucht die Zeit; alle 9 roten Läufe lagen vor dem Entscheid vom 26.11. (5,5 s ohne GPU, `d90a9547`), seither 24 grüne Läufe. | keine |
+| `AudioServiceTest > headphonesPulledOutPauseTheSound` | am 23.11. behoben (`815a7afb`), seither 69 grüne Android-Jobs. | keine |
+| `admin-wishes`, `admin-metadata` (18.11.) | keine Flakes: Fehler der App bzw. Zeitlimit, beide am 18.11. behoben. | keine |
+
+Offen als Frage an Marco: Lädt die Startseite der TV-App spät, nimmt sie auch auf einem echten
+Fernseher den Fokus aus der Seitenleiste.
