@@ -1,6 +1,11 @@
 # Aktueller Stand
 
-## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026)
+## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026, PR #235)
+
+PR #235, gemergt am 28. November 2026 (`a1556fce`). Veröffentlicht am selben Tag: Server **1.44.1** (Tag
+`v1.44.1`, Release-Lauf 46129561878 grün, steht als «latest») und Handy-App **1.0.5** (Tag `app-v1.0.5`,
+Lauf 46129561664 grün). Die App ist seit dem 28. November 2026 signiert auf Marcos Pixel 10a
+(`versionCode` 6).
 
 Marcos Auftrag vom 28. November 2026: die Übersetzungen aus PR #234 veröffentlichen. Reiner Versions-PR
 nach dem Weg für Patches (Versionscommit ohne eigenen Fix, weil der Inhalt mit PR #234 schon in main
@@ -14,7 +19,7 @@ liegt, Merge `be977fb5`).
   Handy-App 1.0.5 (`versionCode` 6). Die TV-App bleibt bei 1.0.1; sie trägt die Texte nicht.
 - **Geprüft:** `node scripts/i18n/check.ts --all --strict` ohne Fehler; die GitHub-CI von PR #234 hat
   den Inhalt vollständig geprüft (Lauf 45977212910, Gate `ci` grün, Emulator-Lauf grün).
-- **Offen:** Tags `v1.44.1` und `app-v1.0.5` nach dem Merge, Marco signiert die App und hebt CT 190 selbst.
+- **Offen:** CT 190 hebt Marco selbst auf 1.44.1.
 
 ## Wunschrecht ab Werk für alle ohne Altersgrenze, Release 1.44.0 und Handy-App 1.0.4 (26. November 2026, PR #232)
 
@@ -86,7 +91,7 @@ Hauptprofile mit dem Recht). Betrifft Server, Web-App und Handy-App.
   Wiederholung des Jobs war grün. Der Lauf auf `main` (45877547755) scheiterte zuerst in
   `server tests (5)` an der Paketinstallation (`packages.microsoft.com`, 403), bevor ein Test lief; die
   Wiederholung war grün.
-- **Offen:** CT 190 hebt Marco selbst auf 1.44.0.
+- **Offen:** nichts; CT 190 geht direkt auf 1.44.1 (Eintrag oben).
 
 ## CI: `internal/store` in drei Gruppen, Android in zwei Jobs mit aktuellem Build-Cache (26. November 2026, PR #231)
 
