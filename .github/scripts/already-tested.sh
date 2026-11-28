@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Prints `true` when the commit just pushed to main has exactly the content that a green
-# pull-request run of this workflow already checked in full, else `false` (ADR 0013, addendum of
-# 15 November 2026). The job "changes" of ci.yml calls it on a push to main; `true` lets the heavy
-# jobs skip, and the gate takes the pull-request run's result instead.
+# pull-request run of this workflow already checked in full, else `false` (ADR 0013, addendums of
+# 15 November and 28 November 2026). The job "changes" of ci.yml calls it on a push to main; `true`
+# lets the heavy jobs skip, and the gate takes the pull-request run's result instead.
 #
 # All of this must hold, or the answer is `false` and main checks everything as before:
 #
@@ -13,21 +13,39 @@
 #     therefore in P2, and the run checked the tree of P2.
 #  3. HEAD has the tree of P2, so what is now on main is that tree, byte for byte.
 #  4. A pull_request run of this workflow for P2 finished with success, and every one of its jobs
-#     succeeded -- none skipped. A documentation-only pull request skips its heavy jobs; its merge
-#     is then checked in full on main, as before (docs-only.sh is not trusted twice).
+#     succeeded -- none skipped -- except the informational jobs of .github/ci-informational-jobs.txt,
+#     which the gate does not ask for either (their result is reported, not judged). A
+#     documentation-only pull request skips its heavy jobs; its merge is then checked in full on
+#     main, as before (docs-only.sh is not trusted twice).
+#  5. That run recorded the tree it checked (annotation `tested-tree` of its job "changes", written
+#     from the merge commit it checked out) and it is HEAD's tree. This binds the run to the content
+#     now on main: a run of the same P2 against another base branch checked another merge and does
+#     not count. The run's `pull_requests` field cannot do this, because GitHub lists only open pull
+#     requests there and the pull request is already merged when this runs.
 #
-# Needs: a checkout with both parents (fetch-depth 2), `gh` with GH_TOKEN (actions: read),
-# GITHUB_REPOSITORY and GITHUB_SERVER_URL. Any API error prints `false`: what cannot be judged runs
-# everything. Diagnostics go to stderr, the answer to stdout.
+# Needs: a checkout with both parents (fetch-depth 2), `gh` with GH_TOKEN (actions: read,
+# checks: read), GITHUB_REPOSITORY and GITHUB_SERVER_URL. Any API error prints `false`: what cannot
+# be judged runs everything. Diagnostics go to stderr, the answer to stdout; with GITHUB_OUTPUT set,
+# `run=<id>` and `note=<informational results>` go there.
 set -euo pipefail
 
 say() { echo "already-tested: $*" >&2; }
+# Job names and annotation texts come from the pull request (its ci.yml, its steps). Printed into
+# this log, a line starting with `::` would be a workflow command of this job; only printable
+# characters of a single line pass, and nothing printed here starts a line.
+clean() { printf '%s' "$1" | tr -d '\r\n' | tr -cd '[:print:]'; }
 answer() {
   echo "$1"
   exit 0
 }
 
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+informational_file=${CI_INFORMATIONAL_JOBS:-$here/../ci-informational-jobs.txt}
+informational=$(grep -v '^[[:space:]]*#' "$informational_file" 2>/dev/null | sed '/^[[:space:]]*$/d') || informational=
+
 parents=$(git rev-list --parents -n 1 HEAD | cut -d' ' -f2-)
+# One positional parameter per parent is the point of the unquoted expansion.
+# shellcheck disable=SC2086
 set -- $parents
 if [ "$#" -ne 2 ]; then
   say "HEAD has $# parent(s), not a merge commit"
@@ -45,7 +63,8 @@ if [ "$behind" != 0 ]; then
   answer false
 fi
 
-if [ "$(git rev-parse "HEAD^{tree}")" != "$(git rev-parse "$p2^{tree}")" ]; then
+head_tree=$(git rev-parse "HEAD^{tree}")
+if [ "$head_tree" != "$(git rev-parse "$p2^{tree}")" ]; then
   say "HEAD's tree differs from the tree of $p2"
   answer false
 fi
@@ -60,16 +79,47 @@ runs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs
   answer false
 }
 for run in $runs; do
-  # Every job of the run's latest attempt, by conclusion; one line each.
-  conclusions=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
-    --jq '.jobs[].conclusion' 2>/dev/null) || continue
-  [ -n "$conclusions" ] || continue
-  if ! grep -qv '^success$' <<<"$conclusions"; then
-    say "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run checked $p2 in full"
-    echo "run=$run" >>"${GITHUB_OUTPUT:-/dev/null}"
-    answer true
+  # Every job of the run's latest attempt: id, conclusion and name, one line each (@tsv escapes a
+  # tab or line break inside a name, so a name is always one field).
+  jobs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
+    --jq '.jobs[] | [.id, .conclusion, .name] | @tsv' 2>/dev/null) || continue
+  [ -n "$jobs" ] || continue
+  bad=
+  note=
+  changes_job=
+  while IFS=$'\t' read -r id conclusion name; do
+    if [ -n "$informational" ] && grep -qxF -- "$name" <<<"$informational"; then
+      note="${note:+$note; }$(clean "$name"): $(clean "$conclusion")"
+      continue
+    fi
+    [ "$name" = "changes (docs only?)" ] && changes_job=$id
+    [ "$conclusion" = success ] || bad="${bad:+$bad, }$(clean "$name"): $(clean "$conclusion")"
+  done <<<"$jobs"
+  if [ -n "$bad" ]; then
+    say "run $run of $p2 has jobs that did not succeed: $bad"
+    continue
   fi
-  say "run $run of $p2 has jobs that did not succeed: $(sort -u <<<"$conclusions" | tr '\n' ' ')"
+  if [ -z "$changes_job" ]; then
+    say "run $run of $p2 has no job \"changes (docs only?)\""
+    continue
+  fi
+  tested=$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$changes_job/annotations" \
+    --jq '.[] | select(.title == "tested-tree") | .message' 2>/dev/null) || {
+    say "reading the annotations of run $run failed"
+    continue
+  }
+  # Exactly one annotation with exactly main's tree: a second one (a file name of the pull request
+  # printed as a workflow command, say) makes this two lines and therefore no match.
+  if [ "$tested" != "$head_tree" ]; then
+    say "run $run checked tree '$(clean "$tested" | tr -cd '0-9a-f' | cut -c1-40)' (none recorded if empty), main has $head_tree"
+    continue
+  fi
+  say "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run checked $p2 in full${note:+ (informational: $note)}"
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    echo "run=$run" >>"$GITHUB_OUTPUT"
+    echo "note=$note" >>"$GITHUB_OUTPUT"
+  fi
+  answer true
 done
 say "no pull-request run checked $p2 in full"
 answer false

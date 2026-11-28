@@ -58,14 +58,25 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # already-tested.sh reads the annotation `tested-tree` of a pull-request run's job.
+      checks: read
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
       tested: ${{ steps.tested.outputs.tested }}
       tested_run: ${{ steps.tested.outputs.run }}
+      tested_note: ${{ steps.tested.outputs.note }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
+
+      # The tree this run checks, as an annotation of this job: for a pull request the merge commit
+      # GitHub prepared, which every job of the run checks out. A push to main later takes over
+      # this run's result only when this tree is exactly main's (.github/scripts/already-tested.sh,
+      # condition 5).
+      - name: Record the tree this run checks
+        if: github.event_name == 'pull_request'
+        run: echo "::notice title=tested-tree::$(git rev-parse 'HEAD^{tree}')"
 
       - id: diff
         env:
@@ -76,7 +87,12 @@ jobs:
             # --no-renames: a file moved from code into docs/ (server/x.go -> docs/x.go) is then
             # listed under both paths, the deleted code path included. With rename detection it
             # would show only the new path under docs/ and the code change would count as docs.
+            # The paths are the pull request's: while they are printed, workflow commands are off,
+            # so a file named like one (`::notice ...`) stays a line of text.
+            stop=$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')
+            echo "::stop-commands::$stop"
             git diff --name-only --no-renames HEAD^1 HEAD | tee changed.txt
+            echo "::$stop::"
             docs_only=$(.github/scripts/docs-only.sh < changed.txt)
           else
             docs_only=false
@@ -912,6 +928,7 @@ jobs:
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
           TESTED: ${{ needs.changes.outputs.tested }}
           TESTED_RUN: ${{ needs.changes.outputs.tested_run }}
+          TESTED_NOTE: ${{ needs.changes.outputs.tested_note }}
         run: |
           set -eu
           status=0
@@ -923,6 +940,11 @@ jobs:
           elif [ "$CHANGES" = success ] && [ "$TESTED" = true ]; then
             skip_ok=true
             reason="checked by pull-request run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN"
+            # The informational jobs of that run (.github/ci-informational-jobs.txt): not judged,
+            # by the gate there or here, but named so a red one is not lost.
+            if [ -n "${TESTED_NOTE:-}" ]; then
+              echo "Informational jobs of that run: $TESTED_NOTE"
+            fi
           fi
           check() {
             if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
