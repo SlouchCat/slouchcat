@@ -12,6 +12,8 @@ wird ohne Root unter `~/.local` installiert; die gepinnten Versionen stehen in `
 | pnpm | `npm install -g pnpm`, Link `~/.local/bin/pnpm` | |
 | task | `go install github.com/go-task/task/v3/cmd/task@latest`, Link `~/.local/bin/task` | |
 | sqlc, goose, oapi-codegen, golangci-lint | `go tool` aus `server/go.mod` | keine Installation nötig |
+| actionlint (Fassung in `.tool-versions`) | `go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12`, Link `~/.local/bin/actionlint` | für `task ci:workflows`; nicht über `go tool`, weil es im Modulgraph des Servers nicht baut (`.github/actionlint-checksums.txt`); die CI lädt das Release-Archiv mit geprüfter SHA-256 |
+| zizmor | `pipx install zizmor` | freiwillig, für `task workflows:audit` (nur offline, ohne Token) |
 | JDK 21, Android-SDK, Emulatoren | `~/.local/share/jdk`, `~/.local/share/android-sdk`, `~/.android/avd` | `scripts/install-android-tools.sh` (Abschnitt «Die Android-Apps») |
 | Design-Werkzeuge (Grafik, Browser-Prüfung, MCP-Server), Design-Skills | `~/.local/share/slouchcat-design`, `~/.claude/skills` | `scripts/install-design-tools.sh`, `scripts/install-design-skills.sh` (`docs/dev/DESIGN-WERKZEUGE.md`) |
 | Gradle | Wrapper in `android/` | keine Installation nötig |
@@ -25,7 +27,7 @@ sudo bash scripts/install-system-tools.sh
 ```
 
 Installiert Docker Engine mit Compose- und Buildx-Plugin aus Dockers apt-Repository sowie ffmpeg/ffprobe
-aus Ubuntu und nimmt den Benutzer in die Gruppe `docker` auf. Bis zur nächsten Anmeldung:
+und shellcheck aus Ubuntu und nimmt den Benutzer in die Gruppe `docker` auf. Bis zur nächsten Anmeldung:
 `sg docker -c 'docker ps'`.
 
 Optional für GPU-Tests im Container (ab M1b): NVIDIA Container Toolkit.

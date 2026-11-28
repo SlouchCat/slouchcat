@@ -330,3 +330,35 @@ Lauf 45808439520, grün, noch mit dem alten Android-Build-Cache (nur `main` spei
 | Gate fertig nach | **885 s** (vorher 1313 bis 1596 s) |
 
 Der längste Job ist damit wieder ein e2e-Shard.
+
+## 9. Nachtrag vom 28. November 2026: Messung des Monats und Welle 1
+
+Grundlage: alle 505 Läufe des Workflows `ci` vom 29. Oktober bis 28. November 2026 (9424 Jobs, 101
+rote Job-Logs), nur lesend über die GitHub-API. Plan und Herleitung: `docs/perf/ci-optimierungsplan.md`.
+Die Auswerteskripte liegen lokal in `.omc/research/ci-optimierung/skripte/` (nicht im Repo):
+`SINCE=<Datum> bash holen.sh`, dann `python3 -I auswertung.py`.
+
+### Ausgangswerte (vor Welle 1)
+
+| Kennzahl | Wert | n |
+|---|---|---|
+| Voller PR-Lauf bis Gate, Median / P95 (seit 26.11.) | 15,2 / 16,5 min | 6 (vorläufig) |
+| Längster Pol (seit 26.11.) | e2e-Pfad in 11 von 11, 5,0 min vor server-test | 11 |
+| Runner-Minuten je vollem PR-Lauf | 188,0 (174,2 ohne Emulator-Job) | 6 |
+| main-Pushes mit Übernahme (seit 16.11.) | 20 von 60 (33 %) | 60 |
+| volle main-Läufe nur wegen rotem Emulator-Job | 10 von 39 | 39 |
+| Jobs bis zur Jobgrenze in `system-packages` | 17 (736 Runner-Min) | Monat |
+| rotes Job-Log, Median ganz / Auszug | 88 800 / 1 700 Tokens | 101 |
+| Actions-Cache | 10,41 von 10 GiB | 114 Einträge |
+
+### Was Welle 1 ändert und wie es nachgemessen wird
+
+| Massnahme | Erwartung | Nachmessen nach dem Merge |
+|---|---|---|
+| M1 Übernahme ohne informative Jobs, an den Baum gebunden | Merges eines Zweigs auf aktuellem main mit grünem PR-Lauf werden übernommen, auch bei rotem Emulator-Job; main-Ergebnis nach rund 5,5 statt 13,9 min | Anteil Übernahmen unter diesen Merges, ohne Merges mit Änderungen unter `.github/` (Bedingung 6; der Merge dieser Änderung selbst läuft voll), Ziel 10 von 10 |
+| M2 apt-Zeitgrenzen | Hänger rot nach höchstens rund 10 min statt 30–47; Normalfall unverändert | Median von `system-packages` (heute 26–33 s, ±5 s), Jobs am Jobzeitlimit (Ziel 0 in 30 Tagen) |
+| M3 Fehlerauszug | ≤ 3000 Tokens je Lauf, Ursache enthalten | an den zehn Referenzläufen gemessen: 332 bis 2340 Tokens (zusammen 9204), Ursache 10 von 10 |
+| M7 Workflow-Selbstprüfung | keine Laufzeitwirkung (Sekunden in `server-lint`) | Dauer von `server-lint` (heute Median 3,5 min) |
+
+Welle 1 ändert keinen langen Pol; die Wartezeit eines PR bleibt bei rund 15 Minuten. Die Wartezeit
+senken erst M4 (e2e-Shards) und M5 (Web-Job teilen) aus Welle 2.
