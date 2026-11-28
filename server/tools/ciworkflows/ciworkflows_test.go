@@ -131,6 +131,9 @@ func TestGroupRules(t *testing.T) {
 		{"flag the gate step does not set", "          RUN_WEB: ${{ needs.changes.outputs.run_web }}\n", "", "names $RUN_WEB, which the gate step does not set"},
 		{"flag read from another output", "RUN_WEB: ${{ needs.changes.outputs.run_web }}", "RUN_WEB: ${{ needs.changes.outputs.run_e2e }}", "RUN_WEB must be ${{ needs.changes.outputs.run_web }}"},
 		{"group the changes job does not output", "      run_web: ${{ steps.affected.outputs.run_web }}\n", "", `which the job "changes" does not output`},
+		{"output from another group's answer", "run_web: ${{ steps.affected.outputs.run_web }}", "run_web: ${{ steps.affected.outputs.run_e2e }}", "the output run_web of the job \"changes\" must be"},
+		{"third argument that is no flag", `check lint '${{ needs.lint.result }}'`, `check lint '${{ needs.lint.result }}' false`, "has the third argument false"},
+		{"flag without quotes", `'${{ needs.web.result }}' "$RUN_WEB"`, `'${{ needs.web.result }}' $RUN_WEB`, "has the third argument $RUN_WEB"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

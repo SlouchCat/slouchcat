@@ -143,8 +143,12 @@ tasks:
       - web/e2e/**/*
       - web/public/**/*
       - web/*.ts
+      - packages/*/*
       - packages/*/src/**/*
       - packages/*/test/**/*
+      - web/.storybook/**/*
+      - web/scripts/**/*
+      - web/e2e-*/**/*
       - scripts/**/*
       - "*/Taskfile.yml"
       - deploy/**/*

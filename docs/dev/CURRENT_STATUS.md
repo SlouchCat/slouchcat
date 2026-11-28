@@ -12,10 +12,13 @@ Abschnitt 12).
   ist. Unbekannte Pfade, Workflows, Taskfiles, Vertrag, Werkzeugversionen und Lock-Dateien lösen alles
   aus; main, der Wochenlauf und Läufe von Hand prüfen immer alles, und der Merge eines gefilterten PR
   läuft auf main voll.
-- **Kartentest:** `affected-jobs.test.sh` läuft auf jedem PR im Job `changes`: 41 Tabellenfälle und
-  161 Lesezugriffe über Modulgrenzen (Go, Kotlin, Gradle, TypeScript, Shell, Taskfiles, `COPY` der
-  Dockerfiles), je mit der Jobgruppe der lesenden Datei. Mutationen belegen, dass er fehlende Kanten
-  meldet. `ciworkflows` prüft zusätzlich, dass Bedingung und Gate-Flag jedes Jobs dieselbe Gruppe nennen.
+- **Kartentest:** `affected-jobs.test.sh` läuft auf jedem PR im Job `changes`: 42 Tabellenfälle und
+  164 Lesezugriffe über Modulgrenzen (Go, Kotlin, Gradle, TypeScript, JavaScript, Shell, Taskfiles,
+  `COPY` der Dockerfiles), je mit den Jobgruppen der lesenden Datei, über eine Stufe vererbt, bei
+  gelesenen Ordnern auch gegen jede engere Zeile der Karte; zehn Anker halten die Suche selbst.
+  Mutationen belegen, dass er fehlende Kanten, zu enge Zeilen und eine ausgefallene Suchform meldet.
+  `ciworkflows` prüft zusätzlich, dass Bedingung, Ausgabe von `changes` und Gate-Flag jedes Jobs
+  dieselbe Gruppe nennen.
 - **docs-only enger:** Markdown in `server/`, `relay/`, `android/`, `testdata/`, `scripts/` und `api/`
   sowie `docs/store/grafiken/` gelten nicht mehr als Doku.
 - **An 30 echten PRs (#206 bis #244):** 13 hätten alles geprüft, 11 nur Android (rund 5 min früher
@@ -26,7 +29,8 @@ Abschnitt 12).
   android 72 s, web 167 s, storybook 128 s, e2e 806 von 806 in 1419 s); danach `task ci:workflows`,
   `go test ./tools/ciworkflows`, golangci-lint (0 Befunde) und zizmor (dieselben 76 Befunde wie main).
   Review: drei Blocker (fehlende Kanten Launcher-Icons → web, Mock-Server → android_server,
-  Store-Grafiken → web), drei Warnungen und acht kleine Punkte behoben.
+  Store-Grafiken → web), drei Warnungen und acht kleine Punkte behoben; die zweite Prüfung gab frei
+  und fand sechs Lücken in der Wache des Kartentests und in `ciworkflows`, alle behoben.
 - **Beobachtung:** Im main-Lauf 46170173276 nach dem Merge von #244 war der informative Job
   `android-emulator` rot (ein Instrumentierungstest in `connectedPlayDebugAndroidTest`, Name nur im
   Artefakt `android-emulator-reports`); im PR-Lauf war er grün, das Gate blieb grün.

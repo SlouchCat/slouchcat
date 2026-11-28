@@ -478,7 +478,7 @@ den e2e-Pfad. **Nachmessen:** an den nächsten zehn reinen Android-PRs (Gate-Zei
 je Lauf). Der Merge eines gefilterten PR läuft auf `main` voll (`already-tested.sh` übernimmt keinen
 übersprungenen Job); Akzeptanz nach vier Wochen: kein Bruch auf `main` durch eine fehlende Kante.
 
-Der Kartentest im Job `changes` braucht lokal rund 4 s (161 Lesezugriffe, 41 Tabellenfälle).
+Der Kartentest im Job `changes` braucht lokal rund 5 s (164 Lesezugriffe, 42 Tabellenfälle).
 
 M10 (`server tests (1)` teilen) bleibt zurückgestellt: Im ersten Lauf nach Welle 2 (PR #241) endete
 `server tests (1)` nach 11,6 min, der e2e-Pfad nach 13,1 min. server-test ist damit nicht der Pol;

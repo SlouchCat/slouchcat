@@ -531,27 +531,40 @@ Web-Änderungen brauchen immer den e2e-Pfad.
   nimmt keinen übersprungenen Job als Beleg. `main` prüft den gemergten Inhalt also voll. Ein Bruch
   über eine Kante, die die Karte nicht kennt, zeigt sich dort, nicht vorher; es gibt keinen
   automatischen Revert.
-- **Die Karte gegen den Code:** `.github/scripts/affected-jobs.test.sh` hält die Karte in 41 Fällen
-  fest und gegen alle 161 Lesezugriffe über Modulgrenzen, die eine Suche heute findet: relative Pfade
-  aus einem Modul hinaus in Go, Kotlin, Gradle, TypeScript, Shell und den Taskfiles,
+- **Die Karte gegen den Code:** `.github/scripts/affected-jobs.test.sh` hält die Karte in 42 Fällen
+  fest und gegen alle 164 Lesezugriffe über Modulgrenzen, die eine Suche heute findet: relative Pfade
+  aus einem Modul hinaus in Go, Kotlin, Gradle, TypeScript, JavaScript, Shell und den Taskfiles,
   `filepath.Join("..", …)`, die Muster `$(cd ../x && pwd)/datei` und `go -C ../server tool`,
   Pfadtexte in Dateien, die die Wurzel des Repos berechnen (`logoMark.test.ts`,
-  `StringsGeneratorTest`), und die Quellen von `COPY` in den Dockerfiles. Je Fund ordnet der Test
-  der lesenden Datei ihre Jobgruppe zu; eine lesende Datei ohne bekannte Gruppe macht ihn rot. Er
-  läuft auf jedem PR im Job `changes` selbst (Bash und `git grep`, rund vier Sekunden): Ein PR, der
-  einen neuen Lesezugriff einführt, den die Karte nicht abdeckt, macht das Gate rot, bevor er einen
-  nötigen Job überspringt. Ein Mutationstest belegt es: Fehlt eine der Kanten (Launcher-Icons → web,
-  Mock-Server → android_server, App-Icon → android, LICENSE → relay, relay → android_server,
-  Store-Grafiken → web), meldet der Test sie.
+  `scripts/i18n/lib.ts`, die Gradle-Datei der Texte, `StringsGeneratorTest`), und die Quellen von
+  `COPY` in den Dockerfiles.
+  - Je Fund ordnet der Test der lesenden Datei ihre Jobgruppen zu, auch über eine Stufe: Startet eine
+    Datei eine andere (`scripts/android-helpers.sh` den Radio-Mock), erbt die gestartete deren
+    Gruppen. Eine lesende Datei ohne bekannte Gruppe macht den Test rot.
+  - Liest jemand einen ganzen Ordner (`COPY web/`), prüft der Test auch jede engere Zeile der Karte
+    darunter: Eine neue Zeile `web/src/features/admin/*) add web` ohne `image` fiele auf.
+  - Zehn Anker, je ein bekannter Fund pro Suchform, halten die Suche selbst: Verliert sie eine Form
+    (Tippfehler im Muster, Fehler von `git grep`), wird der Test rot, statt mit weniger Funden grün
+    zu bleiben.
+  - Er läuft auf jedem PR im Job `changes` selbst (Bash und `git grep`, rund fünf Sekunden): Ein PR,
+    der einen neuen Lesezugriff einführt, den die Karte nicht abdeckt, macht das Gate rot, bevor er
+    einen nötigen Job überspringt.
+  - Mutationen belegen es: Fehlt eine der Kanten (Launcher-Icons → web, Mock-Server →
+    android_server, App-Icon → android, LICENSE → relay, relay → android_server, Store-Grafiken →
+    web), kommt eine zu enge Zeile unter einem gelesenen Ordner dazu oder fällt eine Suchform aus,
+    meldet der Test es.
 - **Gate und Bedingung passen zusammen:** `ciworkflows` (`task ci:workflows`) prüft, dass ein Job,
-  der nur für seine Gruppe läuft (`run_<gruppe>` in `if:`), im Gate genau dieselbe Gruppe nennt,
-  dass das Gate die Gruppe aus der Ausgabe von `changes` liest und dass ein Job ohne Gruppe kein
-  Flag trägt.
+  der nur für seine Gruppe läuft (`run_<gruppe>` in `if:`), im Gate genau dieselbe Gruppe nennt, dass
+  das Gate die Gruppe aus der gleichnamigen Ausgabe von `changes` liest, dass diese Ausgabe aus der
+  gleichnamigen Antwort des Schritts stammt, dass ein dritter Wert in der Gate-Zeile nur
+  `"$RUN_<GRUPPE>"` sein darf und dass ein Job ohne Gruppe kein Flag trägt.
 - **Doku enger gefasst:** `docs-only.sh` zählt Markdown in `server/`, `relay/`, `android/`,
   `testdata/`, `scripts/` und `api/` nicht mehr als Doku, ebenso `docs/store/grafiken/` (der
-  Logo-Test liest sie). Release-Notes gelten nur noch auf der obersten Ebene und unter `docs/` als
-  Doku.
+  Logo-Test liest sie). Release-Notes (`release-notes*.txt`) gelten nur noch auf der obersten Ebene
+  und unter `docs/` als Doku.
 - Restrisiko, benannt: Die Suche sieht keinen Pfad, der aus Variablen in anderer Form zusammengesetzt
-  wird, und keinen, den ein Werkzeug aus seiner eigenen Konfiguration liest. Das deckt nur der volle
+  wird, keinen, den ein Werkzeug aus seiner eigenen Konfiguration liest, und keinen Import zwischen
+  Dateien desselben Moduls (der Seerr-Mock importiert den Arr-Mock; die Karte nimmt deshalb alle
+  `web/e2e/*-server.mjs`). Ein Taskfile hat eine Gruppe, nicht eine je Task. Das deckt nur der volle
   Lauf auf `main` auf. Wer einen solchen Lesezugriff über Modulgrenzen schreibt, trägt ihn in
   `affected-jobs.sh` und in die Tabelle des Tests ein.

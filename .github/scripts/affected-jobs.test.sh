@@ -68,24 +68,32 @@ expect "a README in the server is not documentation" "server android_server e2e 
 expect "a README in the scripts is not documentation" "$all" scripts/README.md
 expect "release notes at the top level are documentation" "" release-notes-1.0.0.txt
 expect "release notes inside a module are not" "web e2e image" web/release-notes.txt
+expect "a folder named like release notes is not documentation" "$all" release-notes/build.sh
 expect "a mixed pull request" "server android android_server web e2e image" server/x.go android/y.kt web/z.ts docs/x.md
 expect "an Android-only pull request leaves the e2e path out" "android android_server" android/app-mobile/version.properties docs/dev/CURRENT_STATUS.md
 
 # --- 2. the map against the files read across modules ---------------------------------------------
 # A search for every path a test, a build or a script of the CI names across a module boundary, and
-# for each the job group that runs the reading file: a change of that path must run that group.
+# for each the job groups that run the reading file: a change of that path must run those groups.
 #
 # The search sees relative paths that leave a module and name a top-level path of the repository
 # ("../../testdata/x", File("../../web/public/icon.svg"), node ../web/e2e/x.mjs),
 # filepath.Join("..", "..", "testdata", ...), two shell idioms (`$(cd ../x && pwd)/file` and
 # `go -C ../server tool`), and, in files that compute the repository's root
-# (join(import.meta.dirname, '../../..'), slouchcat.repo), every string that starts with a
-# top-level directory ('docs/store/...'), and the sources of COPY and ADD in the Dockerfiles. It
-# does not see a path put together from variables in another form, or one a tool reads from its
-# own configuration; ADR 0013, addendum M9, names that rest.
+# (join(import.meta.dirname, '../../..'), resolve(dirname(fileURLToPath(import.meta.url)), '../..'),
+# projectDirectory.dir(".."), slouchcat.repo), every string that starts with a top-level directory
+# ('docs/store/...'), and the sources of COPY and ADD in the Dockerfiles. It does not see a path put
+# together from variables in another form, or one a tool reads from its own configuration; ADR
+# 0013, addendum M9, names that rest. The anchors below hold the search itself: one known reading
+# per form, so a search that stops seeing a form turns this red instead of passing with fewer
+# readings.
 cd "$root"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
 
-# reader_group <file>: the job group that runs <file>; "-" for files the CI does not run.
+# reader_group <file>: the job group that runs <file>; "-" for files the CI does not run. A file
+# another reading file names (scripts/android-helpers.sh starts web/e2e/radio-server.mjs) also gets
+# the groups of that file, below.
 reader_group() {
   case "$1" in
     server/*) echo server ;;
@@ -109,72 +117,155 @@ reader_group() {
 # Paths the search finds that the reading file writes, not reads: <file><TAB><path>.
 written=$'web/Taskfile.yml\tserver/internal/webassets/dist'
 
-# needs <reading group> <path that is read> <reading file>: a change of that path must run the group.
-needs() {
-  local group=$1 path=$2 reader=$3 got
-  # A directory stands for any file in it, a file for itself; a path that is not there (a build
-  # output such as server/bin/slouchcat) is a file when its last part has a dot.
+# The patterns of the map's case, for a reading of a directory: a change anywhere below it must run
+# the reader's groups, also where a narrower line of the map decides (web/ and web/src/locales/*).
+# The sed address matches the literal text `case "$path" in` of the map.
+# shellcheck disable=SC2016
+mapfile -t labels < <(sed -n '/^  case "\$path" in$/,/^  esac$/p' "$script" | grep -v '^ *#' |
+  sed -e ':a' -e '/\\$/N; s/\\\n//; ta' | grep -oE '^ +[^ ][^)]*\)' | sed -E 's/\)$//' |
+  tr '|' '\n' | sed -E 's/^ +| +$//g' | grep -v '^$')
+[ "${#labels[@]}" -ge 20 ] || { echo "FAIL read only ${#labels[@]} patterns from the map's case"; failures=$((failures + 1)); }
+
+# probes <path>: the paths whose change stands for a change of <path>. A directory stands for a
+# file in it and for every pattern of the map below it, a file for itself; a path that is not there
+# (a build output such as server/bin/slouchcat) is a file when its last part has a dot.
+probes() {
+  local path=$1 label
   if [ -d "$path" ] || { [ ! -e "$path" ] && [[ "${path##*/}" != *.* ]]; }; then
-    path=$path/probe
+    echo "$path/probe"
+    for label in "${labels[@]}"; do
+      if [[ "$label" == "$path/"* ]]; then echo "${label//\*/probe}"; fi
+    done
+  else
+    echo "$path"
   fi
-  got=" $(run "$path") "
-  if [[ "$got" != *" $group "* ]]; then
-    echo "FAIL $path is read by $reader ($group), but a change of it does not run $group"
-    failures=$((failures + 1))
-  fi
+}
+
+# needs <group> <path that is read> <reading file>: a change of that path must run the group.
+needs() {
+  local group=$1 path=$2 reader=$3 probe got
+  while IFS= read -r probe; do
+    got=" $(run "$probe") "
+    if [[ "$got" != *" $group "* ]]; then
+      echo "FAIL $probe (for $path, read by $reader, $group) does not run $group"
+      failures=$((failures + 1))
+    fi
+  done < <(probes "$path")
 }
 
 tops=$(git ls-files | cut -d/ -f1 | sort -u | grep -v '^[.]' | sed 's/[.]/[.]/g' | paste -sd'|')
 seg='[A-Za-z0-9_.@{}$-]+'
 up="(\.\./)+($tops)(/$seg)*"
 search="$up( \&\& pwd\)/$seg)?|go -C (\.\./)+server tool|filepath\.Join\((\"\.\.\", *)+\"($tops)\"(, *\"[A-Za-z0-9_. ()-]+\")*"
-roothelper="import\.meta\.dirname, '\.\./\.\.(/\.\.)*'|slouchcat\.repo"
+roothelper="import\.meta\.dirname, '\.\./\.\.(/\.\.)*'|fileURLToPath\(import\.meta\.url\)\), *'\.\./\.\.(/\.\.)*'|projectDirectory\.dir\(\"\.\.\"\)|slouchcat\.repo"
 readers=('server/*.go' 'relay/*.go' 'android/*.kt' 'android/*.kts' 'web/*.ts' 'web/*.tsx' 'web/*.mjs'
-  'packages/*.ts' 'packages/*.mjs' 'scripts/*.sh' 'scripts/*.ts' 'scripts/*.mjs' '*/Taskfile.yml'
+  'web/*.js' 'packages/*.ts' 'packages/*.mjs' 'packages/*.js' 'scripts/*.ts' 'scripts/*.mjs'
+  'scripts/*.sh' 'server/*.sh' 'relay/*.sh' 'android/*.sh' 'web/*.sh' '*/Taskfile.yml'
   ':!:*/generated/*' ':!:*/gen/*' ':!:*/dist/*' ':!:*.d.ts')
 
+# git grep that fails on an error (exit 2 and up), not on "nothing found" (exit 1).
+grep_ok() {
+  local rc=0
+  git grep "$@" || rc=$?
+  [ "$rc" -le 1 ] || { echo "FAIL git grep $* ended with exit $rc" >&2; return 1; }
+}
+
 found() {
-  {
-    git grep -oE "$search" -- "${readers[@]}" || true
-    git grep -lE "$roothelper" -- "${readers[@]}" | while IFS= read -r f; do
-      git grep -oE "['\"]($tops)/$seg(/$seg)*['\"]" -- "$f" || true
-    done
-    # The sources the Dockerfiles copy from the build context, the repository's root.
-    git ls-files 'deploy/*Dockerfile*' | while IFS= read -r f; do
-      awk -v f="$f" '($1 == "COPY" || $1 == "ADD") && !/--from=/ {
-        for (i = 2; i < NF; i++) if ($i !~ /^--/) print f ":" $i
-      }' "$f"
-    done
-  } | sed -E \
+  local f helpers
+  grep_ok -oE "$search" -- "${readers[@]}" >"$tmp/raw" || return 1
+  helpers=$(grep_ok -lE "$roothelper" -- "${readers[@]}") || return 1
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    grep_ok -oE "['\"]($tops)/$seg(/$seg)*['\"]" -- "$f" >>"$tmp/raw" || return 1
+  done <<<"$helpers"
+  # The sources the Dockerfiles copy from the build context, the repository's root.
+  while IFS= read -r f; do
+    awk -v f="$f" '($1 == "COPY" || $1 == "ADD") && !/--from=/ {
+      for (i = 2; i < NF; i++) if ($i !~ /^--/) print f ":" $i
+    }' "$f" >>"$tmp/raw" || return 1
+  done < <(git ls-files 'deploy/*Dockerfile*')
+  sed -E \
     -e 's/:/\t/' \
     -e 's/\tfilepath\.Join\(("\.\.", *)+/\t/' -e 's/", *"/\//g' -e "s/[\"']//g" \
     -e 's#\tgo -C ((\.\./)+)server tool#\t\1server/go.mod#' \
     -e 's# && pwd\)/#/#' \
-    -e 's#\t(\.\./)+#\t#' -e 's#/$##' |
-    sort -u
+    -e 's#\t(\.\./)+#\t#' -e 's#/$##' "$tmp/raw" | sort -u
 }
 
-edges=0
+if ! found >"$tmp/found"; then
+  echo "FAIL the search for readings across modules failed"
+  failures=$((failures + 1))
+fi
+
+# One known reading per form the search must see.
+anchors=(
+  $'server/internal/trackpick/languages_test.go\tweb/src/features/player/labels.ts'
+  $'server/internal/library/probe_test.go\ttestdata/media/Movies'
+  $'android/app-mobile/src/test/kotlin/com/slouchcat/app/mobile/LauncherIconTest.kt\tweb/public/icon.svg'
+  $'android/core/strings/build.gradle.kts\tweb/src/locales'
+  $'web/src/ui/logoMark.test.ts\tdocs/store/grafiken/app-icon.svg'
+  $'scripts/i18n/lib.ts\tweb/src/locales'
+  $'scripts/android-helpers.sh\tweb/e2e/seerr-server.mjs'
+  $'scripts/android-helpers.sh\tweb/e2e/radio-server.mjs'
+  $'relay/Taskfile.yml\tserver/go.mod'
+  $'deploy/relay/pair/Dockerfile\tLICENSE'
+)
+for anchor in "${anchors[@]}"; do
+  grep -qxF "$anchor" "$tmp/found" || {
+    echo "FAIL the search no longer finds the reading ${anchor/$'\t'/ -> }; it lost a form (or the file moved: update the anchor)"
+    failures=$((failures + 1))
+  }
+done
+
+# The groups of every reading file, then those of the files it runs, until nothing changes.
+declare -A groups_of=() by_hand=()
+edge_list=()
 while IFS=$'\t' read -r reader target; do
   [ -n "$target" ] || continue
   [ "$reader"$'\t'"$target" != "$written" ] || continue
-  group=$(reader_group "$reader")
-  case "$group" in
-    -) continue ;;
-    '?')
-      echo "FAIL $reader reads $target across modules, but reader_group knows no job group for $reader"
-      failures=$((failures + 1))
-      continue
-      ;;
-  esac
-  needs "$group" "$target" "$reader"
-  edges=$((edges + 1))
-done < <(found)
+  edge_list+=("$reader"$'\t'"$target")
+  if [ -z "${groups_of[$reader]+set}" ]; then
+    case "$(reader_group "$reader")" in
+      -) groups_of[$reader]=""; by_hand[$reader]=1 ;;
+      '?') groups_of[$reader]="" ;;
+      *) groups_of[$reader]=$(reader_group "$reader") ;;
+    esac
+  fi
+done <"$tmp/found"
+changed=1
+while [ "$changed" = 1 ]; do
+  changed=0
+  for edge in "${edge_list[@]}"; do
+    reader=${edge%%$'\t'*} target=${edge#*$'\t'}
+    [ -n "${groups_of[$target]+set}" ] || continue
+    for group in ${groups_of[$reader]}; do
+      if [[ " ${groups_of[$target]} " != *" $group "* ]]; then
+        groups_of[$target]="${groups_of[$target]} $group"
+        changed=1
+      fi
+    done
+  done
+done
+
+edges=0
+for edge in "${edge_list[@]}"; do
+  reader=${edge%%$'\t'*} target=${edge#*$'\t'}
+  if [ -z "${groups_of[$reader]// /}" ]; then
+    [ -n "${by_hand[$reader]:-}" ] && continue
+    echo "FAIL $reader reads $target across modules, but reader_group knows no job group for $reader"
+    failures=$((failures + 1))
+    continue
+  fi
+  for group in ${groups_of[$reader]}; do
+    needs "$group" "$target" "$reader"
+    edges=$((edges + 1))
+  done
+done
 # The Android contract and emulator jobs build and start the server and the relay (task names, no paths).
 grep -q ':server:build' android/Taskfile.yml && { needs android_server server android/Taskfile.yml; edges=$((edges + 1)); }
 grep -q ':relay:build' android/Taskfile.yml && { needs android_server relay android/Taskfile.yml; edges=$((edges + 1)); }
-echo "     $edges readings across modules checked against the map"
-[ "$edges" -ge 60 ] || { echo "FAIL the search found only $edges readings; it no longer sees the code"; failures=$((failures + 1)); }
+echo "     $edges readings across modules checked against the map (${#anchors[@]} anchors, ${#labels[@]} patterns)"
+[ "$edges" -ge 100 ] || { echo "FAIL the search found only $edges readings; it no longer sees the code"; failures=$((failures + 1)); }
 
 if [ "$failures" -gt 0 ]; then
   echo "affected-jobs.test.sh: $failures case(s) failed" >&2

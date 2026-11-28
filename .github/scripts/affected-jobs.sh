@@ -2,8 +2,8 @@
 # Reads the changed paths of a pull request (one per line, relative to the repository root) on
 # stdin and prints, for every job group of ci.yml, `run_<group>=true` or `run_<group>=false`: which
 # jobs a change can turn red (docs/perf/ci-optimierungsplan.md, M9; ADR 0013, addendum M9). The job
-# "changes" writes the lines to its outputs on a pull request; a push to main, the weekly run and a
-# run by hand check everything and do not call this.
+# "changes" writes the lines to its outputs: on a pull request from its paths; a push to main, the
+# weekly run and a run by hand call it with no input, which runs everything.
 #
 # Groups and their jobs:
 #   server          server-lint, server-groups, server-test
@@ -60,7 +60,9 @@ while IFS= read -r path; do
     # names it); no server test reads the file, the edge is kept as a precaution.
     web/src/features/player/labels.ts | web/src/features/offline/pin.ts) add web e2e image server ;;
     # The mock servers of the e2e suite; the Android contract and emulator jobs start them too
-    # (scripts/android-helpers.sh: Seerr, TMDB, radio; the Seerr mock imports the Arr mock).
+    # (scripts/android-helpers.sh: Seerr, TMDB, radio; the Seerr mock imports the Arr mock). A
+    # pattern, not a list: a mock one of them imports (a sibling file, which the map test cannot
+    # see) is covered too, at the price of start-server.mjs running the Android jobs as well.
     web/e2e/*-server.mjs) add web e2e image android_server ;;
     # The app icon; the Android launcher test reads it (app-mobile, LauncherIconTest).
     web/public/icon.svg) add web e2e image android ;;

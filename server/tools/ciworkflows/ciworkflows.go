@@ -57,10 +57,12 @@ type step struct {
 }
 
 var (
-	// check <job> '${{ needs.<job>.result }}' ["$RUN_<GROUP>"]
-	checkLine = regexp.MustCompile(`(?m)^\s*check\s+(\S+)\s+'\$\{\{\s*needs\.([A-Za-z0-9_-]+)\.result\s*\}\}'(?:[ \t]+"\$([A-Z0-9_]+)")?`)
+	// check <job> '${{ needs.<job>.result }}' [<third argument>, only ever "$RUN_<GROUP>"]
+	checkLine = regexp.MustCompile(`(?m)^\s*check\s+(\S+)\s+'\$\{\{\s*needs\.([A-Za-z0-9_-]+)\.result\s*\}\}'(?:[ \t]+([^ \t\n#]+))?`)
+	runFlag   = regexp.MustCompile(`^"\$(RUN_[A-Z0-9_]+)"$`)
 	groupIf   = regexp.MustCompile(`needs\.` + ChangesJob + `\.outputs\.(run_[a-z0-9_]+)`)
 	runEnv    = regexp.MustCompile(`^\$\{\{\s*needs\.` + ChangesJob + `\.outputs\.(run_[a-z0-9_]+)\s*\}\}$`)
+	runOutput = regexp.MustCompile(`^\$\{\{\s*steps\.[A-Za-z0-9_-]+\.outputs\.(run_[a-z0-9_]+)\s*\}\}$`)
 )
 
 // ParseInformational reads the job names of .github/ci-informational-jobs.txt.
@@ -124,10 +126,26 @@ func Check(data []byte, informational []string) ([]string, error) {
 				add("the gate's line `check %s` reads needs.%s.result: label and job differ", m[1], m[2])
 			}
 			checked[m[2]]++
-			flag[m[2]] = m[3]
+			switch f := runFlag.FindStringSubmatch(m[3]); {
+			case m[3] == "":
+				flag[m[2]] = ""
+			case f == nil:
+				add("the gate's line `check %s` has the third argument %s; only \"$RUN_<GROUP>\" may decide a skip", m[1], m[3])
+				flag[m[2]] = m[3]
+			default:
+				flag[m[2]] = f[1]
+			}
 		}
 	}
 	changesOutputs := wf.Jobs[ChangesJob].Outputs
+	for name, value := range changesOutputs {
+		if !strings.HasPrefix(name, "run_") {
+			continue
+		}
+		if m := runOutput.FindStringSubmatch(strings.TrimSpace(value)); m == nil || m[1] != name {
+			add("the output %s of the job %q must be ${{ steps.<id>.outputs.%s }} (found %q)", name, ChangesJob, name, value)
+		}
+	}
 
 	byName := map[string][]string{}
 	for id, j := range wf.Jobs {

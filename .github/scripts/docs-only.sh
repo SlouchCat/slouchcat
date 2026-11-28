@@ -4,8 +4,8 @@
 # "changes" of ci.yml feeds it the files of a pull request; `true` lets the heavy jobs skip
 # (ADR 0013, addendum of 3 November 2026).
 #
-# Documentation here means docs/, Markdown files and release notes at the top level -- with
-# these exceptions, because a check does or may read those:
+# Documentation here means docs/, Markdown files and release notes (release-notes*.txt) at the top
+# level -- with these exceptions, because a check does or may read those:
 #
 #  - web/ and packages/: `prettier --check web packages` (root package.json, format:check) checks
 #    their Markdown files too, so a README there can turn the web job red.
@@ -26,7 +26,7 @@ while IFS= read -r path; do
   case "$path" in
     web/* | packages/* | deploy/* | docs/store/grafiken/* | server/* | relay/* | android/* | \
       testdata/* | scripts/* | api/*) docs_only=false ;;
-    docs/* | *.md | release-notes*) ;;
+    docs/* | *.md | release-notes*.txt) ;;
     *) docs_only=false ;;
   esac
 done
