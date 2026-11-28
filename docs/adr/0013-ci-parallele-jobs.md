@@ -357,3 +357,112 @@ auf oberster Ebene, und alle laufen in genau einer Gruppe (`--check` zählt es b
 `server:lint`). `ciCheck` und `ciTest` hängen an denselben 21 und 13 Aufgaben wie vorher; `ciTest` ist unverändert (lokal 1857 JVM-Testfälle, keiner übersprungen). `-race`
 bleibt in jeder Gruppe, `checkptr` bleibt wie am 4. November entschieden. Das Gate verlangt
 weiter jeden Job; ein Matrix-Job ist nur grün, wenn jede seiner Hälften grün ist.
+
+## Nachtrag vom 28. November 2026: Übernahme ohne informative Jobs, Selbstprüfung der Workflows
+
+**Anlass:** Messung aller 505 Läufe vom 29. Oktober bis 28. November 2026
+(`docs/perf/ci-optimierungsplan.md`, Welle 1, von Marco am 28. November 2026 freigegeben: M1, M2,
+M3, M7). Messwerte: `docs/perf/ci.md`, Abschnitt 9.
+
+### main übernimmt auch bei rotem informativem Job, gebunden an den geprüften Baum (M1)
+
+- **Befund:** `already-tested.sh` verlangte `success` von **jedem** Job des PR-Laufs, auch von
+  `android-emulator (flow, informational)`, den das Gate nicht verlangt. 10 der 39 vollen
+  `main`-Läufe seit dem 16. November liefen nur deshalb voll; 18 grüne PR-Läufe trugen einen roten
+  Emulator-Job.
+- **Entscheid:** Die Jobs ausserhalb des Gates stehen in **`.github/ci-informational-jobs.txt`**.
+  Das Skript nimmt sie aus der Prüfung aus und meldet ihr Ergebnis; das Gate des `main`-Laufs nennt
+  es («Informational jobs of that run: …»). Was das Gate nicht verlangt, verlangt auch die Übernahme
+  nicht.
+- **Neue Bedingung 5:** Der Job `changes` eines PR-Laufs schreibt den Baum, den der Lauf prüft, als
+  Annotation `tested-tree`. Übernommen wird nur, wenn genau dieser Baum der Baum auf `main` ist.
+  Ein Lauf desselben PR-Kopfs gegen einen anderen Zielzweig prüfte einen anderen Merge und zählt
+  nicht mehr (Sicherheitsprüfung vom 28. November 2026). Das Feld `pull_requests` eines Laufs taugt
+  dafür nicht: GitHub nennt dort nur **offene** PRs, und in allen 505 Läufen war es leer.
+- **Neue Bedingung 6:** Ändert der Merge etwas unter `.github/`, läuft `main` voll. Der PR-Lauf prüfte
+  mit seinem eigenen Workflow, seinen Skripten und seiner Jobliste; eine Änderung dort ist eine
+  Änderung der Prüfung selbst (Sicherheitsprüfung vom 28. November 2026, solange `main` keinen
+  Pflicht-Check und kein CODEOWNERS hat). Auch der Merge, der diese Bedingung einführt, läuft deshalb
+  voll.
+- PR-Läufe von vor dieser Änderung haben keine Annotation; ihre Merges laufen auf `main` voll.
+- **Fremdtext:** Dateinamen, Jobnamen und Annotationen stammen aus dem PR. Der Job `changes` schaltet
+  beim Auflisten der Dateien die Workflow-Befehle ab (`::stop-commands::`), und das Skript gibt
+  Fremdtext nur einzeilig und bereinigt aus. Sonst könnte eine Datei mit dem Namen eines
+  Workflow-Befehls diesen im Job ausführen.
+- Mehrdeutiges gilt nicht als Beleg: zwei Jobs namens `changes (docs only?)`, zwei Annotationen
+  `tested-tree`, ein Job ohne Ergebnis. Auch die alte Befehlsform `##[`, die überall in einer Zeile
+  wirkt, wird in ausgegebenem Fremdtext aufgebrochen.
+- Selbsttest: `.github/scripts/already-tested.test.sh` (15 Fälle, gefälschtes `gh`).
+
+### apt mit Zeitgrenze (M2)
+
+Jeder apt-Aufruf in `.github/actions/system-packages` endet nach 300 s (die ganze Aktion brauchte im
+Monat höchstens 289 s), dazu `Acquire::Retries 3` und 30 s Zeitgrenze je Verbindung. Ein hängender
+Spiegel (17 Jobs im Monat bis zur Jobgrenze von 30 bis 45 Minuten) wird damit nach Minuten rot, mit
+der Meldung «apt hang (infrastructure)». Kein Test wird wiederholt.
+
+### Rote Läufe lesen (M3)
+
+`scripts/ci-failures.sh` (`task ci:failures RUN=<id>`) gibt je rotem Job den roten Schritt, eine
+Einordnung, einen Hinweis auf denselben Job grün auf demselben Commit und die Fehlerzeilen des
+Schritts aus, höchstens 80 Zeilen. Das ganze Log bleibt auf der Platte. An den zehn Referenzläufen
+der Messung: Ursache 10 von 10, zusammen rund 9 200 statt 3,05 Millionen Tokens. «Ohne Codeänderung
+gescheitert» meldet es nur, wenn derselbe Job in einem anderen Versuch **desselben** Laufs grün war:
+Jeder Versuch prüft denselben Commit, ein anderer Lauf desselben Kopfs vielleicht einen anderen Merge.
+Steuerzeichen aus Logs erreichen das Terminal nicht, und die Ausgabe sagt, dass ihr Text Daten sind
+(auch aus Fork-PRs). Das Gate schreibt seine Ergebnistabelle zusätzlich auf die Übersichtsseite des
+Laufs.
+
+### Die Workflows prüfen sich selbst (M7)
+
+- **`task ci:workflows`**, Teil von `task ci` und des Jobs `server (generators, linters)`:
+  actionlint (mit shellcheck über jeden `run:`-Block), die **stehende Regel** dieses ADR als Programm
+  (`server/tools/ciworkflows`: jeder Job steht in `needs` des Gates und in dessen Prüfliste, oder er
+  ist informativ mit `continue-on-error`; das Gate hat `if: always()` und heisst `ci`) und die
+  Selbsttests der zwei CI-Skripte. Bisher war die Regel nur ein Kommentar.
+- actionlint kommt wie `task` als Release-Archiv mit geprüfter SHA-256 (`.github/actionlint-checksums.txt`).
+  `go tool` aus `server/go.mod` geht nicht: actionlint 1.7.12 verlangt `go.yaml.in/yaml/v4`
+  v4.0.0-rc.3, gosec (über golangci-lint) rc.6; Go nimmt im gemeinsamen Modulgraph die höhere, und
+  gegen deren geänderte Schnittstelle übersetzt actionlint nicht.
+- `.github/actions/android-sdk` ersetzt die Wrapper-Prüfung und den JDK-/SDK-Schritt, die drei Jobs
+  je einmal trugen. Eingaben und Matrixwerte erreichen die Skripte über `env:`.
+
+## Nachtrag vom 28. November 2026, Welle 2: e2e-Dauern aufgefrischt, Web-Job in zwei Hälften
+
+**Anlass:** `docs/perf/ci-optimierungsplan.md`, Welle 2 (M4, M5), von Marco am 28. November 2026
+freigegeben. Messläufe auf einem Wegwerf-Zweig ohne PR: `docs/perf/ci.md`, Abschnitt 10.
+
+### e2e: Dauertabelle (M4 a)
+
+- `web/e2e/durations.json` stammte aus zwei Läufen vom 3. November (vor der Firefox-Auswahl, den
+  kürzeren Wartezeiten und 34 der 106 heutigen Spec-Dateien). Neu aus drei grünen PR-Läufen seit dem
+  26. November: 806 Tests, sechs Shards planen auf 588 bis 590 s.
+- `task web:e2e:durations` formatiert die Tabelle jetzt mit prettier. Die von `durations.mjs`
+  geschriebene Form hätte `web:lint` rot gemacht (im Messlauf gesehen).
+
+### Sieben e2e-Shards statt sechs (M4 b, Marcos Entscheid vom 28. November 2026)
+
+- Gemessen auf dem Runner mit der neuen Tabelle, 6 bis 9 Shards je viermal (`docs/perf/ci.md`,
+  Abschnitt 10; bei 6 Shards nur drei vollständige Durchgänge). Längster Shard im Median: 6 → 12,5 min,
+  7 → 10,1, 8 → 10,0, 9 → 8,8; Runner-Minuten der e2e-Jobs je Lauf 69, 69, 74, 77.
+- **Entscheid: sieben.** Fast der ganze Gewinn von acht Shards (−2,4 statt −2,5 min) ohne messbar
+  mehr Runner-Minuten (69 wie bei sechs; acht kosten 5 mehr). Neun wären am schnellsten (−3,7 min),
+  kosten aber 8 Runner-Minuten mehr je Lauf; Marco wählte am 28. November 2026 sieben. Die Annahme
+  vom 3. November, ab etwa acht Shards wachse der feste Anteil schneller als der geteilte schrumpfe,
+  bestätigt sich für die Dauer **nicht** (neun sind am schnellsten), wohl aber für die
+  Runner-Minuten: Jeder Shard zahlt rund 2,5 min fest.
+- `ci.yml` (Matrix 1 bis 7) und `CI_E2E_SHARDS` in `web/Taskfile.yml` nennen dieselbe Zahl;
+  `task web:e2e:shards:check` prüft den Plan mit sieben Shards: 806 Tests, jeder in genau einem.
+
+### Web-Job in zwei Hälften (M5)
+
+- Wie `android` seit dem 26. November eine Matrix: `web (generators, linters)` führt
+  `task ci:web:lint` aus, `web (unit tests)` `task ci:web:test`. `task ci:web` ist genau beides, also
+  bleibt `task ci` gleich (dieser ADR: CI ruft nur Teile von `task ci`).
+- Grund: Linter (126 bis 214 s) und Vitest (239 bis 412 s) liefen nacheinander, und ein roter Linter
+  verdeckte das Ergebnis von Vitest. Gemessen getrennt: Lint-Hälfte 3,3 min (zwei vollständige
+  Durchgänge), Test-Hälfte 4,9 bis 7,8 min, bisher der ganze Job im Median 7,8 min. Die Lint-Hälfte
+  ist weiter **ein** Schritt: Ein roter Generator-Abgleich verdeckt dort noch die Linter.
+- `server (generators, linters)` führt `server:gen`, `server:gen:check` und `server:lint` als drei
+  Schritte aus; die zwei späteren laufen auch nach einem roten Vorgänger, aber nicht nach einem roten
+  `server:gen` (halb erzeugter Code gäbe nur Folgefehler).

@@ -330,3 +330,76 @@ Lauf 45808439520, grün, noch mit dem alten Android-Build-Cache (nur `main` spei
 | Gate fertig nach | **885 s** (vorher 1313 bis 1596 s) |
 
 Der längste Job ist damit wieder ein e2e-Shard.
+
+## 9. Nachtrag vom 28. November 2026: Messung des Monats und Welle 1
+
+Grundlage: alle 505 Läufe des Workflows `ci` vom 29. Oktober bis 28. November 2026 (9424 Jobs, 101
+rote Job-Logs), nur lesend über die GitHub-API. Plan und Herleitung: `docs/perf/ci-optimierungsplan.md`.
+Die Auswerteskripte liegen lokal in `.omc/research/ci-optimierung/skripte/` (nicht im Repo):
+`SINCE=<Datum> bash holen.sh`, dann `python3 -I auswertung.py`.
+
+### Ausgangswerte (vor Welle 1)
+
+| Kennzahl | Wert | n |
+|---|---|---|
+| Voller PR-Lauf bis Gate, Median / P95 (seit 26.11.) | 15,2 / 16,5 min | 6 (vorläufig) |
+| Längster Pol (seit 26.11.) | e2e-Pfad in 11 von 11, 5,0 min vor server-test | 11 |
+| Runner-Minuten je vollem PR-Lauf | 188,0 (174,2 ohne Emulator-Job) | 6 |
+| main-Pushes mit Übernahme (seit 16.11.) | 20 von 60 (33 %) | 60 |
+| volle main-Läufe nur wegen rotem Emulator-Job | 10 von 39 | 39 |
+| Jobs bis zur Jobgrenze in `system-packages` | 17 (736 Runner-Min) | Monat |
+| rotes Job-Log, Median ganz / Auszug | 88 800 / 1 700 Tokens | 101 |
+| Actions-Cache | 10,41 von 10 GiB | 114 Einträge |
+
+### Was Welle 1 ändert und wie es nachgemessen wird
+
+| Massnahme | Erwartung | Nachmessen nach dem Merge |
+|---|---|---|
+| M1 Übernahme ohne informative Jobs, an den Baum gebunden | Merges eines Zweigs auf aktuellem main mit grünem PR-Lauf werden übernommen, auch bei rotem Emulator-Job; main-Ergebnis nach rund 5,5 statt 13,9 min | Anteil Übernahmen unter diesen Merges, ohne Merges mit Änderungen unter `.github/` (Bedingung 6; der Merge dieser Änderung selbst läuft voll), Ziel 10 von 10 |
+| M2 apt-Zeitgrenzen | Hänger rot nach höchstens rund 10 min statt 30–47; Normalfall unverändert | Median von `system-packages` (heute 26–33 s, ±5 s), Jobs am Jobzeitlimit (Ziel 0 in 30 Tagen) |
+| M3 Fehlerauszug | ≤ 3000 Tokens je Lauf, Ursache enthalten | an den zehn Referenzläufen gemessen: 332 bis 2340 Tokens (zusammen 9204), Ursache 10 von 10 |
+| M7 Workflow-Selbstprüfung | keine Laufzeitwirkung (Sekunden in `server-lint`) | Dauer von `server-lint` (heute Median 3,5 min) |
+
+Welle 1 ändert keinen langen Pol; die Wartezeit eines PR bleibt bei rund 15 Minuten. Die Wartezeit
+senken erst M4 (e2e-Shards) und M5 (Web-Job teilen) aus Welle 2.
+
+## 10. Nachtrag vom 28. November 2026: Messung der e2e-Shard-Zahl und des geteilten Web-Jobs
+
+Wegwerf-Workflow `measure.yml` auf dem Zweig `claude/messung-e2e-shards` (ohne PR, danach gelöscht),
+Läufe 46150103062 und 46151712472, je zwei Wiederholungen jeder Variante, also n = 4. Grundlage ist
+die aufgefrischte Dauertabelle (806 Tests). «Längster Shard» ist die Job-Dauer des langsamsten Shards
+eines Durchgangs; sie bestimmt das Ende des e2e-Pfads. Runner-Minuten der e2e-Jobs eines Durchgangs,
+je Job aufgerundet.
+
+| Shards | längster Shard je Durchgang (min) | Median | Runner-Min e2e je Durchgang | Median |
+|---|---|---|---|---|
+| 6 | 10,9 · 12,5 · 12,6 (· 11,6*) | 12,5 | 63 · 69 · 69 (· 58*) | 69 |
+| 7 | 9,8 · 10,1 · 10,2 · 11,2 | 10,1 | 68 · 68 · 70 · 75 | 69 |
+| 8 | 9,3 · 10,0 · 10,0 · 10,1 | 10,0 | 73 · 74 · 74 · 75 | 74 |
+| 9 | 8,4 · 8,8 · 8,9 · 9,9 | 8,8 | 75 · 76 · 78 · 79 | 77 |
+
+\* Ein Shard rot (Flake in `admin-library-delete.spec.ts:73`, Firefox; derselbe Shard in der
+Wiederholung grün). Dieser Durchgang ist unvollständig und zählt nicht zum Median. Mediane aus den
+ungerundeten Job-Dauern.
+
+**Gewählt: sieben Shards** (Marcos Entscheid vom 28. November 2026; ADR 0013, Nachtrag Welle 2).
+
+Zum Vergleich in der CI seit dem 26. November mit der alten Tabelle: längster Shard Median 12,7 min
+(n = 11). Jeder Shard zahlt rund 2,5 min fest (Einrichtung 1,2 min, Server und `globalSetup`); darum
+sinkt die Dauer langsamer, als die Testzeit je Shard schrumpft, und die Runner-Minuten steigen.
+
+Web-Job geteilt (je vier Durchgänge, Job-Dauer): Lint-Hälfte 3,3 · 3,3 min vollständig (dazu 2,8 · 2,9
+bis zum Prettier-Fehler der Tabelle, ohne die letzten kleinen Prüfungen), Test-Hälfte 4,9 · 5,0 · 5,7 · 7,8 min. Bisher der ganze Job
+im Median 7,8 min (P95 11,6).
+
+### Nachmessen nach dem Merge
+
+| Kennzahl | vorher | erwartet (geschätzt aus der Messung) |
+|---|---|---|
+| Voller PR-Lauf bis Gate, Median | 15,2 min (n = 6) | rund 12,5 min |
+| längster e2e-Shard, Median | 12,7 min (n = 11) | rund 10,1 min |
+| Web-Pol (Ende des Jobs), Median / P95 | 8,1 / 11,9 min | rund 5 bis 6 / 8 min |
+| Runner-Minuten je vollem PR-Lauf | 188,0 | etwa gleich bis +2 (e2e gemessen gleich, zweite Web-Hälfte rund +1) |
+
+Über mindestens 10 volle PR-Läufe nachmessen (`.omc/research/ci-optimierung/skripte/`); weniger als
+10 als vorläufig melden.

@@ -114,8 +114,8 @@ export default defineConfig({
   outputDir: `${ARTEFACTS}results`,
   // In CI every shard writes a blob report -- the machine-readable form that keeps the traces and
   // the screenshots -- and the gate job merges all of them into the one HTML report that a red run
-  // uploads (`playwright merge-reports`). A single HTML report per shard would be six reports with
-  // a sixth of the run in each.
+  // uploads (`playwright merge-reports`). A single HTML report per shard would be seven reports
+  // with a seventh of the run in each.
   //
   // A shard of the duration plan (SLOUCHCAT_E2E_SHARD=i/n, set by `task web:e2e SHARD=i/n`) runs
   // with --test-list instead of --shard, and Playwright then names every blob report.zip; the

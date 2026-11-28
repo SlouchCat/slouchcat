@@ -19,6 +19,78 @@ getrennte Schritte; beide stehen aus. Bis zur Baufreigabe gilt für Live-TV dass
   (`docs/planning/28-live-tv/20-offene-entscheidungen.md`), die Freigabe des Konzepts und danach, als eigener
   Schritt, die ausdrückliche Baufreigabe je Stufe.
 
+## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026, PR #241)
+
+PR #241, Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom
+28. November 2026 (`docs/perf/ci-optimierungsplan.md`, M4 und M5; ADR 0013, Nachtrag Welle 2;
+Messung `docs/perf/ci.md`, Abschnitt 10).
+
+- **Dauertabelle:** `web/e2e/durations.json` aus drei grünen PR-Läufen seit dem 26. November statt aus
+  zwei Läufen vom 3. November (34 der 106 Spec-Dateien fehlten darin). `task web:e2e:durations`
+  formatiert sie jetzt selbst mit prettier.
+- **Sieben Shards:** Auf dem Runner gemessen (Wegwerf-Workflow, je viermal) lag der längste Shard im
+  Median bei 6 → 12,5 min, 7 → 10,1, 8 → 10,0, 9 → 8,8; die Runner-Minuten der e2e-Jobs bei 69, 69,
+  74 und 77. Bisher in der CI: 12,7 min.
+- **Web-Job in zwei Hälften:** `web (generators, linters)` 3,3 min, `web (unit tests)` 4,9 bis 7,8 min
+  statt 7,8 min am Stück. `server-lint` in drei Schritten.
+- **Geprüft:** `task ci` grün in Teilen (server 1087 s, android 70 s, web 169 s, storybook 127 s,
+  e2e 806 von 806 Tests in 1388 s); `task ci:workflows` grün; `shards:check` mit 7 Shards: 806 Tests,
+  jeder in genau einem; Review ohne blockierenden Befund, Befunde umgesetzt.
+- **Nebenfund für M8:** `admin-library-delete.spec.ts:73` (Firefox) einmal rot, auch beim Retry, in der
+  Wiederholung desselben Shards grün.
+- **Offen:** Nachmessen über 10 volle PR-Läufe (erwartet rund 12,5 statt 15,2 min Wartezeit).
+
+## CI-Optimierung Welle 1: Übernahme, apt-Grenzen, Fehlerauszug, Selbstprüfung (28. November 2026, PR #240)
+
+PR #240, Zweig `claude/ci-optimierung`. Marcos Auftrag vom 28. November 2026: die CI messen, Werkzeuge
+installieren, einen Plan zur Freigabe vorlegen (`docs/perf/ci-optimierungsplan.md`, M1 bis M10, H1
+bis H3). Freigegeben und umgesetzt ist **Welle 1** (M1, M2, M3, M7); Entscheide im Nachtrag vom
+28. November 2026 zu ADR 0013, Ausgangswerte in `docs/perf/ci.md`, Abschnitt 9.
+
+- **Messung:** 505 Läufe vom 29. Oktober bis 28. November. Voller PR-Lauf seit dem 26. November
+  Median 15,2 min (P95 16,5, n = 6); der e2e-Pfad ist in 11 von 11 Läufen der längste Pol. 10 von 39
+  vollen main-Läufen liefen nur wegen des roten informativen Emulator-Jobs; 17 Jobs hingen bis zur
+  Jobgrenze in apt; ein rotes Job-Log kostet einen Agenten im Median 88 800 Tokens.
+- **M1:** Die Übernahme auf main zählt die Jobs aus `.github/ci-informational-jobs.txt` nicht mehr mit
+  und ist an den geprüften Baum gebunden (Annotation `tested-tree`); ein Merge mit Änderungen unter
+  `.github/` läuft auf main voll (auch der Merge dieses Zweigs). 15 Testfälle.
+- **M2:** apt-Aufrufe enden nach 300 s mit «apt hang (infrastructure)» statt nach 30 bis 45 Minuten.
+- **M3:** `task ci:failures RUN=<id>` gibt je rotem Job die Fehlerzeilen aus; an zehn Referenzläufen
+  Ursache 10 von 10 mit 332 bis 2340 Tokens. Das Gate schreibt seine Tabelle auf die Übersichtsseite.
+- **M7:** `task ci:workflows` (in `task ci` und im Job `server (generators, linters)`): actionlint mit
+  shellcheck, die Gate-Regel als Programm (`server/tools/ciworkflows`), die Selbsttests der
+  CI-Skripte. `.github/actions/android-sdk` statt vier Kopien; Eingaben über `env:`.
+- **Skill:** `.claude/skills/slouchcat-ci/SKILL.md`, verbindlich über `CLAUDE.md`.
+- **Geprüft:** `task ci` grün auf `15c221a9` in Teilen (server 1088 s, android 268 s, web 167 s,
+  storybook 127 s, e2e 806 von 806 Tests in 1607 s); die Korrekturen aus Code- und Sicherheitsreview
+  danach mit `task ci:workflows` und `task server:check:fast`. Sicherheitsreview: Risiko niedrig, kein
+  Weg zu einer Übernahme ungeprüften Inhalts.
+- **Offen:** Nachmessen nach dem Merge (`docs/perf/ci.md`, Abschnitt 9). Welle 2 (M4 e2e-Shards, M5
+  Web-Job teilen), M6, M8 bis M10 und die Härtung H1 bis H3 warten auf Marcos Wort; H1 sind
+  Einstellungen, die er selbst setzt.
+
+## Design-Werkzeuge für den Relaunch eingerichtet (28. November 2026)
+
+Marcos Auftrag vom 28. November 2026: die Arbeitsumgebung für den UI-/UX-Relaunch und das
+Rebranding vorbereiten, ohne mit dem Relaunch zu beginnen. Alles steht in
+`docs/dev/DESIGN-WERKZEUGE.md`.
+
+- **Neu im Repo:** sieben Design-Agents und `library-docs` (`.claude/agents/`), Projekt-Einstellung,
+  die 25 Skills von aussen nur in diesem Repo einschaltet und drei riskante Browser-Werkzeuge sperrt
+  (`.claude/settings.json`), Installer und Prüfung
+  (`scripts/install-design-tools.sh`, `scripts/install-design-skills.sh`,
+  `scripts/design-tools-check.sh`, `scripts/design-media.sh`, `scripts/design-tools/`), Plan der
+  eigenen Skills (`.claude/skills/README.md`), `.gitignore`-Regel gegen Medienbilder in Mockups.
+- **Auf dem Rechner:** Werkzeugkiste unter `~/.local/share/slouchcat-design` (Chrome for Testing,
+  Inkscape, ImageMagick, svgo, sharp, resvg, fonttools, Lighthouse, axe-core, Playwright MCP,
+  Chrome DevTools MCP), 25 Skills an gepinnten Commits in `~/.claude/skills`.
+- **Geprüft:** `scripts/design-tools-check.sh` 45 von 45 grün; beide Browser-MCP-Server über das
+  MCP-Protokoll bedient; Context7 und GitHub abgefragt; TV-Emulator mit Fokus per D-Pad. Nach dem
+  Merge (PR #238, `aecb04f6`) in einer neuen Sitzung: `design-qa` bedient eine Probeseite mit
+  Playwright und Chrome DevTools, die drei gesperrten Browser-Werkzeuge fehlen ihm.
+- **Stand:** oh-my-claudecode bleibt bei 5.8.4. Kein Code von Server, Web-App oder Apps geändert.
+  Offen: nichts.
+
 ## Patch 1.44.1 und Handy-App 1.0.5: Texte zum Wunschrecht in allen Sprachen (28. November 2026, PR #235)
 
 PR #235, gemergt am 28. November 2026 (`a1556fce`). Veröffentlicht am selben Tag: Server **1.44.1** (Tag

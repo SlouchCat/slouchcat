@@ -1,0 +1,28 @@
+{
+  "name": "slouchcat-design-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned toolbox for brand assets, visual QA and the browser MCP servers. Installed by scripts/install-design-tools.sh into ~/.local/share/slouchcat-design/node, never into the workspace.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.14.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@playwright/mcp": "0.0.86",
+    "@puppeteer/browsers": "3.3.0",
+    "@resvg/resvg-js": "2.6.2",
+    "@vite-pwa/assets-generator": "2.0.0",
+    "axe-core": "4.14.1",
+    "chrome-devtools-mcp": "1.14.0",
+    "lighthouse": "13.6.0",
+    "pixelmatch": "8.0.0",
+    "playwright-core": "1.65.1",
+    "png-to-ico": "3.0.2",
+    "pngjs": "7.0.0",
+    "sharp": "0.35.5",
+    "svg2vectordrawable": "2.9.1",
+    "svgo": "4.1.0"
+  }
+}

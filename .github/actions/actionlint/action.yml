@@ -1,0 +1,34 @@
+# Puts actionlint on PATH at the version pinned in .tool-versions, checked against the SHA-256 in
+# .github/actionlint-checksums.txt before anything is unpacked (like .github/actions/task). It
+# runs shellcheck on every `run:` block when shellcheck is on PATH, which the hosted runner has.
+name: Install actionlint
+description: Installs actionlint at the version pinned in .tool-versions, checked against a recorded SHA-256
+
+runs:
+  using: composite
+  steps:
+    - name: Install actionlint
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(awk '$1 == "actionlint" { print $2; exit }' .tool-versions)
+        if [ -z "$version" ]; then
+          echo "::error file=.tool-versions::no line 'actionlint <version>' in .tool-versions" >&2
+          exit 1
+        fi
+        archive="actionlint_${version}_linux_amd64.tar.gz"
+        if ! grep -q "  ${archive}\$" .github/actionlint-checksums.txt; then
+          echo "::error file=.github/actionlint-checksums.txt::no SHA-256 for ${archive}; see the header of that file" >&2
+          exit 1
+        fi
+        work=$(mktemp -d)
+        curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+          --output "$work/$archive" \
+          "https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+        grep "  ${archive}\$" .github/actionlint-checksums.txt | (cd "$work" && sha256sum --check --strict -)
+        mkdir -p "$HOME/.local/bin"
+        tar -xzf "$work/$archive" -C "$HOME/.local/bin" actionlint
+        rm -rf "$work"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        "$HOME/.local/bin/actionlint" -version
+        shellcheck --version | head -2 || echo "shellcheck not on PATH: run blocks are not checked"

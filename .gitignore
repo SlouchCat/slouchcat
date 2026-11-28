@@ -5,6 +5,9 @@
 .claude/settings.local.json
 .claude/worktrees/
 
+# Real media pictures of mockups: a folder or a link named img (scripts/design-media.sh), never in git
+docs/planning/mockups/**/img
+
 # Dependencies and build output
 node_modules/
 web/dist/

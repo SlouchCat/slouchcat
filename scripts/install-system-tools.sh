@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Installs the system tools Slouchcat development needs that require root:
 # Docker Engine with Compose and Buildx (Docker's official apt repository, Ubuntu noble base)
-# and ffmpeg/ffprobe for the test media generator.
+# ffmpeg/ffprobe for the test media generator, and shellcheck, which actionlint runs over every
+# run: block of the workflows (task ci:workflows).
 # Run as: sudo bash scripts/install-system-tools.sh
 # Everything else (Go, Node, pnpm, task, sqlc, goose) is installed without root under ~/.local.
 set -euo pipefail
@@ -19,7 +20,7 @@ if [[ -z "$CODENAME" ]]; then
 fi
 
 apt-get update
-apt-get install -y ca-certificates curl ffmpeg
+apt-get install -y ca-certificates curl ffmpeg shellcheck
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc

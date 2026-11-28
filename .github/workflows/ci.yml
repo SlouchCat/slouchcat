@@ -1,7 +1,8 @@
 # Runs the same checks as `task ci` locally -- the same tasks, split over parallel jobs instead of
 # one after the other. `task ci` remains the one local command that builds and checks everything
-# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web`,
-# `task ci:storybook` and `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
+# (plan section 4); what the jobs below run are its parts (`task ci:server`, `task ci:web:lint` and
+# `task ci:web:test`, `task ci:storybook`, `task ci:e2e` and the others), and `task ci` still runs
+# all of them. Why the split, and what it costs in exchange:
 # ADR docs/adr/0013-ci-parallele-jobs.md. Measured times: docs/perf/ci.md.
 #
 # The serial job this replaced took 56 minutes, which is longer than most pull requests deserve to
@@ -58,14 +59,25 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # already-tested.sh reads the annotation `tested-tree` of a pull-request run's job.
+      checks: read
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
       tested: ${{ steps.tested.outputs.tested }}
       tested_run: ${{ steps.tested.outputs.run }}
+      tested_note: ${{ steps.tested.outputs.note }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
+
+      # The tree this run checks, as an annotation of this job: for a pull request the merge commit
+      # GitHub prepared, which every job of the run checks out. A push to main later takes over
+      # this run's result only when this tree is exactly main's (.github/scripts/already-tested.sh,
+      # condition 5).
+      - name: Record the tree this run checks
+        if: github.event_name == 'pull_request'
+        run: echo "::notice title=tested-tree::$(git rev-parse 'HEAD^{tree}')"
 
       - id: diff
         env:
@@ -76,7 +88,12 @@ jobs:
             # --no-renames: a file moved from code into docs/ (server/x.go -> docs/x.go) is then
             # listed under both paths, the deleted code path included. With rename detection it
             # would show only the new path under docs/ and the code change would count as docs.
+            # The paths are the pull request's: while they are printed, workflow commands are off,
+            # so a file named like one (`::notice ...`) stays a line of text.
+            stop=$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')
+            echo "::stop-commands::$stop"
             git diff --name-only --no-renames HEAD^1 HEAD | tee changed.txt
+            echo "::$stop::"
             docs_only=$(.github/scripts/docs-only.sh < changed.txt)
           else
             docs_only=false
@@ -122,8 +139,27 @@ jobs:
       - uses: ./.github/actions/task
 
       # The first three steps of `task ci:server`; the fourth, server:test, is the job below.
-      # golangci-lint and sqlc need no ffmpeg and no test media.
-      - run: task server:gen server:gen:check server:lint
+      # golangci-lint and sqlc need no ffmpeg and no test media. One step each, and the later ones
+      # also after a red one, so a generator's drift does not hide a lint finding.
+      # Not after a red server:gen, though: half-written generated code only gives follow-up errors.
+      - id: gen
+        run: task server:gen
+
+      - run: task server:gen:check
+        if: (success() || failure()) && steps.gen.outcome == 'success'
+
+      - run: task server:lint
+        if: (success() || failure()) && steps.gen.outcome == 'success'
+
+      # The checks of the workflows themselves, `task ci:workflows` (docs/perf/ci-optimierungsplan.md,
+      # M7): actionlint with the runner's shellcheck, every job watched by the gate
+      # (server/tools/ciworkflows), the self-tests of already-tested.sh and ci-failures.sh. Seconds;
+      # also after a red step above, so one result does not hide the other.
+      - uses: ./.github/actions/actionlint
+        if: success() || failure()
+
+      - run: task ci:workflows
+        if: success() || failure()
 
   # The groups are not listed here. They are read out of server/testgroups.txt, so adding a group
   # there gives it a job by itself; a list in this file as well would be the same names in two
@@ -202,9 +238,10 @@ jobs:
       # -count=1: the restored cache also holds test results, and `go test` would report a package
       # whose inputs it thinks unchanged as "(cached)" instead of running it. The cache is there to
       # skip compiling, never to skip a test (run 41707865418 already showed four such packages).
-      - run: task server:test GROUP=${{ matrix.group }}
+      - run: task server:test GROUP="$TEST_GROUP"
         env:
           GOFLAGS: -count=1
+          TEST_GROUP: ${{ matrix.group }}
 
       # Also after red tests: what was compiled is valid either way.
       - name: Save the -race build cache
@@ -305,24 +342,8 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      # The wrapper jar is a binary in the repository: it must be the one Gradle publishes for the
-      # version in gradle-wrapper.properties (sha256 of gradle-9.9.2-wrapper.jar).
-      - name: Check the Gradle wrapper
-        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
-
-      - name: JDK 21 and the Android SDK packages
-        run: |
-          set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          # `yes` ends with SIGPIPE once sdkmanager stops reading; only sdkmanager's status counts.
-          log=$(mktemp)
-          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
-          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
-            cat "$log"
-            exit 1
-          fi
+      # The Gradle wrapper's hash, JDK 21 and the SDK packages (.github/actions/android-sdk).
+      - uses: ./.github/actions/android-sdk
 
       - name: Gradle caches
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -361,7 +382,9 @@ jobs:
           key: gradle-build-${{ runner.os }}-${{ matrix.part }}-${{ github.run_id }}
           restore-keys: gradle-build-${{ runner.os }}-${{ matrix.part }}-
 
-      - run: task ci:android:${{ matrix.part }}
+      - run: task "ci:android:$ANDROID_PART"
+        env:
+          ANDROID_PART: ${{ matrix.part }}
 
       # Only main saves, as with the -race build cache: a pull request reads main's caches, but one
       # it saved would be readable by that branch alone and would crowd main's caches out of the
@@ -416,27 +439,14 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      - name: Check the Gradle wrapper
-        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
-
       # ffmpeg: the player's contract test needs real video (scripts/android-test-video.sh) and a
       # server that probes it (K27 stage 5).
       - uses: ./.github/actions/system-packages
         with:
           group: android-e2e
 
-      - name: JDK 21 and the Android SDK packages
-        run: |
-          set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          log=$(mktemp)
-          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
-          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
-            cat "$log"
-            exit 1
-          fi
+      # The Gradle wrapper's hash, JDK 21 and the SDK packages (.github/actions/android-sdk).
+      - uses: ./.github/actions/android-sdk
 
       - name: Gradle caches
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -482,6 +492,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     continue-on-error: true
+    env:
+      # The system image the AVD is made from; the SDK step installs it.
+      AVD_IMAGE: system-images;android-36;google_apis;x86_64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -494,38 +507,32 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      - name: Check the Gradle wrapper
-        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
-
       # ffmpeg: the flow plays real video (scripts/android-test-video.sh), and the server probes
       # the test media when it scans.
       - uses: ./.github/actions/system-packages
         with:
           group: android-e2e
 
+      # The Gradle wrapper's hash, JDK 21 and the SDK packages, here with the emulator and the
+      # system image of the AVD (.github/actions/android-sdk).
+      - uses: ./.github/actions/android-sdk
+        with:
+          extra-packages: emulator ${{ env.AVD_IMAGE }}
+
       # KVM for the emulator: the runner has /dev/kvm, the runner user needs the rights to it.
-      - name: JDK 21, the Android SDK packages, KVM and the AVD
+      - name: KVM and the AVD
         run: |
           set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           log=$(mktemp)
-          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
-          image="system-images;android-36;google_apis;x86_64"
-          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "$image" >"$log" 2>&1; then
-            cat "$log"
-            exit 1
-          fi
           # The runner sets XDG_CONFIG_HOME, and avdmanager then keeps its AVDs below it instead of
           # ~/.android; a fixed ANDROID_AVD_HOME gives avdmanager, this step and the emulator one place.
           export ANDROID_AVD_HOME="$HOME/.android/avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$image" >"$log" 2>&1 || { cat "$log"; exit 1; }
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$AVD_IMAGE" >"$log" 2>&1 || { cat "$log"; exit 1; }
           # A phone of the mockup's size in dp (412 x 923), as sc_phone on the development machine,
           # with fewer pixels: 720 x 1616 at 280 dpi instead of 1080 x 2424 at 420. The runner draws
           # the guest in software, so every pixel costs time, and the flow takes no photos here.
@@ -571,18 +578,29 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
-  # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
-  # checks in another. The two need nothing from each other, and together they were the longest
-  # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
+  # Web: generators with their drift check and linters in one half, Vitest in the other, the
+  # Storybook screenshot checks in a job of their own. None needs anything from another; together
+  # they were the longest job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5,
+  # Storybook 3.6, measured 3 November 2026). No Go,
   # no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official Playwright
   # Docker image, which brings its own Chromium and its own libraries.
   # ---------------------------------------------------------------------------------------------
+  # Two halves side by side since 28 November 2026, like "android": the linters and Vitest ran one
+  # after the other (126 to 214 s and 239 to 412 s), and a red linter hid the Vitest result.
+  # ci:web is exactly ci:web:lint and ci:web:test (Taskfile.yml); the gate needs both.
   web:
-    name: web (generators, linters, unit tests)
+    name: web (${{ matrix.name }})
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      # Each half reports its own result.
+      fail-fast: false
+      matrix:
+        include:
+          - { part: lint, name: 'generators, linters' }
+          - { part: test, name: 'unit tests' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -590,7 +608,9 @@ jobs:
 
       - uses: ./.github/actions/task
 
-      - run: task ci:web
+      - run: task "ci:web:$WEB_PART"
+        env:
+          WEB_PART: ${{ matrix.part }}
 
   storybook:
     name: web (Storybook screenshots)
@@ -620,8 +640,8 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
-  # The server binary with the web assets embedded, built once and handed to the e2e shards. Six
-  # shards building the same binary would be six Go toolchains and six Vite builds for one file.
+  # The server binary with the web assets embedded, built once and handed to the e2e shards. Seven
+  # shards building the same binary would be seven Go toolchains and seven Vite builds for one file.
   # ---------------------------------------------------------------------------------------------
   build:
     name: build (server binary with the web assets)
@@ -679,7 +699,10 @@ jobs:
         # two can never drift apart. The shards are cut by measured duration, not by test count
         # (web/e2e/shard-plan.mjs from web/e2e/durations.json); `task web:e2e:shards:check` and
         # web:e2e:durations take the same count from CI_E2E_SHARDS in web/Taskfile.yml.
-        shard: [1, 2, 3, 4, 5, 6]
+        # Seven since 28 November 2026: measured 6 to 9 shards four times each, seven gave the
+        # longest shard 10.1 min instead of 12.5 at the same runner minutes per run (docs/perf/ci.md,
+        # section 10; ADR 0013, addendum).
+        shard: [1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -731,11 +754,14 @@ jobs:
         run: chmod +x server/bin/slouchcat server/bin/slouchcat-e2e
 
       # Every shard plans the same split (deterministic) and runs its part with --test-list.
-      - run: task ci:e2e SHARD=${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: task ci:e2e SHARD="$SHARD_INDEX/$SHARD_TOTAL"
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ strategy.job-total }}
 
       # The blob report is the machine-readable form of the run, traces and screenshots included.
-      # The gate job merges the six of them into one HTML report; a single report per shard would
-      # be six reports with a sixth of the run in each. Uploaded on green runs too, because a shard
+      # The gate job merges the seven of them into one HTML report; a single report per shard would
+      # be seven reports with a seventh of the run in each. Uploaded on green runs too, because a shard
       # that passed on its retry is the interesting one.
       - name: Keep the blob report
         if: always()
@@ -912,27 +938,54 @@ jobs:
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
           TESTED: ${{ needs.changes.outputs.tested }}
           TESTED_RUN: ${{ needs.changes.outputs.tested_run }}
+          TESTED_NOTE: ${{ needs.changes.outputs.tested_note }}
         run: |
           set -eu
           status=0
           skip_ok=false
           reason=
+          # Everything printed here also goes to the run's summary page, so the result of every
+          # job can be read there without opening a log (docs/perf/ci-optimierungsplan.md, M3).
+          report=$(mktemp)
+          out() {
+            echo "$1"
+            echo "$1" >>"$report"
+          }
           if [ "$CHANGES" = success ] && [ "$DOCS_ONLY" = true ]; then
             skip_ok=true
             reason="documentation only"
           elif [ "$CHANGES" = success ] && [ "$TESTED" = true ]; then
             skip_ok=true
             reason="checked by pull-request run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN"
+            # The informational jobs of that run (.github/ci-informational-jobs.txt): not judged,
+            # by the gate there or here, but named so a red one is not lost.
+            if [ -n "${TESTED_NOTE:-}" ]; then
+              out "Informational jobs of that run: $TESTED_NOTE"
+            fi
           fi
           check() {
             if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
-              printf '%-14s %s\n' "$1" "skipped ($reason)"
+              out "$(printf '%-16s %s' "$1" "skipped ($reason)")"
               return
             fi
-            printf '%-14s %s\n' "$1" "$2"
+            out "$(printf '%-16s %s' "$1" "$2")"
             [ "$2" = success ] || status=1
           }
-          printf '%-14s %s (documentation only: %s)\n' changes "$CHANGES" "${DOCS_ONLY:-?}"
+          # Written whatever the result, right before `exit $status` decides the gate.
+          summary() {
+            {
+              echo "### Gate \`ci\`"
+              echo
+              echo '```'
+              cat "$report"
+              echo '```'
+              if [ "$status" != 0 ]; then
+                echo
+                echo "Red. The failed steps with their error lines, without reading whole logs: \`task ci:failures RUN=$GITHUB_RUN_ID\`"
+              fi
+            } >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
+          }
+          out "$(printf '%-16s %s (documentation only: %s)' changes "$CHANGES" "${DOCS_ONLY:-?}")"
           [ "$CHANGES" = success ] || status=1
           check server-lint   '${{ needs.server-lint.result }}'
           check server-groups '${{ needs.server-groups.result }}'
@@ -945,4 +998,5 @@ jobs:
           check build         '${{ needs.build.result }}'
           check e2e           '${{ needs.e2e.result }}'
           check image         '${{ needs.image.result }}'
+          summary
           exit $status

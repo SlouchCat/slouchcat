@@ -29,19 +29,24 @@ inputs:
 runs:
   using: composite
   steps:
+    # The group goes through the environment, not into the script (as everywhere in these actions).
     - name: Read the package list
       id: packages
       shell: bash
+      env:
+        GROUP: ${{ inputs.group }}
       run: |
         set -euo pipefail
-        list=$(awk -v group="${{ inputs.group }}" \
-          '$1 == group { print $2 }' .github/ci-packages.txt | sort -u | tr '\n' ' ')
+        # A package name only: a line like `--allow-unauthenticated` must not become an apt option.
+        list=$(awk -v group="$GROUP" \
+          '$1 == group && $2 ~ /^[a-z0-9][a-z0-9+.:-]*$/ { print $2 } $1 == group && $2 !~ /^[a-z0-9][a-z0-9+.:-]*$/ { print "bad package name: " $2 > "/dev/stderr"; exit 1 }' \
+          .github/ci-packages.txt | sort -u | tr '\n' ' ')
         if [ -z "${list// /}" ]; then
-          echo "::error file=.github/ci-packages.txt::no package for group '${{ inputs.group }}'" >&2
+          echo "::error file=.github/ci-packages.txt::no package for group '$GROUP'" >&2
           exit 1
         fi
         echo "list=${list% }" >> "$GITHUB_OUTPUT"
-        echo "Packages for ${{ inputs.group }}: ${list% }"
+        echo "Packages for $GROUP: ${list% }"
 
     # The key holds the package list and -- when Playwright is involved -- the lock file that pins
     # the Playwright version, because `playwright install-deps` derives its own library list from
@@ -68,6 +73,12 @@ runs:
     #
     # `partial/` is emptied rather than restored: a run cancelled mid-download saves its half a
     # .deb into the cache, and the next run would start from that fragment.
+    #
+    # The Acquire lines: a mirror that stops answering used to hold the job until its own time
+    # limit (17 jobs between 29 October and 28 November 2026 waited 30 to 45 minutes in this
+    # action, and one run turned red after 47 minutes without a single test failing;
+    # docs/perf/ci-optimierungsplan.md, M2). apt now gives up on a silent connection after 30 s
+    # and tries each download three times before the step fails.
     - name: Point apt at the cache
       shell: bash
       run: |
@@ -76,13 +87,16 @@ runs:
         Dir::Cache::archives "$HOME/apt-debs";
         APT::Keep-Downloaded-Packages "true";
         Binary::apt::APT::Keep-Downloaded-Packages "true";
+        Acquire::Retries "3";
+        Acquire::http::Timeout "30";
+        Acquire::https::Timeout "30";
         EOF
         mkdir -p ~/apt-debs
         rm -rf ~/apt-debs/partial
         mkdir -p ~/apt-debs/partial
         chmod o+x "$HOME"
         sudo chown -R _apt:root ~/apt-debs
-        apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages'
+        apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages|Acquire::(Retries|https?::Timeout)'
 
     # One apt transaction for everything this job needs from the system. Three separate steps used
     # to run `apt-get update` three times.
@@ -91,23 +105,46 @@ runs:
     # splitting is what we want here, but a workflow expression pasted into a shell body is the
     # shape that turns a file in the repository into a command; `.github/ci-packages.txt` is
     # editable by any pull request.
+    #
+    # Each apt call has a limit of its own (APT_LIMIT seconds; a composite step cannot carry
+    # timeout-minutes). The whole action took at most 289 s in the measured month, so 300 s per
+    # call only ends a hang, never a slow but working mirror. A hang is infrastructure, not a test
+    # failure; the error says so, and rerunning the failed jobs is the remedy.
     - name: Install the packages
       shell: bash
       env:
         PACKAGES: ${{ steps.packages.outputs.list }}
+        APT_LIMIT: '300'
       run: |
         set -euo pipefail
-        sudo apt-get update
+        limited() {
+          local status=0
+          sudo timeout --kill-after=30 "$APT_LIMIT" "$@" || status=$?
+          if [ "$status" = 124 ] || [ "$status" = 137 ]; then
+            echo "::error title=apt hang (infrastructure)::'$*' did not finish within $APT_LIMIT s; the mirror is not answering. Rerun the failed jobs." >&2
+          fi
+          return "$status"
+        }
+        limited apt-get update
         # shellcheck disable=SC2086 -- one word per package is the point.
-        sudo apt-get install -y --no-install-recommends $PACKAGES
+        limited apt-get install -y --no-install-recommends $PACKAGES
 
+    # `playwright install-deps` runs apt itself and therefore gets the same limit.
     - name: Install the Playwright system libraries
       if: inputs.playwright-browsers != ''
       shell: bash
       env:
         BROWSERS: ${{ inputs.playwright-browsers }}
-      # shellcheck disable=SC2086 -- one word per browser is the point.
-      run: pnpm --filter @slouchcat/web exec playwright install-deps $BROWSERS
+        APT_LIMIT: '300'
+      run: |
+        set -euo pipefail
+        status=0
+        # shellcheck disable=SC2086 -- one word per browser is the point.
+        timeout --kill-after=30 "$APT_LIMIT" pnpm --filter @slouchcat/web exec playwright install-deps $BROWSERS || status=$?
+        if [ "$status" = 124 ] || [ "$status" = 137 ]; then
+          echo "::error title=apt hang (infrastructure)::playwright install-deps did not finish within $APT_LIMIT s; the mirror is not answering. Rerun the failed jobs." >&2
+        fi
+        exit "$status"
 
     # apt ran as `_apt` and root and left the files that way; the cache is saved as the runner user,
     # in the post step of actions/cache above, which runs after every step of the job.

@@ -16,6 +16,8 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
 
 - Go: eine der zwei neuesten unterstützten Versionen, gepinnt in `server/go.mod` und `.tool-versions`.
   Go-Werkzeuge (sqlc, goose, oapi-codegen, golangci-lint) laufen über `go tool` aus `server/go.mod`.
+  Ausnahme actionlint (Fassung in `.tool-versions`): lokal `go install`, in CI das Release-Archiv mit
+  geprüfter SHA-256, weil es im Modulgraph des Servers nicht baut (ADR 0013, Nachtrag 28.11.2026).
 - Node 24 LTS (lokal unter `~/.local/share/node`), pnpm Workspaces, `task` (Taskfile.yml) als einziger
   Einstieg: `task ci` baut und prüft alles, lokal wie in CI.
 - Zweites Go-Modul `relay/` (die zwei Dienste aus Konzept 27), dieselbe Go-Version, `task relay:*`.
@@ -133,6 +135,10 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
 Diese Regeln gehen den allgemeinen OMC-Vorgaben in `~/.claude/CLAUDE.md` vor («keep iterating»,
 Verifier für jede Abnahme).
 
+- **CI-Arbeit nach dem Skill `slouchcat-ci`** (`.claude/skills/slouchcat-ci/SKILL.md`): rote Läufe
+  zuerst mit `task ci:failures RUN=<id>` lesen, nie ganze Job-Logs in den Kontext; Workflow-Änderungen
+  nur mit grünem `task ci:workflows` und mit Messung vor und nach der Änderung.
+
 - **Höchstens drei Executor-Agenten gleichzeitig.** Ganze Go-Suite unter `-race`, e2e-Läufe und
   Storybook nur über die Task-Ziele starten (`task server:test`, `task e2e`, `task ci:e2e:parallel`,
   `task storybook:test`), nicht direkt mit `go test -race ./...` oder `pnpm exec playwright test`:
@@ -149,3 +155,10 @@ Verifier für jede Abnahme).
   ohne Begründung oder gelockerte Grenzen.
 - Flake-Suche mit `-count=N` oder `--repeat-each` nur für ein Paket oder einen Test, nicht für die
   ganze Suite.
+- **Design und Oberflächen:** Dafür gibt es die Agents in `.claude/agents/` (`design-director`,
+  `ux-architect`, `brand-designer`, `motion-designer`, `ui-engineer`, `design-reviewer`,
+  `design-qa`, dazu `library-docs` für Bibliotheksdoku); Werkzeuge, Skills und Zuordnung stehen in
+  `docs/dev/DESIGN-WERKZEUGE.md`. Skills von
+  aussen sind Ratschläge, dieses Dokument geht vor. Wer gestaltet oder baut, prüft nicht selbst.
+- Echte Medienbilder für Mockups nur aus `~/.local/share/slouchcat-design/media`
+  (`scripts/design-media.sh`), nie in Git, nie in öffentliche Artefakte oder PR-Texte.
