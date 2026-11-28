@@ -1,7 +1,8 @@
 # Runs the same checks as `task ci` locally -- the same tasks, split over parallel jobs instead of
 # one after the other. `task ci` remains the one local command that builds and checks everything
-# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web`,
-# `task ci:storybook` and `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
+# (plan section 4); what the jobs below run are its parts (`task ci:server`, `task ci:web:lint` and
+# `task ci:web:test`, `task ci:storybook`, `task ci:e2e` and the others), and `task ci` still runs
+# all of them. Why the split, and what it costs in exchange:
 # ADR docs/adr/0013-ci-parallele-jobs.md. Measured times: docs/perf/ci.md.
 #
 # The serial job this replaced took 56 minutes, which is longer than most pull requests deserve to
@@ -140,13 +141,15 @@ jobs:
       # The first three steps of `task ci:server`; the fourth, server:test, is the job below.
       # golangci-lint and sqlc need no ffmpeg and no test media. One step each, and the later ones
       # also after a red one, so a generator's drift does not hide a lint finding.
-      - run: task server:gen
+      # Not after a red server:gen, though: half-written generated code only gives follow-up errors.
+      - id: gen
+        run: task server:gen
 
       - run: task server:gen:check
-        if: success() || failure()
+        if: (success() || failure()) && steps.gen.outcome == 'success'
 
       - run: task server:lint
-        if: success() || failure()
+        if: (success() || failure()) && steps.gen.outcome == 'success'
 
       # The checks of the workflows themselves, `task ci:workflows` (docs/perf/ci-optimierungsplan.md,
       # M7): actionlint with the runner's shellcheck, every job watched by the gate
@@ -575,9 +578,10 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
-  # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
-  # checks in another. The two need nothing from each other, and together they were the longest
-  # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
+  # Web: generators with their drift check and linters in one half, Vitest in the other, the
+  # Storybook screenshot checks in a job of their own. None needs anything from another; together
+  # they were the longest job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5,
+  # Storybook 3.6, measured 3 November 2026). No Go,
   # no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official Playwright
   # Docker image, which brings its own Chromium and its own libraries.
   # ---------------------------------------------------------------------------------------------
@@ -696,7 +700,7 @@ jobs:
         # (web/e2e/shard-plan.mjs from web/e2e/durations.json); `task web:e2e:shards:check` and
         # web:e2e:durations take the same count from CI_E2E_SHARDS in web/Taskfile.yml.
         # Seven since 28 November 2026: measured 6 to 9 shards four times each, seven gave the
-        # longest shard 10.2 min instead of 12.1 for 3 more runner minutes per run (docs/perf/ci.md,
+        # longest shard 10.1 min instead of 12.5 at the same runner minutes per run (docs/perf/ci.md,
         # section 10; ADR 0013, addendum).
         shard: [1, 2, 3, 4, 5, 6, 7]
     steps:

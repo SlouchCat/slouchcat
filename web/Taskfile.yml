@@ -148,9 +148,10 @@ tasks:
       - node e2e/shard-plan.mjs --check --shards {{.E2E_SHARDS | default .CI_E2E_SHARDS}}
 
   # Downloads the blob reports of CI runs and rewrites e2e/durations.json from them; review and
-  # commit the result. RUNS: space-separated run ids, e.g. the last two green runs on main.
+  # commit the result. RUNS: space-separated run ids, three green pull-request runs of the current
+  # workflow (the skill slouchcat-ci, section 4).
   e2e:durations:
-    desc: Refresh e2e/durations.json from the blob reports of CI runs (RUNS="<id> <id>", needs gh)
+    desc: Refresh e2e/durations.json from the blob reports of CI runs (RUNS="<id> <id> <id>", needs gh)
     requires:
       vars: [RUNS]
     cmds:

@@ -203,6 +203,8 @@ while IFS=$'\t' read -r id jconclusion name step started completed; do
     *system-packages* | *actions/task* | *actions/node* | *actions/actionlint* | *actions/android-sdk* | *actions/test-media* | *"Playwright browsers"* | *"Set up job"*) class=infrastructure ;;
     *"server:lint"* | *"server:gen"*) class="lint or generator drift" ;;
   esac
+  # Both web halves run the same step (task "ci:web:$WEB_PART"); the job name tells them apart.
+  [ "$name" = "web (generators, linters)" ] && class="lint or generator drift"
   grep -q 'apt hang (infrastructure)' <<<"$annotations" && class=infrastructure
   grep -qi 'exceeded the maximum execution time' <<<"$annotations" && class="time limit (hang)"
   [ "$jconclusion" = timed_out ] && class="time limit (hang)"

@@ -3,7 +3,9 @@
 Stand: 28. November 2026. **Welle 1 (M1, M2, M3, M7)** ist umgesetzt und gemergt (PR #240; ADR 0013,
 Nachtrag vom 28. November 2026; Nachmessen: `docs/perf/ci.md`, Abschnitt 9). **Welle 2 (M4, M5)** ist
 freigegeben und umgesetzt: neue Dauertabelle, sieben statt sechs e2e-Shards (Marcos Wahl nach der
-Messung, `docs/perf/ci.md`, Abschnitt 10), Web-Job in zwei Hälften. Alle anderen Massnahmen warten auf
+Messung, `docs/perf/ci.md`, Abschnitt 10), Web-Job in zwei Hälften, `server-lint` in Einzelschritten.
+Die Lint-Hälfte des Web-Jobs bleibt ein Schritt (ein roter Generator-Abgleich verdeckt dort noch die
+Linter; eigene kleine Massnahme, wenn gewünscht). Alle anderen Massnahmen warten auf
 seine Freigabe und werden danach einzeln, messbar und mit einem Revert umkehrbar umgesetzt
 (Abschnitt 6).
 
@@ -121,7 +123,7 @@ laufend M8 · nach Entscheid M9, M10, H1, H2.
 
 | Feld | Inhalt |
 |---|---|
-| Zustand | 6 Shards, geplant nach `web/e2e/durations.json` (zuletzt 12.11., `080f5eb4`). 19 von 106 Spec-Dateien fehlen darin und werden mit dem Median ihres Projekts geplant. ADR 0013 begründete «sechs» am 3.11. mit rund 6 min je Shard und server-test als kritischem Pfad. |
+| Zustand | 6 Shards, geplant nach `web/e2e/durations.json` (zuletzt 12.11., `080f5eb4`). 34 von 106 Spec-Dateien fehlen darin und werden mit dem Median ihres Projekts geplant. ADR 0013 begründete «sechs» am 3.11. mit rund 6 min je Shard und server-test als kritischem Pfad. |
 | Problem | Heute laufen die Shards 10,6–12,4 min, und der e2e-Pfad ist der einzige lange Pol. |
 | Nachweis | e2e-Pfad in 11 von 11 vollen Läufen der längste Pol, Ende Median 14,2 / P95 15,9 min. Der zweitlängste Pol (server-test) endet 5,0 min früher (P95 6,7). Shards: Median 10,6–12,4 min, Verhältnis 1,17. Shard 4 in Lauf 45977212910: Plan 406 s, Testzeit rund 640 s. Einrichtung je Shard 1,2 min. |
 | Lösung | Stufe a: `task web:e2e:durations RUNS="…"` mit drei grünen E3-Läufen. Stufe b: 6, 7, 8 und 9 Shards auf dem Runner messen, mit einem Wegwerf-Workflow auf eigenem Zweig (je Variante zwei Wiederholungen). Danach Wahl, ADR-0013-Nachtrag, `docs/perf/ci.md`. |
