@@ -218,17 +218,25 @@ jobs:
       # after a go.sum change compiled -- often a job without -race -- and every group then compiles
       # the race-instrumented packages from scratch ("Cache hit occurred on the primary key ...,
       # not saving cache" in the post step). This cache holds the -race build cache of one group.
-      # The run id in the key gives every save a key of its own; restore-keys hand the newest one to
-      # the next run. Only pushes to main save (step "Save the -race build cache" below): a pull
+      # The day in the key (UTC) gives main one save per day and group; restore-keys hand the newest
+      # one to the next run. It used to be the run id, so every push to main added eight new entries
+      # (about 1.6 GB) and the repository's caches, always at their 10-GB limit, evicted whatever was
+      # least recently used, the apt and setup-go caches among them (28 November 2026; ADR 0013,
+      # addendum wave 3). A cache of the same day compiles only what changed since its save. Only
+      # pushes to main save (step "Save the -race build cache" below): a pull
       # request restores main's cache, which every branch may read, but a cache it saved would be
       # readable by that branch alone, and five groups of them per push would crowd main's caches
       # (and the Playwright browsers) out of the 10-GB budget of the repository.
+      - name: Day of the -race build cache
+        id: day
+        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Restore the -race build cache of this group
         id: race-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/go-build
-          key: go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-${{ github.run_id }}
+          key: go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-${{ steps.day.outputs.day }}
           restore-keys: |
             go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-
             go-race-${{ runner.os }}-${{ matrix.group }}-
@@ -345,6 +353,9 @@ jobs:
       # The Gradle wrapper's hash, JDK 21 and the SDK packages (.github/actions/android-sdk).
       - uses: ./.github/actions/android-sdk
 
+      # The dependencies, the wrapper and Robolectric's jars, without the build cache: that has a
+      # cache of its own (below), and the copy inside this one stayed that of the cache's first run
+      # (2.3 GB, 28 November 2026). The old key's entry is still a fallback for the first run.
       - name: Gradle caches
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -353,8 +364,11 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.m2/repository/org/robolectric
-          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
-          restore-keys: gradle-${{ runner.os }}-
+            !~/.gradle/caches/build-cache-1
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+            gradle-${{ runner.os }}-
 
       # The Gradle build cache: the outputs of compiling, lint, R8 and the tests, keyed by their
       # inputs. The step above keys on the build files alone, so its primary key hits until a
@@ -448,14 +462,29 @@ jobs:
       # The Gradle wrapper's hash, JDK 21 and the SDK packages (.github/actions/android-sdk).
       - uses: ./.github/actions/android-sdk
 
-      - name: Gradle caches
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The Gradle caches of the job "android", read only, as in the emulator job: the
+      # dependencies, and the debug build cache of main. This job used to keep a copy of its own
+      # (gradle-e2e-…, 0.5 GB) in the repository's 10 GB. Path lists and keys are those of the
+      # steps in "android": a cache is found only under exactly the same paths.
+      - name: Gradle caches (those of the job android, read only)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
-          restore-keys: gradle-e2e-${{ runner.os }}-
+            ~/.m2/repository/org/robolectric
+            !~/.gradle/caches/build-cache-1
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+            gradle-${{ runner.os }}-
+
+      - name: The debug build cache of main (read only)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-${{ runner.os }}-debug-${{ github.run_id }}
+          restore-keys: gradle-build-${{ runner.os }}-debug-
 
       - run: task android:contract
 
@@ -555,8 +584,20 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.m2/repository/org/robolectric
-          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
-          restore-keys: gradle-${{ runner.os }}-
+            !~/.gradle/caches/build-cache-1
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+            gradle-${{ runner.os }}-
+
+      # The debug build cache of main, read only: the dependencies cache above no longer carries a
+      # build cache (it was a stale copy), and the APKs are the debug variant "android" builds.
+      - name: The debug build cache of main (read only)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-${{ runner.os }}-debug-${{ github.run_id }}
+          restore-keys: gradle-build-${{ runner.os }}-debug-
 
       # The test media (cached under the same key as the server tests, generated on a miss): with
       # them the emulator flow browses a real library (docs/perf/K27-android-ci.md).
