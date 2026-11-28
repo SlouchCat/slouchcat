@@ -1,8 +1,8 @@
 # Aktueller Stand
 
-## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026)
+## CI-Optimierung Welle 2: sieben e2e-Shards, neue Dauertabelle, Web-Job geteilt (28. November 2026, PR #241)
 
-Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom
+PR #241, Zweig `claude/ci-welle2`. Marcos Freigabe «Welle 2 freigeben» und seine Wahl «7 Shards» vom
 28. November 2026 (`docs/perf/ci-optimierungsplan.md`, M4 und M5; ADR 0013, Nachtrag Welle 2;
 Messung `docs/perf/ci.md`, Abschnitt 10).
 
