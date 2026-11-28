@@ -2138,7 +2138,7 @@ Hinweise für den Bau:
 
 ### 12.5 Fragen an dich (nur neue)
 
-**F-1 · Was heisst «Profil mit Altersgrenze» für die Aufnahmen, wenn das Konto selbst eine Altersgrenze hat?**
+**F-1 · Was heisst «Profil mit Altersgrenze» für die Aufnahmen, wenn das Konto selbst eine Altersgrenze hat?** → `20` E-28-07
 Ein Konto kann eine Altersgrenze haben (`accounts.max_rating`, gebaut: `00063_minimum_age_accounts.sql:27-44`);
 dann gilt sie für alle seine Profile, auch für das Hauptprofil.
 
@@ -2150,7 +2150,7 @@ dann gilt sie für alle seine Profile, auch für das Hauptprofil.
 Empfehlung: **(a)**, weil das Konto dann bewusst als Familienkonto mit Grenze eingerichtet ist und die Regel
 dieselbe ist wie beim Wunschrecht. Bis zu deiner Antwort gilt (a) in `owner_age_limited`.
 
-**F-2 · Wer ist bei der Einführung «das Konto des Administrators»?**
+**F-2 · Wer ist bei der Einführung «das Konto des Administrators»?** → `20` E-28-09
 `03` F-1 (a) schaltet bei Einführung «das Konto des Administrators» an. Es kann mehrere Administratoren geben
 (gebaut: `accounts.role`).
 
@@ -2160,7 +2160,7 @@ dieselbe ist wie beim Wunschrecht. Bis zu deiner Antwort gilt (a) in `owner_age_
 Empfehlung: **(a)**; jeder Administrator richtet Live-TV ein und will es prüfen. Bis zu deiner Antwort gilt (a)
 in der Werkseinstellung (3.11).
 
-**F-3 · Sieht das Hauptprofil alte Aufnahmen weiter, wenn es die Altersgrenze eines Profils entfernt?**
+**F-3 · Sieht das Hauptprofil alte Aufnahmen weiter, wenn es die Altersgrenze eines Profils entfernt?** → `20` E-28-07
 Ergänzt `04` F-10 um die Gegenrichtung (RD-18). Wird ein Kind volljährig und entfernt das Hauptprofil die
 Altersgrenze, wären dessen alte Aufnahmen mit `owner_age_limited = 1` sonst weiter sichtbar, obwohl `14` LS-14
 sagt «Profile ohne Altersgrenze erscheinen hier nie».
@@ -2242,3 +2242,4 @@ Fassung 3 (T-29, 13.4, Abschnitte 14 und 15), `18` (Stufen, D-3, D-4), `11` Fass
   (Startpuffer-Ordner nur Stufe 4 und nur bei `04` F-2 (a)) und D-4 (feste Ziele Stufe H) übernommen (11.2).
 - Zählung: 32 Tabellen und 1 Sicht in `slouchcat.db`, 7 in `epg.db` (unverändert); 3 Neubauten; Erweiterungen von
   `accounts`, `profiles`, `invitations` jetzt je Stufe.
+- Restebereinigung nach Konsolidierung 1: Fragen F-1 bis F-3 mit Verweis auf `20` (E-28-07, E-28-09).

@@ -776,7 +776,7 @@ Die Abbruchkriterien sind **Vorschläge** dieses Dokuments; die verbindliche Fas
 | M-17 | Vorladen: Gewinn gegen Verbindungen und Bandbreite | Benchmark mit und ohne | Referenz, Testserver «nur eine Verbindung» | kein Gewinn im Median: Vorgabe «aus» (F-9) | während des Baus Stufe 3 |
 | M-18 | Reverse-Proxy | Abruf der Segmente, Zwischenpufferung | dein Aufbau | Segment-Verzögerung > 200 ms gegen direkt | Abnahme Stufe 1 |
 | M-19 | Lange Wiedergabelisten | 60 min und mehr | Android-TV-Gerät | Einlesen > 500 ms | während des Baus Stufe 4 |
-| M-20 | Stichprobe mit Dekodieren | Filter im Image, Kosten | Image, CT 190 | Kosten > 10 % eines Kerns je Stichprobe | während des Baus Stufe 3 (letzter Schritt), sonst Stufe E |
+| M-20 | Stichprobe mit Dekodieren | Filter im Image, Kosten | Image, CT 190 | Kosten > 10 % eines Kerns je Stichprobe | Stufe E (bei `04` F-14 (b) Stufe 3; `18` D-5) |
 | M-21 | Teilstücke unter einer Bildgruppe | Q-C, Q-D | vorhandene Player | Abspielfehler | nur falls Fall 3 sonst verfehlt |
 | M-22 | Zeitüberlauf nach 26,5 h und 53 h | vorgestellter Zeitstempel | Referenz, Player | Abbruch oder Sprung > 1 s im Direktweg; FFmpeg darf keinen Überlauf erleben (Lauf ≤ 24 h) | während des Baus Stufe 1 |
 | M-23 | RTSP und RTMP nur über Dialer | Dialer, der alles ablehnt | Testserver | eine Verbindung am Dialer vorbei | Baufreigabe Stufe L (V-11) |
@@ -926,3 +926,4 @@ Die Nummern aus Fassung 1 bleiben; Erledigtes steht mit Verweis.
 - **Vorrangkonflikte:** P-9 erledigt; Spalte «Antwort vor» nach `18` 2.1.
 - **Abschnitt 12:** H-1 bis H-5 und H-8 erledigt; H-6, H-7 an `15` weitergegeben; neu H-9 (`04` 8.3) und H-10
   (`18`).
+- Restebereinigung nach Konsolidierung 1: M-20 in Stufe E, bei `04` F-14 (b) in Stufe 3 (`18` D-5, `20` U-12).

@@ -149,7 +149,7 @@ oder warten, bis genug Segmente da sind (bei 2 s Zieldauer und sechs Segmenten r
 Fälle 1 und 2 sind auf dem iPhone damit **vom Aufbau her gefährdet**. M-5 würde Listen mit einem, drei und
 sechs Segmenten messen; ohne Gerät bleibt es ungeprüft. Auswege (`05` 4.3): kurze Segmente in der Startphase
 (O-19), längerer Anlauf, `hls.js` statt nativ ab iOS 17.1, bis zu sechs Segmente für native Apple-Player
-auch ohne Recht «Timeshift» (O-28, berührt LTV-005, nur als Frage an Marco).
+auch ohne Recht «Timeshift» (O-28, berührt LTV-007, nur als Frage an Marco).
 
 ## 4. Matrix C · Videocodec × Client
 
@@ -343,7 +343,7 @@ dort mit Beleg; die Zeile bleibt als Spur.
 | 3 | **Schlanker oder voller Bau von `hls.js`** (`24` N-7, `04` O-22) | R2: lässt eventuell Alt-Audio, Untertitel, CEA weg; nicht nachgelesen. | **Entschieden in 05 Fassung 3:** kein Voll-Bau. Belegt: schlanker Bau liest in TS kein HEVC, kein AC-3, E-AC-3 und LATM keiner (Nachprüfung Nr. 11, 13). Der volle Bau bleibt Option, wenn M-2 viele AC-3-/HEVC-Sender zeigt. | Matrix C, D, Abschnitt 8 nachgeführt. **Offen:** CEA-608/708 am schlanken Bau (M-3); die Fassung-2-Aussage «vermutlich nicht» ist ohne Beleg. |
 | 4 | **Startpunkt in `hls.js`** (W-6) | R1: `liveSyncDurationCount` 1. R2: 2. | **Entschieden in 05 Fassung 3:** Startpunkt vom Server, Wert bleibt 2. | Matrix F «Umschalten». |
 | 5 | **Standardwerte des Ladepuffers in Media3** (W-5) | R1: 1000/2000 ms. R2: 50'000/50'000/2500/5000 ms. | **Entschieden (Nachprüfung Nr. 16):** R2 widerlegt, 1.11.1 hat Start 1000 ms, nach Stocken 2000 ms, Vorlauf 50 s. Vorgabe: diese Standardwerte; 500 ms nur nach M-4. | Matrix F. |
-| 6 | **Startregel und Apples Vorgaben auf Safari und iPhone** (W-11) | R2/R3: RFC 8216 nicht abgerufen. | RFC-Regel **belegt** (Nachprüfung Nr. 1), W-11 aufgelöst. Apple verlangt mindestens 6 Segmente; Konzept weicht **bewusst** ab (`05` 4.3). Zusage wegen fehlenden Geräts nicht möglich. **Offen:** O-28 (sechs Segmente auch ohne Recht, berührt LTV-005). | Abschnitt 3.2. |
+| 6 | **Startregel und Apples Vorgaben auf Safari und iPhone** (W-11) | R2/R3: RFC 8216 nicht abgerufen. | RFC-Regel **belegt** (Nachprüfung Nr. 1), W-11 aufgelöst. Apple verlangt mindestens 6 Segmente; Konzept weicht **bewusst** ab (`05` 4.3). Zusage wegen fehlenden Geräts nicht möglich. **Offen:** O-28 (sechs Segmente auch ohne Recht, berührt LTV-007). | Abschnitt 3.2. |
 | 7 | **Ton und Zeilensprung: R2-Vorgaben gegen `04`** | R2: Ton immer zu AAC-LC; Interlaced für Browser und Handy immer entfernen. | **Entschieden (T-14, T-15, `04` 7.3):** kopieren, wenn das Gerät für TS meldet; Zeilensprung entfernt der Server, ausser das Gerät meldet saubere Darstellung (Browser nie). | Matrix C und D folgen `04`. |
 | 8 | **HEVC auf Apple: direkt (R2) oder umwandeln** | R2: Safari direkt, nur fMP4. | **Entschieden (belegt (Nachprüfung Nr. 8)):** in TS nicht erlaubt, also Bild umwandeln; zweites Segmentformat ist O-3. | Matrix C. |
 | 9 | **iPad: nativ oder `hls.js`** | R2: «nativ oder `hls.js`»; Repo-Weiche wählt «mse», wo `MediaSource` existiert. | **Entschieden in 05 Fassung 3:** iPad folgt der Weiche der App; iPhone nativ. Beides ungeprüft, nicht zugesagt. | Abschnitt 1, Matrizen. |
@@ -390,3 +390,4 @@ Fassung 1 (28. November 2026) war der erste Entwurf; Fassung 2 führt die Konsol
 - **Abschnitt 10:** erledigte Punkte als «entschieden in 05 Fassung 3» gekennzeichnet; neu: Stufe E gegen
   «kein Voll-Bau» (Punkt 16), Safari und MPEG-2, nicht geprüfte Quellen.
 - Quelle der Rückmeldungen: `KONSOLIDIERUNG.md`, `RUECKMELDUNGEN-AN-ARCH.md` (Abschnitt «Aus 16»), `04` 15.
+- Restebereinigung nach Konsolidierung 1: O-28 berührt LTV-007, nicht LTV-005 (`20` U-13).

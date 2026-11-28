@@ -1651,7 +1651,7 @@ Vorladen je Sender (`07` W-23), Kopfzeilen einer EPG-Quelle (W-27).
 
 ### 9.5 Fragen an dich (nur neue)
 
-**F-1 · Darf das Hauptprofil Aufnahmen seiner Profile löschen, wenn das Konto kein Live-TV mehr hat?**
+**F-1 · Darf das Hauptprofil Aufnahmen seiner Profile löschen, wenn das Konto kein Live-TV mehr hat?** → `20` E-28-42
 Schaltet der Administrator Live-TV für ein Konto aus, ist der ganze Bereich für alle Profile 404 (`03` 2.4); die
 Aufnahmen bleiben und belegen das Kontingent. `03` DR-03 erlaubt dem Hauptprofil das Löschen auch ohne Recht
 «Aufnahmen», sagt aber nichts zu «Live-TV».
@@ -1733,3 +1733,5 @@ S-8 bis S-10 und S-12 betreffen nur das Schema (`07` 13.2).
 115 neue Operationen (Fassung 1: 122), davon 7 binär; 20 erweiterte bestehende Operationen. Gestrichen oder
 zusammengelegt: 8 (S-1 bis S-7, `getLiveImportPreview` und `listLiveImportPreviewItems` als zwei); neu: 1
 (`endLiveChannelNow`).
+
+Restebereinigung nach Konsolidierung 1: Frage F-1 mit Verweis auf `20` E-28-42.

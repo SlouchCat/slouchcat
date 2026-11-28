@@ -644,7 +644,7 @@ Start). Der Code der Hülle liegt in `internal/transcode`; `cmd/slouchcat` ruft 
 | Sperre der Dateien (Landlock) | Lesen nur Programm, Bibliotheken, Gerätedateien der Hardware; kein `/config`, kein `/cache`, kein `/media`, kein `/proc` anderer Prozesse; Schreiben nirgends | braucht Landlock ABI 1 (Linux 5.13, belegt über die README von `go-landlock`) und ein Seccomp-Profil von Docker, das die Aufrufe zulässt (M-25) | **empfohlen ab 1a**, Pflicht für Weg W; ob Pflicht ab 1a: F-1 |
 | Sperre des Netzes | Umwandlung und Probe: Landlock ohne jede `CONNECT_TCP`-Regel (also keine TCP-Verbindung), ab ABI 10 auch ohne UDP-Regel; **immer** dazu Seccomp: `socket()` nur `AF_UNIX`. Weg W: 4.8 | Landlock-TCP ab ABI 4 (Kernelfassung nicht nachgelesen), UDP ab ABI 10 (belegt, Nachprüfung Nr. 34); Seccomp auf jedem heutigen Kernel | wie oben |
 | Hart oder ausgewiesen, nie still | Die Hülle prüft die ABI-Fassung und setzt den Regelsatz vollständig. Weg W: fehlt ein Teil, startet der Empfänger nicht. Umwandlung und Probe: fehlt ein Teil, läuft FFmpeg nach der Vorgabe von F-1 (a) ohne Sperre weiter, **aber nie still**: Der Zustand «Eindämmung nicht verfügbar» steht mit Grund (Kernel, Docker-Profil, fehlende ABI-Fassung) in LA-01 und im Protokoll. `BestEffort()` von `go-landlock` wird nie verwendet (Lint). | ja, nur Code | 1a |
-| Anzeige | LA-01: «FFmpeg-Sperre: aktiv» oder «Eindämmung nicht verfügbar», mit dem Grund (`04` T-27; `04` 10.8 nennt in der Tabelle noch den alten Text «FFmpeg läuft ohne Sandbox») | ja | 1a |
+| Anzeige | LA-01: «FFmpeg-Sperre: aktiv» oder «Eindämmung nicht verfügbar», mit dem Grund (`04` T-27, 10.8) | ja | 1a |
 | Compose | `security_opt: ["no-new-privileges:true"]`, `cap_drop: [ALL]`, `pids_limit` (Richtwert 512) | **braucht eine Änderung an `compose.yaml`**, `04` 10.6, `04` F-12 | 0 (Planschritt 0.6 in `18`, nach `04` F-12 (a) und V-4); sonst 1a |
 
 **Was die Compose-Änderung für bestehende Installationen heisst:** Die drei Zeilen härten nur. Der Server läuft
@@ -1187,7 +1187,7 @@ Nur neue, echte Weichen. Aus `04` gelten weiter und werden hier nicht wiederholt
 Netz), **`04` F-12** (Härtung der Standard-Compose-Datei), **`04` F-13** (Weg W ohne Sperre). Dazu **`09` F-4**
 (EPG im Heimnetz) und **`15` F-18** (Notfall-Löschen durch den Administrator).
 
-**F-1 · Darf FFmpeg Live-TV umwandeln, wenn der Kernel keine Sperre erlaubt?**
+**F-1 · Darf FFmpeg Live-TV umwandeln, wenn der Kernel keine Sperre erlaubt?** → `20` E-28-04
 Die Umwandlung je Zuschauer bekommt Fremddaten über eine Pipe. `04` 10.8 empfiehlt die Sperre ab Stufe 1a, macht
 sie aber nur für Weg W zur Pflicht. Still weggelassen wird sie nie (`04` T-27): Es geht nur darum, ob FFmpeg ohne
 Sperre überhaupt umwandeln darf.
@@ -1199,7 +1199,7 @@ Sperre überhaupt umwandeln darf.
 
 Empfehlung: **(a)**, und M-25 früh messen; zeigt M-25, dass CT 190 die Sperre kann, ist sie dort ohnehin an.
 
-**F-2 · Weiterleitung von `https` nach `http`: immer abbrechen?**
+**F-2 · Weiterleitung von `https` nach `http`: immer abbrechen?** → `20` E-28-05
 Fassung 2 von `05` brach nur bei Quellen mit Zugangsdaten ab. Eine unverschlüsselte Strecke erlaubt aber jedem
 dazwischen, das Bild auszutauschen, auch für Profile mit Altersgrenze. `04` T-28 und `05` 2.4 (Fassung 3) haben
 (a) als Vorgabe übernommen; die Frage bleibt, weil sie Quellen ausschliessen kann.
@@ -1211,7 +1211,7 @@ dazwischen, das Bild auszutauschen, auch für Profile mit Altersgrenze. `04` T-2
 
 Empfehlung: **(a)**. Eingetragene `http`-Quellen bleiben erlaubt; verboten ist nur der stille Wechsel.
 
-**F-3 · Darf der Administrator die Zertifikatsprüfung einer Quelle abschalten?**
+**F-3 · Darf der Administrator die Zertifikatsprüfung einer Quelle abschalten?** → `20` E-28-06
 Manche Geräte im Heimnetz und manche Anbieter haben ein selbst ausgestelltes Zertifikat.
 
 - **(a) Nie** (Vorgabe). Folge: Solche Quellen gehen nur über `http` oder mit gültigem Zertifikat.
@@ -1220,7 +1220,7 @@ Manche Geräte im Heimnetz und manche Anbieter haben ein selbst ausgestelltes Ze
 
 Empfehlung: **(a)**; (b) nur, wenn M-2 zeigt, dass du so eine Quelle wirklich hast.
 
-**F-4 · Was geschieht mit den Zugangsdaten der Quellen in einer «Sicherung ohne Geheimnisse»?**
+**F-4 · Was geschieht mit den Zugangsdaten der Quellen in einer «Sicherung ohne Geheimnisse»?** → `20` E-28-11
 Heute löscht diese Sicherung verschlüsselte Einstellungen (`server/internal/admin/backup.go:338-353`), behält aber
 private Podcast-Adressen im Klartext (`backup.go:88-91`).
 
@@ -1271,3 +1271,4 @@ Review 2, Nachprüfung):
   gleichzeitige Segmentabrufe, Eingangsströme, Weg-W-Empfänger, Upload 200 MiB; O-8 erledigt).
 - **Fragen:** F-1 und F-2 an den Stand von `04` Fassung 3 angepasst (F-2 bleibt offen, Vorgabe übernommen), F-4
   mit dem Platzhalter; F-3 unverändert.
+- Restebereinigung nach Konsolidierung 1: Hinweis auf den alten Text in `04` 10.8 gestrichen (dort nachgeführt); Fragen mit Verweis auf `20`.

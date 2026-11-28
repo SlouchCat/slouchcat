@@ -41,10 +41,10 @@ Ziele** sind Adressen im Heimnetz, die der Administrator für genau eine Quelle 
    sein Ziel, eben Angelegtes ist offen, Aufklapper mit Fehler öffnet sich); Rahmen ≥ 3:1, gedämpfter
    Text ≥ 8:1; **Anlegen und Ändern im selben Formular**.
 3. **Kein Anbieterlimit.** Slouchcat zählt keine Verbindungen je Anbieter, kennt keine Abos und keine
-   Laufzeiten (LTV-017). Der eine Schalter je Quelle «weitere gleichzeitige Verbindungen erlaubt» (`04`
-   T-18) ist **keine Zahl und keine Limitverwaltung**: Er sagt nur, ob Slouchcat von sich aus mehr als das
-   Nötige öffnen darf. Ob es eine Zahl je Quelle geben soll, ist allein `04` F-3 (ändert LTV-017, nur auf
-   Marcos Wort). Die Seiten sagen das ausdrücklich (Abschnitt 5).
+   Laufzeiten (LTV-017). Der eine Schalter je Quelle «Vorladen für Sender dieser Quelle: an/aus» (`04`
+   T-18) ist eine Einstellung des Vorladens (LTV-002, LTV-010), **keine Zahl und keine Verbindungsverwaltung**;
+   Slouchcat rechnet keine Verbindungen je Quelle. Ob es eine Zahl je Quelle geben soll, ist allein `04` F-3
+   (ändert LTV-017, nur auf Marcos Wort). Die Seiten sagen das ausdrücklich (Abschnitt 5).
 4. **Privatsphäre:** Der Administrator sieht nie Titel fremder Aufnahmen und nie, welches Konto gerade
    welchen Sender aufnimmt (Abschnitt 4; `03` DR-17; Review 2 RD-06).
 5. **Geheimnisse gehen nie an den Browser** (`04` T-28, `07`, `08`): Jede Adresse einer Quelle und jede
@@ -258,7 +258,7 @@ als `Notice` info, zuklappbar.
 | Sender | «398 aktiv / 412» |
 | Letzte Aktualisierung | «heute 06:00 · in Ordnung» bzw. «heute 05:00 · fehlgeschlagen» (`StatusDot`) |
 | Nächste | «morgen 06:00» bzw. «nur von Hand» |
-| Abzeichen | «weitere Verbindungen erlaubt» (ab Stufe 3), «2 feste Ziele im Heimnetz» (ab Stufe H) |
+| Abzeichen | «Vorladen an» (ab Stufe 3), «2 feste Ziele im Heimnetz» (ab Stufe H) |
 | Aktionen | «Jetzt aktualisieren» · «Testen» · Menü ⋯ («Bearbeiten», «Letzter Import», «Entfernen») |
 
 Aufgeklappt: Schema, Host und Port der Adresse; Intervall; «Neue Sender sofort anbieten: an»; Gruppenzahl;
@@ -380,7 +380,7 @@ anlegen» mit Name, Nummer, Gruppe ( ) «Als Ersatzquelle zu einem bestehenden S
 | Neue Sender sofort anbieten | **an** (`03` DR-16, `07` W-6) | aus: neue Sender kommen inaktiv in LA-05 mit Filter «Neu» | 1a |
 | Gruppen der Quelle übernehmen | **an** | aus: keine Gruppen aus der Liste | 1a |
 | Kanalnummern der Quelle übernehmen | **an** (nur für neue Sender) | aus | 1a |
-| Weitere gleichzeitige Verbindungen erlaubt | **aus** (Werkszustand nach `04` F-9 (b); bis zur Antwort Vorschlag) | an: Slouchcat darf zu dieser Quelle vorsorglich zusätzliche Verbindungen öffnen (Vorladen, «automatisch», Prüfungen ruhender Sender). Text darunter: «Das ist kein Anbieterlimit. Slouchcat zählt keine Verbindungen. Schalte es nur ein, wenn dein Zugang mehrere gleichzeitige Verbindungen erlaubt.» Hängt an `04` F-3 und F-9 | 3 |
+| Vorladen für Sender dieser Quelle | **aus** (Werkszustand nach `04` F-9 (b); bis zur Antwort Vorschlag) | an: Slouchcat darf Sender dieser Quelle vorsorglich empfangen (Vorladen, «automatisch», Prüfungen ruhender Sender). Text darunter: «Das ist eine Einstellung des Vorladens, kein Anbieterlimit. Slouchcat zählt keine Verbindungen. Schalte es nur ein, wenn dein Zugang mehrere gleichzeitige Verbindungen erlaubt.» Werkszustand: `04` F-9 | 3 |
 
 **Verschwundene Sender** sind sofort für Zuschauer unsichtbar; Favoriten, Nummer, Gruppen, Zuordnung und
 Planungen bleiben gespeichert und wirken wieder, wenn der Sender zurückkommt; Slouchcat löscht einen Sender
@@ -487,7 +487,8 @@ Zusammenfassung; mit Fehler offen; über einen Sprunglink aus LA-13 öffnet sich
    «Zurück zum Namen der Quelle»), Nummer, Land (Liste), **eine** Sprache (Liste; `03` LTV-006.14, `07`
    W-16), Kategorie (feste Liste, F-16).
 2. **Logo · «aus der Quelle»:** (•) aus der Quelle ( ) eigene Adresse [URL, nur öffentlich] ( ) Datei
-   hochladen (1b); Vorschau auf dunklem und hellem Grund; «Zurücksetzen».
+   hochladen (1b); Vorschau auf dunklem und hellem Grund, bei einer eigenen Adresse erst nach dem Speichern (nur
+   der Server ruft fremde Hosts ab, `08` 3.8); «Zurücksetzen».
 3. **Gruppen · «Schweiz, Vollprogramme»:** Mehrfachwahl aus Gruppen (eigene und aus Quellen).
 4. **Programmdaten · «XMLTV Schweiz und Deutschland: SRF1.ch»** (Stufe 2): Zuordnung wie LA-11 für diesen
    Sender, Vorschau der nächsten drei Sendungen, «Dieser Sender hat keine Programmdaten» (bewusst ohne).
@@ -526,7 +527,7 @@ Manuell: in LA-05 zwei oder mehr Sender wählen → «Zusammenführen».
 
 1. «Welcher Sender bleibt?» (`RadioGroup`, Vorgabe: der mit Nummer und meisten Favoriten).
 2. «Was übernimmt der bleibende Sender?» je Angabe wählen: Name · Logo · Nummer · Gruppen (Vereinigung
-   als Vorgabe) · Programmdaten-Zuordnung · Land/Sprache/Kategorie.
+   als Vorgabe, abwählbar; `08` `unionGroups`) · Programmdaten-Zuordnung · Land/Sprache/Kategorie.
 3. «Quellen in dieser Reihenfolge» (`RankedChoiceList` aller Quellen beider Sender).
 4. Zusammenfassung: «SRF 1 bleibt. ‹SRF1 HD (Xtream)› wird zur Ersatzquelle 2. 4 Favoriten und 1
    geplante Aufnahme gehen auf SRF 1 über.» (`03` DR-14) [Abbrechen] [Zusammenführen].
@@ -570,7 +571,7 @@ Sätze unter den Feldern:
 - Karenz: «Gilt nur, wenn ein Zuschauer von sich aus geht (Stopp, App zu, 60 Sekunden ohne Lebenszeichen).
   Nach einem Senderwechsel, dem Ende einer Aufnahme oder eines Zeitfensters endet der Empfang sofort.»
   (`04` T-17)
-- Vorladen und «automatisch»: «Wirkt nur bei Quellen, die weitere gleichzeitige Verbindungen erlauben
+- Vorladen und «automatisch»: «Wirkt nur bei Quellen mit ‹Vorladen für Sender dieser Quelle: an›
   (unten). Vorladen öffnet nur den Empfang. Eine Umwandlung für ein Gerät startet erst, wenn jemand schaut.»
   (LTV-010: keine vorsorglichen Umwandlungen)
 - Schutz: «Laufende Wiedergaben und Aufnahmen beendet kein Einstellungswechsel.» · «Nach einem Neustart
@@ -579,11 +580,11 @@ Sätze unter den Feldern:
 - Hinweis V-4 als `Notice` info.
 
 **Abschnitt «Quellen»** (im selben Reiter; nachgezogen aus dem Mockup, `19` 6): je Quelle der Schalter
-**«weitere gleichzeitige Verbindungen erlaubt»** (dieselbe Einstellung wie LA-03 Schritt 5), beschriftet
-mit «kein Anbieterlimit». Darunter, wenn eine Quelle eine Verbindung abgelehnt hat: «Xtream
+**«Vorladen für Sender dieser Quelle: an/aus»** (dieselbe Einstellung wie LA-03 Schritt 5), beschriftet
+mit «Einstellung des Vorladens, kein Anbieterlimit». Darunter, wenn eine Quelle eine Verbindung abgelehnt hat: «Xtream
 Beispielanbieter hat um 19:58 eine weitere Verbindung abgelehnt. Vorsorglicher Empfang ruht bei dieser
-Quelle 30 Minuten.» (`04` 5.3, 14.1). Der Schalter hängt an `04` F-3 (Zahl je Quelle ja oder nein) und F-9
-(Werkszustand); bis zu Marcos Antwort gilt: ab Werk aus, keine Zahl.
+Quelle 30 Minuten.» (`04` 5.3, 14.1). Der Werkszustand des Schalters ist `04` F-9; eine Zahl je Quelle
+gibt es nicht (offen ist allein `04` F-3); bis zu Marcos Antwort gilt: ab Werk aus.
 
 **Reiter «Zeitpläne»:** `DataTable`: Name · Zeiten («Mo–Fr 18:00–23:30, Sa–So 10:00–24:00») · Sender
 (Zahl) · Aktionen. Anlegen/Ändern im selben Dialog: Name, Zeilen «Wochentage (`WeekdayPicker`) · von ·
@@ -712,7 +713,7 @@ Sender ganz aus dem Angebot nehmen will, deaktiviert ihn (LA-05, T-29).
    | Wiederverbindung | feste Leiter 1, 2, 5, 10, 20 Sekunden, danach «gestört»; bei dauerhaftem Haltegrund langsamer weiter (60 s, dann 300 s, ab einer Stunde 900 s); nicht einstellbar | `04` 14.1, `07` W-8 |
    | Stillstand | 10 Sekunden ohne Daten | `04` 14.1 |
    | Administrator benachrichtigen | wenn ein dauerhaft oder nach Zeitplan empfangener Sender oder der Sender einer laufenden oder in 30 Minuten beginnenden Aufnahme länger als **10 Minuten** gestört ist; einmal je Quelle und Stunde | `04` 10.2, 14.8; F-19 |
-   | Prüfung ruhender Sender | nur bei Quellen mit «weitere gleichzeitige Verbindungen erlaubt»; nur Lieblingssender irgendeines Profils, Sender mit Aufnahme in 24 Stunden (und 30 Minuten vor Beginn), Sender mit Zeitplan vor dem Fenster; höchstens 10 Sekunden je Prüfung, eine zugleich, 5 Sekunden Pause; nie bei einer Quelle, von der gerade empfangen wird | `05` 9.5, `04` 14.2 |
+   | Prüfung ruhender Sender | nur bei Quellen mit «Vorladen für Sender dieser Quelle: an»; nur Lieblingssender irgendeines Profils, Sender mit Aufnahme in 24 Stunden (und 30 Minuten vor Beginn), Sender mit Zeitplan vor dem Fenster; höchstens 10 Sekunden je Prüfung, eine zugleich, 5 Sekunden Pause; nie bei einer Quelle, von der gerade empfangen wird | `05` 9.5, `04` 14.2 |
    | Schalter je Quelle «auch übrige Sender prüfen» | **aus**; an: höchstens einmal je Tag und Sender in einem Nachtfenster | `05` 9.5 |
 
    Satz: «Eine Liste mit 10'000 Sendern wird nicht reihum geprüft.»
@@ -945,7 +946,7 @@ Als `Notice` info, zuklappbar mit Zusammenfassung «Verantwortung für Quellen»
 | V-4 | LA-06 Empfang, LA-09 | «Jeder dauerhaft, vorgeladen oder nach Zeitplan empfangene Sender belegt eine Verbindung zur Quelle, auch ohne Zuschauer.» |
 | V-5 | LA-03 Test bei DRM | «Kopiergeschützte Streams spielt Slouchcat nicht ab und umgeht keinen Schutz.» |
 | V-6 | LA-03 Xtream | «Von Xtream-Zugängen übernimmt Slouchcat nur Live-TV. Filme und Serien des Anbieters werden nicht übernommen.» |
-| V-7 | LA-03 Schritt 5, LA-09 «Quellen» | «‹Weitere gleichzeitige Verbindungen erlaubt› ist kein Anbieterlimit. Slouchcat zählt keine Verbindungen.» |
+| V-7 | LA-03 Schritt 5, LA-09 «Quellen» | «‹Vorladen für Sender dieser Quelle› ist eine Einstellung des Vorladens, kein Anbieterlimit. Slouchcat zählt keine Verbindungen.» |
 
 ---
 
@@ -953,53 +954,53 @@ Als `Notice` info, zuklappbar mit Zusammenfassung «Verantwortung für Quellen»
 
 Erledigte oder in ein anderes Dokument gewanderte Fragen bleiben mit ihrer Nummer stehen.
 
-**F-13 Eigener Bereich oder Seite unter «Medien».** (A) eigener Bereich «Live-TV» mit acht Reitern
+**F-13 Eigener Bereich oder Seite unter «Medien».** → `20` E-28-15 (A) eigener Bereich «Live-TV» mit acht Reitern
 (dieser Entwurf, so das Mockup); (B) eine Seite «Live-TV» unter «Medien» mit Reitern wie Radio; (C) eigener
 Bereich, aber nur sichtbar, sobald eine Quelle besteht oder der Administrator «Live-TV einrichten» wählt.
 **Empfehlung C:** genug Platz für die vielen Seiten, und Server ohne Live-TV sehen nur einen Eintrag
 «Live-TV einrichten» in der Übersicht statt eines leeren Bereichs. Dazu: kein eigener Hauptschalter;
 die Konto-Rechte genügen.
 
-**F-14 Neue Sender aus einer Quelle sofort anbieten?** **Erledigt durch `03` DR-16:** ab Werk aktiv,
+**F-14 Neue Sender aus einer Quelle sofort anbieten?** → `20` erledigt (Anhang A) **Erledigt durch `03` DR-16:** ab Werk aktiv,
 einstellbar je Quelle (`07` W-6). Die frühere Empfehlung «ab Werk aus» ist zurückgezogen; der Hinweis
 bleibt, dass Xtream-Listen mit 10'000 Einträgen dann sofort für Zuschauer erscheinen. Wer das nicht will,
 schaltet beim Anlegen «Neue Sender sofort anbieten» aus.
 
-**F-15 Manuelle Sortierung.** (A) Reihenfolge = Kanalnummer, Sender ohne Nummer alphabetisch danach
+**F-15 Manuelle Sortierung.** → `20` E-28-17 (A) Reihenfolge = Kanalnummer, Sender ohne Nummer alphabetisch danach
 (dieser Entwurf); (B) zusätzlich eine eigene Reihenfolge je Gruppe. **Empfehlung A** (eine Wahrheit,
 Zifferneingabe und Zapping folgen ihr).
 
-**F-16 Kategorien.** (A) feste Liste (Vollprogramm, Nachrichten, Sport, Film und Serie, Dokumentation,
+**F-16 Kategorien.** → `20` E-28-18 (A) feste Liste (Vollprogramm, Nachrichten, Sport, Film und Serie, Dokumentation,
 Kinder, Musik, Kultur, Regional, Unterhaltung, Sonstiges), übersetzt; (B) frei vom Administrator
 anlegbar. **Empfehlung A** (übersetzbar, gleich in allen Clients; frei benennbar sind schon die Gruppen).
 
-**F-17 Bestehende Aufnahmen beim Wechsel des Speicherorts.** LTV-019 schliesst automatisches Verschieben
+**F-17 Bestehende Aufnahmen beim Wechsel des Speicherorts.** → `20` E-28-51 LTV-019 schliesst automatisches Verschieben
 älterer Aufnahmen aus. (A) Bestehende Aufnahmen bleiben am alten Ort abspielbar; der alte Ort bleibt
 lesend eingetragen, bis er leer ist; (B) der Wechsel geht nur, wenn der alte Ort leer ist (der
 Administrator verschiebt von Hand); (C) einmaliges Verschieben auf ausdrücklichen Knopfdruck mit
 Fortschritt. **Empfehlung A**; `11` 10.5 hat sie als Zwischenstand übernommen (jeder Teil speichert seinen
 Speicherort).
 
-**F-18 Notfall-Löschen durch den Administrator.** (A) Der Administrator kann nie fremde Aufnahmen löschen,
+**F-18 Notfall-Löschen durch den Administrator.** → `20` E-28-45 (A) Der Administrator kann nie fremde Aufnahmen löschen,
 nur Kontingente senken und Profile benachrichtigen; (B) er kann je Konto «älteste Aufnahmen bis X GB
 löschen», ohne Titel zu sehen, mit Meldung an das Konto. **Empfehlung A** (passt zu «privat» und zu
 «nichts löscht automatisch»); der Server lehnt neue Aufnahmen ab, statt alte zu löschen.
 
-**F-19 Welche Ausfälle der Administrator gemeldet bekommt.** `04` 10.2 legt als Vorgabe fest und verweist
+**F-19 Welche Ausfälle der Administrator gemeldet bekommt.** → `20` E-28-32 `04` 10.2 legt als Vorgabe fest und verweist
 für die Frage hierher: (A) nur dauerhaft oder nach Zeitplan empfangene Sender und Sender einer laufenden
 oder in 30 Minuten beginnenden Aufnahme, nach 10 Minuten Störung (so LA-13); (B) zusätzlich Sender, die
 gerade jemand schaut; (C) jeder aktive Sender, der bei einer Prüfung ausfällt. **Empfehlung A** (keine
 Meldungsflut bei grossen Listen, LTV-011; Zuschauer sehen den Ausfall ohnehin selbst).
 
-**F-20 Vorgabe-Kontingent.** **Siehe `03` F-2** (Empfehlung dort (a): 100 GB). Richtiggestellt: 100 GB
+**F-20 Vorgabe-Kontingent.** → `20` E-28-39 **Siehe `03` F-2** (Empfehlung dort (a): 100 GB). Richtiggestellt: 100 GB
 sind bei 8 Mbit/s etwa **27,8 Stunden** HD (3,6 GB je Stunde, `13` H-6), nicht 17 Stunden wie in Fassung 1.
 
-**F-21 Höchstzahl gleichzeitiger Aufnahmen auf dem Server.** Eine Grenze schützt die Hardware, nicht den
+**F-21 Höchstzahl gleichzeitiger Aufnahmen auf dem Server.** → `20` E-28-49 Eine Grenze schützt die Hardware, nicht den
 Anbieter (kein Anbieterlimit, LTV-017). (A) keine Grenze (Aufnahmen kopieren nur und sind billig);
 (B) einstellbare Grenze mit Vorgabe «keine». **Empfehlung B**; `11` K-3 rechnet damit (Konflikt «Server
 ausgelastet»). Vorrang bei Mangel: `03` F-4, `04` F-5.
 
-**F-22 CPU-, RAM- und GPU-Werte.** Der Server liest sie heute nicht. (A) auf LA-01 anzeigen, wo das
+**F-22 CPU-, RAM- und GPU-Werte.** → `20` E-28-19 Der Server liest sie heute nicht. (A) auf LA-01 anzeigen, wo das
 System sie hergibt, sonst «–»; (B) weglassen und auf «Server» verweisen. Auftrag 9.1 verlangt sie;
 **Empfehlung A**. Ob GPU-Last auf allen Plattformen lesbar ist: zu messen (`13`).
 
@@ -1069,7 +1070,7 @@ Grundlage: `19-mockups.md` Abschnitt 6, Zeilen «Verwaltung».
 | LA-01: Zustand «Eingeschränkt» | entspricht diesem Dokument | 3.1 |
 | LA-05, LA-11: Tabellen nur mit Beispielsendern, Köpfe zählen auf 584 | nur Mockup | – |
 | LA-22, LA-26: nur das Neue gezeigt | entspricht diesem Dokument (der Rest bleibt unverändert) | 3.17 |
-| LA-09: Schalter je Quelle «vorsorglich zusätzliche Verbindungen öffnen», beschriftet «kein Anbieterlimit» | nachgezogen: Abschnitt «Quellen» in LA-09, dieselbe Einstellung wie LA-03; Name nach `04` T-18 «weitere gleichzeitige Verbindungen erlaubt»; hängt an `04` F-3 und F-9 | 3.9, 3.3 |
+| LA-09: Schalter je Quelle «vorsorglich zusätzliche Verbindungen öffnen», beschriftet «kein Anbieterlimit» | nachgezogen: Abschnitt «Quellen» in LA-09, dieselbe Einstellung wie LA-03; Name nach `04` T-18 «Vorladen für Sender dieser Quelle: an/aus»; Werkszustand `04` F-9 | 3.9, 3.3 |
 | LA-15: «Werksvorgabe 1 Stunde, eingestellt 2 Stunden» | nachgezogen | 3.15, 0.1 |
 | (nicht in `19` 6) LA-03 mit Schalter «Ziele im Heimnetz erlauben», falls das Mockup ihn noch zeigt | **im Mockup anders**, weil vor `04` Fassung 3 gebaut; massgeblich sind feste Ziele (Schritt 2a); Mockup nachzuziehen | 3.3 |
 | (nicht in `19` 6) maskierte Adressen und Kopfzeilen-Werte, falls das Mockup sie zeigt | dito: nur Schema, Host, Port und Namen der Kopfzeilen | Grundsatz 5 |
@@ -1115,3 +1116,7 @@ Fassung 1 → 2 (Konsolidierung 1, 28. November 2026):
 - **Stufen** je Seite und Feld nach `18` 4.3 bis 4.13.
 - **F-19** an `04` 10.2 angeglichen; **F-17** mit Verweis auf `11` 10.5.
 - **Mockups:** Abschnitt 8 mit einem Entscheid je Abweichung (`19` 6).
+- Restebereinigung nach Konsolidierung 1: Schalter je Quelle heisst «Vorladen für Sender dieser Quelle: an/aus»,
+  Einstellung des Vorladens ohne Verbindungsrechnung (Grundsatz 3, LA-03 Schritt 5, LA-09, V-7, Abschnitt 8);
+  LA-06 Logo-Vorschau einer eigenen Adresse erst nach dem Speichern; LA-07 Vereinigung der Gruppen abwählbar;
+  Fragen mit Verweis auf `20`. Quelle: Koordinator (RM-01), `07`/`08` Fassung 2, `20` U-10.

@@ -812,7 +812,8 @@ das ist gestrichen. `14` LD-05 nennt andere Stufen (0, 2, 5, 10, 15); massgeblic
   veraltet und tut nichts)?
 - **Glocke (Posteingang je Profil):** neue Art `live_reminder` in `notifications`. Die Tabelle hat eine CHECK-Liste
   und verlangt `item_id` oder `wish_id` (gebaut `server/migrations/00070_wishes_notifications.sql:27-42`): sie
-  muss mit einer neuen Spalte `live_reminder_id` neu gebaut werden (`07-datenmodell.md`).
+  muss mit einer neuen Spalte `live_ref` (Kennung der Erinnerung, ohne Fremdschlüssel) neu gebaut werden
+  (`07-datenmodell.md` 3.11, W-31).
 - **Web-Push und Push an die Handy-App:** über ein neues Ereignis `live_reminder` (CHECK in `deliveries.event`
   neu bauen wie in `00084`); Zustellung als Job `notify.deliver` (gebaut `internal/notify/dispatch.go:68-75`).
   Die Handy-App bekommt Push über den Weiterleitungsdienst wie heute (ADR 0044).
@@ -990,7 +991,7 @@ einem Generator, Marcos echte Dateien nur lokal.
 
 ### 14.3 Fragen an Marco (F-n)
 
-**F-1 · Programmdaten in eigener Datei, nicht in der Sicherung?**
+**F-1 · Programmdaten in eigener Datei, nicht in der Sicherung?** → `20` E-28-24
 - Problem: Programmdaten können ein Vielfaches der heutigen Datenbank ausmachen (8.6: 5'000 Sender × 7 Tage ≈
   600 MB, wenn alle zugeordnet sind). Heute landet alles in einer Datei, die bei jedem Update fünfmal kopiert und
   bei jeder Sicherung ganz mitgenommen wird.
@@ -1001,7 +1002,7 @@ einem Generator, Marcos echte Dateien nur lokal.
 - (b) alles in einer Datei. Einfacher im Bau, nach einer Wiederherstellung sofort (veraltete) Daten. Folge:
   grosse Sicherungen, langsamere Updates, Import teilt sich die Schreibverbindung mit der Wiedergabe.
 
-**F-2 · Namensgleiche Sender automatisch zuordnen?**
+**F-2 · Namensgleiche Sender automatisch zuordnen?** → `20` E-28-26
 - Problem: Viele Listen haben keine passende `tvg-id`; dann bleibt nur der Name. Ein eindeutiger Name kann
   trotzdem falsch sein (gleicher Sender in zwei Ländern, Regionalfenster).
 - **(a) nur Vorschlag, mit Sammelbestätigung (Empfehlung).** Keine falschen stillen Treffer; ein Klick für alle
@@ -1009,14 +1010,14 @@ einem Generator, Marcos echte Dateien nur lokal.
 - (b) eindeutiger Name ordnet automatisch zu, sichtbar markiert «automatisch (Name)». Weniger Arbeit, aber
   falsche Programme fallen erst beim Zuschauen auf.
 
-**F-3 · Wohin gehen Erinnerungen? — siehe `03` F-3.**
+**F-3 · Wohin gehen Erinnerungen? — siehe `03` F-3.** → `20` E-28-22
 Die Frage ist in `03` F-3 aufgegangen (dort zusätzlich für die Meldungen der Aufnahmen). Dieses Dokument folgt
 bis zu deiner Antwort dort der Empfehlung (a): Glocke des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile
 ohne Titel (`03` DR-05). Variante (b) aus Fassung 1 (nur Glocke) steht dort als (b); dort (c) ist «eigene
 Kanaleinstellungen je Profil». Die Variante (c) aus Fassung 1 (Push nur an Geräte, deren letzte Anmeldung das
 Profil hatte) entfällt: Geräte kennen kein Profil, und `03` führt sie nicht.
 
-**F-4 · EPG-Adressen im Heimnetz erlauben?**
+**F-4 · EPG-Adressen im Heimnetz erlauben?** → `20` E-28-25
 - Problem: Wer Programmdaten selbst erzeugt (zum Beispiel WebGrab+Plus auf dem NAS), stellt sie oft im Heimnetz
   bereit. Der Netzwächter sperrt das heute; A-3 und `04` T-5 erlauben Heimnetz-Ziele bisher nur für
   **Senderquellen**, und zwar als Liste fester Ziele, nicht als Schalter.
@@ -1106,3 +1107,4 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Quellen der Rückmeldungen: `RU
   `03` F-3. (`07` W-2, W-3)
 - **Stufen** nach `18`: Lesart neu; 1a/1b ohne Programmfelder, 2 Programmzeitschrift, H EPG im Heimnetz,
   5 Aufnahme aus dem Programm und Anpassung (LTV-005.18, .26), 6 Folgenerkennung; ADR 0049 (O-12).
+- Restebereinigung nach Konsolidierung 1: Glocke verweist über `live_ref` wie `07` 3.11 (W-31); Fragen mit Verweis auf `20`.

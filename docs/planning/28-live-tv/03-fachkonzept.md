@@ -57,7 +57,9 @@ Apps die Seiten bekommen, ist F-6.
 **Spalte «Dok»** nennt das vertiefende Dokument: 04 Architektur, 05 Streaming und Fast Zapping, 06 Abläufe,
 07 Datenmodell, 08 API, 09 EPG, 10 Timeshift, 11 DVR, 12 Sicherheit, 13 Ressourcen und Performance,
 14 Oberfläche, 15 Administration, 16 Client-Kompatibilität, 17 Test und Abnahme; dazu 18 Umsetzungsplan,
-19 Mockups, 21 Änderungen an Dokumenten, 24 Recherche (`docs/planning/28-live-tv/<nn>-….md`).
+19 Mockups, 20 offene Entscheidungen (`20-offene-entscheidungen.md`), 21 Änderungen an Dokumenten
+(`21-aenderungen-an-dokumenten.md`), 22 Anforderungsmatrix (`22-anforderungsmatrix.md`), 23 Agent-Einsatz und
+Reviews (`23-agent-einsatz-und-reviews.md`), 24 Recherche (`docs/planning/28-live-tv/<nn>-….md`).
 
 **Spalte «Abn.»** nennt die Art der Abnahme: **T** = automatischer Test, **M** = Messung (Zielwert ist eine zu
 prüfende Grösse, keine Zusage), **S** = Sichtprüfung (am Bau, am Mockup oder im Dokument).
@@ -428,7 +430,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-008.X-04 | 669 | Nicht dabei: automatische Aufnahmen bestimmter Schauspieler oder Sportmannschaften. | – | – | S |
 | LTV-008.X-05 | 670 | Nicht dabei: automatische Übernahme von Aufnahmen in die Film- und Serienbibliotheken. | – | 11 | T |
 
-### LTV-009 Private Aufnahmen pro Profil
+### LTV-009 Aufnahmeeigentum · Private Aufnahmen pro Profil
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
@@ -451,14 +453,14 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 |---|---|---|---|---|---|
 | LTV-010.01 | 698 | Schnelles Umschalten hat bei Abwägungen in Konzept und Bau hohe Priorität. | K | 05 | S |
 | LTV-010.02 | 702 | Wird ein Sender schon empfangen, nutzt Slouchcat beim Umschalten diesen Eingangsstrom sofort. | 1a | 05 | T |
-| LTV-010.03 | 703 | Die Player starten Live-Ströme mit optimierten Einstellungen für einen schnellen Start. | 3 | 05 | M |
+| LTV-010.03 | 703 | Die Player starten Live-Ströme mit optimierten Einstellungen für einen schnellen Start. | 1a; 3 | 05 | M |
 | LTV-010.04 | 704 | Slouchcat hält je empfangenem Sender einen kleinen technischen Startpuffer. | 3 | 05 | T |
 | LTV-010.05 | 705 | Slouchcat lädt benachbarte Sender vor (wie LTV-002.07). | 3 | 05 | T |
 | LTV-010.06 | 706 | Slouchcat lädt häufig genutzte Sender vor. | 3 | 05 | T |
 | LTV-010.07 | 707 | Slouchcat berücksichtigt beim Vorladen die Senderfavoriten der aktiven Zuschauer. | 3 | 05 | T |
 | LTV-010.08 | 708 | Slouchcat gibt vorgeladene Ströme frei, wenn sie nicht mehr gebraucht werden (wie LTV-002.09). | 3 | 05 | T |
 | LTV-010.09 | 709 | Die Grösse der Startpuffer ist auf schnellen Start bei geringem Speicher abgestimmt. | 3 | 05 | M |
-| LTV-010.10 | 710 | Slouchcat bereitet die Ausgabe je Gerätetyp so vor, dass jedes Gerät ohne Umweg starten kann. | 3 | 16 | M |
+| LTV-010.10 | 710 | Slouchcat bereitet die Ausgabe je Gerätetyp so vor, dass jedes Gerät ohne Umweg starten kann. | 1a; 3 | 16 | M |
 | LTV-010.X-01 | 712 | Nicht dabei: vorsorglich gestartete individuelle Umwandlungen für Sender, die niemand schaut. | – | 05 | T |
 | LTV-010.11 | 716 | Das Konzept untersucht Keyframe-Abstände. | K | 05 | S |
 | LTV-010.12 | 717 | Das Konzept untersucht GOP-Strukturen. | K | 05 | S |
@@ -509,7 +511,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-011.09 | 776 | Slouchcat wechselt bei Störung selbst auf eine Ersatzquelle (wie LTV-003.22). | 3 | 05 | T |
 | LTV-011.10 | 777 | Slouchcat stellt einen Strom möglichst unterbrechungsarm wieder her (Zuschauer bleiben verbunden). | 3 | 05 | M |
 | LTV-011.11 | 778 | Zuschauer und Administrator bekommen verständliche Fehlermeldungen ohne Zugangsdaten. | 1a | 14 | T |
-| LTV-011.12 | 779 | Slouchcat protokolliert technische Fehler über das bestehende Logging (Regel 10). | 1a | 12 | T |
+| LTV-011.12 | 779 | Slouchcat protokolliert technische Fehler über das bestehende Logging (Regel 10). | 0; 1a | 12 | T |
 | LTV-011.13 | 780 | Slouchcat meldet dem Administrator längere Ausfälle eines Senders oder einer Quelle (Meldeschwelle 10 Minuten, `04` 14.8). | 3 | 15 | T |
 | LTV-011.14 | 782 | Die Überwachung unterscheidet Stromarten (Video mit Ton, ohne Ton, verschiedene Protokolle). | 3 | 05 | T |
 | LTV-011.15 | 784 | Ein Sender, der regulär keine Tonspur hat, gilt nicht als gestört. | 3 | 05 | T |
@@ -667,7 +669,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-015.13 | 969 | Die Behandlung der Aufnahmen von Profilen mit Altersgrenze, auch in Suche und Wiedergabe, ist geregelt: nur in «Meine Aufnahmen» des Profils und beim Hauptprofil, nie in Suche, Startseite oder Sammlungen der Bibliothek (DR-02, DR-13). | 5 | 11 | T |
 | LTV-015.14 | 971 | Nicht eindeutige Detailregeln zu Aufnahmen von Profilen mit Altersgrenze sind Marco vorgelegt (E-3, E-4; offen F-1, F-7). | K | 20 | S |
 
-### LTV-016 Klassische Wiedergabe
+### LTV-016 Multi-View und PiP · Klassische Wiedergabe
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
@@ -677,7 +679,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-016.X-03 | 981 | Nicht dabei: mehrere Sender gleichzeitig im selben Player. | – | – | S |
 | LTV-016.02 | 983 | Ein Profil kann auf verschiedenen Geräten zugleich schauen, im Rahmen der Grenze gleichzeitiger Ströme. | 1a | 13 | T |
 
-### LTV-017 Keine separate Anbieterlimitverwaltung
+### LTV-017 Anbieterverwaltung · Keine separate Anbieterlimitverwaltung
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
@@ -731,7 +733,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-019.05 | 1049 | Ein Speicherort kann eine SSD sein. | 4 | 13 | T |
 | LTV-019.06 | 1050 | Ein Speicherort kann eine NVMe sein. | 4 | 13 | T |
 | LTV-019.07 | 1051 | Ein Speicherort kann eine HDD sein. | 4 | 13 | T |
-| LTV-019.08 | 1052 | Ein Speicherort kann ein eingebundener Netzspeicher sein. | 5 | 13 | T |
+| LTV-019.08 | 1052 | Ein Speicherort kann ein eingebundener Netzspeicher sein. | 4; 5 | 13 | T |
 | LTV-019.09 | 1053 | Ein Speicherort kann jedes bestehende Linux-Dateisystem sein, das der Container sieht. | 4 | 13 | T |
 | LTV-019.10 | 1057 | Der Administrator setzt globale Speicherlimits je Speicherort. | 4 | 15 | T |
 | LTV-019.11 | 1058 | Der Administrator setzt ein Kontingent für Aufnahmen je Konto. | 5 | 15 | T |
@@ -751,7 +753,7 @@ ist eine Sammelanforderung erst, wenn alle Anforderungen des Detailentscheids er
 | LTV-019.X-03 | 1078 | Nicht dabei: automatisches Verschieben älterer Aufnahmen. | – | – | S |
 | LTV-019.X-04 | 1079 | Nicht dabei: nachträgliche Komprimierung. | – | – | S |
 
-### LTV-020 Aufnahmen in Originalqualität
+### LTV-020 Aufnahmequalität · Aufnahmen in Originalqualität
 
 | ID | Z. | Anforderung | Stufe | Dok | Abn. |
 |---|---|---|---|---|---|
@@ -833,7 +835,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 | LTV-Q-08.22 | 1169 | … die Ebene «individuelle Umwandlung». | K | 04 | S |
 | LTV-Q-08.23 | 1170 | … die Ebene «persönliches Timeshift». | K | 04 | S |
 | LTV-Q-08.24 | 1171 | … die Ebene «Aufnahme». | K | 04 | S |
-| LTV-Q-08.25 | 1173 | Der zentrale Empfang läuft unabhängig von den einzelnen Wiedergabesitzungen. | 1a | 05 | T |
+| LTV-Q-08.25 | 1173 | Der zentrale Empfang läuft unabhängig von den einzelnen Wiedergabesitzungen. | 1a; 5 | 05 | T |
 | LTV-Q-08.26 | 1175 | Eine Aufnahme hängt nie an einem umgewandelten Zuschauerstrom, sondern am Eingangsstrom. | 5 | 05 | T |
 | LTV-Q-08.27 | 1177 | Das Konzept begründet die Lage des Timeshift-Puffers in der Kette (Spulen, Umwandlung, Qualitätswechsel). | K | 10 | S |
 | LTV-Q-08.28 | 1183 | Ablaufdiagramm: Start eines noch nicht empfangenen Senders. | K | 06 | S |
@@ -984,7 +986,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 | LTV-Q-10.33 | 1361 | Prozesse werden sicher beendet. | 1a | 12 | T |
 | LTV-Q-10.34 | 1362 | Verwaiste Prozesse entstehen nicht oder werden aufgeräumt. | 1a | 12 | T |
 | LTV-Q-10.35 | 1363 | Prozesse können die Ressourcen des Servers nicht erschöpfen. | 1a | 13 | T |
-| LTV-Q-10.36 | 1365 | Adressen, die FFmpeg oder eine Medienbibliothek selbst abruft, umgehen den SSRF-Schutz nicht. | 1a | 12 | T |
+| LTV-Q-10.36 | 1365 | Adressen, die FFmpeg oder eine Medienbibliothek selbst abruft, umgehen den SSRF-Schutz nicht. | 1a; W | 12 | T |
 | LTV-Q-10.37 | 1369 | XML External Entities werden nicht aufgelöst. | 2 | 12 | T |
 | LTV-Q-10.38 | 1370 | XML-Bomben werden abgewehrt. | 2 | 12 | T |
 | LTV-Q-10.39 | 1371 | Komprimierte XMLTV-Dateien werden mit Grenzen entpackt. | 2 | 12 | T |
@@ -994,7 +996,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 | LTV-Q-10.43 | 1375 | Abgerufene Dateien haben eine Grössengrenze. | 1a | 12 | T |
 | LTV-Q-10.44 | 1376 | Parser haben Zeitgrenzen. | 1a | 12 | T |
 | LTV-Q-10.45 | 1377 | Importe können die Ressourcen des Servers nicht erschöpfen. | 1a | 13 | T |
-| LTV-Q-10.46 | 1381 | Kein Puffer ist unbegrenzt. | 1a | 12 | T |
+| LTV-Q-10.46 | 1381 | Kein Puffer ist unbegrenzt. | 1a; 4 | 12 | T |
 | LTV-Q-10.47 | 1382 | Pfade können nicht aus den Speicherorten ausbrechen (Regel 4). | 4 | 12 | T |
 | LTV-Q-10.48 | 1383 | Dateirechte der Speicherorte sind eng gesetzt. | 4 | 12 | S |
 | LTV-Q-10.49 | 1384 | Timeshift-Dateien sind nur für ihre Sitzung abrufbar. | 4 | 12 | T |
@@ -1072,7 +1074,7 @@ im genannten Dokument); die übrigen sind Anforderungen an den Bau.
 |---|---|---|---|---|---|
 | LTV-Q-12.01 | 1481 | Die Benutzerverwaltung (Konten, Einladungen) trägt die drei Schalter je Konto. | 1a | 15 | T |
 | LTV-Q-12.02 | 1482 | Die Profilverwaltung trägt die drei Schalter je Profil. | 1a | 14 | T |
-| LTV-Q-12.03 | 1483 | Profile mit Altersgrenze folgen LTV-015 und DR-01 bis DR-05. | 1a | 14 | T |
+| LTV-Q-12.03 | 1483 | Profile mit Altersgrenze folgen LTV-015 und DR-01 bis DR-05. | 1a; 5 | 14 | T |
 | LTV-Q-12.04 | 1484 | Die Verwaltung des Hauptprofils zeigt Freigaben und die Aufnahmen der Profile mit Altersgrenze (E-3). | 5 | 14 | T |
 | LTV-Q-12.05 | 1485 | Der Live-TV-Player baut auf dem bestehenden Player auf. | 1a | 14 | S |
 | LTV-Q-12.06 | 1486 | Umwandlungen laufen über die bestehende Transcoding-Kette, kein zweites System. | 1a | 04 | S |
@@ -1413,7 +1415,7 @@ Nur echte fachliche Weichen. Was Marco am 28. November 2026 beantwortet hat (E-1
 festlegen (Rechte-Modell, Zählung zu den Grenzen, kein Anbieterlimit, keine Heimnetz-Regel, kein Download), wird
 nicht erneut gefragt. Für jede Frage gilt die Empfehlung, solange Marco nichts anderes sagt.
 
-### F-1 Werkseinstellung der Live-TV-Rechte
+### F-1 Werkseinstellung der Live-TV-Rechte → `20` E-28-09
 
 Profile mit Altersgrenze haben ab Werk alles aus (DR-01). Offen ist der Rest.
 - **(a)** Konten ab Werk aus; der Administrator schaltet jedes Konto bewusst ein. Profile ohne Altersgrenze ab
@@ -1428,7 +1430,7 @@ bequemsten, belastet aber sofort Leitung und Anbieter. (c) bringt dem Hauptprofi
 Antwort (a) um; wer bei mehreren Administratoren «das Konto des Administrators» ist, fragt `07` F-2. `15` LA-22
 («für bestehende Konten alles aus») weicht ab und folgt dieser Frage.
 
-### F-2 Vorgabewert des Aufnahme-Kontingents je Konto
+### F-2 Vorgabewert des Aufnahme-Kontingents je Konto → `20` E-28-39
 
 - **(a)** 100 GB je Konto (wie das Download-Budget, Frage 8), der Administrator ändert je Konto.
 - **(b)** 0 GB, also keine Aufnahmen, bis der Administrator ein Kontingent setzt.
@@ -1439,7 +1441,7 @@ Folgen: Eine Stunde HD braucht je nach Sender rund 2 bis 4 GB (Annahme, zu messe
 macht das Recht «Aufnahmen» aber bis zur Einstellung wirkungslos. (c) lässt ein Konto den ganzen Speicherort
 füllen. **Empfehlung: (a)**, Zahl nach der ersten Messung überprüfen.
 
-### F-3 Über welche Kanäle gehen Erinnerungen und Aufnahme-Meldungen?
+### F-3 Über welche Kanäle gehen Erinnerungen und Aufnahme-Meldungen? → `20` E-28-22
 
 Heute sind Kanäle je **Konto** eingestellt, nicht je Profil (AB-15); eine Meldung für ein Profil geht an alle
 Kanäle des Kontos mit dem Profilnamen als Präfix.
@@ -1455,7 +1457,7 @@ die App nicht offen hat. (c) ändert das Benachrichtigungsmodell für alle Ereig
 hinaus. **Empfehlung: (a).** Hinweis: Push hat heute normale Dringlichkeit und kann sich auf Android verzögern;
 die Pünktlichkeit ist zu messen.
 
-### F-4 Vorrang, wenn Serverressourcen nicht reichen
+### F-4 Vorrang, wenn Serverressourcen nicht reichen → `20` E-28-40
 
 Auftrag Z. 1460–1462 verlangt Schutz laufender Wiedergaben und Aufnahmen und zuerst weniger Vorladen; offen ist,
 was geschieht, wenn auch danach etwas zurückstehen muss (DR-11 e).
@@ -1470,7 +1472,7 @@ Folgen: (a) unterbricht nie jemanden, kann aber eine geplante Aufnahme verlieren
 Kosten eines Zuschauers. (c) ist einfach, aber unberechenbar. **Empfehlung: (a)**, mit Warnung im Planer, wenn
 eine Grenze zur geplanten Zeit absehbar knapp ist.
 
-### F-5 Programmsuche auch in der allgemeinen Suche?
+### F-5 Programmsuche auch in der allgemeinen Suche? → `20` E-28-23
 
 - **(a)** nur im Live-TV-Bereich (Sender und Sendungen).
 - **(b)** zusätzlich als eigener Abschnitt «Im Fernsehen» in der allgemeinen Suche, nur bei wirksamem Recht.
@@ -1479,7 +1481,7 @@ Folgen: (a) lässt Bibliothekssuche und ihren Jugendschutz unberührt (A-2 verla
 auftaucht, wo altersgefiltert wird) und braucht keinen Umbau der Suche. (b) ist bequemer, mischt aber
 ungefilterte Sendungen in eine Liste, die für Titel altersgefiltert ist. **Empfehlung: (a).**
 
-### F-6 Welche Clients in welcher Stufe?
+### F-6 Welche Clients in welcher Stufe? → `20` E-28-01
 
 - **(a)** jede Stufe zuerst nur in der Web-App; Android TV und Handy-App folgen gesammelt in einer eigenen Stufe.
 - **(b)** jede Stufe in Web-App und Android-TV-App zugleich, die Handy-App danach.
@@ -1491,7 +1493,7 @@ ohne Live-TV. (c) verlängert jede Stufe deutlich. **Empfehlung: (b)**, ausgearb
 Abschnitt 5: Die TV-App-Ausgabe einer Stufe darf nach dem Server-Release folgen (eigener Tag, ohne neuen
 Vertrag); die Handy-App folgt gesammelt nach Stufe 5 oder 6, bis dahin Live-TV auf dem Handy über die Web-App.
 
-### F-7 Was geschieht mit Planungen und laufenden Aufnahmen, wenn das Recht «Aufnahmen» (oder «Live-TV») entzogen wird?
+### F-7 Was geschieht mit Planungen und laufenden Aufnahmen, wenn das Recht «Aufnahmen» (oder «Live-TV») entzogen wird? → `20` E-28-41
 
 - **(a)** Planungen **ruhen**: sie bleiben gespeichert, lösen nichts aus und wirken wieder, wenn das Recht
   zurückkommt (Zustand «ruht»). Eine laufende Aufnahme endet sofort und bleibt als «abgebrochen (Recht
@@ -1505,7 +1507,7 @@ Vorhandene Aufnahmen sind in allen Varianten 404 und bleiben (Abschnitt 2.4). **
 und `11` verweisen hierher. Abgrenzung: Das Deaktivieren eines **Senders** ist kein Entzug eines Rechts und
 beendet nichts Laufendes (DR-16, `04` T-29).
 
-### F-8 Serienaufnahme ohne zuverlässige Folgenkennung
+### F-8 Serienaufnahme ohne zuverlässige Folgenkennung → `20` E-28-52
 
 Liefern die Programmdaten keine Folgenkennung (DR-10), kann Slouchcat Wiederholungen nicht erkennen.
 - **(a)** Alle passenden Ausstrahlungen aufnehmen; die Planung zeigt «Folgen nicht erkennbar, Wiederholungen
@@ -1520,7 +1522,7 @@ um. `09` Abschnitt 7.2 nennt «höchstens eine je Tag» noch als Wahl; das ist V
 eigener Entscheid; `09` ist nachzuführen. Ob gleiche Aufnahmen mehrerer Profile einmal gespeichert werden, ist
 eine andere Frage (`11` F-2, LTV-009.12).
 
-### F-9 Laufende Aufnahme wächst über das Kontingent
+### F-9 Laufende Aufnahme wächst über das Kontingent → `20` E-28-46
 
 Die erwartete Grösse (DR-06) kann zu klein sein, etwa bei höherer Bitrate oder Nachlauf.
 - **(a)** Die laufende Aufnahme läuft zu Ende; das Konto liegt danach über dem Kontingent, neue Aufnahmen werden
@@ -1530,7 +1532,7 @@ Die erwartete Grösse (DR-06) kann zu klein sein, etwa bei höherer Bitrate oder
 Folgen: (a) schützt die laufende Aufnahme (LTV-019.18) und überschreitet das Kontingent um höchstens eine
 Aufnahme; (b) hält das Kontingent hart ein, schneidet aber das Ende ab. **Empfehlung: (a).**
 
-### F-10 Wirkt eine Standard-Aufbewahrungsfrist des Administrators automatisch?
+### F-10 Wirkt eine Standard-Aufbewahrungsfrist des Administrators automatisch? → `20` E-28-47
 
 Der Auftrag nennt Aufbewahrungsfristen in der Verwaltung (Z. 1293); Marco hat festgelegt, dass automatisch nur
 gelöscht wird, was das Profil selbst eingestellt hat (E-4).
@@ -1611,7 +1613,7 @@ neue Zeile in Konzept oder Bau, die eine davon berührt, ist ein roter Befund.
 | LTV-008 | 26 | 5 | LTV-019 | 22 | 4 |
 | LTV-009 | 12 | 0 | LTV-020 | 22 | 0 |
 | LTV-010 | 43 | 1 | LTV-021 | 15 | 0 |
-| LTV-011 | 21 | 1 | **Summe** | **453** | **45** |
+| LTV-011 | 21 | 1 | **Summe** | **453** | **46** |
 
 Querschnitt: LTV-Q-08 47, LTV-Q-09 83, LTV-Q-10 65, LTV-Q-11 46, LTV-Q-12 29 (+1 Ausschluss), LTV-Q-13 71,
 LTV-Q-14 47, LTV-Q-15 50, LTV-Q-17 36; zusammen 474 Anforderungen und 1 Ausschluss. Ausschlussliste
@@ -1677,4 +1679,7 @@ neu vergeben oder gestrichen.
   Quelle: `04` T-5, 10.9, 15.1.
 - **Fragen:** F-1 mit Stand `07` F-2 und `15` LA-22; F-6 mit der Ausarbeitung in `18` Abschnitt 5; F-7 mit
   Abgrenzung zu T-29; F-8 mit Stand `09` 7.2 und `11`. Keine Frage gestrichen oder neu nummeriert.
-
+- Restebereinigung nach Konsolidierung 1: Summe der Ausschlüsse im Anhang 46 statt 45; Spalte «Dok» nennt 20 bis 23
+  mit Dateinamen; Überschriften von LTV-009, LTV-016, LTV-017, LTV-020 mit dem Thema des Registers; Stufen von
+  LTV-010.03, .10, LTV-011.12, LTV-019.08, LTV-Q-08.25, LTV-Q-10.36, LTV-Q-10.46, LTV-Q-12.03 nach `18` um die Stufe
+  der Abnahme ergänzt; Fragen mit Verweis auf `20`. Quelle: `22` Abschnitt 7.

@@ -566,7 +566,7 @@ sequenceDiagram
 Umwandlungsreservierung bleiben. Beim Umschalten gibt es keine Karenz, und vor der neuen Verbindung schliesst
 die alte derselben Quelle: Der Server bleibt mit Zugängen verträglich, die nur eine Verbindung erlauben, ohne
 ein Limit zu kennen. Vorgeladenes derselben Quelle bleibt dabei stehen (es gibt es nur bei Quellen mit dem
-Schalter «weitere gleichzeitige Verbindungen erlaubt», `04` 5.3). Der Puffer von A ist gelöscht. **Belegt:** T-9, T-10, T-13, T-17, T-21; LTV-007.08,
+Schalter «Vorladen für Sender dieser Quelle: an», `04` 5.3). Der Puffer von A ist gelöscht. **Belegt:** T-9, T-10, T-13, T-17, T-21; LTV-007.08,
 LTV-002.09, LTV-004.33, LTV-017 (kein Limit verwaltet), Abnahmeprüfung `04` 8.5 (20 Sender in 10 s, höchstens
 zwei Eingangsströme danach). **Fehlerzweige:** zu schnell (Client wiederholt); B lehnt ab, während A noch
 schliesst (Limitverdacht, einmal sofort neu, keine Sperre); kein Platz für B (Ablehnung, A ist dann schon
@@ -1525,7 +1525,7 @@ verweigert (beide bekommen «ausgelastet»); Verbindung scheitert (beide Haltegr
 ### 4.2 Vorladen eines Nachbarsenders und sein Abbau
 
 **Ausgangslage.** Sitzung S schaltet in der Liste «nach Kanalnummer» von Sender 4 auf 5 und bleibt dort. Die
-Quelle hat «weitere gleichzeitige Verbindungen erlaubt», Vorladen ist eingeschaltet (Werkszustand F-9).
+Quelle hat «Vorladen für Sender dieser Quelle: an», Vorladen ist eingeschaltet (Werkszustand F-9).
 **Der Benutzer sieht:** Beim nächsten Umschalten auf 6 steht das Bild sofort (Fall 2).
 
 ```mermaid
@@ -1725,3 +1725,5 @@ Fassung 1 → 2, Grundlage `04` und `05` Fassung 3 (Abschnitt 13.4, 14, 15.1) un
 - 3.17: Lesen in Blöcken von 256 KiB, Teilung des Rückstaus (`04` 8.1).
 - 5: Nebenläufigkeit neu gefasst (N-1 bis N-29).
 - 6: Liste «offen in 04» ersetzt durch die Weichen, die `04`, `05` und `03` selbst offen führen.
+- Restebereinigung nach Konsolidierung 1: Schalter je Quelle heisst «Vorladen für Sender dieser Quelle: an/aus»
+  (Ablauf 3 und Ablauf zum Vorladen; Koordinator zu RM-01).

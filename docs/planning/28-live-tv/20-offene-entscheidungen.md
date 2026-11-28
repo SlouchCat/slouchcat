@@ -1011,30 +1011,36 @@ Zusammengeführt aus `04` 12.1, `12` 13.1, `13`, `17` 10.1 und `18` 8.1.
 Stand nach Konsolidierung 1, am 28. November 2026 in den Dateien geprüft. Massgeblich für alle Stufenangaben ist
 `18` (dort so festgelegt).
 
-| Nr. | Stelle A | Stelle B | Massgeblich |
-|---|---|---|---|
-| U-1 | `04` T-3: «UDP, RTP, Multicast (Stufe 3)» | `18` D-11, `07` 11.2, `08` 2.8, `12` SM-41: Stufe H | `18`: Stufe H |
-| U-2 | `04` 10.6 und Tabelle 10.8: Compose-Härtung «1, vorbehaltlich F-12» | `18` D-9, Schritt 0.6; `17` `AK-L-281`: Stufe 0 | `18`: Stufe 0 |
-| U-3 | `04` T-11: M-2, M-3 **und M-4** ohne Bedingung vor Stufe 1 | `05` M-4, `17` 8.2, `18` D-7: M-4 vor der Stufe, in der die Apps Live-TV bekommen | `05`/`18` (bei E-28-01 (b) fällt es auf 1a) |
-| U-4 | `04` 10.8 und `18` RP-4: Anzeige «FFmpeg läuft ohne Sandbox» | `12` F-1 und R-1: «Eindämmung nicht verfügbar» | `12` (ein Text in der Verwaltung) |
-| U-5 | `04` 15.1: W-11 «belegt (RFC 8216 gelesen)» | `12` R-10, O-6; `05` O-16; Nachprüfung Abschnitt 5: DRM-Grenze nicht nachgelesen | belegt ist nur die Startregel; die DRM-Grenze bleibt Annahme (OT-28-17) |
-| U-6 | `04` 10.9 schweigt zu laufenden Verbindungen, wenn ein festes Ziel entzogen wird | `12` SM-47: sie werden geschlossen | `12` |
-| U-7 | `04` (Antwort auf `12` Zeile 430): Filter für Systemaufrufe nur für ältere Kerne | `12`: Seccomp immer, zusätzlich zu Landlock | `12` (strenger), bis M-25 anderes zeigt |
-| U-8 | `18` Schritt 0.4: Schwärzung für «Ersatznamen» | `05` 2.6 Fassung 3: Weg W nutzt Ersatzpfade | `05`: Ersatzpfade |
-| U-9 | `04` F-10 fragt nur «Grenze nachträglich gesetzt» | `07` F-3, `review-2` RD-18: auch «Grenze entfernt» | zusammengeführt in E-28-07 |
-| U-10 | `04` T-18, 5.3; `15` LA-03 Schritt 5, LA-09, V-7: Schalter «weitere gleichzeitige Verbindungen erlaubt»; `15` 3.9 (LA-09) hängt ihn an `04` F-3; Mockup: «vorsorglich zusätzliche Verbindungen öffnen» | Festlegung des Koordinators zu RM-01: «Vorladen für Sender dieser Quelle: an/aus», Einstellung des Vorladens, keine Verbindungsrechnung, hängt nur an `04` F-9 | Koordinator; Frage E-28-29 |
-| U-11 | `09` 10.3: neue Spalte `live_reminder_id` in `notifications` | `07` 3.11 und W-31: `live_ref` ohne Fremdschlüssel | `07` |
-| U-12 | `13` 10.2 M-20: Stichprobe «während des Baus Stufe 3 (letzter Schritt), sonst Stufe E» | `04` F-14 (a), `18` 4.12 und D-5, `17` H-14: Stufe E | `18`: Stufe E (bei E-28-31 (b) Stufe 3) |
-| U-13 | `05` O-28 und `16` 3.2: sechs Segmente «berühren LTV-005» | gemeint ist das Rückspulen nach LTV-007 | LTV-007 |
-| U-14 | `14` LD-05 im Mockup: Vorlauf der Erinnerung 2 und 10 Minuten | `03` DR-08: 0, 5, 15, 30 Minuten (`07` W-2) | `03`; Mockup angleichen |
-| U-15 | `04` 10.5 und `07` 6.3 beschreiben «Chiffrat bleibt in der Sicherung» als Folge | `12` F-4 Vorgabe: leeren | `12`; nach E-28-11 angleichen |
-| U-16 | `16` 10 Nr. 16 und `18` 4.12: Stufe E «WebVTT im Browser» | `04` 7.4, `05` 4.3: kein voller Bau von hls.js | offen, Frage E-28-56 |
-
+| Nr. | Stelle A | Stelle B | Massgeblich | Stand nach der Restebereinigung |
+|---|---|---|---|---|
+| U-1 | `04` T-3: «UDP, RTP, Multicast (Stufe 3)» | `18` D-11, `07` 11.2, `08` 2.8, `12` SM-41: Stufe H | `18`: Stufe H | erledigt in `04` (T-3: Stufe H; 10.9 Stufe H; 10.6 Zusatzdateien Stufe H) und `05` (2.1, 2.2, O-15) |
+| U-2 | `04` 10.6 und Tabelle 10.8: Compose-Härtung «1, vorbehaltlich F-12» | `18` D-9, Schritt 0.6; `17` `AK-L-281`: Stufe 0 | `18`: Stufe 0 | erledigt in `04` (10.6 und Tabelle 10.8: Stufe 0, `18` Schritt 0.6) |
+| U-3 | `04` T-11: M-2, M-3 **und M-4** ohne Bedingung vor Stufe 1 | `05` M-4, `17` 8.2, `18` D-7: M-4 vor der Stufe, in der die Apps Live-TV bekommen | `05`/`18` (bei E-28-01 (b) fällt es auf 1a) | erledigt in `04` (T-11: M-4 an die Stufe der Apps, M-5 bedingt, kein Apple-Gerät) |
+| U-4 | `04` 10.8 und `18` RP-4: Anzeige «FFmpeg läuft ohne Sandbox» | `12` F-1 und R-1: «Eindämmung nicht verfügbar» | `12` (ein Text in der Verwaltung) | erledigt in `04` (10.8) und `18` (RP-4); Hinweis in `12` 4.8 gestrichen |
+| U-5 | `04` 15.1: W-11 «belegt (RFC 8216 gelesen)» | `12` R-10, O-6; `05` O-16; Nachprüfung Abschnitt 5: DRM-Grenze nicht nachgelesen | belegt ist nur die Startregel; die DRM-Grenze bleibt Annahme (OT-28-17) | erledigt in `04` (15.1, Zeile `24` W-11: nur die Startregel belegt) |
+| U-6 | `04` 10.9 schweigt zu laufenden Verbindungen, wenn ein festes Ziel entzogen wird | `12` SM-47: sie werden geschlossen | `12` | erledigt in `04` (10.9, neue Zeile «Entzug eines festen Ziels») |
+| U-7 | `04` (Antwort auf `12` Zeile 430): Filter für Systemaufrufe nur für ältere Kerne | `12`: Seccomp immer, zusätzlich zu Landlock | `12` (strenger), bis M-25 anderes zeigt | erledigt in `04` (T-4, 10.8, 15.1: Seccomp immer) |
+| U-8 | `18` Schritt 0.4: Schwärzung für «Ersatznamen» | `05` 2.6 Fassung 3: Weg W nutzt Ersatzpfade | `05`: Ersatzpfade | erledigt in `18` (Schritt 0.4: Ersatzpfad, kein Schwärzungsmuster) |
+| U-9 | `04` F-10 fragt nur «Grenze nachträglich gesetzt» | `07` F-3, `review-2` RD-18: auch «Grenze entfernt» | zusammengeführt in E-28-07 | erledigt in `04` (F-10, Absatz «Gegenrichtung» mit Verweis auf E-28-07) |
+| U-10 | `04` T-18, 5.3; `15` LA-03 Schritt 5, LA-09, V-7: Schalter «weitere gleichzeitige Verbindungen erlaubt»; `15` 3.9 (LA-09) hängt ihn an `04` F-3; Mockup: «vorsorglich zusätzliche Verbindungen öffnen» | Festlegung des Koordinators zu RM-01: «Vorladen für Sender dieser Quelle: an/aus», Einstellung des Vorladens, keine Verbindungsrechnung, hängt nur an `04` F-9 | Koordinator; Frage E-28-29 | erledigt in `04` (T-17, T-18, 5.3, 6.1, F-9, 15.1), `05` (6, 9), `06`, `15` (Grundsatz 3, LA-03 Schritt 5, LA-09, V-7, Abschnitt 8) und `17` (`AK-L-101`, `-316`); Frage bleibt E-28-29 |
+| U-11 | `09` 10.3: neue Spalte `live_reminder_id` in `notifications` | `07` 3.11 und W-31: `live_ref` ohne Fremdschlüssel | `07` | erledigt in `09` (10.3: `live_ref`) |
+| U-12 | `13` 10.2 M-20: Stichprobe «während des Baus Stufe 3 (letzter Schritt), sonst Stufe E» | `04` F-14 (a), `18` 4.12 und D-5, `17` H-14: Stufe E | `18`: Stufe E (bei E-28-31 (b) Stufe 3) | erledigt in `13` (10.2 M-20: Stufe E, bei E-28-31 (b) Stufe 3) |
+| U-13 | `05` O-28 und `16` 3.2: sechs Segmente «berühren LTV-005» | gemeint ist das Rückspulen nach LTV-007 | LTV-007 | erledigt in `05` (O-28) und `16` (3.2, Abschnitt 9 Nr. 6) |
+| U-14 | `14` LD-05 im Mockup: Vorlauf der Erinnerung 2 und 10 Minuten | `03` DR-08: 0, 5, 15, 30 Minuten (`07` W-2) | `03`; Mockup angleichen | bleibt offen, weil nur das Mockup abweicht (`14` 11 nennt es); Mockups gehören nicht zu dieser Bereinigung |
+| U-15 | `04` 10.5 und `07` 6.3 beschreiben «Chiffrat bleibt in der Sicherung» als Folge | `12` F-4 Vorgabe: leeren | `12`; nach E-28-11 angleichen | erledigt: `04` 10.5 und `07` 6.3 setzen die Vorgabe «leeren» schon um (Platzhalter `v0:`); die Alternative hängt an E-28-11 |
+| U-16 | `16` 10 Nr. 16 und `18` 4.12: Stufe E «WebVTT im Browser» | `04` 7.4, `05` 4.3: kein voller Bau von hls.js | offen, Frage E-28-56 | bleibt offen, weil es eine Frage an dich ist (E-28-56) |
+| U-17 (neu) | `07` 3.2 (live_sources) und 11.2: Spalte `live_sources.allow_more_conns`; `08` 3.7: Feld `allowMoreConnections` («mehr Verbindungen erlauben») | Festlegung des Koordinators zu RM-01 (`04` T-18, `15`): «Vorladen für Sender dieser Quelle: an/aus», keine Verbindungsverwaltung | offen: `07`/`08` sind für Schema und Schnittstellen massgeblich, der Koordinator für den Namen | bleibt offen, weil sich zwei massgebliche Stellen widersprechen; Vorschlag: Spalte und Feld umbenennen (etwa `preload_enabled`, `preloadEnabled`) |
+| U-18 (neu) | `04` T-17 und 5.3 (massgeblich): Deutung «vermutlich Verbindungslimit (des Anbieters)»; ebenso `06` (Tabelle der Ablehnungen), `15` LA-13 (Protokolltext), `17` 5.13 (LA-13) | Festlegung des Koordinators: das Wort «Verbindungslimit» nur im Verweis auf LTV-017 und die offene Frage | offen | bleibt offen, weil der Text der Deutung in `04` steht und die Regel aus T-17 inhaltlich bleiben soll; Vorschlag: Hinweis «Quelle lehnt weitere Verbindung ab» |
 Erledigt und in den Dateien nachgezogen (nicht mehr offen): Timeshift-Höchstdauer 60 Minuten und Deckel aus 20 %
 und 50 GB (`15` zeigt 2 Stunden nur als Wert der Beispielinstanz), Update-Warnfenster 15 Minuten, Upload-Grösse
 200 MiB, Reserve «Aufnahmen», 72 h gegen 7 Tage, Stufen für RTSP, RTMP und DASH (D-1, D-2), LTV-018 zwischen 1a
-und 1b (D-12), «höchstens eine je Tag» in `09` 7.2, Zählungen in `18` 4.3 (157 `AK-L` in 1a), Weg W im
-Live-Anteil (`13` H-5), Ring- und Rückstau-Reservierung in `04` 8.3 (`13` H-9).
+und 1b (D-12), «höchstens eine je Tag» in `09` 7.2, Zählungen in `18` 4.3 (158 `AK-L` in 1a, mit `AK-L-333`), Weg W im
+Live-Anteil (`13` H-5), Ring- und Rückstau-Reservierung in `04` 8.3 (`13` H-9). Aus `22` Abschnitt 7 nach der Restebereinigung: Summe der Ausschlüsse in `03` (46),
+Überschriften von LTV-009, -016, -017, -020, Negativtest für LTV-X-29 (`AK-L-333`), 17 der 27 Stufenabweichungen
+zwischen `03` und `17` (nach `18` in `03` oder `17` ergänzt). Ohne Änderung: die 10 Abweichungen mit Stufe K
+(`AK-L-310`, `-312` prüfen in der Konzeptphase die Dokumente; die Anforderung wird in der Stufe aus `03` gebaut) und
+die Teilstufen gemischter `AK-L` bei LTV-004 (4, 6), LTV-008 (1), LTV-009 (1), die `18` 10.1 nicht als eigene
+Stufe des Entscheids führt. `23-agent-einsatz-und-reviews.md` ist geplant, aber noch nicht angelegt.
 
 ---
 

@@ -955,7 +955,7 @@ Schon gefragt und hier nur angewandt: `03` F-2 (Kontingent), F-3 (Kanäle), F-4 
 `04` F-3 (Anbieterlimit), F-6 (Update), F-10 (Altersgrenze nachträglich), `10` F-1 (Sofortaufnahme bei
 Zeitversatz), `15` F-17 (Wechsel des Speicherorts), F-21 (gleichzeitige Aufnahmen).
 
-**F-1 · Spuren, die eine Quelle ausserhalb des TS liefert (LTV-020.21).**
+**F-1 · Spuren, die eine Quelle ausserhalb des TS liefert (LTV-020.21).** → `20` E-28-44
 Manche HLS-Quellen liefern Untertitel als eigene WebVTT-Liste oder eine Tonspur als eigene Liste; DASH liefert
 Untertitel oft als TTML. Der Empfänger von Weg G liest nur den TS-Strom, und WebVTT oder TTML passen nicht
 unverändert in TS. Diese Spuren fehlen dann in der Aufnahme (und auch in der Live-Wiedergabe).
@@ -970,7 +970,7 @@ unverändert in TS. Diese Spuren fehlen dann in der Aufnahme (und auch in der Li
 
 Empfehlung: **(a)** für Stufe 5, und (b) erst, wenn `05` M-2 zeigt, dass deine Quellen solche Spuren haben.
 
-**F-2 · Gleiche Sendung, zwei Profile: getrennte Dateien?**
+**F-2 · Gleiche Sendung, zwei Profile: getrennte Dateien?** → `20` E-28-50
 Abschnitt 9. Varianten D0 (getrennt), D1 (Hardlinks), D2 (Zählung in der Datenbank), D3 (Reflink, nur auf
 manchen Dateisystemen).
 
@@ -1103,3 +1103,4 @@ Fassung 1 → 2 (Konsolidierung 1; Grundlage `04` Fassung 3 Abschnitte 13.4, 14,
   `05` M-12 mit 72 Stunden und 7 Tagen.
 - Fragen F-1 und F-2 unverändert (beide «vor Stufe 5» in `18`).
 - Zahlenformat auf de-CH umgestellt (Dezimalpunkt).
+- Restebereinigung nach Konsolidierung 1: Fragen F-1 und F-2 mit Verweis auf `20` (E-28-44, E-28-50).

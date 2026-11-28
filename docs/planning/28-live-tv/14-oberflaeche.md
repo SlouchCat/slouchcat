@@ -1516,63 +1516,63 @@ Xtream-Bibliotheken.
 
 Erledigte oder in ein anderes Dokument gewanderte Fragen bleiben mit ihrer Nummer stehen.
 
-**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.** Teilweise erledigt
+**F-1 Vorgabe der Schalter beim Anlegen eines Profils und beim Start von Live-TV.** → `20` E-28-09 Teilweise erledigt
 durch `03` DR-01 (Profile mit Altersgrenze ab Werk aus); der Rest ist **siehe `03` F-1** (Empfehlung dort (a),
 deckt sich mit der früheren Empfehlung hier).
 
-**F-2 Live-TV auf der Startseite der App.** **Erledigt durch `03` DR-23:** keine Live-TV-Reihe auf der
+**F-2 Live-TV auf der Startseite der App.** → `20` erledigt (Anhang A) **Erledigt durch `03` DR-23:** keine Live-TV-Reihe auf der
 Startseite (LS-26).
 
-**F-3 Live-TV in der allgemeinen Suche.** **Siehe `03` F-5** (Empfehlung dort (a): nur im Live-TV-Bereich,
+**F-3 Live-TV in der allgemeinen Suche.** → `20` E-28-23 **Siehe `03` F-5** (Empfehlung dort (a): nur im Live-TV-Bereich,
 weil die allgemeine Suche altersgefiltert ist, `02` A-2). Die frühere Empfehlung «nur ein Verweis» ist
 zurückgezogen; wählt Marco `03` F-5 (b), wird LS-24 entsprechend gebaut.
 
-**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** Festgelegt ist
+**F-4 Was das Hauptprofil bei Profilen mit Altersgrenze ausser den Aufnahmen sieht.** → `20` E-28-43 Festgelegt ist
 «sehen, löschen, abspielen» der Aufnahmen (E-3, `03` DR-02). Offen: (A) nur Aufnahmen; (B) dazu die
 geplanten Termine und Regeln nur lesend; (C) geplante auch abbrechen und ändern. Dazu: Bekommt das Profil
 eine Meldung, wenn das Hauptprofil eine seiner Aufnahmen löscht? **Empfehlung B** mit Meldung an das Profil.
 Bis zur Antwort zeigt LS-14 die geplanten Termine nur als Zahl (wie `08` und das Mockup).
 
-**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** **Erledigt durch
+**F-5 Wiedergabefortschritt, wenn das Hauptprofil eine Aufnahme eines Profils abspielt.** → `20` erledigt (Anhang A) **Erledigt durch
 `03` DR-21 und `11` 6.3:** kein Fortschritt, weder beim Profil noch beim Hauptprofil (LS-10).
 
-**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** **Siehe `03` F-3** (Empfehlung dort (a):
+**F-6 Wohin Erinnerungen und Aufnahme-Meldungen gehen.** → `20` E-28-22 **Siehe `03` F-3** (Empfehlung dort (a):
 Posteingang des Profils und Kanäle des Kontos mit Profilpräfix, PIN-Profile ohne Titel nach DR-05). Die
 frühere Empfehlung hier (Erinnerungen nur im Posteingang und auf Geräten des Profils) bleibt als Hinweis
 für Marco: Bei gemeinsamer E-Mail sehen andere Profile, dass eine Erinnerung kam.
 
-**F-7 Bedienung des TV-Players mit Steuerkreuz.** (A) OK = Bedienleiste, ← = Senderliste links, → =
+**F-7 Bedienung des TV-Players mit Steuerkreuz.** → `20` E-28-57 (A) OK = Bedienleiste, ← = Senderliste links, → =
 Info, ↑/↓ ohne sichtbare Bedienung = Sender ±, Pause über die Pausetaste (wie verbreitete Live-TV-Apps;
 **so ist das TV-Mockup gebaut**); (B) wie der Videoplayer: OK = Pause, ←/→ spulen, ↑ = Bedienung, ↓ =
 Senderliste, Senderwechsel nur über Liste, Kanaltasten und Ziffern. **Empfehlung A:** Schnelles Zappen ist
 Priorität (LTV-010), und viele Fernbedienungen haben keine Kanaltasten. Spulen bleibt in der Bedienleiste
 mit ←/→. Hängt mit `03` F-6 zusammen (wann die TV-App Live-TV bekommt, `18` 5).
 
-**F-8 Altersangaben der Programmdaten anzeigen?** (A) nie anzeigen, weil Slouchcat sie nicht prüft und die
+**F-8 Altersangaben der Programmdaten anzeigen?** → `20` E-28-28 (A) nie anzeigen, weil Slouchcat sie nicht prüft und die
 Anzeige Schutz vortäuschen könnte; (B) als reine Information auf der Detailseite mit dem Satz «Angabe des
 Senders, Slouchcat prüft sie nicht». **Empfehlung A.** Gefiltert wird in keiner Variante (LTV-015).
 
-**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** (A) immer fragen; (B) erst ab 60 s Abstand zu
+**F-9 Rückfrage beim Senderwechsel aus dem Zeitversatz.** → `20` E-28-38 (A) immer fragen; (B) erst ab 60 s Abstand zu
 Live oder bei Pause, mit «Nicht mehr fragen»; (C) nie fragen, nur danach `toast` «Zeitversatz verworfen».
 **Empfehlung B.** Stufe 4 (`18` 4.7).
 
-**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** **Siehe `03` F-7.**
+**F-10 Was mit bestehenden Aufnahmen geschieht, wenn das Recht «Aufnahmen» wegfällt.** → `20` E-28-41 **Siehe `03` F-7.**
 Dort gilt in allen Varianten: vorhandene Aufnahmen sind für das Profil 404 und bleiben gespeichert;
 Planungen ruhen nach (a). Die frühere Empfehlung hier (Aufnahmen bleiben sichtbar und löschbar) ist
 zurückgezogen, weil sie «ohne Recht unsichtbar» widerspricht. Freigeben von Speicher geht über das
 Hauptprofil (`03` DR-03) oder nach Rückgabe des Rechts. Ob das Hauptprofil auch löschen darf, wenn das Konto
 gar kein Live-TV mehr hat: `08` F-1.
 
-**F-11 Sendungsbilder im Raster.** (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine Bilder
+**F-11 Sendungsbilder im Raster.** → `20` E-28-27 (A) im Raster nie Bilder, nur Text (ruhig, schnell); (B) kleine Bilder
 in breiten Zellen. **Empfehlung A**; Bilder in Fokus-Vorschau, Karten und Detailseite.
 
-**F-12 Live-TV-Eintrag in der Web-Navigation.** Grundsatz durch `03` DR-23 (Annahme) festgelegt: Eintrag in
+**F-12 Live-TV-Eintrag in der Web-Navigation.** → `20` E-28-16 Grundsatz durch `03` DR-23 (Annahme) festgelegt: Eintrag in
 der Hauptnavigation und in «Meine Medien». Offen bleibt nur die Auslegung: (A) ein Eintrag im Band «Meine
 Medien» der Seitenleiste wie Webradio (so das Mockup); (B) zusätzlich ein Eintrag in der oberen Gruppe
 neben Start und Suche. **Empfehlung A** (Medienauswahl links, eine Stelle, ordnet und versteckt der
 Administrator).
 
-**F-23 Zusätzliche Felder für Serien- und wiederkehrende Aufnahmen.** Der Auftrag verlangt (LTV-008)
+**F-23 Zusätzliche Felder für Serien- und wiederkehrende Aufnahmen.** → `20` E-28-53 Der Auftrag verlangt (LTV-008)
 Serienaufnahmen, wiederkehrende Aufnahmen, Vor- und Nachlauf, Aufbewahrung und das Erkennen schon
 aufgenommener Folgen «sofern zuverlässig identifizierbar». Das deckt `11` ab. Die Mockups und Fassung 1
 dieses Dokuments zeigen darüber hinaus: Zeitfenster und Wochentage als Filter einer **Serienregel**, «nur
@@ -1706,3 +1706,4 @@ Fassung 1 → 2 (Konsolidierung 1, 28. November 2026):
   DR-23 eingeengt; F-7 nennt das Mockup als Variante A; neu F-23.
 - **Mockups:** Abschnitt 11 mit einem Entscheid je Abweichung (`19` 6).
 - **Beispieldaten** an das Mockup angeglichen (Belegung 82 / 56,7 / 3,3 GB in 31 Aufnahmen).
+- Restebereinigung nach Konsolidierung 1: Fragen mit Verweis auf `20` (Zuordnung im Anhang von `20`).

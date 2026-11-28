@@ -60,14 +60,14 @@ Aufnahmen hängen am selben Empfang und wissen nichts von Zuschauern.
 | Weg | Wer liest das Netz | FFmpeg beteiligt | Für | Stufe |
 |---|---|---|---|---|
 | **G** | Go, über den geschützten Dialer | nein | HTTP-TS, HLS mit TS-Segmenten, Xtream-Live | 1 |
-| **G** | Go, lauschender Socket | nein | UDP, RTP, Multicast | 3 |
-| **L** | Go mit einer Protokoll-Bibliothek, über den geschützten Dialer | nein | RTSP, RTMP (vorbehaltlich F-1) | spät |
-| **W** | FFmpeg, aber nur unverschlüsseltes HTTP zum Go-Weiterleiter auf `127.0.0.1` | ja, als Empfänger; Ausgabe TS auf `pipe:1` | DASH; HLS mit fMP4-Segmenten oder getrennter Tonspur | **eigene späte Stufe, nur nach M-10** |
+| **G** | Go, lauschender Socket | nein | UDP, RTP, Multicast | H |
+| **L** | Go mit einer Protokoll-Bibliothek, über den geschützten Dialer | nein | RTSP, RTMP (vorbehaltlich F-1) | L |
+| **W** | FFmpeg, aber nur unverschlüsseltes HTTP zum Go-Weiterleiter auf `127.0.0.1` | ja, als Empfänger; Ausgabe TS auf `pipe:1` | DASH; HLS mit fMP4-Segmenten oder getrennter Tonspur | **Stufe W (zuletzt), nur nach M-10** |
 
 Alle Wege liefern denselben Rohstoff an den Verteiler: einen TS-Bytestrom mit genau einem Programm.
 
 **Klar gesagt:** DASH und HLS mit fMP4 sind in den Stufen 1 bis 3 **nicht** enthalten. `03-fachkonzept.md`
-führt DASH in Stufe 3; diese Zuordnung ist zu ändern (`04`, O-24). Sie kommen erst, wenn Weg W belegbar dicht
+führt DASH in Stufe W (`18` D-2). Sie kommen erst, wenn Weg W belegbar dicht
 ist (2.6), sonst gilt F-13.
 
 ### 2.2 Übersicht je Protokoll
@@ -88,7 +88,7 @@ ist (2.6), sonst gilt F-13.
 Was nicht in der Tabelle steht, wird nicht empfangen: SRT (im Image nicht vorhanden, M1), `rtmpe`, `file`,
 `ftp`, `gopher`, `mms`, Plattform-Streams (YouTube, Twitch), alles mit DRM. Für RTP mit eigener
 Sitzungsbeschreibung, Fehlerkorrektur nach SMPTE 2022 und TS-Pakete mit 204 Byte gilt: nicht unterstützt in
-der ersten Stufe mit UDP (O-15).
+Stufe H (O-15).
 
 ### 2.3 Netzschutz im Einzelnen
 
@@ -273,7 +273,8 @@ Empfänger schreibt dann über einen kleinen Zwischenspeicher und lässt den Rin
 Zwischenspeicher weiter).
 
 Der Ring gibt es ab Stufe 1, weil ohne ihn nichts zu verteilen ist. Seine Rolle als **Startpuffer für
-vorgehaltene Sender** (dauerhaft, automatisch, vorgeladen) und der wählbare Speicherort kommen mit Stufe 3.
+vorgehaltene Sender** (dauerhaft, automatisch, vorgeladen) kommt mit Stufe 3, der wählbare Speicherort (nur bei
+`04` F-2 (a)) mit Stufe 4 (`18` D-3).
 
 ### 3.2 Keyframes erkennen
 
@@ -646,14 +647,14 @@ Herzschlag weiterläuft (`04`, Abschnitt 10.3, O-25).
 
 Vorladen ist verbindlicher Umfang (LTV-002.07, LTV-010.05, .08) und gehört zu Stufe 3. Es heisst: Der
 Eingangsstrom eines Senders läuft in seinen Ring, ohne Sitzungspuffer und ohne Umwandlung (LTV-010.X-01).
-Es wirkt nur für Quellen, bei denen der Administrator «weitere gleichzeitige Verbindungen erlaubt» gesetzt
+Es wirkt nur für Quellen, bei denen der Administrator «Vorladen für Sender dieser Quelle» angeschaltet
 hat (`04`, Abschnitt 6.1). Ob Vorladen ab Werk an ist, ist F-9.
 
 | Frage | Regel (spezifiziert; Zahlen sind Annahmen) |
 |---|---|
 | **Welche Sender** | 1. Die Nachbarn in der Liste, in der der Zuschauer gerade umschaltet (alle Sender nach Kanalnummer, eine Gruppe oder seine Favoriten, in deren Reihenfolge); der Client nennt beim Einstellen die Liste, ohne Angabe gilt die Kanalnummer. 2. Richtung zählt: Nach «weiter» zuerst der nächste in dieser Richtung. 3. Der zuvor gesehene Sender («zurück»-Taste). Häufig genutzte Sender und Favoriten der aktiven Zuschauer (LTV-010.06, .07) deckt die Art «automatisch» ab (`04`, Abschnitt 6.2). |
 | **Wie viele** | je Sitzung 0, 1 oder 2 je Richtung; insgesamt höchstens 4 (einstellbar 0 bis 16); immer innerhalb der Obergrenze aller Eingangsströme. |
-| **Mehrere derselben Quelle** | erlaubt und der Normalfall: Zwei Nachbarn einer Liste kommen meist aus derselben Quelle. Vorgeladene Sender derselben Quelle laufen **nebeneinander**; ein neuer Verbindungsaufbau beendet vorher nur Ströme ohne Haltegrund, nie Vorgeladenes (`04`, Abschnitt 5.3). Das gilt nur bei Quellen mit dem Schalter «weitere gleichzeitige Verbindungen erlaubt»; ohne ihn gibt es dort kein Vorladen. |
+| **Mehrere derselben Quelle** | erlaubt und der Normalfall: Zwei Nachbarn einer Liste kommen meist aus derselben Quelle. Vorgeladene Sender derselben Quelle laufen **nebeneinander**; ein neuer Verbindungsaufbau beendet vorher nur Ströme ohne Haltegrund, nie Vorgeladenes (`04`, Abschnitt 5.3). Das gilt nur bei Quellen mit dem Schalter «Vorladen für Sender dieser Quelle: an»; ohne ihn gibt es dort kein Vorladen. |
 | **Ab wann** | erst wenn der Zuschauer 2 Sekunden auf einem Sender geblieben ist. Wer schnell durchschaltet, löst kein Vorladen für jeden gestreiften Sender aus. |
 | **Wie lange** | Der Haltegrund «Vorladen» endet 3 Minuten nach dem letzten Umschalten dieser Sitzung. Öffnet der Zuschauer die Senderliste oder die Einblendung zum Umschalten, meldet der Client das, und das Vorladen beginnt wieder. |
 | **Wann abgebaut** | wenn der Sender kein Nachbar mehr ist (sofort, ohne Karenz), wenn die 3 Minuten um sind, wenn die Sitzung endet, bei Mangel, und **sobald die Quelle eine Verbindung ablehnt**, die ein Zuschauer oder eine Aufnahme braucht (`04`, Abschnitt 5.3). Nicht vorsorglich vor jedem Aufbau: Das stand in Fassung 2 und hätte zwei vorgeladene Nachbarn derselben Quelle unmöglich gemacht. |
@@ -672,7 +673,7 @@ Verbindungen und Bandbreite.
 | **Umschaltzeit gegen Vorrat im Player** | Ein Anlauf aus nur einer vollständigen Bildgruppe lässt dem Player wenig Vorrat; ein längerer Anlauf zeigt ein älteres erstes Bild. Apples Vorgaben verlangen sechs Segmente je Live-Liste (4.3). | Vorgabe eine vollständige Bildgruppe; die Länge des Anlaufs ist je Client einstellbar und wird nach M-1 und M-5 festgelegt (Fehlerquote und Stockungen mitmessen). |
 | **Umschaltzeit gegen Bildqualität** | Eine neue Umwandlung startet schneller mit kurzem erstem Segment und kurzen Bildgruppen; beides kostet Qualität je Bitrate. | Raster 2 Sekunden als Mittelweg. Im Direktweg kein Konflikt. |
 | **Umschaltzeit gegen Ressourcen** | Schnell ist nur, was schon empfangen wird. Dauerhaft, automatisch und Vorladen kosten Verbindungen, Bandbreite und Arbeitsspeicher. | Der Administrator kauft Geschwindigkeit bewusst ein (F-9). Die Verwaltung zeigt, was es kostet. |
-| **Schnelles Umschalten gegen den Zugang beim Anbieter** | Jede Verbindung, die über das Nötige hinaus offen bleibt, kann bei knappen Zugängen eine andere verdrängen. | Keine Karenz beim Umschalten; vor jedem Verbindungsaufbau enden zuerst die Ströme derselben Quelle, die keinen Haltegrund mehr haben (`04`, Abschnitt 5.3). Kostet beim Zurückschalten einen neuen Verbindungsaufbau. |
+| **Schnelles Umschalten gegen den Zugang beim Anbieter** | Jede vorsorglich geöffnete Verbindung (Vorladen, «automatisch», Prüfung) kann bei knappen Zugängen eine andere verdrängen. | Keine Karenz beim Umschalten; vor jedem Verbindungsaufbau enden zuerst die Ströme derselben Quelle, die keinen Haltegrund mehr haben (`04`, Abschnitt 5.3). Kostet beim Zurückschalten einen neuen Verbindungsaufbau. |
 | **Kopieren gegen Startpunkt** | Ohne Neukodierung bestimmt die Quelle, wo ein Segment beginnen kann. | hingenommen; Sender mit langen Bildgruppen sind Kandidaten für «dauerhaft» oder «automatisch». |
 | **Persönlicher Zeitversatz gegen Datenträger** | Jeder Zuschauer mit Recht schreibt seinen eigenen Puffer (LTV-007). | Preis der Vorgabe; Rechnung und Varianten in F-8. |
 | **Netzschutz gegen Protokollbreite** | Volle Kontrolle hat nur Go; FFmpeg kann mehr Protokolle. | Go für das Übliche; FFmpeg nur hinter dem Weiterleiter und nur mit Sperre (2.6); RTSP und RTMP nach F-1. |
@@ -855,7 +856,7 @@ verschwindet später eine Tonspur aus der PMT, ist das eine Warnung «Sender hat
 Ausfall. Der Administrator kann je Sender «hat keinen Ton» fest eintragen, wenn eine Quelle Ton ankündigt,
 aber nie liefert.
 
-### 9.4 Stichprobe mit Dekodieren: eine spätere Stufe
+### 9.4 Stichprobe mit Dekodieren: Stufe E
 
 LTV-011 verlangt die «Erkennung eingefrorener Streams». Ein Strom kann auf zwei Arten einfrieren, und nur eine
 davon ist am Strom selbst erkennbar. Dieses Konzept teilt die Anforderung deshalb in zwei Schritte; **ob das
@@ -864,7 +865,7 @@ genügt, ist die Frage F-14 in `04`, Abschnitt 12.3.** Bis zu deiner Antwort gil
 - **Stillstand der Zeit** (keine Daten, Uhr steht, Liste rückt nicht vor): erkannt am Strom, ab der Stufe mit
   der erweiterten Überwachung (Stufe 3).
 - **Stehendes Bild, Schwarzbild oder Stille in einem sonst gültigen Strom:** nur durch Dekodieren sicher
-  erkennbar. Das kommt als **eigener, späterer Schritt** nach Stufe 3 und nur, wenn M-20 zeigt, dass die
+  erkennbar. Das kommt als **eigener Schritt in Stufe E** (`18` D-5; bei `04` F-14 (b) in Stufe 3) und nur, wenn M-20 zeigt, dass die
   Filter im Image sind und die Kosten tragbar. **Bis dahin erkennt Slouchcat diese Lage nicht sicher**; die
   Verwaltung zeigt nur den Verdacht aus 9.2.
 
@@ -883,7 +884,7 @@ Mangel früh weg.
 
 Regeln für ruhende Sender, damit Prüfungen nicht zur Last werden:
 
-1. Nur für Quellen mit dem Schalter «weitere gleichzeitige Verbindungen erlaubt», und nur für Sender, die es
+1. Nur für Quellen mit dem Schalter «Vorladen für Sender dieser Quelle: an», und nur für Sender, die es
    verdienen: Favoriten irgendeines Profils; Sender mit einer Aufnahme in den nächsten 24 Stunden (zusätzlich
    30 Minuten vor Beginn); Sender mit Zeitplan vor Beginn des Fensters. Alle übrigen nur, wenn der
    Administrator es je Quelle einschaltet, und dann höchstens einmal je Tag und Sender in einem Nachtfenster.
@@ -931,15 +932,15 @@ tragend bestätigt.** Nichts hier ist gemessen.
 | **M-13** | Ring: Arbeitsspeicher und Rechenzeit je Sender bei 8 und 20 Mbit/s; 5, 20, 50, 100 Sender; Kosten des Kopierens beim Lesen | CT 190 | Festlegung der Vorgaben in `04`, Abschnitt 6.3 |
 | **M-14** | Sitzungspuffer und Aufnahmen: Schreiblast je Zuschauer auf SSD, HDD, RAM-Disk, Netzspeicher; 5 und 20 Zuschauer; Einfluss auf eine gleichzeitige Dateiwiedergabe; **Netzspeicher 30 Sekunden getrennt und anlaufende Platte: reicht der Rückstau?** | CT 190, NAS | Baufreigabe der Stufen 4 und 5; F-8 |
 | **M-15** | Schwellen der Überwachung: Fehlalarme und übersehene Störungen | Fehlerbilder aus 8.2 | Bau der erweiterten Überwachung |
-| **M-16** | UDP und Multicast im Container: **kommt der Beitritt zu einer Gruppe im Bridge-Netz wirklich nicht an?** (bisher nur aus Foren belegt); Bridge mit veröffentlichtem Port, Host-Netz, eigenes Netz des Containers (`macvlan`, `ipvlan`) auf deinem Aufbau; Paketverlust unter Last | CT 190 und Heimnetz | Bau der Stufe mit UDP; F-11 |
+| **M-16** | UDP und Multicast im Container: **kommt der Beitritt zu einer Gruppe im Bridge-Netz wirklich nicht an?** (bisher nur aus Foren belegt); Bridge mit veröffentlichtem Port, Host-Netz, eigenes Netz des Containers (`macvlan`, `ipvlan`) auf deinem Aufbau; Paketverlust unter Last | CT 190 und Heimnetz | Bau der Stufe H; F-11 |
 | **M-17** | Vorladen: Gewinn an Umschaltzeit gegen zusätzliche Verbindungen und Bandbreite; Verhalten am Testserver «nur eine Verbindung» | Benchmark mit und ohne | Vorgabe für Vorladen; F-9 |
 | **M-18** | Verhalten hinter dem Reverse-Proxy (Nginx Proxy Manager, Caddy): Abruf der Segmente, Zwischenpufferung | dein Aufbau | Abnahme der ersten Stufe |
 | **M-19** | Lange Wiedergabelisten (60 Minuten und mehr): Zeit zum Einlesen auf einem schwachen Fernseher; Wirkung der Delta-Listen | Android-TV-Gerät | Bau des Zeitversatzes |
 | **M-20** | Filter für Bildstillstand, Schwarzbild und Stille im Image und Kosten einer Stichprobe | Image, CT 190 | Bau der Stichprobe 9.4 |
 | **M-21** | Teilstücke unter einer Bildgruppe in der Startphase: verkraften alle drei Player Segmente ohne Keyframe am Anfang? | Q-C, Q-D | nur falls Fall 3 sonst verfehlt wird |
 | **M-22** | Zeitüberlauf nach 26,5 Stunden: Verhalten der Player im Direktweg; Verhalten von FFmpeg 7.1.4 beim ersten und beim zweiten Überlauf (rund 53 Stunden), als Gegenprobe zur Regel «kein Lauf über einen Überlauf» | Testquelle mit vorgestelltem Zeitstempel | Bau der ersten Stufe |
-| **M-23** | RTSP und RTMP nach dem Entscheid zu F-1: verbindet jede Bibliothek nur über den übergebenen Dialer (Test mit einem Dialer, der alles ablehnt)? Stabilität, Umsetzung nach TS | Testserver | Baufreigabe der Stufe mit RTSP und RTMP |
-| **M-24** | Untertitel: DVB-Untertitel und Teletext in Media3 über HLS-TS; Umsetzung von Teletext nach WebVTT | Testquelle mit Untertiteln | Stufe mit Untertiteln |
+| **M-23** | RTSP und RTMP nach dem Entscheid zu F-1: verbindet jede Bibliothek nur über den übergebenen Dialer (Test mit einem Dialer, der alles ablehnt)? Stabilität, Umsetzung nach TS | Testserver | Baufreigabe der Stufe L |
+| **M-24** | Untertitel: DVB-Untertitel und Teletext in Media3 über HLS-TS; Umsetzung von Teletext nach WebVTT | Testquelle mit Untertiteln | Stufe 1a (DVB-Untertitel in Media3); Stufe E (WebVTT) |
 | **M-25** | Eindämmung: Welche Fassung der Landlock-Schnittstelle bietet der Kernel von CT 190 (Dateien, TCP nach Port, UDP)? Lässt das Profil von Docker die Aufrufe zu? Greift der Filter für Systemaufrufe gegen UDP und rohe Sockets? Bricht die Hülle ab, wenn ein Teil fehlt? Verträgt sich eine Grenze des Adressraums mit QSV und NVENC? Läuft die ganze Prüfreihe mit `no-new-privileges`, entzogenen Fähigkeiten und Prozessgrenze? | CT 190, Entwicklungsrechner | Baufreigabe der Stufe 1 (T-27); Baufreigabe von Weg W |
 
 ### 10.2 Offene Punkte dieses Dokuments
@@ -949,10 +950,10 @@ Die Nummern setzen die Liste aus `04`, Abschnitt 12.2 fort.
 | Nr. | Punkt |
 |---|---|
 | O-14 | Auswahl der Variante bei HLS-Quellen mit mehreren Qualitäten: Vorgabe ist die höchste (die Aufnahme verlangt Originalqualität); eine Obergrenze je Quelle wäre eine Einstellung des Administrators. |
-| O-15 | RTP mit eigener Sitzungsbeschreibung, Fehlerkorrektur nach SMPTE 2022, Umordnen vertauschter Pakete, TS mit 204 Byte: in der ersten Stufe mit UDP nicht unterstützt; Bedarf nach M-2 und M-16. |
+| O-15 | RTP mit eigener Sitzungsbeschreibung, Fehlerkorrektur nach SMPTE 2022, Umordnen vertauschter Pakete, TS mit 204 Byte: in Stufe H nicht unterstützt; Bedarf nach M-2 und M-16. |
 | O-16 | HLS mit `SAMPLE-AES` und Schlüsselformat `identity`: vorsichtig abgelehnt; rechtliche Einordnung der Grenze zwischen Transportverschlüsselung und DRM gehört in `12-sicherheit.md`. |
 | O-17 | Die erste Wiedergabeliste schon in der Antwort auf «einstellen» mitgeben, um eine Anfrage zu sparen: Nutzen nach M-1, Form in `08-api.md`. |
 | O-18 | entfällt: Ohne Tunnel setzt der Weiterleiter die Kopfzeilen für jeden Abruf selbst (2.6). |
 | O-19 | Mindestlänge eines Segments im Direktweg (2 Sekunden), kurze Segmente in der Startphase für Safari (für Media3 nicht unter 1 Sekunde, sonst wartet dessen Startpuffer auf das zweite Segment), und Verhalten, wenn eine Quelle mitten im Betrieb längere Bildgruppen sendet als die angekündigte Zieldauer der Liste. |
 | O-20 | Ersatz eines FFmpeg-Empfängers (Weg W): Die Regel steht (spätestens nach 24 Stunden, nie über einen Überlauf der Quellzeit, sofort bei zu viel Speicher). Offen ist, ob er öfter nötig ist und wie lang die Lücke beim Ersatz wird (M-12). |
-| O-28 | Bis zu sechs Segmente für native Apple-Player ohne Recht «Timeshift» (4.3, Ausweg 4): Das erweitert dort die Rückspulmöglichkeit auf höchstens 15 Sekunden und berührt damit LTV-005. Nur einzuführen, wenn M-5 es verlangt, und dann als Frage an dich. |
+| O-28 | Bis zu sechs Segmente für native Apple-Player ohne Recht «Timeshift» (4.3, Ausweg 4): Das erweitert dort die Rückspulmöglichkeit auf höchstens 15 Sekunden und berührt damit LTV-007. Nur einzuführen, wenn M-5 es verlangt, und dann als Frage an dich. |

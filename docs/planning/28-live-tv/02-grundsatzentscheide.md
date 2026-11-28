@@ -5,7 +5,7 @@ Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, 
 > **Kurz gesagt.** Marcos Auftrag vom 28. November 2026 legt 21 Grundsatzentscheide fest (LTV-001 bis LTV-021).
 > Diese Datei fasst sie in je einem Satz zusammen, zeigt, wo der Auftrag von diesem Repo abweicht (er wurde für
 > das alte Repo geschrieben), hält Marcos vier Antworten vom 28. November 2026 fest, nennt die Ausnahmen von
-> bestehenden Regeln, die Live-TV braucht, und enthält den Entwurf für Frage 37 im Entscheidungsprotokoll.
+> bestehenden Regeln, die Live-TV braucht, und verweist auf Frage 37 im Entscheidungsprotokoll.
 > Die einzelnen Anforderungen stehen in `03-fachkonzept.md`.
 
 Dieses Papier ändert keine Zeile Code und keine Regel. Massgeblich bleiben Spec, Entscheidungsprotokoll und ADR;
@@ -73,7 +73,7 @@ letzte ADR 0045, letzte Frage 36.
 | AB-1 | Stack: Node.js, TypeScript, NestJS, Fastify, PostgreSQL, Drizzle, Redis, BullMQ (Z. 289–299) | Go-Server, SQLite mit einer Schreibverbindung (`docs/adr/0001-stack.md:32`), eigene Job-Queue in SQLite (`docs/adr/0001-stack.md:35`, ADR 0002, ADR 0017), ein Container (`docs/planning/03-plan-v1.md:39`); Web-App React, TanStack, hls.js | Es gelten `CLAUDE.md` und die ADR dieses Repos. Der Sinn von Abschnitt 5 bleibt: ein Serverprozess, kein Microservice, kein zweiter Container, keine externe Middleware, kein zweites Benutzer-, Rechte-, Job- oder Transcoding-System, Homelab-Grösse. «PostgreSQL» (Z. 1652) heisst hier SQLite; «Redis-Last» (Z. 1447) entfällt, an ihre Stelle tritt die Last auf der einen Schreibverbindung (siehe `13-ressourcen-und-performance.md`). |
 | AB-2 | Native Linux-Installation als `.deb` (Z. 306, 1501) | Nicht-Ziel: «Kein natives Paket» (`docs/spec/01-anforderungen-v1.md:41`, `:86`); nur Docker (`deploy/Dockerfile`) | bleibt Nicht-Ziel; als «nicht dabei» geführt (`03-fachkonzept.md` Abschnitt 7). Der hiesige «Installer» sind Compose-Dateien und Overrides. |
 | AB-3 | Fire TV als zu berücksichtigender Client (Z. 944) | Nicht-Ziel: «TV-Apps (Apple TV, webOS, Tizen, Fire TV)» (`docs/spec/01-anforderungen-v1.md:58-60`, `CLAUDE.md` Regel 11); Konzept 26 E-1 «Fire TV nicht» (`docs/planning/04-entscheidungen.md:139`) | bleibt Nicht-Ziel; Clients sind Web-App (Desktop, Smartphone, Tablet), Android-Handy-App und Android-TV-App (deckt Google TV ab). |
-| AB-4 | DEC-001 schliesst Live-TV, IPTV, EPG und DVR aus und wird geändert (Z. 273–275); `docs/spec/00_Glossar_und_Entscheidungen.md` (Z. 236) | Eine DEC-Nummerierung und diese Datei gibt es nicht. Das Nicht-Ziel steht in `CLAUDE.md` Regel 11 («Live-TV», `CLAUDE.md:75`), in der Spec «Non-Goals» (`docs/spec/01-anforderungen-v1.md:56-57`, auch `:29`, `:44`), im Plan (`docs/planning/03-plan-v1.md:30`) und in Frage 23 («Musikbibliothek, Fotos, Live-TV und DVR bleiben Nicht-Ziele», `docs/planning/04-entscheidungen.md:90`) | Die Aufhebung geschieht wie bei Webradio und den Android-Apps: Frage 37 im Entscheidungsprotokoll bei der Freigabe (Entwurf Abschnitt 5), benannte Ausnahme in Regel 11 und Nachtrag in der Spec erst mit Stufe 0 des Baus (Abschnitt 4). Die Liste aller Stellen steht in `21-aenderungen-an-dokumenten.md`. |
+| AB-4 | DEC-001 schliesst Live-TV, IPTV, EPG und DVR aus und wird geändert (Z. 273–275); `docs/spec/00_Glossar_und_Entscheidungen.md` (Z. 236) | Eine DEC-Nummerierung und diese Datei gibt es nicht. Das Nicht-Ziel steht in `CLAUDE.md` Regel 11 («Live-TV», `CLAUDE.md:75`), in der Spec «Non-Goals» (`docs/spec/01-anforderungen-v1.md:56-57`, auch `:29`, `:44`), im Plan (`docs/planning/03-plan-v1.md:30`) und in Frage 23 («Musikbibliothek, Fotos, Live-TV und DVR bleiben Nicht-Ziele», `docs/planning/04-entscheidungen.md:90`) | Die Aufhebung geschieht wie bei Webradio und den Android-Apps: Frage 37 im Entscheidungsprotokoll (eingetragen mit «Konzept liegt vor, nicht freigegeben», Abschnitt 5), benannte Ausnahme in Regel 11 und Nachträge in Spec, Plan, Vision und Handover sind schon auf dem Konzeptzweig nachgeführt, mit dem Vermerk «konzipiert, Bau erst nach Freigabe je Stufe» (Abschnitt 4); Stufe 0 behält nur, was `21` Abschnitt 3 nennt. Die Liste aller Stellen steht in `21-aenderungen-an-dokumenten.md`. |
 | AB-5 | Marken [MVP], [1.1], [1.x], [Later] (Z. 1881–1886) | gibt es nicht; Umfang je Konzept in Stufen, jede Stufe ein Release oder von Marco gebündelt (`docs/planning/16-webradio.md:680`, `docs/planning/26-android-tv.md:764`) | Jede Anforderung trägt eine Stufe (Vorschlag) nach dem Schnitt von `18-umsetzungsplan.md`: V, 0, 1a, 1b, 2, 3, H (Heimnetz, UDP, RTP, Multicast), 4, 5, 6, L (RTSP, RTMP), W (DASH, HLS mit fMP4), E (Ergänzungen nach Messung), Apps. Die bisherige Entwicklungspriorität ändert das nicht. |
 | AB-6 | «Bestehende gleichzeitige Streamlimits» (Z. 808) | gebaut je Konto und je Profil (`server/migrations/00063_minimum_age_accounts.sql:41`, `server/migrations/00061_profiles_open_language.sql:49`, Durchsetzung `server/internal/playback/limits.go:159-197`); gezählt werden nur Wiedergabesitzungen von Titeln (`playback_sessions.item_id NOT NULL`, `server/migrations/00032_playback_prefs.sql:58-63`); Webradio zählt bewusst nicht (K16 F-19) | Live-TV zählt zu den bestehenden Stream-, Bandbreiten- und Auflösungsgrenzen und zur Schauzeit (festgelegte Auslegung). Wie gezählt wird, ist neu (`04-architektur.md`). |
 | AB-7 | «Bestehende Bandbreitenbeschränkungen» (Z. 811) | gebaut (`00063…:39` `max_bitrate_kbps`, `server/internal/playback/decide.go:392`) | übernommen |
@@ -89,7 +89,7 @@ letzte ADR 0045, letzte Frage 36.
 | AB-17 | «Explizite Freigaben lokaler Quellen gemäss bestehender Sicherheitspolitik» (Z. 1332) | Eine solche Freigabe gibt es nicht. Der Netzwächter sperrt Heimnetz, Loopback, Link-local und Multicast (`server/internal/netguard/netguard.go:48-50`); Webradio F-15 «keine Sender im lokalen Netz» (ADR 0025) | neue, eng gefasste Ausnahme nur für Live-TV mit festen Zielen je Quelle (Abschnitt 4, A-3); dazu A-9 für den Netzmodus |
 | AB-18 | «Kinderprofil-Einstellungen» als bestehende Seite (Z. 1578) | keine eigene Seite; Altersgrenze, PIN, Grenzen stehen in der Profilverwaltung des Hauptprofils | Die Live-TV-Schalter erscheinen in der bestehenden Profilverwaltung (`14-oberflaeche.md`). |
 | AB-19 | Mockups mit «echten Senderlogos» (Z. 1601) | öffentliches Repo; keine Senderlogos, Sendungsbilder, echten Senderlisten ins Repo (Leitplanken; Vorbild Konzept 25: Bilder nur lokal) | Im Repo nur neutrale, selbst erzeugte Platzhalter; echte Logos höchstens lokal und ausserhalb von git (`19-mockups.md`). |
-| AB-20 | Commits, Push und Aktualisierung von `CURRENT_STATUS.md` in der Konzeptphase (Z. 2021–2025) | In Konzeptphasen bleibt `docs/dev/CURRENT_STATUS.md` unverändert (Rohbericht A1 7.4; PR #63, #97, #159, #174, #180); er wird mit dem Bau nachgeführt | Der Koordinator committet; `CURRENT_STATUS.md` erst mit dem Bau. |
+| AB-20 | Commits, Push und Aktualisierung von `CURRENT_STATUS.md` in der Konzeptphase (Z. 2021–2025) | In Konzeptphasen bleibt `docs/dev/CURRENT_STATUS.md` unverändert (Rohbericht A1 7.4; PR #63, #97, #159, #174, #180); er wird mit dem Bau nachgeführt. Für Konzept 28 verlangt der Auftrag (Abschnitt 20) den Eintrag schon jetzt | Der Koordinator committet; `CURRENT_STATUS.md` ist schon auf dem Konzeptzweig nachgeführt («Entwurf, nichts gebaut, nichts freigegeben», `21` D-15); den Stand des Baus trägt erst der Bau nach. |
 
 ---
 
@@ -115,8 +115,8 @@ Altersgrenze. Für alle anderen Profile bleibt Z. 684 wörtlich.
 
 ## 4. Benannte Ausnahmen von bestehenden Regeln
 
-Jede Ausnahme gilt nur für Live-TV und nur so weit, wie die Spalte «Grenze» sagt. A-9 ist mit Fassung 2 dazugekommen. Sie wird erst mit Stufe 0 des
-Baus in Regeln und Spec eingetragen, nicht mit diesem Papier.
+Jede Ausnahme gilt nur für Live-TV und nur so weit, wie die Spalte «Grenze» sagt. A-9 ist mit Fassung 2 dazugekommen. Die Ausnahmen sind schon auf dem
+Konzeptzweig in Regel 11, Spec, Frage 37 und ADR 0046 (vorgeschlagen) eingetragen, mit dem Vermerk «konzipiert, Bau erst nach Freigabe je Stufe» (`21` Abschnitt 1); was erst der Bau ändert, nennt `21` Abschnitt 3.
 
 | Nr. | Bestehende Regel | Ausnahme für Live-TV | Grenze der Ausnahme | Beleg im Auftrag |
 |---|---|---|---|---|
@@ -138,35 +138,14 @@ Baus in Regeln und Spec eingetragen, nicht mit diesem Papier.
 
 ---
 
-## 5. Entwurf für Frage 37 im Entscheidungsprotokoll
+## 5. Frage 37 im Entscheidungsprotokoll
 
-Noch **nicht** eingetragen. Wird bei der Freigabe in `docs/planning/04-entscheidungen.md` als eine Zeile
-ergänzt; Platzhalter in spitzen Klammern füllt erst die Freigabe.
-
-> | <Datum der Freigabe> | **Konzept 28 «Live-TV» freigegeben: Internetfernsehen mit Programmzeitschrift,
-> persönlichem Timeshift und privaten Aufnahmen je Profil** (Frage 37, `docs/planning/28-live-tv/`, Fassung <n>;
-> klickbare Mockups `docs/planning/mockups/28-live-tv/` für Web, Android TV und Handy-App; ADR 0046 ff.
-> reserviert). **Ausnahme vom Nicht-Ziel «Live-TV und DVR»** (`01-anforderungen-v1.md` «Non-Goals», Regel 11):
-> Live-TV, EPG, persönliches Timeshift und Aufnahmen von Fernsehsendern; löst für Live-TV und Aufnahmen den
-> Teilsatz «Live-TV und DVR bleiben Nicht-Ziele» aus Frage 23 ab. Webradio bleibt ohne Aufnahmen (K16 F-1).
-> **Grundlage:** Marcos Auftrag vom 28. November 2026 mit 21 verbindlichen Grundsatzentscheiden LTV-001 bis
-> LTV-021 (wörtlich im Anhang des Konzepts). **Von Marco am 28. November 2026 entschieden:** **E-1** das Konzept
-> gilt für das Go-Produkt, Abschnitt 5 des Auftrags nur im Sinn. **E-2** Mockups für Web, Android TV und
-> Handy-App. **E-3** das Hauptprofil darf die Aufnahmen seiner Profile mit Altersgrenze sehen, löschen und
-> abspielen; Aufnahmen von Profilen ohne Altersgrenze bleiben privat; der Administrator sieht keine Titel fremder
-> Aufnahmen (gegen die Empfehlung, die das Abspielen nicht vorsah). **E-4** bei vollem Kontingent wird die neue
-> Aufnahme abgelehnt und gemeldet; automatisch gelöscht wird nur nach der Aufbewahrungsfrist und «behalte N» des
-> Profils. **Benannte Ausnahmen** (Konzept 28, `02-grundsatzentscheide.md` Abschnitt 4): Altersmodell (LTV-015,
-> nicht für Filme, Serien und andere Bibliotheken), Quellen im Heimnetz, UDP, RTP und Multicast nur vom Administrator an
-> festen Zielen je Quelle (Adresse oder kleines Netz und Port; Loopback und Link-Local nie), Netzmodus «host» und
-> veröffentlichte UDP-Ports nur als freiwillige Zusatzdatei mit vier benannten Folgen (A-9), automatisches Löschen nur nach Wahl des Profils (ADR 0032), keine Kopplung an die
-> Altersgrenze (ADR 0045), Einsicht des Hauptprofils nur in Aufnahmen von Profilen mit Altersgrenze. **Festlegung der Architektur:**
-> Deaktivieren eines Senders beendet nichts Laufendes (T-29). **Antworten auf die offenen Fragen** (Sammelliste
-> `20-offene-entscheidungen.md`, je «<Datei> F-n»): <je eine Zeile, wörtlich>. **Bauauftrag:** <Datum,
-> Umfang>; für jede noch offene Frage gilt die Empfehlung des Papiers. | Live-TV und DVR waren Nicht-Ziele; die
-> Ausnahmen und Regeländerungen kommen mit Stufe 0 des Baus. Gebaut wird in den Stufen V, 0, 1a, 1b, 2, 3, H, 4, 5, 6, L, W, E
-> und den App-Ausgaben nach `18-umsetzungsplan.md`. | Spec Non-Goals, Plan, `CLAUDE.md` Regel 11, ADR 0025, ADR 0032, ADR 0045,
-> `api/openapi.yaml`
+Frage 37 ist eingetragen: `docs/planning/04-entscheidungen.md`, Zeile vom 28. November 2026 (Tabelle «Weitere
+Entscheide während der Umsetzung»), mit dem Status «Konzept liegt vor, nicht freigegeben. Gebaut wird je Stufe erst
+nach Marcos ausdrücklicher Baufreigabe». Massgeblich ist der Wortlaut dort; er enthält E-1 bis E-4, A-1 bis A-9,
+T-29 und den Verweis auf `20-offene-entscheidungen.md`. Die Freigabe und die Antworten auf die offenen Fragen
+kommen als Nachtrag zu Frage 37 (`18` Schritt 0.1). Die Liste der nachgeführten Dokumente steht in
+`21-aenderungen-an-dokumenten.md`.
 
 ---
 
@@ -184,4 +163,7 @@ Fassung 2 (Konsolidierung 1, 28. November 2026). Marcos Antworten E-1 bis E-4 si
 - **Abschnitt 4.1 neu:** T-29 (Deaktivieren beendet nichts Laufendes). Quelle: `04` Fassung 3.
 - **Lesart und AB-5:** Stufenschnitt aus `18-umsetzungsplan.md`; Zahlen nach `04` Abschnitt 14.
 - **Entwurf Frage 37** nachgeführt: feste Ziele, A-9, T-29, Stufen, Verweis auf die Sammelliste der Fragen.
-
+- Restebereinigung nach Konsolidierung 1: Abschnitt 4, AB-4 und AB-20 auf den Stand gebracht, dass Regel 11, Spec,
+  Plan, Vision, Handover, Frage 37, ADR 0046 (vorgeschlagen) und `CURRENT_STATUS.md` schon auf dem Konzeptzweig
+  nachgeführt sind (`21`); Abschnitt 5 verweist statt des Entwurfs auf den eingetragenen Wortlaut von Frage 37.
+  Quelle: spec-autor, `21` Abschnitt 5.

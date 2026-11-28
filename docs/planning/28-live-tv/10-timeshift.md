@@ -458,7 +458,7 @@ M-14 (Schreiblast, Rückstau bei Netzspeicher und anlaufender Platte), M-19 (lan
 
 Die Rückspulgrenze (`04` F-7) und die Speicherform (`04` F-8) sind dort gefragt und hier nicht wiederholt.
 
-**F-1 · Sofortaufnahme während zeitversetzter Wiedergabe: ab wann?**
+**F-1 · Sofortaufnahme während zeitversetzter Wiedergabe: ab wann?** → `20` E-28-37
 Wer 20 Minuten zurückliegt und «Aufnehmen» drückt, sieht eine Stelle, die schon vorbei ist.
 
 - **(a) Ab jetzt (live).** Die Aufnahme beginnt beim Tastendruck an der Live-Kante. Der Knopf sagt «Ab jetzt
@@ -534,3 +534,4 @@ Fassung 1 → 2 (Konsolidierung 1, Grundlage `04` Fassung 3 Abschnitte 13.4, 14,
   Ordnung»; «sofort beenden» (T-29).
 - Abschnitt 14.2: O-1 und O-2 erledigt durch `04` 14.6; O-3 teilweise belegt.
 - Zahlenformat auf de-CH umgestellt (Dezimalpunkt).
+- Restebereinigung nach Konsolidierung 1: Frage F-1 mit Verweis auf `20` E-28-37.
