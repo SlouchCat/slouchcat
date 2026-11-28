@@ -1,12 +1,17 @@
 # Konzept 28 · Datenmodell
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
 Dieses Dokument ist die **einzige Quelle** für Tabellen, Spalten, Schlüssel und Aufräumregeln von Live-TV.
 Die Fachdokumente (`09-epg.md` Abschnitt 13, `11-dvr.md` Abschnitt 14.1, `10-timeshift.md`, `14-oberflaeche.md`,
-`15-administration.md`) enthalten Bedarfslisten und Vorschläge; sie sind hier zusammengeführt. Wo sie sich
-widersprechen, gilt `03-fachkonzept.md` vor `04-architektur.md` vor den übrigen; jeder Fall steht in
-Abschnitt 12.3. Die Schnittstellen stehen in `08-api.md`.
+`15-administration.md`) enthalten Bedarfslisten und Vorschläge; sie sind hier zusammengeführt. Massgeblich sind
+der Auftrag und die Leitplanken, dann `04-architektur.md` Fassung 3 (T-1 bis T-29, Abschnitt 14 «Massgebliche
+Werte»), dann `03-fachkonzept.md`, für Stufen `18-umsetzungsplan.md`; jeder Widerspruch steht in Abschnitt 12.3.
+Die Schnittstellen stehen in `08-api.md`. Fassung 2 arbeitet Review 2 (`anhang/reviews/review-2-datenmodell-api.md`,
+RD-01 bis RD-30) ein; was sich geändert hat, steht in Abschnitt 13.
+
+**Stufen** heissen wie in `18` 4.13: 1a «Schauen», 1b «Senderverwaltung erweitert», 2 Programm, 3 Empfang und
+Umschalten, H Heimnetz und UDP, 4 Timeshift, 5 Aufnahmen, 6 Serien, L RTSP/RTMP, W DASH/fMP4, E Ergänzungen.
 
 Alles hier ist **spezifiziert**, nichts ist gebaut. «Gebaut» mit Datei und Zeile bezieht sich auf den Stand des
 Arbeitsbaums (Server 1.44.1, letzte Migration 00086). Es entsteht keine Migration; die SQL-Blöcke sind
@@ -71,7 +76,7 @@ noch der Analyzer `itemsaccess` (gebaut: `server/tools/itemsaccess/itemsaccess.g
 | EPG-Programme | **nur in `epg.db`** (wiederbeschaffbar) | Zwischenspeicher «jetzt/als Nächstes» (nur falls `09` M-5 ihn verlangt) | fremde, flüchtige Massendaten (`09` 8.6) | `epg_channels`, `epg_programmes`, `epg_titles`, `epg_titles_fts`, `epg_stage`, `epg_images`, `epg_suggestions` |
 | Empfangsstrategien | ja (Vorgabe und Einstellung je Sender) | Haltegründe, Rangliste «automatisch» | Einrichtung; die Wirkung ist Laufzeit (`04` 5.2) | `live_config`, `live_channels.strategy` |
 | Empfangszeitpläne | ja | Haltegrund «Zeitplan» | Einrichtung | `live_reception_schedules`, `live_reception_windows` |
-| Aktive Eingangsstreams | **nein** | Ring, GOP-Index, Leser, Haltegründe, Automat, Messwerte | Neustart beginnt leer; permanente Haltegründe entstehen aus der Strategie (`04` 4.2) | – (nur Zustand je Senderquelle bei Wechsel: `live_channel_streams.state`) |
+| Aktive Eingangsstreams | **nein** | Ring, GOP-Index, Leser, Haltegründe, Automat mit dem Zustand «zurückgestellt» (`04` 5.1), Karenz, Messwerte | Neustart beginnt leer; permanente Haltegründe entstehen aus der Strategie (`04` 4.2) | – (nur Zustand je Senderquelle bei Wechsel: `live_channel_streams.state`) |
 | Wiedergabesitzungen | Zeile mit Konto, Profil, Gerät, Sender, Beginn, Ende, Grund; ein Eintrag je gezeigtem Sender | Token-Bindung, Einstell-Nummer, Entscheid, Ausgabe-Generation, Abspielstand | Grenzen, Verwaltung, Schauzeit, Rangliste «automatisch» (`04` T-22) | `live_sessions`, `live_session_tunes`, `live_recent_channels`, `live_watch_time` |
 | Timeshift-Sitzungen | **nein** (nur ein Stück-Verzeichnis auf dem Speicherort) | Verzeichnis des Sitzungspuffers, Fenster, Rückspulgrenze | Puffer stirbt mit der Sitzung und beim Start (`04` T-10, `10` 2) | – (Speicherort in `live_storage`) |
 | Aufnahmen | ja | Schreiber, Rückstau | Besitz des Profils | `live_recordings`, `live_recording_parts`, `live_recording_gaps` |
@@ -96,7 +101,10 @@ noch der Analyzer `itemsaccess` (gebaut: `server/tools/itemsaccess/itemsaccess.g
 | Offene Ereignisarten | `kind TEXT CHECK (kind <> '' AND kind NOT GLOB '*[^a-z_]*')` ohne Liste | `00069_wishes.sql:144` |
 | Vom Administrator von Hand geänderte Felder | eigene Sperrtabelle `…_locks (id, field)`; der Abgleich überschreibt gesperrte Felder nie | `00038_radio.sql` (`radio_station_locks`) |
 | Einstellungen eines Bereichs | Einzeilentabelle `id = 1` mit Vorgaben und eingefügter Zeile | `00038_radio.sql` (`radio_config`) |
-| Verschlüsselte Werte | `TEXT` im Format `v1:<base64url>` aus `secrets.Keyring.Encrypt` (Abweichung von `09`, das `BLOB` schreibt: W-13) | `server/internal/secrets/secrets.go:115-122` |
+| Verschlüsselte Werte | `TEXT` im Format `v1:<base64url>` aus `secrets.Keyring.Encrypt` (Abweichung von `09`, das `BLOB` schreibt: W-13); neu `v2:` mit Bindung an die Zeile (`12` 5.1) und der Platzhalter `v0:` «Zugang fehlt» (Abschnitt 6.3) | `server/internal/secrets/secrets.go:115-122` |
+| Fremdschlüssel | jede Kindspalte eines Fremdschlüssels hat einen Index, dessen erste Spalte sie ist (ohne Bedingung auf eine andere Spalte); ein Schematest gleicht `PRAGMA foreign_key_list` mit `PRAGMA index_list` ab (RD-04). Ausnahme: die Einzeilentabelle `live_config` | SQLite prüft beim Löschen der Elternzeile jede Kindtabelle über diese Spalte (Annahme aus der SQLite-Dokumentation, nicht im Repo) |
+| CHECK mit nullbaren Spalten | Vergleiche mit `IS`, nicht `=`: `(a IS 'x') = (b IS NOT NULL)`, weil `NULL = …` als bestanden gilt (RD-22) | SQLite-Verhalten (Annahme) |
+| Geschlossene Wertelisten späterer Stufen | Werte der Stufen L, W, 5 und 6 stehen schon in der Liste, wenn die Tabelle sonst später neu gebaut werden müsste (`live_channel_streams.scheme`, `.format`, `live_sessions.kind`, `notifications`, `deliveries`); geschrieben wird ein Wert erst mit seinem Erzeuger | Muster `00070_wishes_notifications.sql:6-10` |
 
 ---
 
@@ -122,18 +130,17 @@ erDiagram
   live_channels ||--o{ live_group_channels : "gehört zu"
   live_groups ||--o{ live_group_channels : "enthält"
   live_sources |o--o{ live_groups : "Gruppe aus der Liste"
-  live_channels |o--o| live_channels : "merged_into"
   live_channels ||--o{ live_duplicate_dismissals : "kein Duplikat"
   live_reception_schedules ||--|{ live_reception_windows : "Zeitfenster"
   live_reception_schedules |o--o{ live_channels : "Strategie zeitgesteuert"
-  live_channel_streams ||--o{ live_stream_events : "Diagnose 7 Tage"
+  live_channel_streams |o..o{ live_stream_events : "Diagnose 7 Tage (Zahl, kein FK)"
   live_channels {
     INTEGER id PK "AUTOINCREMENT, stabil"
     INTEGER number "eindeutig unter lebenden"
     INTEGER enabled
     INTEGER missing_since
     INTEGER deleted_at "Grabstein"
-    INTEGER merged_into FK
+    INTEGER merged_into "Auskunft, kein FK"
   }
   live_channel_streams {
     INTEGER id PK
@@ -154,7 +161,6 @@ erDiagram
 erDiagram
   live_epg_sources ||--o{ live_epg_imports : "Importläufe"
   live_sources |o--o{ live_epg_sources : "Xtream-EPG (input_source_id)"
-  live_epg_sources ||--o{ live_net_targets : "feste Ziele (nur nach 09 F-4 a)"
   live_channels ||--o| live_channel_epg : "genau eine Zuordnung"
   live_epg_sources |o--o{ live_channel_epg : "Quelle der Zuordnung"
   live_channel_epg }o..o| epg_channels : "(source_id, xmltv_id) als Text"
@@ -254,8 +260,8 @@ im Kommentar mit «Stufe n» markiert; sie kommen dann per `ALTER TABLE … ADD 
 ### 3.1 Einstellungen und Speicherorte
 
 **`live_config`** · eine Zeile, alle globalen Einstellungen der Seiten LA-09, LA-10, LA-13, LA-14, LA-15, LA-16
-(Muster `radio_config`). Stufe 1, Spalten späterer Stufen wie markiert. Werte sind die Vorgaben der
-massgeblichen Dokumente; wo `15` anders lautet, steht es in Abschnitt 12.3.
+(Muster `radio_config`). Stufe 1a, Spalten späterer Stufen wie markiert. Jeder Wert und jeder Bereich folgt
+`04` Abschnitt 14; wo `15` anders lautet, steht es in Abschnitt 12.3.
 
 ```sql
 -- Entwurf, keine Migration
@@ -270,17 +276,20 @@ CREATE TABLE live_config (
     automatic_keep           INTEGER NOT NULL DEFAULT 3 CHECK (automatic_keep BETWEEN 0 AND 10),      -- Stufe 3
     automatic_favorites      INTEGER NOT NULL DEFAULT 1 CHECK (automatic_favorites IN (0, 1)),        -- Stufe 3
     max_ingests              INTEGER NOT NULL DEFAULT 8 CHECK (max_ingests BETWEEN 1 AND 200),
+    ring_seconds             INTEGER NOT NULL DEFAULT 15 CHECK (ring_seconds BETWEEN 4 AND 15),  -- T-7, 04 14.3
     ring_budget_mb           INTEGER CHECK (ring_budget_mb IS NULL OR ring_budget_mb BETWEEN 64 AND 8192),
-                             -- NULL: ein Achtel des Arbeitsspeichers, höchstens 512 MB (04 6.3)
+                             -- NULL: ein Achtel des Arbeitsspeichers, höchstens 512 MB (04 14.3)
     grace_seconds            INTEGER NOT NULL DEFAULT 30 CHECK (grace_seconds BETWEEN 15 AND 300),
+                             -- Karenz nur, wenn ein Zuschauer von sich aus geht; sonst 0 (04 14.1)
     max_sessions             INTEGER NOT NULL DEFAULT 20 CHECK (max_sessions BETWEEN 1 AND 200),
-    transcode_share_pct      INTEGER NOT NULL DEFAULT 50 CHECK (transcode_share_pct BETWEEN 10 AND 100),
+    transcode_share_pct      INTEGER NOT NULL DEFAULT 50 CHECK (transcode_share_pct BETWEEN 0 AND 100), -- 04 14.7
     startbuffer_mode         TEXT    NOT NULL DEFAULT 'memory'
-                             CHECK (startbuffer_mode IN ('memory', 'folder')),                       -- Stufe 3, 04 F-2
-    -- Überwachung (04 5.3, 10.2; 15 LA-13)
+                             CHECK (startbuffer_mode IN ('memory', 'folder')),
+                             -- Stufe 4 und nur bei 04 F-2 (a); bei F-2 (b) entfällt die Spalte (18 D-3)
+    -- Überwachung (04 5.3, 10.2, 14.2, 14.8; 15 LA-13)
     idle_check_hours         INTEGER DEFAULT 6 CHECK (idle_check_hours IS NULL OR idle_check_hours IN (6, 24)),
                              -- NULL: aus. Stufe 3
-    idle_check_parallel      INTEGER NOT NULL DEFAULT 2 CHECK (idle_check_parallel BETWEEN 1 AND 4),  -- Stufe 3
+    idle_check_parallel      INTEGER NOT NULL DEFAULT 1 CHECK (idle_check_parallel BETWEEN 1 AND 4),  -- Stufe 3
     alert_after_minutes      INTEGER NOT NULL DEFAULT 10 CHECK (alert_after_minutes IN (5, 10, 15, 30, 60)),
     alert_used_only          INTEGER NOT NULL DEFAULT 1 CHECK (alert_used_only IN (0, 1)),           -- 15 F-19
     -- Programmdaten (09 2.6, 2.7, 9). Stufe 2
@@ -315,7 +324,8 @@ INSERT INTO live_config (id, updated_at) VALUES (1, 0);   -- konstante Zeit wie 
   prüft sie die Datenbank (`live_channels`).
 
 **`live_storage`** · die Speicherorte (T-25): je Rolle genau einer aktiv; ein alter Aufnahme-Ort bleibt «nur
-lesen», bis er leer ist (`15` F-17 (A)). Stufe 3 (Startpuffer als Ordner), 4 (Timeshift), 5 (Aufnahmen).
+lesen», bis er leer ist (`15` F-17 (A)). Stufe 4 (Timeshift und, nur bei `04` F-2 (a), Startpuffer als Ordner;
+`18` D-3), Rolle `recordings` ab Stufe 5.
 
 ```sql
 -- Entwurf, keine Migration
@@ -340,9 +350,9 @@ CREATE TABLE live_storage (
 CREATE UNIQUE INDEX live_storage_active ON live_storage (role) WHERE status = 'active';
 ```
 
-- Vorgaben der Reserve: Timeshift 5 GB oder 5 % (`04` 10.10), Startpuffer 10 % (`15` LA-16), Aufnahmen 20 GB
-  (`15` LA-16; `04` nennt keinen Wert, W-9). Vorgabe für Timeshift ohne Wahl: `<cache>/live/timeshift`, die
-  Zeile legt der Server beim ersten Start der Stufe 4 an.
+- Mindestreserve ist der **grössere** Wert aus `reserve_bytes` und `reserve_pct` des Datenträgers: Timeshift 5 GB
+  und 5 %, Aufnahmen 20 GB und 5 %, Ordner des Startpuffers 0 und 10 % (`04` 14.6; erledigt W-9). Vorgabe für
+  Timeshift ohne Wahl: `<cache>/live/timeshift`, die Zeile legt der Server beim ersten Start der Stufe 4 an.
 - `path` ist zugleich eine registrierte Wurzel des Pakets `paths` (Regel 4); geschrieben wird nur relativ zu
   einem beim Prüfen geöffneten Verzeichnis (`11` 10.3).
 - Löschen: nie automatisch. Ein Ort «nur lesen» wird entfernt, wenn kein Teil mehr auf ihn zeigt
@@ -351,7 +361,9 @@ CREATE UNIQUE INDEX live_storage_active ON live_storage (role) WHERE status = 'a
 ### 3.2 Quellen
 
 **`live_sources`** · eine Quelle des Administrators (LA-02, LA-03): M3U-Adresse, M3U-Datei, Xtream oder
-Einzelstrom. Stufe 1; `allow_more_conns` und `listen_interface` Stufe 3.
+Einzelstrom. Stufe 1a; `refresh_minutes`, `refresh_at_minute`, `next_refresh_at`, `guard_incomplete` Stufe 1b
+(automatische Aktualisierung, zurückgehaltene Liste, `18` 4.3); `allow_more_conns` Stufe 3; `listen_interface`
+Stufe H.
 
 ```sql
 -- Entwurf, keine Migration
@@ -364,10 +376,10 @@ CREATE TABLE live_sources (
     site              TEXT    CHECK (site IS NULL OR length(site) <= 300),          -- Schema, Host, Port
     username_enc      TEXT    CHECK (username_enc IS NULL OR username_enc GLOB 'v[0-9]*:*'),
     password_enc      TEXT    CHECK (password_enc IS NULL OR password_enc GLOB 'v[0-9]*:*'),
-    user_agent        TEXT    CHECK (user_agent IS NULL OR length(user_agent) BETWEEN 1 AND 256),
+    user_agent_enc    TEXT    CHECK (user_agent_enc IS NULL OR user_agent_enc GLOB 'v[0-9]*:*'), -- RD-19
     file_sha256       TEXT    CHECK (file_sha256 IS NULL OR length(file_sha256) = 64), -- m3u_file
     allow_more_conns  INTEGER NOT NULL DEFAULT 0 CHECK (allow_more_conns IN (0, 1)),  -- Stufe 3, T-18
-    listen_interface  TEXT    CHECK (listen_interface IS NULL OR length(listen_interface) <= 64), -- Stufe 3
+    listen_interface  TEXT    CHECK (listen_interface IS NULL OR length(listen_interface) <= 64), -- Stufe H
     refresh_minutes   INTEGER CHECK (refresh_minutes IS NULL OR refresh_minutes BETWEEN 60 AND 10080),
                       -- NULL: nur von Hand
     refresh_at_minute INTEGER CHECK (refresh_at_minute IS NULL OR refresh_at_minute BETWEEN 0 AND 1439),
@@ -394,6 +406,8 @@ CREATE TABLE live_sources (
     CHECK ((username_enc IS NULL) = (password_enc IS NULL)),
     CHECK (kind <> 'xtream' OR username_enc IS NOT NULL),
     CHECK (kind NOT IN ('single', 'm3u_file') OR refresh_minutes IS NULL)
+    -- In einer Sicherung ohne Geheimnisse stehen statt der Werte Platzhalter 'v0:' (Abschnitt 6.3); alle Regeln
+    -- hier bleiben damit gültig (RD-08).
 ) STRICT;
 CREATE INDEX live_sources_due ON live_sources (next_refresh_at)
     WHERE enabled = 1 AND refresh_minutes IS NOT NULL;           -- Planer-Job: fällige Quellen
@@ -407,7 +421,7 @@ CREATE INDEX live_sources_due ON live_sources (next_refresh_at)
   Ursprünge, Ziele, Importläufe und Senderquellen gehen mit (Fremdschlüssel mit Löschweitergabe).
 
 **`live_source_headers`** · eigene Kopfzeilen je Quelle (LTV-003.18). Werte geheim, Namen nicht (T-28: die API
-liefert nur Namen). Stufe 1.
+liefert nur Namen). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -425,7 +439,7 @@ Verbotene Namen (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `R
 Liste ist Code, nicht Schema.
 
 **`live_source_origins`** · feste Ursprünge (Schema, Host, Port), an die Zugangsdaten und Kopfzeilen gehen
-(T-28, `04` 10.5). Ab Werk der Ursprung der eingetragenen Adresse. Stufe 1.
+(T-28, `04` 10.5). Ab Werk der Ursprung der eingetragenen Adresse. Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -439,54 +453,60 @@ CREATE TABLE live_source_origins (
 ```
 
 **`live_net_targets`** · feste Ziele im Heimnetz (T-5, `04` 10.9): je Eintrag ein kleines Netz und ein kleiner
-Portbereich. Gehört entweder einer Senderquelle oder einer EPG-Quelle (letzteres nur, wenn du `09` F-4 (a)
-wählst). Stufe 3.
+Portbereich je Senderquelle. Stufe H (`18` D-4). Wählst du bei `09` F-4 (a) auch EPG-Adressen im Heimnetz,
+bekommt die Tabelle mit dieser Antwort eine zweite Besitzerspalte `epg_source_id`; vorher steht sie nicht im Schema
+(RD-30).
 
 ```sql
 -- Entwurf, keine Migration
 CREATE TABLE live_net_targets (
     id             INTEGER PRIMARY KEY,
-    source_id      INTEGER REFERENCES live_sources (id) ON DELETE CASCADE,
-    epg_source_id  INTEGER REFERENCES live_epg_sources (id) ON DELETE CASCADE,
+    source_id      INTEGER NOT NULL REFERENCES live_sources (id) ON DELETE CASCADE,
     prefix         TEXT    NOT NULL CHECK (length(prefix) BETWEEN 9 AND 50), -- '192.168.1.20/32', normalisiert
     port_from      INTEGER NOT NULL CHECK (port_from BETWEEN 1 AND 65535),
     port_to        INTEGER NOT NULL CHECK (port_to BETWEEN port_from AND 65535 AND port_to - port_from < 64),
     hostname       TEXT    CHECK (hostname IS NULL OR length(hostname) <= 253), -- Anzeige, woraus aufgelöst
     confirmed_by   INTEGER REFERENCES accounts (id) ON DELETE SET NULL,
-    confirmed_at   INTEGER NOT NULL,
-    CHECK ((source_id IS NULL) <> (epg_source_id IS NULL))
+    confirmed_at   INTEGER NOT NULL
 ) STRICT;
-CREATE INDEX live_net_targets_source ON live_net_targets (source_id) WHERE source_id IS NOT NULL;
-CREATE INDEX live_net_targets_epg ON live_net_targets (epg_source_id) WHERE epg_source_id IS NOT NULL;
+CREATE INDEX live_net_targets_source ON live_net_targets (source_id);
+CREATE INDEX live_net_targets_confirmed_by ON live_net_targets (confirmed_by) WHERE confirmed_by IS NOT NULL;
 ```
 
 Netzgrösse (höchstens /24 bei IPv4, /64 bei IPv6), die nie freigebbaren Adressen und die eigenen Adressen des
 Containers prüft `netguard` beim Speichern und bei jeder Verbindung; das Schema hält nur die Form.
 
-**`live_source_imports`** · ein Importlauf einer Quelle (LA-02 «die letzten fünf Läufe», LA-04). Die letzten 10
-je Quelle bleiben (Muster `09` 13.1). Stufe 1.
+**`live_source_imports`** · ein Importlauf einer Quelle (LA-02 «die letzten fünf Läufe», LA-04) und, als Lauf
+mit `outcome = 'preview'`, die Vorschau eines Tests (S-3: kein zweiter Speicher im Arbeitsspeicher). Die letzten 10
+Läufe je Quelle bleiben (Muster `09` 13.1); eine Vorschau lebt 1 Stunde oder bis zum Übernehmen. Die Vorschau einer
+noch nicht gespeicherten Quelle hat `source_id` leer und trägt die verschlüsselte Eingabe des Tests nicht: Beim
+Übernehmen schickt die Verwaltung das Formular noch einmal mit (`08` 3.7). Stufe 1a; `held` und `apply_held`
+Stufe 1b.
 
 ```sql
 -- Entwurf, keine Migration
 CREATE TABLE live_source_imports (
     id            INTEGER PRIMARY KEY,
-    source_id     INTEGER NOT NULL REFERENCES live_sources (id) ON DELETE CASCADE,
-    trigger       TEXT    NOT NULL CHECK (trigger IN ('schedule', 'manual', 'create', 'upload', 'apply_held')),
+    source_id     INTEGER REFERENCES live_sources (id) ON DELETE CASCADE,
+    trigger       TEXT    NOT NULL CHECK (trigger IN ('schedule', 'manual', 'create', 'upload', 'apply_held', 'test')),
     started_at    INTEGER NOT NULL,
     finished_at   INTEGER,
-    outcome       TEXT    NOT NULL CHECK (outcome IN ('running', 'ok', 'unchanged', 'failed', 'held')),
+    outcome       TEXT    NOT NULL CHECK (outcome IN ('running', 'ok', 'unchanged', 'failed', 'held', 'preview')),
     entries_seen  INTEGER,
     counters      TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(counters)),
                   -- new, changed, missing, duplicates, faulty, unchanged, blocked_local, drm, vod_skipped
     error         TEXT    CHECK (error IS NULL OR error NOT GLOB '*[^a-z0-9_]*'),
-    error_line    INTEGER                                   -- Zeile der Datei, ohne Inhalt
+    error_line    INTEGER,                                  -- Zeile der Datei, ohne Inhalt
+    CHECK (source_id IS NOT NULL OR outcome = 'preview')
 ) STRICT;
 CREATE INDEX live_source_imports_source ON live_source_imports (source_id, started_at DESC);
+CREATE INDEX live_source_imports_preview ON live_source_imports (started_at) WHERE outcome = 'preview'; -- Aufräumen
 ```
 
 **`live_source_import_items`** · die Einträge eines Laufs je Gruppe von LA-04 (neu, geändert, verschwunden,
 mögliche Duplikate, fehlerhaft). Höchstens 5'000 Zeilen je Lauf (Annahme); die Zähler in `counters` sind
-vollständig, die Liste nicht. Stufe 1.
+vollständig, die Liste nicht. Einträge gibt es nur für den **letzten** Lauf je Quelle und für Vorschauen; ältere
+Läufe behalten nur ihre Zähler (S-9). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -498,10 +518,14 @@ CREATE TABLE live_source_import_items (
     stream_id   INTEGER REFERENCES live_channel_streams (id) ON DELETE SET NULL,
     entry_name  TEXT    CHECK (entry_name IS NULL OR length(entry_name) <= 500),
     line        INTEGER,
-    detail      TEXT    CHECK (detail IS NULL OR json_valid(detail)),  -- Codes: name_changed, url_changed …
+    detail      TEXT    CHECK (detail IS NULL OR json_valid(detail)),
+                -- Codes: name_changed, url_changed, logo_changed, identity_conflict (7.1), lock_kept …
+    excluded    INTEGER NOT NULL DEFAULT 0 CHECK (excluded IN (0, 1)),   -- Vorschau: «übernehmen» abgewählt
     PRIMARY KEY (import_id, seq)
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX live_source_import_items_kind ON live_source_import_items (import_id, kind, seq);
+CREATE INDEX live_source_import_items_channel ON live_source_import_items (channel_id) WHERE channel_id IS NOT NULL;
+CREATE INDEX live_source_import_items_stream ON live_source_import_items (stream_id) WHERE stream_id IS NOT NULL;
 ```
 
 `detail` enthält nie eine Adresse, einen Pfad oder eine Kopfzeile, nur Codes, Zahlen und Namen aus der Liste.
@@ -509,8 +533,8 @@ CREATE INDEX live_source_import_items_kind ON live_source_import_items (import_i
 ### 3.3 Sender und Senderquellen
 
 **`live_channels`** · der Sender mit stabiler Kennung (LTV-006.19). Zeilen werden **nie** gelöscht: deaktiviert,
-verschwunden, zusammengeführt und gelöscht sind Markierungen (Abschnitt 7, 10.4). Stufe 1; `strategy` und
-`schedule_id` Stufe 3.
+verschwunden, zusammengeführt und gelöscht sind Markierungen (Abschnitt 7, 10.4). Deaktivieren und Verschwinden
+beenden nichts Laufendes (T-29). Stufe 1a; `strategy` und `schedule_id` Stufe 3.
 
 ```sql
 -- Entwurf, keine Migration
@@ -525,7 +549,7 @@ CREATE TABLE live_channels (
     enabled        INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     missing_since  INTEGER,                   -- keine Senderquelle mehr in ihren Listen (LTV-018.05)
     deleted_at     INTEGER,                   -- Grabstein: gelöscht oder zusammengeführt
-    merged_into    INTEGER REFERENCES live_channels (id),
+    merged_into    INTEGER,                   -- nur Auskunft für die Diagnose, kein Fremdschlüssel (S-8)
     no_audio       INTEGER NOT NULL DEFAULT 0 CHECK (no_audio IN (0, 1)),   -- LTV-011.15
     no_video       INTEGER NOT NULL DEFAULT 0 CHECK (no_video IN (0, 1)),
     strategy       TEXT    CHECK (strategy IS NULL
@@ -540,9 +564,8 @@ CREATE TABLE live_channels (
     created_at     INTEGER NOT NULL,
     updated_at     INTEGER NOT NULL,
     CHECK (merged_into IS NULL OR deleted_at IS NOT NULL),
-    CHECK (merged_into IS NULL OR merged_into <> id),
-    CHECK ((strategy = 'scheduled') = (schedule_id IS NOT NULL)),
-    CHECK ((logo_mode = 'url') = (logo_url_enc IS NOT NULL)),
+    CHECK ((strategy IS 'scheduled') = (schedule_id IS NOT NULL)),      -- IS statt =, RD-22
+    CHECK ((logo_mode IS 'url') = (logo_url_enc IS NOT NULL)),
     CHECK (deleted_at IS NULL OR (number IS NULL AND enabled = 0))
 ) STRICT;
 CREATE UNIQUE INDEX live_channels_number ON live_channels (number) WHERE number IS NOT NULL;
@@ -553,6 +576,8 @@ CREATE INDEX live_channels_norm ON live_channels (name_norm) WHERE deleted_at IS
                                               -- Suche und Duplikat-Vorschläge
 CREATE INDEX live_channels_strategy ON live_channels (strategy) WHERE strategy IS NOT NULL;
                                               -- LA-09 «Ausnahmen je Sender», Start permanenter Sender
+CREATE INDEX live_channels_schedule ON live_channels (schedule_id) WHERE schedule_id IS NOT NULL;
+                                              -- Fremdschlüssel; «3 Sender nutzen ‹Abends›»
 
 CREATE VIEW live_visible_channels AS                -- Spalten ausdrücklich, neu angelegt je Stufe (11.2)
     SELECT id, name, name_norm, sort_key, number, country, language, no_audio, no_video,
@@ -568,7 +593,7 @@ CREATE VIEW live_visible_channels AS                -- Spalten ausdrücklich, ne
   SQLite ohne `ON DELETE`); was ein Markieren auslöst, steht in Abschnitt 10.4.
 
 **`live_channel_locks`** · Felder, die der Administrator von Hand gepflegt hat (LTV-018.07 bis .10, .23; Muster
-`radio_station_locks`). Stufe 1.
+`radio_station_locks`). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -582,7 +607,7 @@ CREATE TABLE live_channel_locks (
 ```
 
 **`live_channel_categories`** · Senderkategorien aus der festen Liste von `15` F-16 (A). Mehrere je Sender
-(LTV-006.15). Stufe 1.
+(LTV-006.15). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -601,7 +626,7 @@ braucht einen Neubau dieser Tabelle.
 
 **`live_channel_streams`** · eine Senderquelle (Quellzeile): ein Eintrag einer Liste oder ein Einzelstrom, mit
 Rangfolge je Sender (LTV-003.20, .21; T-2). Trägt die Merkmale der Wiedererkennung (Abschnitt 7), die
-verschlüsselte Adresse und den technischen Zustand. Stufe 1.
+verschlüsselte Adresse und den technischen Zustand. Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -625,7 +650,8 @@ CREATE TABLE live_channel_streams (
                        -- NULL nur bei Xtream: die Adresse baut der Server aus Host und stream_id (04 10.5)
     site               TEXT    CHECK (site IS NULL OR length(site) <= 300),
     scheme             TEXT    NOT NULL CHECK (scheme IN ('http', 'https', 'udp', 'rtp', 'rtsp', 'rtmp')),
-    list_user_agent    TEXT    CHECK (list_user_agent IS NULL OR length(list_user_agent) <= 256),
+                       -- udp, rtp ab Stufe H, rtsp, rtmp ab Stufe L (Liste vorab, 1.4)
+    list_user_agent_enc TEXT   CHECK (list_user_agent_enc IS NULL OR list_user_agent_enc GLOB 'v[0-9]*:*'), -- RD-19
     list_referer_enc   TEXT    CHECK (list_referer_enc IS NULL OR list_referer_enc GLOB 'v[0-9]*:*'),
     logo_url_enc       TEXT    CHECK (logo_url_enc IS NULL OR logo_url_enc GLOB 'v[0-9]*:*'),
     -- technischer Zustand, nur bei Wechsel geschrieben (04 T-22)
@@ -635,7 +661,7 @@ CREATE TABLE live_channel_streams (
     state_since        INTEGER NOT NULL,
     last_error         TEXT    CHECK (last_error IS NULL OR last_error NOT GLOB '*[^a-z0-9_]*'),
     last_ok_at         INTEGER,
-    format             TEXT    CHECK (format IS NULL OR format IN ('ts', 'hls', 'dash')),
+    format             TEXT    CHECK (format IS NULL OR format IN ('ts', 'hls', 'dash')),  -- dash ab Stufe W
     params             TEXT    CHECK (params IS NULL OR json_valid(params)),
                        -- gespeicherte Streamparameter (T-14): Codecs, Bild, Zeilensprung, Bildrate,
                        -- Spuren mit Sprache und Codec, Untertitel, Bitrate, Länge der Bildgruppe
@@ -667,7 +693,7 @@ CREATE INDEX live_channel_streams_tvg_all ON live_channel_streams (tvg_id) WHERE
 
 ### 3.4 Gruppen, Duplikate, Zeitpläne
 
-**`live_groups`** · Sendergruppen aus Listen und eigene (LTV-006.02, .03; LA-08). Stufe 1.
+**`live_groups`** · Sendergruppen aus Listen und eigene (LTV-006.02, .03; LA-08). Stufe 1b.
 
 ```sql
 -- Entwurf, keine Migration
@@ -691,7 +717,7 @@ CREATE INDEX live_groups_order ON live_groups (position, id);
   (`source_id` und `source_key` leer); der Fremdschlüssel ohne Aktion fängt ein Vergessen ab. Eine Gruppe aus
   einer Quelle lässt sich nicht löschen, solange die Quelle sie liefert (`15` LA-08), nur ausblenden.
 
-**`live_group_channels`** · Mitgliedschaft (LTV-006.04). Stufe 1.
+**`live_group_channels`** · Mitgliedschaft (LTV-006.04). Stufe 1b.
 
 ```sql
 -- Entwurf, keine Migration
@@ -706,7 +732,7 @@ CREATE INDEX live_group_channels_channel ON live_group_channels (channel_id);
 
 Hat ein Sender die Sperre `groups`, fasst der Import seine Mitgliedschaften nicht an (LTV-018.09).
 
-**`live_duplicate_dismissals`** · «Kein Duplikat» merkt sich das Paar (LA-07). Stufe 1.
+**`live_duplicate_dismissals`** · «Kein Duplikat» merkt sich das Paar (LA-07). Stufe 1b.
 
 ```sql
 -- Entwurf, keine Migration
@@ -717,6 +743,7 @@ CREATE TABLE live_duplicate_dismissals (
     CHECK (channel_a < channel_b),
     PRIMARY KEY (channel_a, channel_b)
 ) STRICT, WITHOUT ROWID;
+CREATE INDEX live_duplicate_dismissals_b ON live_duplicate_dismissals (channel_b);   -- Fremdschlüssel
 ```
 
 Vorschläge selbst werden nicht gespeichert: Sie entstehen je Anfrage aus `name_norm`, `tvg_id` und `url_fp`
@@ -790,6 +817,8 @@ CREATE TABLE live_epg_sources (
 ) STRICT;
 CREATE INDEX live_epg_sources_due ON live_epg_sources (next_fetch_at)
     WHERE enabled = 1 AND every_minutes IS NOT NULL;        -- livetv.epg.poll
+CREATE INDEX live_epg_sources_input ON live_epg_sources (input_source_id)
+    WHERE input_source_id IS NOT NULL;                       -- Fremdschlüssel (RD-04)
 
 CREATE TABLE live_epg_imports (
     id               INTEGER PRIMARY KEY,
@@ -826,11 +855,13 @@ CREATE INDEX live_channel_epg_target ON live_channel_epg (source_id, xmltv_id); 
 - `live_channel_epg` mit Löschweitergabe von der EPG-Quelle: Quelle weg heisst Zuordnung weg, Sender «ohne
   Zuordnung» (`09` 5.4). Vom Sender ohne Aktion: Der Grabstein löscht die Zuordnung ausdrücklich.
 - Ein Sender ohne Zeile hat keine Zuordnung; `mode = 'none'` heisst «bewusst ohne EPG» (`09` 5.3).
+- Wird eine EPG-Quelle gelöscht, löscht der Dienst danach in `epg.db` ihre `epg_channels` (Löschweitergabe auf
+  Sendungen und Vorschläge); beim Start gleicht die Prune-Aufgabe die `source_id` beider Dateien ab (RD-23).
 
 ### 3.6 Profil-Daten: Favoriten, zuletzt gesehen, Erinnerungen
 
 **`live_favorites`** · Senderfavoriten je Profil in eigener Reihenfolge (DR-14, Muster gebaut:
-`00038_radio.sql`, `radio_favorites`). Stufe 1.
+`00038_radio.sql`, `radio_favorites`). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -850,7 +881,7 @@ nicht und kommt mit dem Sender zurück (DR-16). Anders als beim Radio löscht ei
 
 **`live_recent_channels`** · «Zuletzt gesehen», je Profil die letzten 20 (DR-15). Ein Eintrag entsteht mit dem
 ersten ausgelieferten Segment eines Senders (Abschnitt 3.8); «Liste leeren» löscht die Zeilen des Profils.
-Stufe 1.
+Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -861,6 +892,7 @@ CREATE TABLE live_recent_channels (
     PRIMARY KEY (profile_id, channel_id)
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX live_recent_channels_profile ON live_recent_channels (profile_id, watched_at DESC);
+CREATE INDEX live_recent_channels_channel ON live_recent_channels (channel_id);   -- Fremdschlüssel, Zusammenführen
 ```
 
 Die Grenze 20 hält der Dienst beim Schreiben ein (älteste Zeile über 20 löschen, in derselben Transaktion).
@@ -893,16 +925,21 @@ CREATE TABLE live_reminders (
     prog_match_state       TEXT    NOT NULL DEFAULT 'exact'
                            CHECK (prog_match_state IN ('exact', 'moved_auto', 'ambiguous', 'missing')),
     created_at             INTEGER NOT NULL,
-    updated_at             INTEGER NOT NULL,
-    UNIQUE (profile_id, channel_id, prog_start_utc, prog_title_norm)
+    updated_at             INTEGER NOT NULL
 ) STRICT;
+CREATE UNIQUE INDEX live_reminders_once ON live_reminders (profile_id, channel_id, prog_start_utc, prog_title_norm)
+    WHERE state = 'planned';                                                     -- RD-20: nur offene eindeutig
 CREATE INDEX live_reminders_profile ON live_reminders (profile_id, prog_start_utc); -- LS-13
-CREATE INDEX live_reminders_channel ON live_reminders (channel_id, prog_start_utc)
-    WHERE state = 'planned';                                                     -- livetv.epg.reconcile
+CREATE INDEX live_reminders_channel ON live_reminders (channel_id, prog_start_utc); -- reconcile, Fremdschlüssel
+CREATE INDEX live_reminders_account ON live_reminders (account_id);                 -- Fremdschlüssel
 ```
 
 - Der Zeitpunkt selbst liegt als Job `livetv.reminder.fire` in der Warteschlange (`09` 10.3); ein Index
   `(state, remind_at)` wie in `09` ist deshalb nicht nötig.
+- **Entfernen durch das Profil löscht die Zeile** (kein `cancelled`); `cancelled` setzt nur das System (Sender
+  gelöscht). Setzt ein Profil dieselbe Erinnerung neu, entsteht eine neue offene Zeile (RD-20). Kollidiert beim
+  Verschieben (`moved_auto`) oder Zusammenführen eine Erinnerung mit einer offenen gleichen, gilt
+  `UPDATE OR IGNORE`, danach wird das Doppel gelöscht (RD-11).
 - `dropped`: Die Sendung fällt aus dem Programm (DR-08 «Hinweis Sendung nicht mehr im Programm»). Höchstens 200
   offene je Profil prüft der Dienst (`09` 10.1).
 
@@ -965,6 +1002,7 @@ CREATE TABLE epg_programmes (
 CREATE INDEX epg_programmes_channel_start ON epg_programmes (epg_channel_id, start_utc); -- Raster, jetzt/danach
 CREATE INDEX epg_programmes_title_start ON epg_programmes (title_id, start_utc);         -- Suche, Serien
 CREATE INDEX epg_programmes_stop ON epg_programmes (stop_utc);                           -- Aufräumen
+CREATE INDEX epg_programmes_subtitle ON epg_programmes (subtitle_id) WHERE subtitle_id IS NOT NULL; -- Fremdschlüssel
 
 CREATE TABLE epg_stage (                             -- zu Beginn jedes Imports einer Quelle geleert
     source_id         INTEGER NOT NULL,
@@ -1002,6 +1040,7 @@ CREATE TABLE epg_suggestions (                       -- Vorschläge der Zuordnun
     PRIMARY KEY (channel_id, epg_channel_id)
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX epg_suggestions_rank ON epg_suggestions (rank DESC, channel_id);  -- «alle Rang 90 übernehmen»
+CREATE INDEX epg_suggestions_epg ON epg_suggestions (epg_channel_id);          -- Fremdschlüssel
 ```
 
 Keine Eindeutigkeit auf `(epg_channel_id, start_utc)`: Überlappungen mit gleichem Beginn sind erlaubt (`09` 4).
@@ -1009,13 +1048,15 @@ Keine Eindeutigkeit auf `(epg_channel_id, start_utc)`: Überlappungen mit gleich
 ### 3.8 Sitzungen, Schauzeit, Diagnose
 
 **`live_sessions`** · eine Live-Sitzung (T-9): ein Profil auf einem Gerät, Umschalten ist ein Vorgang darin.
-Persistiert nur, was `04` T-22 nennt; alles Übrige ist im Arbeitsspeicher. Stufe 1; `recording_id` Stufe 5.
+Persistiert nur, was `04` T-22 nennt; alles Übrige ist im Arbeitsspeicher. Stufe 1a; `recording_id` Stufe 5.
 
 ```sql
 -- Entwurf, keine Migration
 CREATE TABLE live_sessions (
     id            TEXT    PRIMARY KEY CHECK (length(id) = 26),               -- ULID
-    session_id    INTEGER NOT NULL REFERENCES sessions (id) ON DELETE CASCADE,
+    session_id    INTEGER REFERENCES sessions (id) ON DELETE SET NULL,
+                  -- SET NULL, nicht CASCADE: der Bestand löscht abgelaufene Anmeldungen (auth.sql:67-74), die
+                  -- Zeile soll 14 Tage bleiben (RD-12)
     account_id    INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     profile_id    INTEGER NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
     device_id     TEXT    CHECK (device_id IS NULL OR length(device_id) <= 64),
@@ -1031,11 +1072,18 @@ CREATE TABLE live_sessions (
                       'channel', 'restart', 'shutdown')),
     CHECK ((ended_at IS NULL) = (ended_by IS NULL))
 ) STRICT;
-CREATE INDEX live_sessions_open_profile ON live_sessions (profile_id) WHERE ended_at IS NULL;
-CREATE INDEX live_sessions_open_account ON live_sessions (account_id) WHERE ended_at IS NULL;
-                                              -- Stream-Grenzen (T-26), Entzug, Start: offene beenden
+CREATE INDEX live_sessions_profile ON live_sessions (profile_id, ended_at);
+CREATE INDEX live_sessions_account ON live_sessions (account_id, ended_at);
+                                              -- Stream-Grenzen (T-26), Entzug, offene beenden, Fremdschlüssel
+CREATE INDEX live_sessions_session ON live_sessions (session_id) WHERE session_id IS NOT NULL;   -- Fremdschlüssel
+CREATE INDEX live_sessions_recording ON live_sessions (recording_id) WHERE recording_id IS NOT NULL; -- Stufe 5
+CREATE INDEX live_sessions_channel ON live_sessions (channel_id) WHERE channel_id IS NOT NULL;   -- Fremdschlüssel
 CREATE INDEX live_sessions_ended ON live_sessions (ended_at) WHERE ended_at IS NOT NULL; -- Aufräumen
 ```
+
+- **Ein Gerät, eine Sitzung (RD-10):** Legt dasselbe Profil mit derselben `device_id` eine neue Sitzung an, beendet
+  der Dienst unter derselben Startsperre die offene alte (`ended_by = 'client'`), bevor die Stream-Grenze zählt.
+  Sonst sperrte eine verlorene Sitzung ohne Herzschlag ein Konto mit einem erlaubten Strom bis zu 60 Sekunden.
 
 - `ended_by` folgt den Werten von `playback_sessions.stopped_by` und `radio_listen_sessions.ended_by` (gebaut:
   `00032_playback_prefs.sql`, `00038_radio.sql`) mit `channel` (Sender weg, deaktiviert), `restart` und
@@ -1048,7 +1096,7 @@ CREATE INDEX live_sessions_ended ON live_sessions (ended_at) WHERE ended_at IS N
 ausgelieferten Mediensegment, nicht beim Tastendruck: Wer durchschaltet, erzeugt keine Zeilen (DR-15 «gezählt ab
 dem ersten sichtbaren Bild»; der Server sieht das Bild nicht, das erste Segment ist die nächste beobachtbare
 Grösse, Annahme). Quelle für die Rangliste «automatisch» (`04` 6.2, Tage mit mindestens 30 Sekunden in 14
-Tagen). Stufe 1.
+Tagen). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -1066,7 +1114,7 @@ CREATE INDEX live_session_tunes_channel ON live_session_tunes (channel_id, shown
 **`live_watch_time`** · Schauzeit je Profil und Viertelstunde, für das Tageslimit (DR-12) und die Statistik
 ohne Sender (`03` DR-12, LTV-Q-12.16). Muster gebaut: `radio_listen_time` (`00038_radio.sql`,
 `server/queries/app/radio_listen.sql:64-74`). Das Tageslimit hängt heute an `progress_days` und damit an `items`
-(V1 L-5); `playback.watchTime` bekommt die Live-Zeit über den Rückruf aus T-26 dazu. Stufe 1.
+(V1 L-5); `playback.watchTime` bekommt die Live-Zeit über den Rückruf aus T-26 dazu. Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
@@ -1078,25 +1126,26 @@ CREATE TABLE live_watch_time (
 ) STRICT, WITHOUT ROWID;
 ```
 
-Gezählt wird, was der Herzschlag mit `playing = true` meldet, auch beim Abspielen einer Aufnahme; eine Pause
-zählt nicht (`03` DR-12; beantwortet `06` O-11). Geschrieben wird gesammelt höchstens einmal je Minute und
-Sitzung.
+Gezählt wird die Dauer der **ausgelieferten Segmente**, solange der letzte Herzschlag «spielt» meldet, auch beim
+Abspielen einer Aufnahme; eine Pause zählt nicht (`03` DR-12; `04` 13.4 zu `06` O-11; Muster Radio
+`api/openapi.yaml:12080-12083`). Geschrieben wird gesammelt höchstens einmal je Minute und Sitzung.
 
 **`live_stream_events`** · Diagnose-Ereignisse der letzten 7 Tage (LA-13: Ausfälle, Wiederverbindungen,
 Quellwechsel, Protokoll; «kein historisches Bewertungssystem», LTV-011.X-01). Offene Art ohne Liste (Muster
-`wish_events`). Stufe 1.
+`wish_events`). Stufe 1a.
 
 ```sql
 -- Entwurf, keine Migration
 CREATE TABLE live_stream_events (
     id          INTEGER PRIMARY KEY,
     at          INTEGER NOT NULL,
-    channel_id  INTEGER REFERENCES live_channels (id),
-    stream_id   INTEGER REFERENCES live_channel_streams (id) ON DELETE SET NULL,
-    source_id   INTEGER REFERENCES live_sources (id) ON DELETE SET NULL,
+    channel_id  INTEGER,                    -- blosse Zahlen ohne Fremdschlüssel (RD-04, S-10): ein Verweis
+    stream_id   INTEGER,                    -- ins Leere ist bei Diagnose harmlos und spart beim Löschen
+    source_id   INTEGER,                    -- einer Quelle den Vollscan dieser Tabelle
     kind        TEXT    NOT NULL CHECK (kind <> '' AND kind NOT GLOB '*[^a-z_]*'),
                 -- outage_start, outage_end, reconnect, source_switch, source_rejected, access_check,
-                -- drm_detected, frozen, no_audio, params_changed, check_ok, check_failed, storage_state
+                -- drm_detected, frozen, no_audio, params_changed, check_ok, check_failed, storage_state,
+                -- deferred (zurückgestellt), resumed, ended_now (T-29 «sofort beenden»)
     code        TEXT    CHECK (code IS NULL OR code NOT GLOB '*[^a-z0-9_]*'),
     detail      TEXT    CHECK (detail IS NULL OR json_valid(detail))
                 -- Versuch n von m, Host, HTTP-Status, Dauer; nie Adresse, Pfad, Abfrage oder Zugangsdaten
@@ -1149,11 +1198,21 @@ CREATE INDEX live_recording_rules_profile ON live_recording_rules (profile_id, k
 CREATE INDEX live_recording_rules_series ON live_recording_rules (title_norm)
     WHERE kind = 'series' AND state = 'active';                                          -- livetv.dvr.expand
 CREATE INDEX live_recording_rules_channel ON live_recording_rules (channel_id) WHERE channel_id IS NOT NULL;
+CREATE INDEX live_recording_rules_account ON live_recording_rules (account_id);         -- Fremdschlüssel
+CREATE UNIQUE INDEX live_recording_rules_once ON live_recording_rules (profile_id, title_norm, ifnull(channel_id, 0))
+    WHERE kind = 'series';                                   -- RD-10: dieselbe Serie nicht zweimal je Profil
+CREATE UNIQUE INDEX live_recording_rules_recurring_once
+    ON live_recording_rules (profile_id, channel_id, weekdays, start_minute, duration_minutes)
+    WHERE kind = 'recurring';                                -- 11 2.5
 ```
+
+Ein zweites, gleiches Anlegen (doppelter OK-Druck, Wiederholung der App) trifft eine dieser Eindeutigkeiten; der
+Dienst antwortet dann 200 mit der bestehenden Zeile statt 201 (`08` 3.5, 3.6).
 
 `suspended` ist der Zustand «ruht» nach `03` F-7 (a); `channel_gone`: der Sender der Regel ist gelöscht oder
 zusammengeführt (Abschnitt 10.4). Felder aus `14` LD-02 und LD-03, die `11` nicht kennt (Zeitfenster und
-Wochentage einer Serie, «nur Erstausstrahlungen», Ende einer Wiederholung), sind **nicht** modelliert (W-10, W-11).
+Wochentage einer Serie, «nur Erstausstrahlungen», Schalter «Folgen nicht doppelt aufnehmen», Ende einer
+Wiederholung), sind **nicht** modelliert; sie sind eine Frage an dich (`11` O-6, hier O-3).
 
 **`live_rule_episodes`** · Folgengedächtnis einer Regel (`11` 2.4). Stufe 6.
 
@@ -1184,7 +1243,8 @@ CREATE TABLE live_recordings (
     channel_name           TEXT    NOT NULL,                                     -- Kopie beim Anlegen
     channel_number         INTEGER,
     rule_id                TEXT    REFERENCES live_recording_rules (id) ON DELETE SET NULL, -- Stufe 6
-    rule_key               TEXT,                                                 -- Stufe 6, 11 2.1
+    rule_key               TEXT,                                                 -- Stufe 6, Bildung unten (RD-09)
+    rev                    INTEGER NOT NULL DEFAULT 0 CHECK (rev >= 0),          -- jede Änderung +1 (RD-15)
     -- Zeiten
     core_start             INTEGER NOT NULL,
     core_end               INTEGER,                    -- NULL: «bis ich stoppe»
@@ -1221,7 +1281,7 @@ CREATE TABLE live_recordings (
                                        'quota_full', 'server_busy', 'channel_unavailable', 'source_unreachable',
                                        'source_encrypted', 'storage_full', 'storage_missing', 'server_not_running')),
     cancel_reason          TEXT    CHECK (cancel_reason IS NULL OR cancel_reason IN (
-                                       'profile', 'right_revoked', 'channel_deleted', 'skipped')),
+                                       'profile', 'right_revoked', 'channel_deleted', 'skipped', 'merged')),
     conflicts              INTEGER NOT NULL DEFAULT 0 CHECK (conflicts BETWEEN 0 AND 63),   -- Bits K-1 bis K-6
     acked_warnings         INTEGER NOT NULL DEFAULT 0 CHECK (acked_warnings BETWEEN 0 AND 255),
     expected_bytes         INTEGER CHECK (expected_bytes IS NULL OR expected_bytes >= 0),
@@ -1251,8 +1311,14 @@ CREATE INDEX live_recordings_due ON live_recordings (core_start)
     WHERE state IN ('scheduled', 'waiting', 'recording', 'recording_gap');                  -- Planer beim Start
 CREATE INDEX live_recordings_account ON live_recordings (account_id);                       -- Kontingent, LA-16
 CREATE UNIQUE INDEX live_recordings_rule_key ON live_recordings (rule_id, rule_key) WHERE rule_id IS NOT NULL;
-CREATE INDEX live_recordings_channel ON live_recordings (channel_id, core_start)
-    WHERE state IN ('scheduled', 'suspended', 'waiting', 'recording', 'recording_gap');      -- reconcile, Grabstein
+CREATE INDEX live_recordings_channel ON live_recordings (channel_id, core_start);         -- reconcile, Grabstein, FK
+CREATE INDEX live_recordings_rule ON live_recordings (rule_id, core_start) WHERE rule_id IS NOT NULL; -- LS-11, FK
+CREATE UNIQUE INDEX live_recordings_single_once ON live_recordings (profile_id, channel_id, prog_start_utc, prog_title_norm)
+    WHERE kind = 'single' AND state NOT IN ('cancelled', 'deleting');           -- RD-10: doppelt gesendet = eine
+CREATE UNIQUE INDEX live_recordings_manual_once ON live_recordings (profile_id, channel_id, core_start, core_end)
+    WHERE kind = 'manual' AND state NOT IN ('cancelled', 'deleting');           -- 11 2.5
+CREATE UNIQUE INDEX live_recordings_instant_once ON live_recordings (profile_id, channel_id)
+    WHERE kind = 'instant' AND state IN ('waiting', 'recording', 'recording_gap'); -- eine laufende je Sender
 CREATE INDEX live_recordings_retention ON live_recordings (ended_at)
     WHERE retention_days IS NOT NULL AND keep = 0 AND state IN ('completed', 'incomplete');  -- livetv.dvr.retention
 CREATE INDEX live_recordings_deleting ON live_recordings (updated_at) WHERE state = 'deleting'; -- livetv.dvr.purge
@@ -1260,12 +1326,26 @@ CREATE INDEX live_recordings_deleting ON live_recordings (updated_at) WHERE stat
 
 - `cancelled` mit `cancel_reason = 'skipped'` ist ein ausgelassener Termin einer Regel ohne Daten; er bleibt bis
   zum Ende seines Termins stehen, damit `livetv.dvr.expand` ihn nicht neu anlegt (W-17), und wird dann gelöscht.
-  Ein abgesagter Einzeltermin ohne Daten wird sofort gelöscht (`11` 3.6).
-- `profile_id` und `account_id` werden nur geleert, nachdem der Haken beim Löschen des Profils die Zeile auf
-  `deleting` gesetzt hat (Abschnitt 10.1); die CHECK-Regel hält das fest.
-- `owner_age_limited` setzt der Dienst beim Anlegen auf 1, wenn `min(profiles.max_rating, accounts.max_rating)`
-  unter 18 liegt (Annahme zur «Altersgrenze» des Kontos, F-1 dieses Dokuments). Wählst du bei `04` F-10 (a) oder
-  (c), fällt die Spalte weg und die Zugriffsregel prüft die aktuelle Altersgrenze (Abschnitt 4.3).
+  Ein abgesagter Einzeltermin ohne Daten wird sofort gelöscht (`11` 3.6). `merged`: ein Doppel, das beim
+  Zusammenführen wegfiel (RD-11).
+- **`rule_key` (RD-09)** wird aus Merkmalen gebildet, die eine Verschiebung überleben: `ext:<prog_ext_id>` oder
+  `ns:<prog_episode_ns>`, wenn die Quelle sie liefert; sonst `t:<Titelprüfsumme>:<lokales Datum des Kerns>`
+  (Serie) bzw. `d:<lokales Datum>` (wiederkehrend). Der Sender steht **nicht** im Schlüssel. Ändern
+  `livetv.epg.reconcile` oder das Zusammenführen einen Termin, setzen sie `rule_key` in derselben Transaktion neu;
+  so legt `livetv.dvr.expand` nach einer Verschiebung keinen zweiten Termin an und ein ausgelassener bleibt aus.
+- **`rev` (RD-15):** Jede Änderung eines Termins (PATCH, reconcile, Zusammenführen, Absage) erhöht `rev`. Der
+  Zeitgeber des Planers trägt `rev` und startet nur mit `… WHERE id = @id AND state = 'scheduled' AND rev = @rev`;
+  trifft das keine Zeile, liest er neu und plant neu. reconcile und PATCH schreiben nur `WHERE state = 'scheduled'`
+  (nie in `waiting`, `11` 2.1 «nie nach Beginn des Vorlaufs»).
+- `profile_id` und `account_id` werden nur geleert, nachdem die Zeile in der Löschtransaktion auf `deleting`
+  gesetzt wurde (Abschnitt 10.1); die CHECK-Regel hält das fest.
+- **`owner_age_limited`** setzt der Dienst beim Anlegen nach **der einen** Definition «Profil mit Altersgrenze»
+  (Abschnitt 4.4): `min(profiles.max_rating, accounts.max_rating) < 18`. Die Zugriffsregel des Hauptprofils
+  verlangt zusätzlich, dass die Grenze **heute** noch besteht (RD-18, F-3). Wählst du bei `04` F-10 (a) oder (c),
+  fällt die Spalte weg und es zählt nur die heutige Grenze.
+- **Bild (RD-24):** `image_key` zeigt auf ein Bild im Bilderordner von Live-TV (`<cache>/images/live/epg/`). Die
+  Prune-Aufgabe des EPG schont jedes Bild, auf das eine Aufnahme zeigt; geht der Cache verloren, zeigt die
+  Aufnahme das Senderlogo (Cache ist wiederbeschaffbar, `09` 8.7). Kein Kopieren in den Aufnahmeordner.
 - Die Konfliktbits: 1 = K-1 Kontingent, 2 = K-2 Platz, 4 = K-3 Serverdeckel, 8 = K-4 Sender, 16 = K-5 kein EPG
   mehr, 32 = K-6 Recht (`11` 4.1). `acked_warnings` merkt sich, welche Hinweise das Profil mit «OK» ausgeblendet
   hat (LS-12).
@@ -1292,6 +1372,7 @@ CREATE TABLE live_recording_parts (
     PRIMARY KEY (recording_id, seq)
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX live_recording_parts_storage ON live_recording_parts (storage_id);   -- Belegung je Speicherort
+CREATE INDEX live_recording_parts_stream ON live_recording_parts (stream_id) WHERE stream_id IS NOT NULL; -- RD-04
 CREATE INDEX live_recording_parts_open ON live_recording_parts (state) WHERE state IN ('open', 'hung'); -- Start
 ```
 
@@ -1306,14 +1387,16 @@ CREATE TABLE live_recording_gaps (
     ended_at      INTEGER,                    -- NULL: Lücke läuft
     reason        TEXT    NOT NULL CHECK (reason IN ('source_interrupted', 'source_switched', 'source_unreachable',
                                                      'source_encrypted', 'storage_full', 'storage_missing',
-                                                     'disk_too_slow', 'server_not_running', 'stopped_by_admin')),
+                                                     'disk_too_slow', 'server_not_running', 'stopped_by_admin',
+                                                     'channel_disabled')),
     after_part    INTEGER,                    -- Teil davor
     PRIMARY KEY (recording_id, seq),
     CHECK (ended_at IS NULL OR ended_at >= started_at)
 ) STRICT, WITHOUT ROWID;
 ```
 
-`stopped_by_admin` ist neu gegenüber `11` (LA-12 «Beenden»: «Aufnahmen bekommen eine Lücke»).
+Neu gegenüber `11`: `stopped_by_admin` (LA-12 «Beenden»: «Aufnahmen bekommen eine Lücke», die Aufnahme verbindet
+neu) und `channel_disabled` (T-29 «sofort beenden»: die Aufnahme endet als «unvollständig, Sender deaktiviert»).
 
 ### 3.10 Die Spaltengruppe «Programmverweis» (P)
 
@@ -1327,34 +1410,46 @@ Prüfsumme des normalisierten Titels.
 
 **Rechte** · drei Schalterpaare und das Kontingent (Abschnitt 4).
 
+Jeder Schalter kommt mit seiner Stufe (`18` 4.3, 4.7, 4.8): «Live-TV» 1a, «Timeshift» 4, «Aufnahmen» und das
+Kontingent 5. Die Werkseinstellung läuft je Stufe für den neuen Schalter.
+
 ```sql
--- Entwurf, keine Migration (Stufe 1; live_quota_bytes Stufe 5)
-ALTER TABLE accounts ADD COLUMN can_live_tv        INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
-ALTER TABLE accounts ADD COLUMN can_live_record    INTEGER NOT NULL DEFAULT 0 CHECK (can_live_record IN (0, 1));
-ALTER TABLE accounts ADD COLUMN can_live_timeshift INTEGER NOT NULL DEFAULT 0 CHECK (can_live_timeshift IN (0, 1));
-ALTER TABLE accounts ADD COLUMN live_quota_bytes   INTEGER CHECK (live_quota_bytes IS NULL OR live_quota_bytes >= 0);
-ALTER TABLE profiles ADD COLUMN can_live_tv        INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
-ALTER TABLE profiles ADD COLUMN can_live_record    INTEGER NOT NULL DEFAULT 0 CHECK (can_live_record IN (0, 1));
-ALTER TABLE profiles ADD COLUMN can_live_timeshift INTEGER NOT NULL DEFAULT 0 CHECK (can_live_timeshift IN (0, 1));
-ALTER TABLE invitations ADD COLUMN can_live_tv        INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
-ALTER TABLE invitations ADD COLUMN can_live_record    INTEGER NOT NULL DEFAULT 0 CHECK (can_live_record IN (0, 1));
-ALTER TABLE invitations ADD COLUMN can_live_timeshift INTEGER NOT NULL DEFAULT 0 CHECK (can_live_timeshift IN (0, 1));
-ALTER TABLE invitations ADD COLUMN live_quota_bytes   INTEGER CHECK (live_quota_bytes IS NULL OR live_quota_bytes >= 0);
--- Werkseinstellung bei Einführung nach 03 F-1 (a), solange du nichts anderes sagst:
-UPDATE accounts SET can_live_tv = 1, can_live_record = 1, can_live_timeshift = 1 WHERE role = 'admin';
-UPDATE profiles SET can_live_tv = 1, can_live_record = 1, can_live_timeshift = 1 WHERE max_rating = 18;
+-- Entwurf, keine Migration. Stufe 1a (Schalter «Live-TV»):
+ALTER TABLE accounts    ADD COLUMN can_live_tv INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
+ALTER TABLE profiles    ADD COLUMN can_live_tv INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
+ALTER TABLE invitations ADD COLUMN can_live_tv INTEGER NOT NULL DEFAULT 0 CHECK (can_live_tv IN (0, 1));
+-- Werkseinstellung bei Einführung nach 03 F-1 (a), solange du nichts anderes sagst. Ein Profil gilt nur dann
+-- als «ohne Altersgrenze», wenn weder es selbst noch sein Konto eine hat (eine Definition, 4.4; RD-05):
+UPDATE accounts SET can_live_tv = 1 WHERE role = 'admin';
+UPDATE profiles SET can_live_tv = 1
+WHERE max_rating = 18 AND account_id IN (SELECT id FROM accounts WHERE max_rating = 18);
+-- Stufe 4: can_live_timeshift auf allen drei Tabellen, gleiche Werkseinstellung.
+-- Stufe 5: can_live_record auf allen drei Tabellen, gleiche Werkseinstellung; dazu:
+ALTER TABLE accounts    ADD COLUMN live_quota_bytes INTEGER CHECK (live_quota_bytes IS NULL OR live_quota_bytes >= 0);
+ALTER TABLE invitations ADD COLUMN live_quota_bytes INTEGER CHECK (live_quota_bytes IS NULL OR live_quota_bytes >= 0);
 ```
 
 **Kein Auslöser** koppelt diese Spalten an `max_rating` (anders als `00086_wishes_rights_follow_rating.sql:86-120`;
-A-5, LTV-015). Ein neues Profil bekommt seine Werte vom Dienst: mit Altersgrenze alles aus (DR-01), ohne nach
-`03` F-1.
+A-5, LTV-015). Ein neues Profil bekommt seine Werte vom Dienst mit derselben Funktion wie die Werkseinstellung:
+mit Altersgrenze (nach 4.4) alles aus (DR-01), ohne nach `03` F-1. Ein Test mit einem Konto `max_rating = 12`
+prüft, dass dessen Profile aus bleiben.
 
 **`notifications`** (Neubau) · neue Arten der Glocke. Die Tabelle hat eine geschlossene Liste und verlangt
 `item_id` oder `wish_id` (gebaut: `00070_wishes_notifications.sql:27-42`). Neu: Arten `live_*`, Spalten
 `live_ref` (Kennung der Erinnerung, Aufnahme oder Regel, **ohne** Fremdschlüssel, damit der Eintrag das Löschen
-seines Ziels überlebt) und `live_detail` (Titel, Sender, Zeiten als JSON; der Eintrag gehört dem Profil, dem auch
-die Aufnahme gehört). Alle Arten in **einem** Neubau in Stufe 2, auch die der Stufen 5 und 6 (Muster 00070); der
-Vertrag nimmt einen Wert erst mit seinem Erzeuger auf (ADR 0009).
+seines Ziels überlebt) und `live_detail` (JSON). Alle Arten in **einem** Neubau in Stufe 2, auch die der Stufen 5
+und 6 (Muster 00070); der Vertrag nimmt einen Wert erst mit seinem Erzeuger auf (ADR 0009).
+
+**Wer was sieht:** Ein Eintrag beim besitzenden Profil trägt Titel, Sender und Zeiten. Die Meldung «Kontingent
+voll» an das **Hauptprofil** ist eine eigene Art `live_quota_rejected_profile` (RD-07): `live_detail` nennt nur den
+Profilnamen und «Kontingent voll», **Titel, Sender und Zeiten nur bei `owner_age_limited = 1`** und heute
+wirksamer Grenze (4.3); `dedupe_key = 'live:<recording_id>:quota_primary'`. Dieselbe Regel gilt für `deliveries`
+(Betreff und Text ohne Titel). Ein Test sucht die Bytes des Titels in der Meldung an das Hauptprofil eines
+erwachsenen Profils und darf nichts finden.
+
+**Wiederholte Meldungen (RD-25):** `live_schedule_moved` und `live_schedule_conflict` sind Upserts auf denselben
+`dedupe_key` (`created_at` neu, `read_at` leer), damit eine zweite Verschiebung wieder erscheint; alle anderen
+Arten melden je Ziel einmal.
 
 ```sql
 -- Entwurf, keine Migration (Stufe 2, Neubau nach Vorlage, jede Zeile kopiert)
@@ -1366,8 +1461,9 @@ CREATE TABLE notifications_new (
                     'wish_declined', 'wish_failed',
                     'live_reminder', 'live_reminder_dropped',
                     'live_recording_done', 'live_recording_incomplete', 'live_recording_failed',
-                    'live_recording_rejected', 'live_schedule_moved', 'live_schedule_unclear',
-                    'live_schedule_conflict', 'live_recording_deleted')),
+                    'live_recording_rejected', 'live_quota_rejected_profile', 'live_schedule_moved',
+                    'live_schedule_unclear', 'live_schedule_conflict')),
+                    -- 'live_recording_deleted' nur, wenn 14 F-4 vor dem Neubau mit (a) beantwortet ist (RD-30)
     item_id     TEXT    REFERENCES items(id) ON DELETE CASCADE,
     parent_id   TEXT    REFERENCES items(id) ON DELETE SET NULL,
     wish_id     INTEGER REFERENCES wishes(id) ON DELETE CASCADE,
@@ -1381,15 +1477,17 @@ CREATE TABLE notifications_new (
     CHECK (kind GLOB 'live_*' OR live_ref IS NULL),
     CHECK (kind = 'new_episode' OR kind GLOB 'live_*' OR wish_id IS NOT NULL),
     CHECK (kind <> 'new_episode' OR (item_id IS NOT NULL AND wish_id IS NULL)),
-    CHECK (item_id IS NOT NULL OR wish_id IS NOT NULL OR kind GLOB 'live_*')
+    CHECK (item_id IS NOT NULL OR wish_id IS NOT NULL OR kind GLOB 'live_*'),
+    CHECK (kind NOT GLOB 'live_*' OR (item_id IS NULL AND parent_id IS NULL AND wish_id IS NULL))   -- RD-25
 ) STRICT;
 -- Indizes wie gebaut (00070:51-55) und neu:
 -- CREATE INDEX notifications_live ON notifications (live_ref) WHERE live_ref IS NOT NULL;
 ```
 
-`live_recording_deleted` gilt nur, wenn du die Empfehlung von `14` F-4 nimmst (Meldung an das Profil, wenn das
-Hauptprofil eine Aufnahme löscht). Bei Profilen mit PIN tragen die Einträge über externe Kanäle keinen Titel
-(`03` DR-05); in der Glocke stehen sie, weil sie hinter der PIN liegt.
+`live_recording_deleted` (Meldung an das Profil, wenn das Hauptprofil eine Aufnahme löscht) kommt nur in die Liste,
+wenn du `14` F-4 vor dem Bau der Stufe 2 mit der Empfehlung beantwortest; sonst mit einem späteren Neubau (RD-30).
+Bei Profilen mit PIN tragen die Einträge über externe Kanäle keinen Titel (`03` DR-05); in der Glocke stehen sie,
+weil sie hinter der PIN liegt. `deliveries` muss beim Neubau `device_linked` aus 00084 mitnehmen.
 
 **`deliveries`** (Neubau) · drei neue Ereignisse der externen Kanäle nach `03` F-3 (a): `live_reminder`,
 `live_recording_done`, `live_recording_failed` (fehlgeschlagen, unvollständig, abgelehnt; `11` 11). Neubau wie
@@ -1400,7 +1498,7 @@ Erzeuger (Muster 00070, Kopfkommentar).
 **`my_media`** (Neubau) · Schlüssel `livetv` für «Meine Medien» (DR-23, LA-26). Die Spalte `key` hat eine
 geschlossene Liste (gebaut: `00059_my_media.sql:29-38`); Neubau samt Auslöser `my_media_library_added` (gebaut:
 `00059_my_media.sql`, Ende). Neue Zeile `('livetv', 'livetv', NULL, <hinter radio>, 0, 1, 0)`: in der
-Seitenleiste sichtbar, keine Kachel auf der Startseite (DR-23, `14` LS-26). Stufe 1. Ob ein Profil den Eintrag
+Seitenleiste sichtbar, keine Kachel auf der Startseite (DR-23, `14` LS-26). Stufe 1a. Ob ein Profil den Eintrag
 sieht, entscheidet der Server aus dem Recht (Regel 12).
 
 ---
@@ -1418,8 +1516,8 @@ sieht, entscheidet der Server aus dem Recht (Regel 12).
 
 Gespeichert wird jeder Schalter für sich; die Abhängigkeit «Aufnahmen und Timeshift setzen Live-TV voraus»
 (`03` 2.2, DR-22) gilt beim **Auswerten**, nicht beim Speichern. So kehrt ein Profil nach einem kurzen Entzug von
-«Live-TV» mit seinen bisherigen Unterschaltern zurück. Der Dienst lehnt beim Speichern nur ab, was über den Deckel
-ginge (Abschnitt 4.2).
+«Live-TV» mit seinen bisherigen Unterschaltern zurück. Das Hauptprofil darf auch einen Schalter speichern, den der
+Deckel des Kontos nicht erlaubt; er wirkt erst mit dem Deckel (4.2).
 
 ### 4.2 Wirksam
 
@@ -1450,18 +1548,32 @@ WHERE r.id = @recording_id
   AND r.state <> 'deleting'
   AND (
         r.profile_id = @profile_id
-        OR (r.owner_age_limited = 1
+        OR (-- sqlc-Fragment «primary_sees_child», gleich in Liste und Einzelabruf (RD-18)
+            r.owner_age_limited = 1
             AND r.account_id = @account_id
+            AND r.state NOT IN ('scheduled', 'suspended', 'waiting')     -- Termine des Kinds bis 14 F-4: nur Zahl
             AND EXISTS (SELECT 1 FROM profiles AS p
-                        WHERE p.id = @profile_id AND p.account_id = r.account_id AND p.is_default = 1))
+                        WHERE p.id = @profile_id AND p.account_id = r.account_id AND p.is_default = 1)
+            AND EXISTS (SELECT 1 FROM profiles AS c JOIN accounts AS a ON a.id = c.account_id
+                        WHERE c.id = r.profile_id AND min(c.max_rating, a.max_rating) < 18))   -- heute noch
       );
 ```
 
 - Kein Treffer heisst 404, auch für eine fremde, eine gelöschte und eine unbekannte Kennung (`08` 3).
-- Was das Hauptprofil damit darf, entscheidet der Dienst nach `is_own`: sehen, löschen, abspielen; abspielen nur
-  mit eigenem wirksamem «Live-TV» (`03` DR-03); schreibt keinen Fortschritt (`03` DR-21).
-- Die Liste für LS-14 (`listProfileLiveRecordings`) nutzt dieselbe Bedingung ohne `r.id` und mit
-  `r.profile_id <> @profile_id`.
+- Was das Hauptprofil damit darf, entscheidet der Dienst nach `is_own` und liefert es als `actions` (`08` 3.5):
+  sehen, löschen, abspielen; abspielen nur mit eigenem wirksamem «Live-TV» (`03` DR-03); schreibt keinen
+  Fortschritt (`03` DR-21); ändern und stoppen nie.
+- Die Übersicht für LS-14 und `listLiveRecordings?profileId=` nutzen **dasselbe Fragment**, damit keine Aufnahme
+  per Kennung erreichbar ist, die in keiner Liste steht.
+- Die Bedingung «heute noch» schützt die Gegenrichtung: Entfernt das Hauptprofil die Altersgrenze (das Kind wird
+  volljährig), sieht es die alten Aufnahmen nicht mehr. Ob es so bleiben soll, ist F-3.
+
+### 4.4 Eine Definition «Profil mit Altersgrenze»
+
+`min(profiles.max_rating, accounts.max_rating) < 18` (Leitplanken 4; RD-05). Dieselbe Funktion im Dienst nutzen
+die Werkseinstellung der Schalter (3.11), die Vorgabe für neue Profile (DR-01), `owner_age_limited` und die
+Zugriffsregel in 4.3. Das ist die Vorgabe (a) von F-1 dieses Dokuments; die Frage bleibt offen, aber es gibt nur
+noch eine Stelle, die sich mit der Antwort ändert.
 
 ---
 
@@ -1478,8 +1590,29 @@ WHERE r.id = @recording_id
 | Live-Sitzung, Token, Segmente | Sitzung, Profil, Einstell-Nummer | Token-Prüfung, dann `live_sessions.profile_id = @profile_id` |
 
 Für die Verwaltung gibt es eigene Abfragen ohne Profilbindung, die nie Titel, Sender oder Zeiten fremder
-Aufnahmen lesen: Belegung je Konto ist `SUM(bytes)` und `COUNT(*)` je `account_id`; laufende Aufnahmen je
-Sender sind eine Zahl ohne Profil (`03` DR-17, `15` 4).
+Aufnahmen lesen: Belegung und Zahl je Konto (Abfrage aus 5.1a); laufende Aufnahmen je Sender sind eine Zahl
+**ohne Konto und ohne Profil**. Eine Liste «Konto × Sender» laufender Aufnahmen gibt es nirgends, weil sie mit dem
+öffentlichen Programm den Titel verriete (RD-06; `03` DR-17, Leitplanken 4).
+
+### 5.1a Belegung des Kontingents (eine Abfrage)
+
+Start, Vorschau, Planer, LA-16, `Account.live.usedBytes` und `getLiveRecordingUsage` rechnen alle mit derselben
+benannten Abfrage in `liveq` (RD-14):
+
+```sql
+-- Entwurf: name: LiveAccountUsage :one
+SELECT ifnull(sum(CASE
+         WHEN files_missing = 1 THEN 0
+         WHEN state IN ('waiting', 'recording', 'recording_gap') THEN max(bytes, ifnull(expected_bytes, 0))
+         ELSE bytes END), 0) AS used_bytes
+FROM live_recordings
+WHERE account_id = @account_id
+  AND state NOT IN ('scheduled', 'suspended', 'cancelled');   -- «deleting» zählt, bis die Dateien weg sind
+```
+
+Prüfung und Übergang beim Start laufen in **einer** Schreibtransaktion: Die eine Schreibverbindung mit
+`_txlock=immediate` reiht zwei gleichzeitige Starts desselben Kontos hintereinander, also sieht der zweite die
+Prognose des ersten. Kein laufend geführter Zähler.
 
 ### 5.2 Regel 2 ohne `items`
 
@@ -1508,23 +1641,26 @@ Fachrechte im Dienst, `server/internal/wishes/rights.go:14-20`); die Middleware 
 |---|---|
 | `live_sources.url_enc` | ganze Adresse der Liste, des Xtream-Servers oder des Einzelstroms |
 | `live_sources.username_enc`, `password_enc` | Zugangsdaten (auch aus `benutzer:passwort@` zerlegt, `04` 10.5) |
+| `live_sources.user_agent_enc` | eigener User-Agent (RD-19) |
 | `live_source_headers.value_enc` | jeder Wert einer eigenen Kopfzeile |
-| `live_channel_streams.url_enc`, `list_referer_enc`, `logo_url_enc` | Stream-Adresse, `Referer` aus der Liste, Logo-Adresse aus der Liste |
+| `live_channel_streams.url_enc`, `list_user_agent_enc`, `list_referer_enc`, `logo_url_enc` | Stream-Adresse, `User-Agent` und `Referer` aus der Liste, Logo-Adresse aus der Liste |
 | `live_channels.logo_url_enc` | eigene Logo-Adresse des Administrators |
 | `live_epg_sources.url_enc` | XMLTV-Adresse |
 
-Im Klartext stehen nur `site` (Schema, Host, Port), die Namen der Kopfzeilen, der User-Agent und `url_fp` (ein
-Schlüssel-Hash, aus dem sich die Adresse nicht zurückrechnen lässt). Auch Logo-Adressen sind verschlüsselt, weil
-eine Liste darin Zugangsmerkmale tragen kann und T-28 «jede Adresse einer Quelle» sagt (Annahme zur Auslegung).
+Im Klartext stehen nur `site` (Schema, Host, Port), die Namen der Kopfzeilen und `url_fp` (ein Schlüssel-Hash, aus
+dem sich die Adresse nicht zurückrechnen lässt), wie `04` T-28 und `12` 5.1 es zulassen. Auch der User-Agent ist
+verschlüsselt, weil manche Anbieter Zugänge über einen festen User-Agent freischalten (Annahme) und `12` SM-14 per
+Bytesuche prüft, dass kein Kopfzeilenwert im Klartext steht. Auch Logo-Adressen sind verschlüsselt, weil eine
+Liste darin Zugangsmerkmale tragen kann und T-28 «jede Adresse einer Quelle» sagt (Annahme zur Auslegung).
 
 ### 6.2 Verfahren
 
 - Bestehender Schlüsselbund `secrets.Keyring` (gebaut: `server/internal/secrets/secrets.go:115-141`), Format
   `v1:<base64url>`.
-- **Empfehlung aus `04` 10.5:** Neue Werte binden Tabelle, Spalte und Zeile als Zusatzdaten der Verschlüsselung
-  ein (eine neue Fassung `v2` mit diesen Zusatzdaten), damit ein kopierter Wert in einer anderen Zeile nicht
-  entschlüsselbar ist. Das ist eine Erweiterung von `secrets`, kein neues Verfahren; die CHECK-Regeln oben lassen
-  `v1` und `v2` zu.
+- **Bindung an die Zeile (`04` 10.5, `12` 5.1):** Neue Werte schreibt `secrets` im Format `v2:` mit Tabelle,
+  Spalte und Kennung der Zeile als Zusatzdaten; ein in eine andere Zeile kopierter Wert lässt sich nicht
+  entschlüsseln. `v1:` bleibt lesbar. Das ist eine Erweiterung von `secrets`, kein neues Verfahren; die
+  CHECK-Regeln oben lassen `v0`, `v1` und `v2` zu.
 - `url_fp` = HMAC-SHA256 mit `Keyring.Derive("live-url-fp")` über die normalisierte Adresse ohne Benutzer,
   Passwort und Abfrageparameter mit Geheimnis-Namen (Liste aus `04` 10.4). Damit findet der Import einen
   Eintrag wieder, ohne Adressen zu entschlüsseln.
@@ -1533,10 +1669,14 @@ eine Liste darin Zugangsmerkmale tragen kann und T-28 «jede Adresse einer Quell
 
 ### 6.3 Sicherung und Wiederherstellung
 
-- Die Sicherung enthält `slouchcat.db` mit den verschlüsselten Werten, nie `epg.db`, nie Aufnahmen und Puffer
-  (gebaut: `server/internal/admin/backup.go:33-40`; `11` 10.6). Ohne `secret.key` sind Adressen, Zugangsdaten
-  und Kopfzeilen nach einer Wiederherstellung unlesbar; die Verwaltung zeigt dann je Quelle «Zugang neu
-  eingeben» (`04` 10.5).
+- Die Sicherung enthält `slouchcat.db`, nie `epg.db`, nie Aufnahmen und Puffer (gebaut:
+  `server/internal/admin/backup.go:33-40`; `11` 10.6).
+- **Sicherung ohne Geheimnisse (RD-08, `12` 5.1, SM-18):** Die Kopie ersetzt jede verschlüsselte Live-Spalte durch
+  den Platzhalter `v0:` (mit `secure_delete`, wie gebaut für die übrigen Geheimnisse:
+  `server/internal/admin/backup.go:332-353`), **nicht** durch `NULL`. So bleiben alle CHECK-Regeln gültig, und die
+  Bytesuche findet weder Klartext noch Chiffrat. Der Dienst liest `v0:` als «Zugang fehlt, bitte neu eingeben».
+  Ob die Zugangsdaten überhaupt fehlen sollen, entscheidet `12` F-4; ohne diese Variante bleiben die Chiffrate,
+  und ohne `secret.key` gilt dieselbe Anzeige (`04` 10.5).
 - Nach einer Wiederherstellung: `epg.db` fehlt oder passt nicht → Neuaufbau (`09` 8.7); Aufnahmen ohne Dateien →
   `files_missing = 1`, mit 0 Byte im Kontingent, nie still entfernt (`11` 10.6); Speicherorte mit anderem Marker
   → `health = 'missing'`.
@@ -1558,6 +1698,12 @@ innerhalb ihrer Quelle, in Stufen, erster eindeutiger Treffer gewinnt:
 | 3 | `(source_id, name_key)`: normalisierter Name und Gruppe, nur wenn eindeutig | `_name` |
 | 4 | sonst neu: neue Senderquelle und neuer Sender (aktiv nach `live_sources.new_enabled`) | – |
 
+**Gegenprobe (RD-02):** Ein Treffer der Stufe 1 gilt nur, wenn mindestens ein zweites Merkmal passt (`name_key`
+oder `url_fp`); es darf sich höchstens eines der beiden ändern. Widersprechen beide, ist die Identität unsicher:
+Stufe 2 und 3 werden versucht; trifft keine, wird der Eintrag **nicht** angewandt und im Bericht als `changed` mit
+Code `identity_conflict` geführt. So wandert bei neu vergebenen `stream_id` (Panel-Wechsel) oder getauschten
+`tvg-id` nichts still auf einen anderen Sender. Ein Testfall mit vertauschten `stream_id` steht in `17`.
+
 Ein Treffer behält `channel_id`; damit bleiben Favoriten, Nummer, Gruppen, EPG-Zuordnung und Planungen
 (LTV-018.11 bis .13). Doppelte Einträge innerhalb einer Liste (gleiches Merkmal der Stufe 1 oder 2) ergeben
 eine Senderquelle; ein weiterer Eintrag mit anderer Adresse, aber gleicher `tvg_id` wird eine Ersatzquelle
@@ -1576,21 +1722,24 @@ ranghöchsten Senderquelle und die Nummer nur für neue Sender und nur mit `take
 1. **Abruf** in die Zwischenablage `<cache>/live/sources/source-<id>.bin` (`.part`, dann umbenannt); bedingter
    Abruf mit `etag` und `last_modified`; gleiche Prüfsumme heisst `unchanged`, nichts wird geschrieben.
 2. **Lesen und Vergleichen** im Speicher gegen den Bestand der Quelle (eine Lesetransaktion): Ergebnis ist eine
-   Liste von Änderungen (neu, geändert, verschwunden, Duplikat, fehlerhaft).
-3. **Schutz:** Fehlt mehr als ein Drittel der bisherigen Senderquellen (Schwelle nach `15` LA-03 und R3, Annahme,
-   W-15) und ist `guard_incomplete` an, wird nichts angewandt: Lauf `held`, Quelle `import_state = 'held'`,
+   Liste von Änderungen (neu, geändert, verschwunden, Duplikat, fehlerhaft, unsicher).
+3. **Schutz (Stufe 1b):** Ist `guard_incomplete` an, wird nichts angewandt, wenn (a) mehr als ein Drittel der
+   bisherigen Senderquellen fehlt (Schwelle nach `15` LA-03 und R3, Annahme, W-15) oder (b) mehr als 10 % der
+   Treffer der Stufe 1 zugleich ihren Namen ändern (Annahme, RD-02): Lauf `held`, Quelle `import_state = 'held'`,
    Meldung in der Übersicht; «Liste trotzdem so übernehmen» wendet denselben gelesenen Stand an
    (`trigger = 'apply_held'`).
-4. **Anwenden** in **einer** Schreibtransaktion je Quelle, wenn die Änderungen in 500 Zeilen passen; sonst in
-   Stapeln zu 500 (gebaut: Regel `server/internal/jobs/queue.go:5-7`) mit folgender Sicherung: Neue und geänderte
-   Senderquellen tragen den Lauf als `seen_at`; erst der **letzte** Stapel setzt `missing_since` für alle
-   Senderquellen der Quelle mit älterem `seen_at` und `import_state = 'ok'`. Bricht der Lauf vorher ab, ist
-   nichts als verschwunden markiert, und der nächste Lauf ist idempotent (gleiche Merkmale ergeben gleiche
-   Zeilen). Damit gilt LTV-018.14 und .15 auch bei 10'000 Sendern, ohne die eine Schreibverbindung lange zu
-   halten.
-5. **Sender nachführen:** Ein Sender bekommt `missing_since`, wenn alle seine Senderquellen verschwunden sind,
-   und verliert es, sobald eine wiederkommt (03 DR-16).
-6. **Bericht:** `live_source_imports` und höchstens 5'000 `live_source_import_items`.
+4. **Anwenden in genau einer Schreibtransaktion je Quelle** (RD-03): alles Rechnen vorher, kein Netz und keine
+   Datei darin. Gesperrte Felder liest die Transaktion **neu** (`… WHERE NOT EXISTS (SELECT 1 FROM
+   live_channel_locks …)`), nie aus dem Vergleichsstand von Schritt 2; eine Sperre, die der Administrator
+   zwischen Schritt 2 und 4 setzt, bleibt also unberührt. Bricht der Lauf ab, ist nichts geändert. Die
+   500er-Regel des Jobsystems (gebaut: `server/internal/jobs/queue.go:5-7`) begrenzt Job-Stapel und ist kein
+   Gebot gegen eine Transaktion; 11'000 Zeilen dauern auf einer SSD Zehntelsekunden, auf einer HDD wenige
+   Sekunden (Annahme, M-1 dieses Dokuments). **Nur wenn** die Messung 2 Sekunden überschreitet, schreibt der Import
+   zuerst in eine Zwischentabelle und schaltet in einer kurzen Übernahmetransaktion um (O-8).
+5. **Sender nachführen** (in derselben Transaktion): Ein Sender bekommt `missing_since`, wenn alle seine
+   Senderquellen verschwunden sind, und verliert es, sobald eine wiederkommt (03 DR-16). Laufende Wiedergaben und
+   Aufnahmen eines verschwundenen Senders laufen weiter (T-29).
+6. **Bericht:** `live_source_imports` und höchstens 5'000 `live_source_import_items` (nur der letzte Lauf).
 
 Ein Fehler beim Abruf oder Lesen ändert nichts am Bestand (LTV-018.20, .21): Lauf `failed`, Quelle behält ihre
 Sender. Eine laufende Verbindung bleibt bei geänderter Adresse bestehen, bis sie abbricht (`04` 9, `06` 3.16).
@@ -1600,10 +1749,15 @@ Sender. Eine laufende Verbindung bleibt bei geänderter Adresse bestehen, bis si
 - **Vorschläge** (LA-07) je Anfrage aus gleicher `tvg_id` über Quellen, gleichem `name_norm`, gleichem `url_fp`;
   ohne Paare aus `live_duplicate_dismissals`. Zusammengeführt wird nur auf Befehl (LTV-006.18).
 - **Zusammenführen** (eine Transaktion): Senderquellen der aufgegebenen Sender wandern zum bleibenden
-  (`channel_id`, neue Ränge nach Wahl); Favoriten (`INSERT OR IGNORE`, Rest löschen), Gruppen (Vereinigung),
-  Erinnerungen, Planungen und Regeln wandern mit; die gewählten Angaben werden übernommen und gesperrt; die
-  aufgegebenen Sender werden Grabsteine mit `merged_into` (Abschnitt 10.4). Fertige Aufnahmen behalten ihren
-  `channel_id` und ihre Kopie des Namens.
+  (`channel_id`, neue Ränge nach Wahl); die gewählten Angaben werden übernommen und gesperrt; Gruppen werden
+  vereinigt, ausser der Administrator wählt das ab (`15` LA-07 Schritt 2, RD-29). Profil-Daten ohne Doppel
+  (RD-11): Favoriten und zuletzt gesehen mit `UPDATE OR IGNORE`, der Rest gelöscht; Erinnerungen und Einzeltermine
+  je Profil und Sendung eins behalten (`UPDATE OR IGNORE`, übrige Erinnerungen löschen, übrige Termine
+  `cancelled/merged`); Serienregeln eines Profils mit gleichem `title_norm` werden vereinigt; `rule_key` und `rev`
+  der betroffenen Termine werden neu gesetzt (3.9). `previewLiveChannelMerge` nennt die Zahl der wegfallenden
+  Doppel. Die aufgegebenen Sender werden Grabsteine mit `merged_into` als Auskunft (Abschnitt 10.4). Fertige und
+  laufende Aufnahmen behalten ihren `channel_id` und ihre Kopie des Namens; ein Zusammenführen, während ein
+  aufgegebener Sender aufnimmt, lehnt der Dienst ab (`08` 3.8).
 - **Abtrennen** (LA-06 «Als eigenen Sender abtrennen»): eine Senderquelle bekommt einen neuen Sender; Favoriten
   und Planungen bleiben beim alten.
 
@@ -1615,9 +1769,16 @@ Sender. Eine laufende Verbindung bleibt bei geänderter Adresse bestehen, bis si
 
 `slouchcat.db` hat genau eine Schreibverbindung mit `_txlock=immediate` (gebaut:
 `server/internal/store/store.go:94`), `busy_timeout(5000)` (`:114`). `epg.db` bekommt eine eigene
-Schreibverbindung und einen eigenen Lesepool mit denselben Pragmas (`09` 3.5, 8.7). Regel für alle Live-Schreiber:
-keine Transaktion länger als einen Stapel von 500 Zeilen, kein Netz- oder Dateizugriff innerhalb einer
-Transaktion.
+Schreibverbindung und einen eigenen Lesepool mit denselben Pragmas (`09` 3.5, 8.7). Regeln für alle
+Live-Schreiber:
+
+1. Keine lange Transaktion; die einzige grosse ist das Anwenden eines Imports (7.3, gemessen).
+2. Kein Netz- und kein Dateizugriff innerhalb einer Transaktion (auch kein `fdatasync`).
+3. **Haken in einer fremden Transaktion schreiben nur SQL und warten auf nichts** (RD-01): kein Stoppen eines
+   Schreibers, keine Sperre, kein Kanal. Der Grund: Der Schreibpool hat genau eine Verbindung (gebaut:
+   `server/internal/store/store.go:94`, `:124`); ein Schreiber, der in dieser Lage selbst schreiben will, wartet
+   ohne Zeitgrenze auf die Verbindung, die der Haken hält. Ein Test löscht ein Profil mit laufender Aufnahme unter
+   `-race` mit Zeitgrenze.
 
 ### 8.2 Häufige Schreibvorgänge und wie sie klein bleiben
 
@@ -1630,7 +1791,8 @@ Transaktion.
 | Fortschritt der Wiedergabe einer Aufnahme | `live_recordings.position_ms` | höchstens einmal je Minute und beim Ende | eine Zeile |
 | Zustand einer Senderquelle | `live_channel_streams.state` | nur bei Wechsel | eine Zeile, dazu ein Ereignis |
 | Diagnose | `live_stream_events` | bei Ereignis, je Sender höchstens 1 je Sekunde (Annahme) | Einfügen |
-| Import | Abschnitt 7.3, `09` 3.5 | Stapel zu 500 | `epg.db` getrennt |
+| Import einer Senderliste | Abschnitt 7.3 | eine Transaktion je Quelle | gemessen; Rückfall Zwischentabelle (O-8) |
+| Import der Programmdaten | `09` 3.5 | Stapel zu 500 | eigene Datei `epg.db` |
 
 ### 8.3 Zustandsübergänge als bedingte Updates
 
@@ -1639,12 +1801,17 @@ anderer Vorgang gewonnen, und der Aufrufer liest neu. Beispiele:
 
 ```sql
 -- Entwurf
+-- Start: Termin unverändert (rev) und Kontingent passt, in derselben Schreibtransaktion (5.1a, RD-14, RD-15)
 UPDATE live_recordings SET state = 'recording', started_at = @now, updated_at = @now
-WHERE id = @id AND state IN ('scheduled', 'waiting');
+WHERE id = @id AND state IN ('scheduled', 'waiting') AND rev = @rev
+  AND @used_bytes + ifnull(expected_bytes, 0) <= @quota_bytes;   -- @used_bytes aus LiveAccountUsage, gleiche Tx
 UPDATE live_recordings SET state = 'deleting', updated_at = @now
 WHERE id = @id AND state IN ('completed', 'incomplete', 'failed', 'cancelled');   -- nie laufende
-UPDATE live_recordings SET state = 'suspended', updated_at = @now
+UPDATE live_recordings SET state = 'suspended', rev = rev + 1, updated_at = @now
 WHERE profile_id = @profile_id AND state = 'scheduled';                           -- Entzug, 03 F-7 (a)
+UPDATE live_recordings SET core_start = @new_start, prev_core_start = core_start, rule_key = @new_key,
+       rev = rev + 1, adjusted_at = @now, updated_at = @now
+WHERE id = @id AND state = 'scheduled';                                           -- reconcile, nie in «waiting»
 ```
 
 Gleiches Muster für Erinnerungen (`planned` → `sent`), Quellen (`import_state` `running` nur aus anderen
@@ -1658,14 +1825,15 @@ In dieser Reihenfolge, bevor der Dienst Anfragen annimmt (`04` 5.3, `11` 3.7):
 
 | Schritt | Zeilen | Wirkung |
 |---|---|---|
-| 1 | `live_sessions` mit `ended_at IS NULL` | `ended_by = 'restart'`, `ended_at = jetzt`; offene `live_session_tunes` bekommen `ended_at` |
+| 1 | `live_sessions` mit `ended_at IS NULL` | `ended_by = 'restart'`, `ended_at = last_seen_at` (höchstens eine Minute alt, nicht «jetzt», RD-21); offene `live_session_tunes` bekommen denselben Wert |
 | 2 | Speicherort «Timeshift» | Dateien mit eigenem Namensmuster unter eigenem Marker löschen (Datei für Datei über `paths`) |
 | 3 | `live_recording_parts` mit `state IN ('open', 'hung')` | Länge prüfen, Index nachbauen, `bytes` auf die wirkliche Länge, `closed` oder `missing` |
 | 4 | `live_recordings` in `recording`, `recording_gap`, `waiting`, `scheduled` mit vergangenem Beginn | Lücke `server_not_running`; weiter aufnehmen, `incomplete` oder `failed` nach `11` 3.7 |
 | 5 | `live_sources.import_state = 'running'`, `live_epg_sources.state = 'running'` | auf `failed` mit Code `restart`; der Job läuft nach Ablauf der Lease neu |
 | 6 | `live_storage` | Prüfung aller Speicherorte, `health` neu |
 | 7 | `live_recordings` in `deleting` | `livetv.dvr.purge` einreihen |
-| 8 | – | permanente und zeitgesteuerte Sender starten (gestaffelt, `04` 5.3 Schritt 3) |
+| 8 | – | **erst jetzt** die Zeitgeber des Planers aus den Zeilen laden (RD-15); weiterzuführende Aufnahmen verbinden sofort und ohne Staffelung (`04` 13.4 zu `06` O-12) |
+| 9 | – | permanente und zeitgesteuerte Sender starten (gestaffelt, höchstens 2 je Sekunde, `04` 14.1) |
 
 Erinnerungen brauchen keinen Schritt: Ihre Jobs liegen in der dauerhaften Warteschlange (`09` 10.3).
 
@@ -1680,10 +1848,12 @@ und `11` (W-18).
 | Tabelle | Lebensdauer | Aufräumregel | Wer |
 |---|---|---|---|
 | `epg_programmes`, `epg_titles` | bis Ende + Rückschau (`epg_lookback_hours`, Vorgabe 24 h) | Sendungen mit `stop_utc < jetzt − Rückschau`; Titel ohne Sendung | Prune-Aufgabe EPG (`09` 11) |
-| `epg_images` und Bildordner | solange eine Sendung verweist; Ordner höchstens 2 GiB | verwaiste und älteste zuerst | Prune-Aufgabe EPG |
+| `epg_images` und Bildordner | solange eine Sendung oder eine Aufnahme (`image_key`) verweist; Ordner höchstens 2 GiB | verwaiste und älteste zuerst, nie ein Bild einer Aufnahme (RD-24) | Prune-Aufgabe EPG |
 | `epg_stage` | während eines Imports | geleert zu Beginn jedes Imports der Quelle | `livetv.epg.import` |
-| `live_epg_imports`, `live_source_imports` (+ Einträge) | die letzten 10 je Quelle | ältere löschen | Prune-Aufgabe |
-| `live_reminders` | bis 7 Tage nach Sendungsende in `sent`, `missed`, `cancelled`, `dropped` | löschen | Prune-Aufgabe (`09` 10.5) |
+| `live_epg_imports`, `live_source_imports` | die letzten 10 je Quelle; Vorschauen 1 Stunde | ältere löschen | Prune-Aufgabe |
+| `live_source_import_items` | nur der letzte Lauf je Quelle und offene Vorschauen (S-9) | Einträge älterer Läufe löschen | Import selbst, beim Anlegen des neuen Laufs |
+| `epg_channels` (+ Sendungen, Vorschläge) gelöschter EPG-Quellen | bis zum Löschen der Quelle | beim Löschen; beim Start Abgleich der `source_id` (RD-23) | Dienst, Prune-Aufgabe |
+| `live_reminders` | vom Profil entfernt: sofort weg (RD-20); `sent`, `missed`, `cancelled`, `dropped` bis 7 Tage nach Sendungsende | löschen | Dienst; Prune-Aufgabe (`09` 10.5) |
 | `live_sessions` (+ `live_session_tunes`) | 14 Tage nach Ende (Rangliste «automatisch» braucht 14 Tage, `04` 6.2) | löschen | Prune-Aufgabe |
 | `live_recent_channels` | die letzten 20 je Profil | beim Schreiben gekürzt | Dienst |
 | `live_watch_time` | wie `radio_listen_time` («older than the K-5 report needs», gebaut: `server/queries/app/radio_listen.sql:72-74`) | gleiche Frist | dieselbe Aufgabe wie Radio |
@@ -1706,24 +1876,34 @@ Aufnahmen, Aufnahmen ohne Frist und ohne «behalte N» (A-4, ADR 0032).
 
 ### 10.1 Profil gelöscht
 
-Im Haken `profileDeleting` (gebaut, in der Löschtransaktion: `server/internal/auth/auth.go:71-93`), **vor** dem
-Löschen der Profilzeile:
+Zweistufig (RD-01). Der Haken `profileDeleting` läuft **in** der Löschtransaktion und bekommt die offene
+Transaktion (gebaut: `server/internal/auth/auth.go:74-79`, Aufruf `server/internal/auth/profiles.go:555-556`);
+deshalb geschieht alles, was wartet oder schreibt, **vorher**:
 
-1. Laufende Live-Sitzungen enden (`EndProfile`), laufende Aufnahmen des Profils stoppen (Haltegrund weg).
-2. `UPDATE live_recordings SET state = 'deleting' WHERE profile_id = ?` (alle Zustände; laufende sind nach 1.
-   geschlossen).
+1. **Vor der Löschtransaktion, ausserhalb jeder Transaktion** (neuer Haken `profileDeletePrepare`, Abschnitt 10.6):
+   neue Starts für das Profil sperren (Sperre im Speicher je Profil), Live-Sitzungen beenden (`EndProfile`),
+   Haltegründe der laufenden Aufnahmen entfernen und auf das Ende ihrer Schreiber warten (Teile schliessen,
+   `fdatasync`, Stand schreiben). Frist 10 Sekunden (Annahme); läuft sie ab, bricht das Löschen mit einem Fehler
+   ab, und die Sperre fällt.
+2. **In der Transaktion nur SQL:**
+   `UPDATE live_recordings SET state = 'deleting', rev = rev + 1 WHERE profile_id = ? AND state NOT IN ('waiting',
+   'recording', 'recording_gap')`; ist danach noch eine laufende Zeile übrig, gibt der Haken einen Fehler zurück,
+   und das Löschen unterbleibt (ein Fehler stoppt es, gebaut: `auth.go:77-79`).
 3. Profilzeile löschen: Favoriten, zuletzt gesehen, Erinnerungen, Regeln samt Folgengedächtnis, Schauzeit,
    Sitzungen, Glocke gehen mit (Löschweitergabe); `live_recordings.profile_id` wird leer.
-4. Nach dem Commit: `livetv.dvr.purge` entfernt die Dateien Datei für Datei über `paths`, dann die Zeilen. Der Job
-   ist idempotent; ein Absturz dazwischen lässt Zeilen in `deleting`, die der nächste Lauf fertig macht.
+4. **Nach dem Commit** (Nachlauf, 10.6): `livetv.dvr.purge` entfernt die Dateien Datei für Datei über `paths`,
+   dann die Zeilen; die Sperre aus 1. fällt. Der Job ist idempotent; ein Absturz dazwischen lässt Zeilen in
+   `deleting`, die der nächste Lauf fertig macht.
 
 Der Löschdialog nennt vorher Zahl und Grösse der Aufnahmen (`03` DR-04); die Zahlen liefert `live` dem Paket
 `auth`.
 
 ### 10.2 Konto gelöscht
 
-Haken `accountDeleting`: wie 10.1 für jedes Profil des Kontos, dazu `live_recordings.account_id` leer. Das
-Kontingent verschwindet mit dem Konto; Belegung zählt bis zum Entfernen der Dateien nicht mehr für ein Konto.
+Wie 10.1, für alle Profile des Kontos zugleich: Stufe 1 vor der Transaktion (Sperre je Konto, Sitzungen beenden
+mit `EndAccount`, Schreiber abwarten), Stufe 2 im Haken `accountDeleting` nur SQL (gebaut in der Transaktion:
+`server/internal/auth/accounts.go:186-192`), dazu `live_recordings.account_id` leer. Das Kontingent verschwindet
+mit dem Konto; Belegung zählt bis zum Entfernen der Dateien nicht mehr für ein Konto.
 
 ### 10.3 Quelle entfernt (LA-02)
 
@@ -1736,16 +1916,18 @@ Eine Transaktion, Wahl des Administrators je Sender ohne andere Quelle:
 | `live_epg_sources` vom Typ `xtream` dieser Quelle | mit Löschweitergabe weg; Zuordnungen darauf weg | gleich |
 | Quelle | Zeile löschen: Kopfzeilen, Ursprünge, Ziele, Importläufe, Senderquellen gehen mit | gleich |
 
-Zwischenablage `source-<id>.bin` danach löschen. Nicht wiederholbar nötig: alles in einer Transaktion (Grösse:
-höchstens so viele Senderquellen wie die Quelle hatte; über 500 Zeilen in Stapeln, wobei die Quelle zuerst
-`enabled = 0` bekommt und erst der letzte Stapel sie löscht).
+Alles in **einer** Transaktion (RD-03 Punkt 3); die Löschweitergabe auf `live_channel_streams` geschieht ohnehin
+in einer Anweisung und braucht dafür die Indizes auf allen Kindspalten (RD-04: `live_source_import_items.stream_id`,
+`live_recording_parts.stream_id`; `live_stream_events` hat keinen Fremdschlüssel mehr). Zwischenablage
+`source-<id>.bin` danach löschen.
 
 ### 10.4 Sender deaktiviert, verschwunden, zusammengeführt, gelöscht
 
 | Ereignis | Sender | Favoriten | Erinnerungen | Planungen (`scheduled`) | Regeln | Laufende Aufnahme | Fertige Aufnahmen |
 |---|---|---|---|---|---|---|---|
-| deaktiviert (`enabled = 0`) | unsichtbar (404) | bleiben | bleiben, feuern nicht | bleiben; bei Fälligkeit `failed`/`channel_unavailable` (DR-16) | bleiben | läuft weiter, bis sie endet (W-19, `06` O-7) | bleiben abspielbar |
-| verschwunden (`missing_since`) | unsichtbar | bleiben | bleiben, feuern nicht | wie oben | bleiben | läuft weiter, solange der Strom liefert (`04` 9) | bleiben |
+| deaktiviert (`enabled = 0`) | für alles Neue unsichtbar (404); laufende Wiedergaben bis der Zuschauer geht (T-29) | bleiben | bleiben, feuern nicht | bleiben; bei Fälligkeit `failed`/`channel_unavailable` (DR-16) | bleiben | läuft bis zu ihrem Ende (T-29, erledigt W-19) | bleiben abspielbar |
+| «sofort beenden» (eigener Befehl, T-29) | wie deaktiviert, dazu enden laufende Wiedergaben (`ended_by = 'channel'`) | bleiben | bleiben | bleiben | bleiben | endet als `incomplete` mit Lücke `channel_disabled` bis zum geplanten Ende | bleiben |
+| verschwunden (`missing_since`) | für alles Neue unsichtbar; Laufendes läuft (T-29) | bleiben | bleiben, feuern nicht | wie oben | bleiben | läuft weiter, solange der Strom liefert (`04` 9) | bleiben |
 | zusammengeführt (Grabstein, `merged_into`) | Kennung 404 | wandern zum bleibenden | wandern | wandern | wandern | läuft am alten Strom weiter bis zum Ende | behalten `channel_id` und Namen |
 | gelöscht (Grabstein) | Kennung 404 | gelöscht | `cancelled` | `cancelled`/`channel_deleted`, Glocke «Sender weg» | `state = 'channel_gone'` (Serien «alle Sender» bleiben aktiv) | endet, Teil wird geschlossen, `completed` oder `incomplete` | behalten `channel_id` und Namen |
 
@@ -1762,6 +1944,18 @@ Quelle oder ein verschwundener (`15` LA-06).
    (gebaut: `server/internal/paths/remove.go:9-13`); ein Teil, dessen Speicherort `missing` ist, bleibt, bis der
    Ort zurück ist oder der Administrator ihn aufgibt.
 4. Zeile löschen; Teile und Lücken gehen mit. Wiederholbar in jedem Schritt (Datei schon weg zählt als Erfolg).
+
+### 10.6 Haken in `auth` (RD-13)
+
+Heute sind `accountDeleting` und `profileDeleting` je **ein** Funktionsfeld und von `wishes` belegt; nur
+`accountDeleting` liefert eine Nachlauf-Funktion (gebaut: `server/internal/auth/auth.go:74-79`, `:153`, `:168`).
+Live-TV braucht deshalb eine kleine Änderung an `auth` (gehört in `21-aenderungen-an-dokumenten.md`):
+
+| Haken | Wann | Wer | Neu |
+|---|---|---|---|
+| `profileDeletePrepare`, `accountDeletePrepare` | vor der Löschtransaktion, darf warten | `live` (10.1 Schritt 1) | neu; Fehler bricht das Löschen ab |
+| `profileDeleting`, `accountDeleting` | in der Transaktion, nur SQL | `wishes`, dann `live` | geordnete Liste statt eines Felds |
+| Nachlauf | nach dem Commit | `wishes`, dann `live` (Purge-Job einreihen, Sperre lösen) | für `profileDeleting` neu |
 
 ---
 
@@ -1780,7 +1974,7 @@ Annahmen: 10 Profile in 4 Konten, 1,1 Senderquellen je Sender, 1,5 Gruppen je Se
 | `live_channel_categories`, `_locks` | ≤ 500 | ≤ 5'000 | ≤ 10'000 | < 1 MB |
 | `live_groups` | 20 | 200 | 400 | – |
 | `live_channel_epg` | 150 | 1'500 | 3'000 | < 1 MB |
-| `live_source_import_items` | ≤ 5'000 je Lauf × 10 | ≤ 50'000 | ≤ 50'000 | ≈ 5 MB |
+| `live_source_import_items` (letzter Lauf je Quelle) | ≤ 5'000 je Quelle | ≤ 5'000 je Quelle | ≤ 5'000 je Quelle | ≈ 0,5 MB je Quelle |
 | `live_favorites` | 200 | 200 | 200 | – |
 | `live_sessions` (14 Tage) | ≈ 700 | ≈ 700 | ≈ 700 | – |
 | `live_session_tunes` (14 Tage) | ≈ 7'000 | ≈ 7'000 | ≈ 7'000 | ≈ 0,5 MB |
@@ -1793,33 +1987,35 @@ Annahmen: 10 Profile in 4 Konten, 1,1 Senderquellen je Sender, 1,5 Gruppen je Se
 ### 11.2 Migrationsplan
 
 Alle Migrationen vorwärts nach Vorlage; Nummern ab 00087 vergibt der Bau; je Stufe ein eingefrorener DB-Stand in
-`testdata/db/` (Regel 5). Spalten einer späteren Stufe kommen erst mit ihr (Regel 11: nichts vorziehen); einzige
-Ausnahme sind geschlossene Wertelisten in Tabellen, die sonst neu gebaut werden müssten (`live_sessions.kind`,
-`notifications.kind`, `deliveries.event`), nach dem Muster von 00070.
+`testdata/db/` (Regel 5). Stufen nach `18` 4.13. Spalten einer späteren Stufe kommen erst mit ihr (Regel 11:
+nichts vorziehen); einzige Ausnahme sind geschlossene Wertelisten in Tabellen, die sonst neu gebaut werden müssten
+(1.4), nach dem Muster von 00070.
 
 | Stufe | Neu | Erweitert (`ALTER … ADD COLUMN`) | Neubau |
 |---|---|---|---|
 | 0 | – | – | – |
-| 1 | `live_config` (Spalten Stufe 1), `live_sources` (ohne Stufe-3-Spalten), `live_source_headers`, `live_source_origins`, `live_source_imports`, `live_source_import_items`, `live_channels` (ohne `strategy`, `schedule_id`), `live_channel_locks`, `live_channel_categories`, `live_channel_streams`, `live_groups`, `live_group_channels`, `live_duplicate_dismissals`, `live_favorites`, `live_recent_channels`, `live_sessions` (ohne `recording_id`), `live_session_tunes`, `live_watch_time`, `live_stream_events`; Sicht `live_visible_channels` | `accounts`, `profiles`, `invitations`: drei Schalter, Werkseinstellung | `my_media` (Schlüssel `livetv`) |
+| 1a | `live_config` (Spalten 1a), `live_sources` (ohne Spalten 1b, 3, H), `live_source_headers`, `live_source_origins`, `live_source_imports`, `live_source_import_items`, `live_channels` (ohne `strategy`, `schedule_id`), `live_channel_locks`, `live_channel_categories`, `live_channel_streams`, `live_favorites`, `live_recent_channels`, `live_sessions` (ohne `recording_id`), `live_session_tunes`, `live_watch_time`, `live_stream_events`; Sicht `live_visible_channels` | `accounts`, `profiles`, `invitations`: `can_live_tv`, Werkseinstellung | `my_media` (Schlüssel `livetv`) |
+| 1b | `live_groups`, `live_group_channels`, `live_duplicate_dismissals` | `live_sources.refresh_minutes`, `.refresh_at_minute`, `.next_refresh_at`, `.guard_incomplete` | – |
 | 2 | `live_epg_sources`, `live_epg_imports`, `live_channel_epg`, `live_reminders`; `epg.db` (vom Server angelegt, keine Migration) | `live_config`: EPG-Spalten | `notifications`, `deliveries` (alle Live-Arten) |
-| 3 | `live_reception_schedules`, `live_reception_windows`, `live_net_targets` | `live_channels.strategy`, `.schedule_id`; `live_sources.allow_more_conns`, `.listen_interface`; `live_config`: Empfang, Startpuffer, Überwachung | – |
-| 4 | `live_storage` | `live_config`: Timeshift | – |
-| 5 | `live_recordings` (ohne `rule_id`, `rule_key`), `live_recording_parts`, `live_recording_gaps` | `accounts.live_quota_bytes`, `invitations.live_quota_bytes`; `live_sessions.recording_id`; `live_config`: Aufnahmen | – |
-| 6 | `live_recording_rules`, `live_rule_episodes` | `live_recordings.rule_id`, `.rule_key` mit Index `live_recordings_rule_key` | – |
+| 3 | `live_reception_schedules`, `live_reception_windows` | `live_channels.strategy`, `.schedule_id`; `live_sources.allow_more_conns`; `live_config`: Empfang, Überwachung | – |
+| H | `live_net_targets` | `live_sources.listen_interface` | – |
+| 4 | `live_storage` | `can_live_timeshift` auf `accounts`, `profiles`, `invitations` mit Werkseinstellung; `live_config`: Timeshift, `startbuffer_mode` nur bei `04` F-2 (a) (D-3) | – |
+| 5 | `live_recordings` (ohne `rule_id`, `rule_key`), `live_recording_parts`, `live_recording_gaps` | `can_live_record` auf allen drei mit Werkseinstellung; `accounts.live_quota_bytes`, `invitations.live_quota_bytes`; `live_sessions.recording_id`; `live_config`: Aufnahmen | – |
+| 6 | `live_recording_rules`, `live_rule_episodes` | `live_recordings.rule_id`, `.rule_key` mit Indizes | – |
+| L, W, E, Apps | – (Werte `rtsp`, `rtmp`, `dash` stehen schon in den Listen, 1.4) | – | – |
 
 Hinweise für den Bau:
 
 - `ALTER TABLE … ADD COLUMN` mit `REFERENCES` geht in SQLite nur mit Vorgabe `NULL` (alle betroffenen Spalten
   erfüllen das). Eine Tabellen-CHECK-Regel lässt sich nicht nachträglich anfügen: Die Regel
-  `(strategy = 'scheduled') = (schedule_id IS NOT NULL)` kommt deshalb als Spalten-CHECK auf `schedule_id`
+  `(strategy IS 'scheduled') = (schedule_id IS NOT NULL)` kommt deshalb als Spalten-CHECK auf `schedule_id`
   (Muster gebaut: `00067_wishes_rights.sql:31-36`, Regel auf der letzten Spalte), ebenso
   `(kind = 'rule') = (rule_key IS NOT NULL)` in Stufe 6.
 - Die Neubauten von `notifications`, `deliveries` und `my_media` kopieren jede Zeile und legen Indizes und
   Auslöser neu an (Muster 00070, 00084, 00059).
-- Die Sicht `live_visible_channels` muss in Stufe 3 nicht neu gebaut werden (`SELECT *` einer Sicht wird in
-  SQLite beim Anlegen festgelegt; die neuen Spalten fehlen dann in der Sicht). **Folge:** Die Sicht nennt ihre
-  Spalten ausdrücklich und wird in Stufe 3 neu angelegt (`DROP VIEW`, `CREATE VIEW`), Muster der Neubauten von
-  `visible_items` (A3 Abschnitt 2).
+- Die Sicht `live_visible_channels` nennt ihre Spalten ausdrücklich und braucht `strategy` nicht; sie wird **nicht**
+  je Stufe neu angelegt, sondern nur, wenn `live_channels` selbst neu gebaut wird (RD-26, erledigt O-6).
+- Indizes neuer Spalten (zum Beispiel `live_sessions_recording`, `live_recordings_rule`) kommen mit der Spalte.
 
 ---
 
@@ -1898,7 +2094,7 @@ Hinweise für den Bau:
 
 | Nr. | Thema | Stellen | Gewählt (nach `03`/`04`) |
 |---|---|---|---|
-| W-1 | Timeshift-Höchstdauer und Deckel | `03` DR-07 60 min, `04` 10.10 «20 % oder 50 GB» gegen `15` LA-15 2 h und 64 GB | 60 min; 20 %/50 GB |
+| W-1 | Timeshift-Höchstdauer und Deckel | `03` DR-07 60 min, `04` 10.10 «20 % oder 50 GB» gegen `15` LA-15 2 h und 64 GB | 60 min; 20 %/50 GB (bestätigt `04` 14.6) |
 | W-2 | Vorlauf der Erinnerung | `03` DR-08 {0, 5, 15, 30} gegen `09` 10.2 {0, 5, 15, 30, 60} und `14` LD-05 {0, 2, 5, 10, 15} | `03` |
 | W-3 | Kennung der Erinnerung | `09` 13.1 Zahl gegen `04` T-9 ULID | ULID |
 | W-4 | Heimnetz | `09` 13.1 `allow_local`, `15` LA-03 Schalter gegen `04` T-5 feste Ziele | feste Ziele (`live_net_targets`) |
@@ -1906,9 +2102,9 @@ Hinweise für den Bau:
 | W-6 | Neue Sender ab Werk aktiv | `03` DR-16 «ab Werk aktiv (je Quelle)» gegen `15` F-14 Vorgabe aus | `new_enabled = 1` |
 | W-7 | Verschwundene Sender | `03` DR-16 «unsichtbar» gegen `15` LA-03 «markieren, nach 7 Tagen abschalten» | sofort unsichtbar; die Wahl aus `15` entfällt |
 | W-8 | Karenz, Meldung, Leiter | `04` 30 s, 10 min, feste Leiter gegen `15` LA-09 60 s, LA-13 15 min und «5 Versuche» als Einstellung | `04`; keine Einstellung der Versuche |
-| W-9 | Reserve «Aufnahmen» | nur `15` LA-16 (20 GB); `04` 10.10 nennt nur Timeshift | 20 GB als Vorgabe (`04` widerspricht nicht) |
-| W-10 | Felder der Serienregel | `14` LD-02 Zeitfenster, Wochentage, «nur Erstausstrahlungen», «ähnliche Titel», «Angesehene zuerst löschen» gegen `09` 7.3 (gleicher Titel) und `11` 8.2 (älteste nach Beginn) | `09`/`11`; die übrigen Felder nicht modelliert (O-3) |
-| W-11 | Ende einer Wiederholung | `14` LD-03 «endet am / nach N» fehlt in `11` | nicht modelliert (O-3) |
+| W-9 | Reserve «Aufnahmen» | nur `15` LA-16 (20 GB); `04` Fassung 2 nannte nur Timeshift | **erledigt:** `04` 14.6 «der grössere Wert aus 20 GB und 5 %» |
+| W-10 | Felder der Serienregel | `14` LD-02 Zeitfenster, Wochentage, «nur Erstausstrahlungen», «Folgen nicht doppelt» als Schalter, «ähnliche Titel», «Angesehene zuerst löschen» gegen `09` 7.3 (gleicher Titel) und `11` 8.2 (älteste nach Beginn) | `09`/`11`; die übrigen Felder nicht modelliert, Frage an dich über `11` O-6 (O-3) |
+| W-11 | Ende einer Wiederholung | `14` LD-03 «endet am / nach N» fehlt in `11` | nicht modelliert, Frage über `11` O-6 (O-3) |
 | W-12 | Zeiteinheit | `09` Sekunden gegen Bestand und `11` Millisekunden | Millisekunden, auch in `epg.db` |
 | W-13 | Form verschlüsselter Werte | `09` `BLOB` gegen Bestand `TEXT v1:` | `TEXT` |
 | W-14 | Intervall der EPG-Quelle | `09` 2.5 24 h gegen `15` LA-10 12 h; `03`/`04` ohne Wert | `09` (Fachdokument zum EPG) |
@@ -1916,24 +2112,29 @@ Hinweise für den Bau:
 | W-16 | Sprache eines Senders | `03` LTV-006.14 «eine Sprache» gegen `15` LA-06 «mehrere möglich» | eine |
 | W-17 | Abgesagter Termin einer Regel | `11` 3.6 «Zeile wird gelöscht» gegen `11` 2.1 «Berechnung idempotent» (der Termin käme wieder) | Zeile bleibt als `cancelled/skipped` bis Terminende |
 | W-18 | Namen der Jobarten | `15` LA-23 `live.*` gegen `09` 11, `11` 3.1 `livetv.*` | `livetv.*` |
-| W-19 | Laufende Aufnahme bei Deaktivierung | `06` O-7 offen; `04` 9 «deaktiviert … endet der Strom sofort» gegen LTV-002.11 «nie beenden, solange eine Aufnahme ihn nutzt» | `03` LTV-002.11: läuft weiter; gehört in `04` Fassung 3 |
+| W-19 | Laufende Aufnahme bei Deaktivierung | `06` O-7; `04` Fassung 2 «endet der Strom sofort» gegen LTV-002.11 | **erledigt durch `04` T-29:** Laufendes läuft weiter; eigener Befehl «sofort beenden» (10.4) |
 | W-20 | Fortschritt, wenn das Hauptprofil abspielt | `14` LS-10 «zählt für das Hauptprofil» gegen `03` DR-21 «ändert nichts» | `03`: kein Fortschritt |
 | W-21 | Ereignisse der externen Kanäle | `03` F-3 drei Arten, `11` 11 drei, `14` LS-22 vier («nicht möglich» extra) | drei; «abgelehnt» unter `live_recording_failed` |
 | W-22 | Upload-Grösse M3U | `05` 2.3 200 MiB gegen `15` LA-03 20 MB | 200 MiB (`08`) |
 | W-23 | Vorladen je Sender | `15` LA-06 Schalter «Darf vorgeladen werden» gegen `04` T-18 «ein Schalter je Quelle» | nicht modelliert |
 | W-24 | Ab Werk an bei Einführung | `03` F-1 (a) Administrator-Konto an gegen `15` LA-22 «für bestehende Konten alles aus» | `03` F-1 (a) |
+| W-30 | Abnehmer laufender Aufnahmen in LA-12 | `15` LA-12 «Aufnahme · Konto …» gegen `03` DR-17, `15` 4 Zeile LA-01, Leitplanken 4 | nur Zahl je Sender, kein Konto (RD-06); `15` nachziehen |
+| W-31 | Verweis der Glocke auf die Erinnerung | `09` 10.3 Spalte `live_reminder_id` gegen 3.11 `live_ref` ohne Fremdschlüssel | `live_ref` (RD-26); `09` nachziehen |
+| W-32 | Werte aus `04` Abschnitt 14 | Prüfungen gleichzeitig 2 (`15` LA-13) gegen 1; Anteil der Umwandlung 10–100 % (Fassung 1) gegen 0–100 %; Ring einstellbar 4–15 s | `04` 14 (3.1) |
 
 ### 12.4 Offene technische Punkte
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | Kapsel der Verschlüsselung `v2` mit Tabelle, Spalte und Zeile als Zusatzdaten (`04` 10.5 Empfehlung): Format, Umschlüsseln bestehender `v1`-Werte | Bau Stufe 1, `12` |
+| O-1 | Umschlüsseln bestehender `v1`-Werte nach `v2` (Format festgelegt in `12` 5.1) | Bau Stufe 1a, `12` |
 | O-2 | Satzformat des Index je Teil (`11` O-2) | Bau Stufe 5 |
-| O-3 | Felder aus `14` LD-02 und LD-03, die `11` nicht kennt (W-10, W-11): aufnehmen oder aus den Mockups streichen | `11` Fassung 2, `14` |
+| O-3 | Felder aus `14` LD-02 und LD-03, die `11` nicht kennt (Zeitfenster und Wochentage einer Serie, «nur Erstausstrahlungen», Schalter «Folgen nicht doppelt», Ende einer Wiederholung; W-10, W-11): **nicht modelliert**, Frage an dich über `11` O-6; kommt mit der Antwort als Spalten in `live_recording_rules` | `11` O-6, `14`, `20` |
 | O-4 | Ob `live_stream_events` mit 50'000 Zeilen für 7 Tage reicht (Sender mit Dauerstörung) | `13`, nach Stufe 3 |
 | O-5 | `live_channel_streams.params` als JSON: braucht die Verwaltung Filter nach Codec (LA-05), wird eine Spalte nötig | Bau Stufe 3 |
-| O-6 | Die Sicht `live_visible_channels` je Stufe neu anlegen (11.2); Test, dass Sicht und Tabelle dieselben Spalten haben | Bau |
+| O-6 | erledigt: Die Sicht wird nicht je Stufe neu angelegt (11.2, RD-26) | – |
 | O-7 | Ein «Konto ohne Live-TV» mit Aufnahmen: Wie zeigt `admin` die Belegung, und darf das Hauptprofil löschen (`08` F-1) | `15`, `08` |
+| O-8 | Dauer der einen Import-Transaktion bei 11'000 Senderquellen auf SSD, HDD und Netzspeicher (M-1 dieses Dokuments); über 2 Sekunden: Zwischentabelle und kurze Übernahmetransaktion (7.3) | Bau Stufe 1a, `13` |
+| O-9 | Schematest «jede Kindspalte eines Fremdschlüssels hat einen führenden Index» (1.4) | Bau Stufe 1a |
 
 ### 12.5 Fragen an dich (nur neue)
 
@@ -1958,3 +2159,86 @@ dieselbe ist wie beim Wunschrecht. Bis zu deiner Antwort gilt (a) in `owner_age_
 
 Empfehlung: **(a)**; jeder Administrator richtet Live-TV ein und will es prüfen. Bis zu deiner Antwort gilt (a)
 in der Werkseinstellung (3.11).
+
+**F-3 · Sieht das Hauptprofil alte Aufnahmen weiter, wenn es die Altersgrenze eines Profils entfernt?**
+Ergänzt `04` F-10 um die Gegenrichtung (RD-18). Wird ein Kind volljährig und entfernt das Hauptprofil die
+Altersgrenze, wären dessen alte Aufnahmen mit `owner_age_limited = 1` sonst weiter sichtbar, obwohl `14` LS-14
+sagt «Profile ohne Altersgrenze erscheinen hier nie».
+
+- **(a) Beides verlangen:** gekennzeichnet beim Anlegen **und** heute noch eine Grenze. Wer die Grenze verliert,
+  wird für alle seine Aufnahmen privat.
+- **(b) Nur das Kennzeichen beim Anlegen:** Was mit Grenze aufgenommen wurde, bleibt für das Hauptprofil sichtbar.
+
+Empfehlung: **(a)**, weil sie Leitplanke 4 («Profile ohne Altersgrenze ganz privat») ohne Ausnahme hält. Bis zu
+deiner Antwort gilt (a) in 4.3.
+
+---
+
+## 13. Änderungen gegenüber Fassung 1
+
+Grundlage: `anhang/reviews/review-2-datenmodell-api.md` (RD-01 bis RD-30, S-1 bis S-12, Stichprobe), `04`
+Fassung 3 (T-29, 13.4, Abschnitte 14 und 15), `18` (Stufen, D-3, D-4), `11` Fassung 2 Abschnitt 14.1 und 14.1a,
+`12` 5.1. Was die Operationen betrifft, steht zusätzlich in `08` Abschnitt 10.
+
+### 13.1 Befunde aus Review 2
+
+| Befund | Schwere | Änderung |
+|---|---|---|
+| RD-01 Verklemmung beim Löschen von Profil/Konto | kritisch | Zweistufig: Stoppen und Warten **vor** der Transaktion (neuer Haken `…DeletePrepare`), in der Transaktion nur SQL mit Fehler, wenn noch etwas läuft; Regel 8.1 Punkt 3; Test unter `-race` (10.1, 10.2, 10.6) |
+| RD-02 Wiedererkennung ohne Gegenprobe | hoch | Stufe 1 nur mit zweitem Merkmal; Widerspruch = `identity_conflict`, nicht angewandt; zweite Schutzschwelle 10 % Namenswechsel (7.1, 7.3) |
+| RD-03 Import in Stapeln, Sperren überschrieben | hoch | eine Schreibtransaktion je Quelle, Sperren in der Transaktion neu gelesen; Messung und Rückfall Zwischentabelle (7.3, O-8); 10.3 auf eine Transaktion festgelegt |
+| RD-04 Kindspalten ohne Index | hoch | Indizes auf allen Kindspalten; `live_stream_events` ohne Fremdschlüssel; Schematest (1.4, 3, O-9) |
+| RD-05 Werkseinstellung in Konten mit Altersgrenze | hoch | eine Definition `min(Profil, Konto) < 18` (4.4); Werkseinstellung schliesst solche Konten aus; Test mit `max_rating = 12` (3.11) |
+| RD-06 Konto und Sender laufender Aufnahmen | hoch | nur Zahl je Sender, nie Konto (5.1); W-30; Operation in `08` 3.9 |
+| RD-07 Meldung «Kontingent voll» an das Hauptprofil | hoch | eigene Art `live_quota_rejected_profile`, Titel nur bei Profilen mit Altersgrenze; Test per Bytesuche (3.11) |
+| RD-08 Sicherung ohne Geheimnisse gegen CHECK | hoch | Platzhalter `v0:` statt `NULL` (6.3, 1.4) |
+| RD-09 `rule_key` mit Sender und Beginn | mittel | Schlüssel aus stabilen Merkmalen ohne Sender, neu gesetzt bei reconcile und Zusammenführen (3.9, 8.3) |
+| RD-10 Anlegen nicht idempotent | mittel | Teil-Eindeutigkeiten für Einzel-, manuelle und laufende Sofortaufnahme, Serien- und wiederkehrende Regel; gleiches Gerät beendet die alte Sitzung (3.8, 3.9) |
+| RD-11 Zusammenführen und Eindeutigkeiten | mittel | `UPDATE OR IGNORE` und Löschen der Doppel, Termine `cancelled/merged`, Regeln vereinigt (7.4) |
+| RD-12 Abgelaufene Anmeldung löscht Sitzungszeilen | mittel | `live_sessions.session_id … ON DELETE SET NULL` mit Index (3.8) |
+| RD-13 Löschhaken belegt, kein Nachlauf | mittel | geordnete Liste, Haken «vorher» und Nachlauf für Profile (10.6); Hinweis an `21` |
+| RD-14 Kontingent: Formel und Wettlauf | mittel | eine benannte Abfrage `LiveAccountUsage`; Prüfung im selben Update wie der Start (5.1a, 8.3) |
+| RD-15 Zeitgeber gegen Änderungen | mittel | Spalte `rev`; Start nur mit gleichem `rev`; reconcile/PATCH nur in `scheduled`; Zeitgeber nach Schritt 4 laden (3.9, 8.3, 8.4) |
+| RD-16 404 an `lt`-Routen nicht unterscheidbar | mittel | Client-Regel in `08` 4.2; im Modell keine Änderung |
+| RD-17 keine Aktionen an Aufnahmen und Regeln | mittel | `08` 3.5, 3.6 (Pflichtfeld `actions`); 4.3 nennt die Quelle |
+| RD-18 Zugriff des Hauptprofils | mittel | ein sqlc-Fragment für Liste und Einzelabruf; heute wirksame Grenze; fremde Termine ausgeschlossen bis `14` F-4; neue Frage F-3 (4.3) |
+| RD-19 User-Agent im Klartext | mittel | `user_agent_enc`, `list_user_agent_enc` (3.2, 3.3, 6.1) |
+| RD-20 Eindeutigkeit der Erinnerungen | mittel | Entfernen löscht die Zeile; Eindeutigkeit nur für offene; `UPDATE OR IGNORE` beim Verschieben (3.6) |
+| RD-21 Wiederanlauf setzt Ende auf «jetzt» | niedrig | `ended_at = last_seen_at` (8.4) |
+| RD-22 CHECK mit NULL | niedrig | `IS` statt `=` (3.3, 1.4, 11.2) |
+| RD-23 `epg.db` räumt gelöschte Quellen nicht | niedrig | Löschen der `epg_channels` mit der Quelle, Abgleich beim Start (3.5, 9) |
+| RD-24 Bild der Aufnahme hängt am EPG | niedrig | Prune schont Bilder von Aufnahmen; kein Kopieren (3.9, 9). Teilweise übernommen: Geht der Cache verloren, fehlt das Bild, weil der Cache bewusst wiederbeschaffbar ist |
+| RD-25 Glocke ohne Abgrenzung, Dedupe | niedrig | CHECK gegen Titel-Verweise an `live_*`; Upsert für Verschiebung und Konflikt (3.11) |
+| RD-26 Widersprüche im Text | niedrig | Satz in 4.1 ersetzt; Neubau der Sicht gestrichen (11.2, O-6); W-31 zu `09`; Rest in `08` |
+| RD-27 Ausliefern nach App-Fassung | niedrig | in `08` 7.2 gestrichen (Verträglichkeitsregel); kein Einfluss auf das Modell |
+| RD-28 Antwortmodelle | niedrig | `08` 3.7, 3.8, 3.5 |
+| RD-29 Lücken der Stichprobe | niedrig | `08`; im Modell: Gruppenvereinigung beim Zusammenführen abwählbar (7.4) |
+| RD-30 unbeantwortete Optionen im Schema | niedrig | `live_net_targets.epg_source_id` und `live_recording_deleted` aus dem SQL genommen, nur mit Antwort (3.2, 3.11) |
+
+### 13.2 Streichbar oder vereinfachbar (Review 2 Abschnitt 2)
+
+| Nr. | Änderung |
+|---|---|
+| S-1, S-2, S-4 bis S-7, S-11 | Operationen: `08` Abschnitt 10 |
+| S-3 | Vorschau als Lauf `outcome = 'preview'` in `live_source_imports` (3.2) |
+| S-8 | `merged_into` ohne Fremdschlüssel, nur Auskunft (3.3) |
+| S-9 | Einträge nur für den letzten Lauf je Quelle (3.2, 9) |
+| S-10 | `live_stream_events` ohne Fremdschlüssel (3.8) |
+| S-12 | wie RD-30 |
+
+### 13.3 Aus `04` Fassung 3, `11` Fassung 2 und `18`
+
+- T-29: Deaktivieren und Verschwinden beenden nichts Laufendes; «sofort beenden» als eigener Vorgang mit Lücke
+  `channel_disabled` (3.9, 10.4); W-19 erledigt.
+- Zustand «zurückgestellt» des Automaten: flüchtig (1.3), als Ereignis `deferred` in der Diagnose (3.8).
+- Herzschlag meldet «spielt/Pause»; die Schauzeit zählt ausgelieferte Segmente (3.8).
+- Werte aus `04` 14: Ring einstellbar 4–15 s, Anteil der Umwandlung 0–100 %, gleichzeitige Prüfungen 1, Karenz
+  nur nach Sitzungsende durch den Zuschauer, Mindestreserven als «grösserer Wert aus Bytes und Prozent» (3.1);
+  W-9 erledigt.
+- `11` 14.1: `rev`, `rule_key`, weitere Eindeutigkeiten, Meldungsart für das Hauptprofil, Löschen in zwei Stufen,
+  Belegungsabfrage, Zugriffsbedingung übernommen. `11` 14.1a: Felder aus LD-02/LD-03 nicht modelliert, O-3 mit
+  Verweis auf `11` O-6.
+- Stufen je Tabelle und Spalte nach `18` 4.13 (1a, 1b, 2, 3, H, 4, 5, 6; L und W ohne neue Tabellen); D-3
+  (Startpuffer-Ordner nur Stufe 4 und nur bei `04` F-2 (a)) und D-4 (feste Ziele Stufe H) übernommen (11.2).
+- Zählung: 32 Tabellen und 1 Sicht in `slouchcat.db`, 7 in `epg.db` (unverändert); 3 Neubauten; Erweiterungen von
+  `accounts`, `profiles`, `invitations` jetzt je Stufe.

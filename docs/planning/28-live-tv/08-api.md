@@ -1,6 +1,10 @@
 # Konzept 28 · API
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
+
+Fassung 2 arbeitet Review 2 (`anhang/reviews/review-2-datenmodell-api.md`), `04` Fassung 3 (T-29, Abschnitt 14) und
+die Stufen aus `18-umsetzungsplan.md` ein (1a, 1b, 2, 3, H, 4, 5, 6, L, W, E, Apps); was sich geändert hat, steht
+in Abschnitt 10.
 
 Dieses Dokument ist die **einzige Quelle** für die Schnittstellen von Live-TV: welche Operationen es gibt, wer sie
 aufrufen darf, was sie annehmen und liefern, welche Fehler sie melden und wie die Ströme ausgeliefert werden. Die
@@ -56,13 +60,14 @@ Es gibt **keine neue Stufe**: Die drei Schalter setzt der Dienst durch, nicht di
 - Alle Änderungen an bestehenden Operationen sind **additiv** im Sinn von `docs/dev/VERTRAEGLICHKEIT.md`: neue
   Operationen, neue freiwillige Felder in Anfragen, neue Felder in Antworten, neue Aufzählungswerte
   (`VERTRAEGLICHKEIT.md` «Nicht brechend»). Kein bestehendes Pflichtfeld wird freiwillig, kein Wert verschwindet.
-- **Risiko neuer Aufzählungswerte (RI-6, A1):** Neue Werte in bestehenden Antworten (`MyMediaKey: livetv`,
-  `NotificationKind: live_*`, Kanal-Ereignisse `live_*`, `AdminStream.kind`) gelten als nicht brechend, setzen
-  aber voraus, dass die Apps unbekannte Werte vertragen (Konzept 27 11.5). Gegenmassnahme: Der Server liefert
-  `livetv` in `listMyMedia` und Live-Einträge in `listNotifications` **nur**, wenn das Profil Live-TV wirksam hat;
-  eine App ohne Live-TV-Bereich zeigt sie nicht (Abschnitt 7.2). Der Test `TestXClientsCompatibility` (gebaut:
-  `server/internal/api/contract_compat_test.go:16-35`) prüft die sieben Bruchregeln; für neue Werte bleibt die
-  Sichtprüfung in den Apps (O-1).
+- **Neue Aufzählungswerte (RI-6, A1):** Neue Werte in bestehenden Antworten (`MyMediaKey: livetv`,
+  `NotificationKind: live_*`, Kanal-Ereignisse `live_*`, `AdminStream.kind`) sind nach
+  `docs/dev/VERTRAEGLICHKEIT.md` «nicht brechend, die Apps vertragen Unbekanntes». Der Server liefert `livetv` in
+  `listMyMedia` und Live-Einträge in `listNotifications` nur, wenn das Profil Live-TV wirksam hat (Recht, keine
+  App-Fassung). Einen Filter nach App-Fassung gibt es **nicht** (RD-27): Verträgt ein erzeugter Kotlin-Client
+  einen unbekannten Wert nicht, ist das ein Fehler der App gegen Konzept 27 11.5 und wird dort behoben (O-1). Der
+  Test `TestXClientsCompatibility` (gebaut: `server/internal/api/contract_compat_test.go:16-35`) prüft die sieben
+  Bruchregeln.
 - **Vertragstest:** Jede neue Operation bekommt einen Eintrag in der Registry ihrer Stufe
   (`TestContractCoversEveryOperation`, gebaut: `server/internal/api/contract_access_test.go:562-600`), jede
   Binärroute einen Eintrag in `binaryRoutes`.
@@ -83,153 +88,147 @@ von einer Adresse nur Schema und Host (gebaut: `server/internal/netguard/netguar
 
 Spalten: **Recht** = zusätzlich nötiges Fachrecht (L = «Live-TV» wirksam, A = «Aufnahmen» wirksam, T = «Timeshift»
 wirksam, H = Hauptprofil, Adm = Administrator mit Hauptprofil). **Seite** = Kennung aus `14` (LS-, LD-) und `15`
-(LA-). **St.** = Stufe nach `03`. **Bin** = `http.Handler`. Alle Zuschauer-Operationen sind `scoped` mit
-`x-clients: [app, tv]`; alle Verwaltungs-Operationen `admin` ohne `x-clients`.
+(LA-). **St.** = Stufe nach `18` 4.13. **Bin** = `http.Handler`. Alle Zuschauer-Operationen sind `scoped` mit
+`x-clients: [app, tv]`; alle Verwaltungs-Operationen `admin` ohne `x-clients`. In welcher Stufe die Apps die Seiten
+bekommen, regelt `18` Abschnitt 5 (Stufe «Apps»); der Vertrag ist ihnen voraus (`18` D-10).
 
 ### 2.1 Sender und Favoriten
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
-| GET | `/live/home` | `getLiveHome` | Startseite in einer Anfrage: jetzt, gleich, zuletzt, Favoriten, Genres, Zähler | L | LS-01 | 1 (Programmteile 2) |
-| GET | `/live/channels` | `listLiveChannels` | Senderliste mit Filtern, Suche, Seiten; mit `now=true` jetzt/danach | L | LS-02, LS-04 (Senderfenster), LS-07 Zapliste, LD-03 Senderwahl | 1 |
-| GET | `/live/channels/facets` | `getLiveChannelFacets` | Zahlen je Gruppe, Land, Sprache, Kategorie | L | LS-02, LD-09 | 1 |
-| GET | `/live/channels/{channelId}` | `getLiveChannel` | ein Sender (Kopf, Spuren-Kurzinfo, Zustand) | L | LS-07, LS-15 | 1 |
-| GET | `/live/favorites` | `listLiveFavorites` | Favoriten in Reihenfolge | L | LS-03, LS-01 | 1 |
-| PUT | `/live/favorites` | `setLiveFavoriteOrder` | ganze Reihenfolge setzen | L | LS-03 | 1 |
-| PUT | `/live/favorites/{channelId}` | `addLiveFavorite` | Favorit setzen (idempotent) | L | LS-02, LS-15, LS-07 | 1 |
-| DELETE | `/live/favorites/{channelId}` | `removeLiveFavorite` | Favorit entfernen (idempotent) | L | LS-02, LS-03 | 1 |
-| GET | `/live/recent` | `listLiveRecentChannels` | zuletzt gesehene Sender (höchstens 20) | L | LS-01 | 1 |
-| DELETE | `/live/recent` | `clearLiveRecentChannels` | Liste leeren (`03` DR-15) | L | LS-01 | 1 |
-| GET (Bin) | `/live/images/channel/{channelId}/{size}` | `getLiveChannelLogo` | Senderlogo über den Server | L | LS-01 bis LS-15 | 1 |
+| GET | `/live/home` | `getLiveHome` | Startseite in einer Anfrage: jetzt, gleich, zuletzt, Favoriten, Genres, Zähler | L | LS-01 | 1a (Programmteile 2, Aufnahmezähler 5) |
+| GET | `/live/channels` | `listLiveChannels` | Senderliste mit Filtern, Suche, Seiten; mit `now=true` jetzt/danach, mit `ids` für Zapliste und Banner | L | LS-02, LS-03, LS-04 (Senderfenster, Handy), LS-07 Zapliste und Banner, LD-03 Senderwahl | 1a (`now` 2) |
+| GET | `/live/channels/facets` | `getLiveChannelFacets` | Zahlen je Gruppe, Land, Sprache, Kategorie | L | LS-02, LD-09 | 1a (Gruppen 1b) |
+| GET | `/live/channels/{channelId}` | `getLiveChannel` | ein Sender (Kopf, Spuren-Kurzinfo, Zustand) | L | LS-07, LS-15 | 1a |
+| GET | `/live/favorites` | `listLiveFavorites` | Favoriten in Reihenfolge | L | LS-03, LS-01 | 1a |
+| PUT | `/live/favorites` | `setLiveFavoriteOrder` | ganze Reihenfolge setzen | L | LS-03 | 1a |
+| PUT | `/live/favorites/{channelId}` | `addLiveFavorite` | Favorit setzen (idempotent) | L | LS-02, LS-15, LS-07 | 1a |
+| DELETE | `/live/favorites/{channelId}` | `removeLiveFavorite` | Favorit entfernen (idempotent) | L | LS-02, LS-03 | 1a |
+| GET | `/live/recent` | `listLiveRecentChannels` | zuletzt gesehene Sender (höchstens 20) | L | LS-01 | 1a |
+| DELETE | `/live/recent` | `clearLiveRecentChannels` | Liste leeren (`03` DR-15) | L | LS-01 | 1a |
+| GET (Bin) | `/live/images/channel/{channelId}/{size}` | `getLiveChannelLogo` | Senderlogo über den Server; für Administratoren auch inaktive Sender (S-4) | L oder Adm | LS-01 bis LS-15, LA-05, LA-06 | 1a |
 
 ### 2.2 Programm
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
-| GET | `/live/now` | `getLiveNowNext` | jetzt und danach für bis zu 200 Sender | L | LS-02, LS-03, LS-07 Banner, Zapliste | 2 |
 | GET | `/live/guide` | `getLiveGuide` | Raster: Zeitfenster × Senderseite | L | LS-04, Überlagerung im Player (`14` 4.9) | 2 |
 | GET | `/live/channels/{channelId}/programmes` | `listLiveChannelProgrammes` | Tagesprogramm eines Senders | L | LS-15, LS-04 Handy | 2 |
 | GET | `/live/programmes/{programmeRef}` | `getLiveProgramme` | Sendungsdetails samt eigenem Zustand und weiteren Terminen | L | LS-06 | 2 |
 | GET | `/live/programmes` | `searchLiveProgrammes` | Programmsuche über alle Sender, «Nach Genre» | L | LS-05, LS-01 Genre | 2 |
-| GET (Bin) | `/live/images/programme/{imageKey}/{size}` | `getLiveProgrammeImage` | Sendungsbild über den Server | L | LS-06, LS-01 | 2 |
+| GET (Bin) | `/live/images/programme/{imageKey}/{size}` | `getLiveProgrammeImage` | Sendungsbild über den Server | L | LS-06, LS-01, LS-08 | 2 |
 
 ### 2.3 Live-Sitzung und Wiedergabe
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
-| POST | `/live/sessions` | `createLiveSession` | Sitzung anlegen und einen Sender einstellen oder eine Aufnahme abspielen | L (Aufnahme: L + A oder H) | LS-07, LS-10 | 1 (Aufnahme 5) |
-| POST | `/live/sessions/{sessionId}/tune` | `tuneLiveSession` | umschalten in derselben Sitzung | L | LS-07, LD-10 | 1 |
-| POST | `/live/sessions/{sessionId}/heartbeat` | `heartbeatLiveSession` | am Leben halten, Pause melden, Zustand holen | L | LS-07, LS-10 | 1 |
-| PUT | `/live/sessions/{sessionId}/output` | `setLiveSessionOutput` | Qualität, Tonspur, Untertitel | L | LS-07, LS-10 | 1 |
+| POST | `/live/sessions` | `createLiveSession` | Sitzung anlegen und einen Sender einstellen oder eine Aufnahme abspielen | L (Aufnahme: L + A oder H) | LS-07, LS-10 | 1a (Aufnahme 5) |
+| POST | `/live/sessions/{sessionId}/tune` | `tuneLiveSession` | umschalten in derselben Sitzung | L | LS-07, LD-10 | 1a |
+| POST | `/live/sessions/{sessionId}/heartbeat` | `heartbeatLiveSession` | am Leben halten, «spielt/Pause» melden, Zustand holen | L | LS-07, LS-10 | 1a |
+| PUT | `/live/sessions/{sessionId}/output` | `setLiveSessionOutput` | Qualität, Tonspur, Untertitel | L | LS-07, LS-10 | 1a |
 | POST | `/live/sessions/{sessionId}/seek` | `seekLiveSession` | «spiele ab Uhrzeit» (Rückfall aus `05` 4.5) | L + T (Aufnahme: A oder H) | LS-07, LS-10 | 4 |
-| DELETE | `/live/sessions/{sessionId}` | `endLiveSession` | Sitzung beenden (idempotent) | – (eigene Sitzung) | LS-07, LS-10 | 1 |
-| GET (Bin) | `/live/play/{sessionId}/{tune}/index.m3u8` | `getLivePlayMaster` | übergeordnete Liste mit Codecs | Token `lt` | LS-07, LS-10 | 1 |
-| GET (Bin) | `/live/play/{sessionId}/{tune}/media.m3u8` | `getLivePlayMedia` | Wiedergabeliste der Sitzung | Token `lt` | LS-07, LS-10 | 1 |
-| GET (Bin) | `/live/play/{sessionId}/{tune}/seg/{gen}/{n}` | `getLivePlaySegment` | TS-Segment | Token `lt` | LS-07, LS-10 | 1 |
+| DELETE | `/live/sessions/{sessionId}` | `endLiveSession` | Sitzung beenden (idempotent) | – (eigene Sitzung) | LS-07, LS-10 | 1a |
+| GET (Bin) | `/live/play/{sessionId}/{tune}/index.m3u8` | `getLivePlayMaster` | übergeordnete Liste mit Codecs | Token `lt` | LS-07, LS-10 | 1a |
+| GET (Bin) | `/live/play/{sessionId}/{tune}/media.m3u8` | `getLivePlayMedia` | Wiedergabeliste der Sitzung | Token `lt` | LS-07, LS-10 | 1a |
+| GET (Bin) | `/live/play/{sessionId}/{tune}/seg/{gen}/{n}` | `getLivePlaySegment` | TS-Segment | Token `lt` | LS-07, LS-10 | 1a |
 
-### 2.4 Aufnahmen
+### 2.4 Aufnahmen (Stufe 5)
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
-| GET | `/live/recordings` | `listLiveRecordings` | eigene Aufnahmen (`view=library`) oder kommende Termine (`view=upcoming`) mit Zählern | L + A | LS-08, LS-11 «Termine» | 5 |
+| GET | `/live/recordings` | `listLiveRecordings` | eigene Aufnahmen (`view=library`) oder kommende Termine (`view=upcoming`), mit `profileId` die eines Profils mit Altersgrenze (LS-14) | L + A (mit `profileId`: H) | LS-08, LS-11 «Termine», «Manuell», LS-14 | 5 |
 | GET | `/live/recordings/usage` | `getLiveRecordingUsage` | Speicher des Kontos: eigenes Profil, übrige Profile, frei | L + A (oder H) | LS-08, LS-14 | 5 |
 | POST | `/live/recordings/preview` | `previewLiveRecording` | Zeiten, erwartete Grösse, Warnungen vor dem Speichern | L + A | LD-01, LD-03, LD-04, LD-07 | 5 |
-| POST | `/live/recordings` | `createLiveRecording` | Sofort-, Einzel- oder manuelle Aufnahme anlegen | L + A | LD-01, LD-03 (einmal), LD-04 | 5 |
-| GET | `/live/recordings/{recordingId}` | `getLiveRecording` | Detail mit Lücken, Spuren, Herkunft, Aufbewahrung | L + A (oder H) | LS-09 | 5 |
-| PATCH | `/live/recordings/{recordingId}` | `updateLiveRecording` | Vor-/Nachlauf, Zeiten (manuell), Aufbewahrung, behalten, verlängern, Warnung ausblenden, Kandidat wählen | L + A | LD-01 Ändern, LD-11, LS-07, LS-12 | 5 |
+| POST | `/live/recordings` | `createLiveRecording` | Sofort-, Einzel- oder manuelle Aufnahme anlegen (idempotent) | L + A | LD-01, LD-03 (einmal), LD-04 | 5 |
+| GET | `/live/recordings/{recordingId}` | `getLiveRecording` | Detail mit Lücken, Spuren, Herkunft, Aufbewahrung, Aktionen | L + A (oder H) | LS-09 | 5 |
+| PATCH | `/live/recordings/{recordingId}` | `updateLiveRecording` | Vor-/Nachlauf, Zeiten und Sender (manuell), Aufbewahrung, behalten, verlängern, Warnung ausblenden, Kandidat wählen | L + A | LD-01 Ändern, LD-11, LS-07, LS-12 | 5 |
 | POST | `/live/recordings/{recordingId}/stop` | `stopLiveRecording` | laufende Aufnahme stoppen, behalten | L + A | LS-07, LS-09, LD-06 | 5 |
 | DELETE | `/live/recordings/{recordingId}` | `deleteLiveRecording` | löschen oder Termin absagen; `?skip=true` lässt einen Regeltermin aus | L + A (H: Profile mit Altersgrenze) | LD-06, LS-14 | 5 |
 | POST | `/live/recordings/delete` | `deleteLiveRecordings` | mehrere löschen | L + A | LS-08 Auswahl | 5 |
 | GET | `/live/warnings` | `listLiveRecordingWarnings` | Konflikte und Warnungen der eigenen Termine | L + A | LS-12, LS-01 Band, LS-11 | 5 |
-| GET | `/live/profile-recordings` | `listProfileLiveRecordings` | Aufnahmen der Profile mit Altersgrenze, je Profil | H (Abschnitt 3.5) | LS-14 | 5 |
+| GET | `/live/profile-recordings` | `listProfileLiveRecordings` | Übersicht je Profil mit Altersgrenze (Name, Zahl, Grösse, geplant als Zahl); die Aufnahmen kommen über `listLiveRecordings?profileId=` (RD-28) | H (3.5) | LS-14, LS-08 Karte | 5 |
 
-### 2.5 Regeln (Serie, wiederkehrend)
+### 2.5 Regeln (Serie, wiederkehrend; Stufe 6)
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
 | GET | `/live/rules` | `listLiveRecordingRules` | Regeln mit Zählern und nächstem Termin | L + A | LS-11 «Serien», «Wiederkehrend» | 6 |
 | POST | `/live/rules/preview` | `previewLiveRecordingRule` | kommende Termine, übersprungene mit Grund, Erkennbarkeit der Folgen | L + A | LD-02, LD-03 | 6 |
-| POST | `/live/rules` | `createLiveRecordingRule` | Serie oder wiederkehrende Aufnahme anlegen | L + A | LD-02, LD-03 | 6 |
+| POST | `/live/rules` | `createLiveRecordingRule` | Serie oder wiederkehrende Aufnahme anlegen (idempotent) | L + A | LD-02, LD-03 | 6 |
 | GET | `/live/rules/{ruleId}` | `getLiveRecordingRule` | Regel mit Terminen und übersprungenen | L + A | LS-11 aufgeklappt | 6 |
 | PATCH | `/live/rules/{ruleId}` | `updateLiveRecordingRule` | Regel ändern | L + A | LD-02, LD-03 | 6 |
 | DELETE | `/live/rules/{ruleId}` | `deleteLiveRecordingRule` | beenden; `?recordings=keep|delete` | L + A | LD-06 | 6 |
 | DELETE | `/live/rules/{ruleId}/episodes` | `clearLiveRuleEpisodes` | Folgengedächtnis leeren (`11` 2.4) | L + A | LS-11 | 6 |
 
-### 2.6 Erinnerungen
+### 2.6 Erinnerungen (Stufe 2)
 
 | Methode | Pfad | `operationId` | Zweck | Recht | Seite | St. |
 |---|---|---|---|---|---|---|
 | GET | `/live/reminders` | `listLiveReminders` | offene Erinnerungen nach Tag | L | LS-13 | 2 |
-| POST | `/live/reminders` | `createLiveReminder` | Erinnerung an eine künftige Sendung | L | LD-05, LS-04 (Taste E) | 2 |
+| POST | `/live/reminders` | `createLiveReminder` | Erinnerung an eine künftige Sendung (idempotent für offene) | L | LD-05, LS-04 (Taste E) | 2 |
 | PATCH | `/live/reminders/{reminderId}` | `updateLiveReminder` | Vorlauf ändern | L | LD-05 | 2 |
-| DELETE | `/live/reminders/{reminderId}` | `deleteLiveReminder` | entfernen | L | LD-05, LS-13 | 2 |
+| DELETE | `/live/reminders/{reminderId}` | `deleteLiveReminder` | entfernen (Zeile weg, RD-20) | L | LD-05, LS-13 | 2 |
 
 ### 2.7 Verwaltung: Übersicht, Ströme, Diagnose
 
 | Methode | Pfad | `operationId` | Zweck | Seite | St. |
 |---|---|---|---|---|---|
-| GET | `/admin/live/overview` | `getLiveOverview` | Zustand, Kennzahlen, «Braucht Aufmerksamkeit», Ressourcen, Programmdaten, Einrichtungsband | LA-01, LA-20 | 1 |
-| GET | `/admin/live/ingests` | `listLiveIngests` | laufende Eingangsströme mit Abnehmern und Technik | LA-12, LA-01 | 1 |
-| POST | `/admin/live/ingests/{channelId}/reconnect` | `reconnectLiveIngest` | neu verbinden | LA-12 | 1 |
+| GET | `/admin/live/overview` | `getLiveOverview` | Zustand, Kennzahlen, «Braucht Aufmerksamkeit», Ressourcen, Programmdaten, Einrichtungsband, Warnung vor dem Update (S-7) | LA-01, LA-20, LA-25, LA-27 | 1a (Teile je Stufe) |
+| GET | `/admin/live/ingests` | `listLiveIngests` | laufende Eingangsströme mit Zuschauern und Technik; Aufnahmen nur als Zahl | LA-12, LA-01 | 1a |
+| POST | `/admin/live/ingests/{channelId}/reconnect` | `reconnectLiveIngest` | neu verbinden | LA-12 | 1a |
 | POST | `/admin/live/ingests/{channelId}/next-source` | `switchLiveIngestSource` | zur nächsten Senderquelle wechseln | LA-12 | 3 |
-| DELETE | `/admin/live/ingests/{channelId}` | `stopLiveIngest` | Eingang beenden | LA-12 | 1 |
-| GET | `/admin/live/diagnostics` | `getLiveDiagnostics` | jetzt gestört, letzte 7 Tage, je Sender | LA-13 | 1 (Teile 3) |
-| GET | `/admin/live/events` | `listLiveEvents` | Protokoll mit Filtern | LA-13 | 1 |
-| GET | `/admin/live/update-impact` | `getLiveUpdateImpact` | laufende und bald beginnende Aufnahmen (Zahlen) | LA-27 | 5 |
+| DELETE | `/admin/live/ingests/{channelId}` | `stopLiveIngest` | Eingang beenden | LA-12 | 1a |
+| GET | `/admin/live/diagnostics` | `getLiveDiagnostics` | jetzt gestört, letzte 7 Tage, je Sender | LA-13 | 1a (Teile 3) |
+| GET | `/admin/live/events` | `listLiveEvents` | Protokoll mit Filtern | LA-13 | 1a |
 
 ### 2.8 Verwaltung: Quellen und Importe
 
 | Methode | Pfad | `operationId` | Zweck | Seite | St. |
 |---|---|---|---|---|---|
-| GET | `/admin/live/sources` | `listLiveSources` | alle Quellen mit Zustand | LA-02 | 1 |
-| POST | `/admin/live/source-tests` | `testNewLiveSource` | ungespeicherte Quelle testen, Vorschau anlegen | LA-03 Schritt 3–4 | 1 |
-| POST | `/admin/live/sources` | `createLiveSource` | Quelle anlegen (optional aus einer Vorschau) | LA-03 Schritt 6 | 1 |
-| GET | `/admin/live/sources/{sourceId}` | `getLiveSource` | eine Quelle (ohne Geheimnisse) | LA-03 Ändern | 1 |
-| PATCH | `/admin/live/sources/{sourceId}` | `updateLiveSource` | ändern (Geheimnisse nur schreibbar) | LA-03 | 1 |
-| DELETE | `/admin/live/sources/{sourceId}` | `deleteLiveSource` | entfernen, `?orphans=keep|delete` | LA-02 | 1 |
-| GET | `/admin/live/sources/{sourceId}/removal-impact` | `getLiveSourceRemovalImpact` | Zahlen für die Rückfrage | LA-02 | 1 |
-| POST | `/admin/live/sources/{sourceId}/refresh` | `refreshLiveSource` | Import jetzt (Job) | LA-02 | 1 |
-| POST | `/admin/live/sources/{sourceId}/test` | `testLiveSource` | bestehende Quelle testen, Vorschau des Imports | LA-02, LA-03 | 1 |
-| GET | `/admin/live/sources/{sourceId}/imports` | `listLiveSourceImports` | letzte Läufe | LA-02 | 1 |
-| GET | `/admin/live/imports/{importId}` | `getLiveSourceImport` | Ergebnis eines Laufs | LA-04 | 1 |
-| GET | `/admin/live/imports/{importId}/items` | `listLiveSourceImportItems` | Einträge je Gruppe | LA-04 | 1 |
-| POST | `/admin/live/imports/{importId}/apply` | `applyHeldLiveSourceImport` | zurückgehaltene Liste trotzdem übernehmen | LA-04 | 1 |
-| GET | `/admin/live/previews/{previewId}` | `getLiveImportPreview` | Vorschau (Zähler) | LA-04 Vorschau | 1 |
-| GET | `/admin/live/previews/{previewId}/items` | `listLiveImportPreviewItems` | Einträge der Vorschau | LA-04 Vorschau | 1 |
-| POST | `/admin/live/net-targets/resolve` | `resolveLiveNetTarget` | Hostname auflösen, Adressen zum Bestätigen zeigen | LA-03 Heimnetz, LA-10 | 3 |
-| PUT (Bin) | `/admin/live/uploads/{kind}` | `uploadLiveFile` | M3U- oder XMLTV-Datei hochladen | LA-03, LA-10 | 1 (XMLTV 2) |
+| GET | `/admin/live/sources` | `listLiveSources` | alle Quellen mit Zustand und Zählern (auch «Sender ohne andere Quelle», S-6) | LA-02 | 1a |
+| POST | `/admin/live/source-tests` | `testLiveSource` | neue oder bestehende (`sourceId`) Quelle testen; bei einer Senderliste ein Vorschau-Lauf (S-2, S-3) | LA-02, LA-03 Schritt 3–4 | 1a |
+| POST | `/admin/live/sources` | `createLiveSource` | Quelle anlegen, optional aus einem Vorschau-Lauf | LA-03 Schritt 6 | 1a |
+| GET | `/admin/live/sources/{sourceId}` | `getLiveSource` | eine Quelle (ohne Geheimnisse) | LA-03 Ändern | 1a |
+| PATCH | `/admin/live/sources/{sourceId}` | `updateLiveSource` | ändern (Geheimnisse nur schreibbar) | LA-03 | 1a (Aktualisierung nach Zeitplan 1b, feste Ziele H) |
+| DELETE | `/admin/live/sources/{sourceId}` | `deleteLiveSource` | entfernen, `?orphans=keep|delete` | LA-02 | 1a |
+| POST | `/admin/live/sources/{sourceId}/refresh` | `refreshLiveSource` | Import jetzt (Job) | LA-02 | 1a |
+| GET | `/admin/live/sources/{sourceId}/imports` | `listLiveSourceImports` | letzte Läufe | LA-02 | 1a |
+| GET | `/admin/live/imports/{importId}` | `getLiveSourceImport` | Ergebnis oder Vorschau eines Laufs | LA-04 | 1a |
+| GET | `/admin/live/imports/{importId}/items` | `listLiveSourceImportItems` | Einträge je Gruppe (Lauf oder Vorschau) | LA-04 | 1a |
+| POST | `/admin/live/imports/{importId}/apply` | `applyHeldLiveSourceImport` | zurückgehaltene Liste trotzdem übernehmen | LA-04 | 1b |
+| POST | `/admin/live/net-targets/resolve` | `resolveLiveNetTarget` | Hostname auflösen, Adressen zum Bestätigen zeigen | LA-03 Heimnetz | H |
+| PUT (Bin) | `/admin/live/uploads/{kind}` | `uploadLiveFile` | M3U- oder XMLTV-Datei hochladen | LA-03, LA-10 | 1a (XMLTV 2) |
 
 ### 2.9 Verwaltung: Sender, Gruppen, Duplikate
 
 | Methode | Pfad | `operationId` | Zweck | Seite | St. |
 |---|---|---|---|---|---|
-| GET | `/admin/live/channels` | `listAdminLiveChannels` | Tabelle für 10'000 Sender mit Filtern | LA-05, LA-09 «Ausnahmen» | 1 |
-| GET | `/admin/live/channels/{channelId}` | `getAdminLiveChannel` | alle Angaben eines Senders | LA-06 | 1 |
-| PATCH | `/admin/live/channels/{channelId}` | `updateLiveChannel` | Angaben, aktiv, Empfang, Logo-Art | LA-06, LA-05 Schalter | 1 (Empfang 3) |
-| DELETE | `/admin/live/channels/{channelId}` | `deleteLiveChannel` | löschen (Grabstein) | LA-06 | 1 |
-| GET | `/admin/live/channels/{channelId}/removal-impact` | `getLiveChannelRemovalImpact` | Favoriten und Planungen als Zahl | LA-06 | 1 |
-| POST | `/admin/live/channels/bulk` | `bulkUpdateLiveChannels` | Massenbearbeitung, Nummern vergeben | LA-05 | 1 |
-| PUT | `/admin/live/channels/{channelId}/streams` | `setLiveChannelStreams` | Rangfolge der Senderquellen | LA-06, LA-07 | 1 |
-| POST | `/admin/live/channels/{channelId}/streams/{streamId}/split` | `splitLiveChannelStream` | als eigenen Sender abtrennen | LA-06 | 1 |
-| POST | `/admin/live/streams/{streamId}/test` | `testLiveChannelStream` | eine Senderquelle prüfen | LA-06, LA-13 «Jetzt prüfen» | 1 |
-| POST | `/admin/live/channels/merge/preview` | `previewLiveChannelMerge` | Zusammenfassung vor dem Zusammenführen | LA-07 | 1 |
-| POST | `/admin/live/channels/merge` | `mergeLiveChannels` | zusammenführen | LA-07, LA-04, LA-05 | 1 |
-| GET | `/admin/live/duplicates` | `listLiveDuplicates` | Vorschläge | LA-07 | 1 |
-| POST | `/admin/live/duplicates/dismiss` | `dismissLiveDuplicate` | «Kein Duplikat» | LA-07, LA-04 | 1 |
-| PUT (Bin) | `/admin/live/channels/{channelId}/logo` | `uploadLiveChannelLogo` | Logo hochladen | LA-06 | 1 |
-| GET (Bin) | `/admin/live/images/channel/{channelId}/{size}` | `getAdminLiveChannelLogo` | Logo auch inaktiver Sender | LA-05, LA-06 | 1 |
-| GET | `/admin/live/groups` | `listLiveGroups` | Gruppen | LA-08 | 1 |
-| POST | `/admin/live/groups` | `createLiveGroup` | eigene Gruppe | LA-08 | 1 |
-| PATCH | `/admin/live/groups/{groupId}` | `updateLiveGroup` | Name, sichtbar, Mitglieder | LA-08 | 1 |
-| DELETE | `/admin/live/groups/{groupId}` | `deleteLiveGroup` | eigene Gruppe löschen | LA-08 | 1 |
-| PUT | `/admin/live/groups/order` | `setLiveGroupOrder` | Reihenfolge | LA-08 | 1 |
+| GET | `/admin/live/channels` | `listAdminLiveChannels` | Tabelle für 10'000 Sender mit Filtern (schlanke Zeile, RD-28) | LA-05, LA-09 «Ausnahmen», LA-25 | 1a |
+| GET | `/admin/live/channels/{channelId}` | `getAdminLiveChannel` | alle Angaben eines Senders samt Nutzung (S-5) und Laufendem | LA-06 | 1a |
+| PATCH | `/admin/live/channels/{channelId}` | `updateLiveChannel` | Angaben, aktiv, Empfang, Logo-Art | LA-06, LA-05 Schalter | 1a (Empfang 3) |
+| POST | `/admin/live/channels/{channelId}/end-now` | `endLiveChannelNow` | deaktivierten Sender «sofort beenden»: Wiedergaben und Aufnahmen enden (T-29) | LA-06, LA-12 | 1a (Aufnahmen 5) |
+| DELETE | `/admin/live/channels/{channelId}` | `deleteLiveChannel` | löschen (Grabstein) | LA-06 | 1a |
+| POST | `/admin/live/channels/bulk` | `bulkUpdateLiveChannels` | Massenbearbeitung, Nummern vergeben | LA-05 | 1b |
+| PUT | `/admin/live/channels/{channelId}/streams` | `setLiveChannelStreams` | Rangfolge der Senderquellen | LA-06, LA-07 | 1a |
+| POST | `/admin/live/channels/{channelId}/streams/{streamId}/split` | `splitLiveChannelStream` | als eigenen Sender abtrennen | LA-06 | 1b |
+| POST | `/admin/live/streams/{streamId}/test` | `testLiveChannelStream` | eine Senderquelle prüfen | LA-06, LA-13 «Jetzt prüfen» | 1a |
+| POST | `/admin/live/channels/merge/preview` | `previewLiveChannelMerge` | Zusammenfassung vor dem Zusammenführen, samt wegfallender Doppel | LA-07 | 1b |
+| POST | `/admin/live/channels/merge` | `mergeLiveChannels` | zusammenführen | LA-07, LA-04, LA-05 | 1b |
+| GET | `/admin/live/duplicates` | `listLiveDuplicates` | Vorschläge | LA-07 | 1b |
+| POST | `/admin/live/duplicates/dismiss` | `dismissLiveDuplicate` | «Kein Duplikat» | LA-07, LA-04 | 1b |
+| PUT (Bin) | `/admin/live/channels/{channelId}/logo` | `uploadLiveChannelLogo` | Logo hochladen | LA-06 | 1b |
+| GET | `/admin/live/groups` | `listLiveGroups` | Gruppen | LA-08 | 1b |
+| POST | `/admin/live/groups` | `createLiveGroup` | eigene Gruppe | LA-08 | 1b |
+| PATCH | `/admin/live/groups/{groupId}` | `updateLiveGroup` | Name, sichtbar, Mitglieder | LA-08 | 1b |
+| DELETE | `/admin/live/groups/{groupId}` | `deleteLiveGroup` | eigene Gruppe löschen | LA-08 | 1b |
+| PUT | `/admin/live/groups/order` | `setLiveGroupOrder` | Reihenfolge | LA-08 | 1b |
 
 ### 2.10 Verwaltung: Empfang, Einstellungen, EPG, Speicher
 
 | Methode | Pfad | `operationId` | Zweck | Seite | St. |
 |---|---|---|---|---|---|
-| GET | `/admin/live/config` | `getLiveConfig` | alle Einstellungen von Live-TV | LA-09, LA-10, LA-13, LA-14, LA-15, LA-16 | 1 (Abschnitte je Stufe) |
-| PATCH | `/admin/live/config` | `updateLiveConfig` | einen oder mehrere Abschnitte speichern | wie oben | 1 |
+| GET | `/admin/live/config` | `getLiveConfig` | alle Einstellungen von Live-TV | LA-09, LA-10, LA-13, LA-14, LA-15, LA-16 | 1a (Abschnitte je Stufe) |
+| PATCH | `/admin/live/config` | `updateLiveConfig` | einen oder mehrere Abschnitte speichern | wie oben | 1a |
 | GET | `/admin/live/schedules` | `listLiveSchedules` | Zeitpläne mit Zahl der Sender | LA-09 | 3 |
 | POST | `/admin/live/schedules` | `createLiveSchedule` | Zeitplan anlegen | LA-09 | 3 |
 | PATCH | `/admin/live/schedules/{scheduleId}` | `updateLiveSchedule` | ändern | LA-09 | 3 |
@@ -238,7 +237,7 @@ wirksam, H = Hauptprofil, Adm = Administrator mit Hauptprofil). **Seite** = Kenn
 | POST | `/admin/live/epg/source-tests` | `testLiveEpgSource` | Quelle testen (neu oder bestehend) | LA-10 | 2 |
 | POST | `/admin/live/epg/sources` | `createLiveEpgSource` | anlegen | LA-10, LA-03 Angebot | 2 |
 | PATCH | `/admin/live/epg/sources/{epgSourceId}` | `updateLiveEpgSource` | ändern | LA-10 | 2 |
-| DELETE | `/admin/live/epg/sources/{epgSourceId}` | `deleteLiveEpgSource` | entfernen | LA-10 | 2 |
+| DELETE | `/admin/live/epg/sources/{epgSourceId}` | `deleteLiveEpgSource` | entfernen (samt ihrer Kanäle in `epg.db`) | LA-10 | 2 |
 | POST | `/admin/live/epg/sources/{epgSourceId}/refresh` | `refreshLiveEpgSource` | jetzt laden (Job) | LA-10 | 2 |
 | POST | `/admin/live/epg/sources/{epgSourceId}/accept-held` | `acceptHeldLiveEpgImport` | zurückgehaltene Datei trotzdem übernehmen | LA-10 | 2 |
 | PUT | `/admin/live/epg/sources/order` | `setLiveEpgSourceOrder` | Reihenfolge für die Zuordnung | LA-10 | 2 |
@@ -257,6 +256,8 @@ wirksam, H = Hauptprofil, Adm = Administrator mit Hauptprofil). **Seite** = Kenn
 | POST | `/admin/live/storage/cleanup` | `cleanupLiveStorage` | verwaiste Puffer jetzt aufräumen | LA-16 | 4 |
 | DELETE | `/admin/live/storage/orphans` | `deleteLiveOrphanRecordingFiles` | verwaiste Aufnahmedateien löschen (Rückfrage) | LA-16 | 5 |
 
+Die Rolle `startbuffer` gibt es in den Speicher-Operationen nur bei `04` F-2 (a) (`18` D-3).
+
 ### 2.11 Neue Operation in der Profilverwaltung
 
 | Methode | Pfad | `operationId` | `x-visibility` | `x-clients` | Zweck | Seite | St. |
@@ -267,37 +268,40 @@ wirksam, H = Hauptprofil, Adm = Administrator mit Hauptprofil). **Seite** = Kenn
 
 | Operation (gebaut) | Erweiterung | Seite | St. |
 |---|---|---|---|
-| `getSession` (`/auth/session`) | `SessionInfo.live`: wirksame Rechte, Grund, ob LS-14 erreichbar ist (Abschnitt 3.10) | alle | 1 |
-| `listProfiles`, `createProfile`, `updateProfile` | `Profile.canLiveTv`, `canLiveRecord`, `canLiveTimeshift` und `liveCapped` (was das Konto nicht erlaubt) | LS-21 | 1 (Aufnahmen 5, Timeshift 4) |
-| `listAccounts`, `updateAccountAccess` | `Account.live`: drei Schalter, `quotaBytes`, `usedBytes`, `recordings` (Zahl) | LA-22 | 1 (Kontingent 5) |
-| `listInvitations`, `createInvitation` | dieselben drei Schalter und `liveQuotaBytes` | LA-22 | 1 |
-| `listMyMedia`, `getMyMedia`, `setMyMedia` | `MyMediaKey` bekommt `livetv`; `listMyMedia` liefert den Eintrag nur mit Recht | LS-20, LA-26 | 1 |
-| `listNotifications` | neue `NotificationKind`-Werte `live_*` und ein Block `live` (Ziel, Titel, Sender, Zeiten) | LS-23 | 2 |
-| `getMyChannels`, `updateMyChannel` | neue Ereignisse `live_reminder`, `live_recording_done`, `live_recording_failed` (W-21) | LS-22 | 2 |
-| `listStreams`, `stopStream` | `AdminStream.kind` `live` und `live_recording`; für Aufnahmen ohne Titel und Sender (`15` 4) | LA-21 | 1 |
-| `getDashboard` | Block `live` (Zustand, Zuschauer, laufende Aufnahmen, gestörte Sender) | LA-20 | 1 |
-| `listJobRuns` | neue Jobarten `livetv.*` in einer neuen Gruppe | LA-23 | 1 |
-| `getWatchReport` | zählt Live-TV-Schauzeit mit, ohne Sender | – | 1 |
-| `installUpdate` | neuer Parameter `confirmLiveRecordings`; ohne ihn bei laufenden Aufnahmen 409 `live_recordings_running` (`04` F-6 (a)) | LA-27 | 5 |
-| `PlaybackCapabilities` (Schema) | Videocodec `mpeg2video`, Toncodecs `mp2`, `aac_latm`, Feld `interlacedOk`, Untertitel `dvb_subtitle`, `dvb_teletext` (`04` 7.1, O-1 dort) | LS-07 | 1 |
+| `getSession` (`/auth/session`) | `SessionInfo.live`: wirksame Rechte, Grund, ob LS-14 erreichbar ist (3.10) | alle | 1a (Felder je Stufe) |
+| `listProfiles`, `createProfile`, `updateProfile` | `Profile.canLiveTv` (1a), `canLiveTimeshift` (4), `canLiveRecord` (5) und `liveCapped` | LS-21 | 1a, 4, 5 |
+| `listAccounts`, `updateAccountAccess` | `Account.live`: Schalter je Stufe, `quotaBytes`, `usedBytes`, `recordingsCount`, `overQuota` (5) | LA-22 | 1a, 4, 5 |
+| `listInvitations`, `createInvitation` | dieselben Schalter und `liveQuotaBytes` | LA-22 | 1a, 4, 5 |
+| `listMyMedia`, `getMyMedia`, `setMyMedia` | `MyMediaKey` bekommt `livetv`; `listMyMedia` liefert den Eintrag nur mit Recht | LS-20, LA-26 | 1a |
+| `listNotifications` | neue `NotificationKind`-Werte `live_*` und ein Block `live` (Ziel, Titel, Sender, Zeiten; beim Hauptprofil für erwachsene Profile ohne Titel) | LS-23 | 2 (Aufnahmearten 5) |
+| `getMyChannels`, `updateMyChannel` | neue Ereignisse `live_reminder`, `live_recording_done`, `live_recording_failed` (W-21 in `07`) | LS-22 | 2, 5 |
+| `listStreams`, `stopStream` | `AdminStream.kind` `live` und `live_recording`; für Aufnahmen ohne Titel und Sender (`15` 4) | LA-21 | 1a (Aufnahme 5) |
+| `getDashboard` | Block `live` (Zustand, Zuschauer, laufende Aufnahmen, gestörte Sender) | LA-20 | 1a |
+| `listJobRuns` | neue Jobarten `livetv.*` in einer neuen Gruppe | LA-23 | 1b, 2, 5, 6 |
+| `getWatchReport` | zählt Live-TV-Schauzeit mit, ohne Sender | – | 1a |
+| `installUpdate` | neuer Parameter `confirmLiveRecordings`; ohne ihn bei laufenden oder in 15 Minuten beginnenden Aufnahmen 409 `live_recordings_running` (`04` F-6 (a), 14.8) | LA-27 | 5 |
+| `PlaybackCapabilities` (Schema) | Videocodec `mpeg2video`, Toncodecs `mp2`, `aac_latm`, Feld `interlacedOk`, Untertitel `dvb_subtitle`, `dvb_teletext` (`04` 7.1) | LS-07 | 1a |
 
 ### 2.13 Zählung
 
 | Gruppe | Operationen | davon Binär |
 |---|---|---|
 | Sender und Favoriten | 11 | 1 |
-| Programm | 6 | 1 |
+| Programm | 5 | 1 |
 | Sitzung und Wiedergabe | 9 | 3 |
 | Aufnahmen | 11 | 0 |
 | Regeln | 7 | 0 |
 | Erinnerungen | 4 | 0 |
-| Verwaltung Übersicht, Ströme, Diagnose | 8 | 0 |
-| Verwaltung Quellen und Importe | 17 | 1 |
-| Verwaltung Sender, Gruppen, Duplikate | 20 | 2 |
+| Verwaltung Übersicht, Ströme, Diagnose | 7 | 0 |
+| Verwaltung Quellen und Importe | 13 | 1 |
+| Verwaltung Sender, Gruppen, Duplikate | 19 | 1 |
 | Verwaltung Empfang, Einstellungen, EPG, Speicher | 28 | 0 |
 | Profilverwaltung | 1 | 0 |
-| **Neu insgesamt** | **122** | **8** |
+| **Neu insgesamt** | **115** (Fassung 1: 122) | **7** |
 | Erweiterte bestehende Operationen | 20 (dazu das Schema `PlaybackCapabilities`) | – |
+
+Je Stufe (neue Operationen): 1a 45, 1b 13, 2 24, 3 5, H 1, 4 7, 5 13, 6 7. `18` 4.3 bis 4.9 nennt noch die
+Zahlen aus Fassung 1 und ist nachzuziehen (Abschnitt 9.3, W-33).
 
 ---
 
@@ -318,7 +322,8 @@ sind die tragenden Modelle; Antworten ohne eigenen Körper sind `204`.
 | 403 | `watch_limit_reached` | tägliche Schauzeit aufgebraucht (`extensions.limitMinutes`, `usedMinutes`) | gebaut (Radio, `api/openapi.yaml:11801-11806`) |
 | 409 | `live_conflict` | Zustand passt nicht (laufende Aufnahme löschen, Sitzung einer anderen Art umschalten, Zeitplan ist Vorgabe) mit `extensions.reason` | neu |
 | 409 | `live_import_running` | Import der Quelle läuft schon | neu |
-| 409 | `live_recordings_running` | Update ohne Bestätigung bei laufenden Aufnahmen | neu |
+| 409 | `live_recordings_running` | Update ohne Bestätigung bei laufenden oder in 15 Minuten beginnenden Aufnahmen | neu |
+| 200 statt 201 | – | gleiches Anlegen noch einmal (Aufnahme, Regel, Erinnerung): Antwort ist die bestehende Zeile (RD-10, `07` 3.9) | neu |
 | 410 | `live_session_gone` | Sitzung endete (Neustart, Entzug, Ablauf, Sender weg): der Client legt eine neue an | neu (Muster Radio 410, `api/openapi.yaml:11873-11878`) |
 | 422 | `validation_failed` | Feldfehler mit `errors[]` (Feld und Code) | gebaut |
 | 422 | `live_programme_past` | Sendung ist vorbei (Erinnerung, Einzelaufnahme) | neu |
@@ -386,8 +391,9 @@ LiveFavoriteOrder:
 ```
 
 **`listLiveChannels` · Parameter:** `q` (Name oder Nummer, gefaltet), `group` (mehrere; `favorites` als
-Sondergruppe), `country`, `language`, `category` (je mehrere), `favorites` (bool), `ids` (bis 200, für die
-Zapliste), `now` (bool: jetzt/danach mitliefern, Stufe 2), `sort` (`number` Vorgabe, `name`), `offset` (ab 0),
+Sondergruppe), `country`, `language`, `category` (je mehrere), `favorites` (bool), `ids` (bis 200, für Zapliste
+und Banner; ersetzt die frühere Operation `getLiveNowNext`, S-1), `now` (bool: jetzt/danach mitliefern, Stufe 2),
+`sort` (`number` Vorgabe, `name`), `offset` (ab 0),
 `limit` (1 bis 200, Vorgabe 100). Reihenfolge `number`: nach Nummer, ohne Nummer nach Name (`15` F-15). Eine
 Senderliste mit 10'000 Einträgen holt die virtuelle Liste seitenweise (`14` 4.1); `total` zeigt die volle Zahl
 für die Bildlaufleiste. Antwortgrösse je Seite mit `now=true`: rund 100 × 0,5 KB (Annahme).
@@ -487,11 +493,11 @@ LiveGuide:
 **`getLiveGuide` · Parameter:** `from` (ms, Pflicht), `to` (ms, Pflicht, höchstens 6 Stunden nach `from`), Filter
 wie `listLiveChannels` (`group`, `favorites`), `offset`, `limit` (Sender je Seite, 1 bis 100, Vorgabe 50, `09`
 8.1). `from` darf nicht vor `jetzt − Rückschau` liegen (`live_config.epg_lookback_hours`) und nicht nach dem Ende
-des Vorschauzeitraums; die Oberfläche beginnt bei heute 00:00 (`14` 4.1, W-24 in `07`). Sendungen, die vor `from`
-beginnen und danach enden, sind enthalten (Untergrenze `from − 24 h`, `09` 8.1).
+des Vorschauzeitraums; die Oberfläche beginnt bei heute 00:00 (`14` 4.1; Unterschied zu `09` 2.7 «zurückblättern
+bis gestern Abend» ist nur Darstellung, W-34). Sendungen, die vor `from` beginnen und danach enden, sind enthalten
+(Untergrenze `from − 24 h`, `09` 8.1).
 
-**`getLiveNowNext`:** `ids` (1 bis 200, Pflicht) → `[{channelId, now, next}]`. Für die Zapliste und den Banner;
-die Senderliste mit `now=true` braucht diese Operation nicht.
+Jetzt und danach für Zapliste und Banner liefert `listLiveChannels?ids=…&now=true` (S-1).
 
 **`listLiveChannelProgrammes`:** `day` (Datum `YYYY-MM-DD` in der Zone `tz`), `tz` (IANA-Name des Geräts, Pflicht;
 der Server schneidet den Tag in dieser Zone, Tagesgrenzen rechnet sonst der Client, `09` 2.4) → Sendungen des
@@ -554,8 +560,11 @@ LiveSession:
     startPosition:
       type: number
       description: Seconds from the start of the playlist where the client starts (05 4.4, 5.3).
-    heartbeatSeconds: {type: integer, enum: [10]}
-    state: {type: string, enum: [starting, live, shifted, paused, reconnecting, recording_live, recording_done]}
+    heartbeatSeconds: {type: integer, enum: [10]}     # 04 14.4
+    state:
+      type: string
+      enum: [starting, live, shifted, paused, reconnecting, recording_live, recording_done]
+      description: Same list in LiveSession and LiveHeartbeat; a source switch is a notice, not a state (RD-26).
     channel: {$ref: "#/components/schemas/LiveChannel"}
     recording: {$ref: "#/components/schemas/LiveRecordingBrief"}
     decision:
@@ -590,7 +599,11 @@ LiveHeartbeatRequest:
   type: object
   required: [playing]
   properties:
-    playing: {type: boolean, description: False during a pause; paused time does not count as watch time (03 DR-12).}
+    playing:
+      type: boolean
+      description: |
+        «spielt» or «Pause» (04 13.4 on 06 O-11). Watch time counts the duration of delivered segments while the
+        last heartbeat said true; paused time does not count (03 DR-12).
     positionDateTime: {type: integer, format: int64, description: Program date-time of the playback position.}
     positionMs: {type: integer, format: int64, description: Recording sessions only: position for the progress.}
     zapUiOpen: {type: boolean, description: The channel list or zap overlay is open (05 6, preload restarts).}
@@ -598,8 +611,8 @@ LiveHeartbeat:
   type: object
   required: [state, expiresInSeconds]
   properties:
-    state: {type: string, enum: [starting, live, shifted, paused, reconnecting, source_switched, recording_live, recording_done]}
-    expiresInSeconds: {type: integer, description: 60 without a further heartbeat (T-21).}
+    state: {type: string, enum: [starting, live, shifted, paused, reconnecting, recording_live, recording_done]}
+    expiresInSeconds: {type: integer, description: 60 without a further heartbeat (T-21, 04 14.4).}
     liveEdge: {type: integer, format: int64}
     windowStart: {type: integer, format: int64, description: Moves when the buffer is capped or full (10 3.3).}
     notices:
@@ -613,10 +626,14 @@ LiveHeartbeat:
 
 **Ablauf:** `createLiveSession` legt die Sitzung an und stellt ein; `tuneLiveSession` stellt in derselben Sitzung
 um (neue `tune`, neue `playlistUrl`, keine neue Sitzung, T-9); Reservierung bei den Stream-Grenzen und beim
-Umwandlungsbudget bleibt beim Umschalten (T-13, T-26). Die Antwort wartet **nicht** auf das erste Segment
-(`state: starting`); die erste Anfrage an `media.m3u8` hält bis zu 8 Sekunden, bis ein Segment da ist (Annahme;
-löst `06` O-9 für die API; ob das Bild schneller kommt, wenn die Liste in der Antwort mitkommt, ist `05` O-17).
+Umwandlungsbudget bleibt beim Umschalten (T-13, T-26). **Die Antwort wartet bis zu 3 Sekunden auf das erste
+Segment** (`04` 9, 14.1; `05` 4.4): liegt es vor, ist `state: live`, sonst `state: starting`, und der Client holt
+die Liste, sobald der Herzschlag `live` meldet oder nach 1 Sekunde erneut. Kommt nach 15 Sekunden kein Segment,
+endet der Startversuch; der nächste Herzschlag meldet `reconnecting` mit `retryInSeconds` oder die Sitzung 410.
+Ob die erste Liste in der Antwort mitkommt, ist `05` O-17 (Feld bis dahin nicht im Vertrag).
 `setLiveSessionOutput` erzeugt eine neue Ausgabe-Generation (`04` 7.5); die Antwort ist die neue `LiveSession`.
+**Ein Gerät, eine Sitzung (RD-10):** Kommt `createLiveSession` mit demselben Profil und derselben `deviceId`, endet
+eine offene ältere Sitzung dieses Geräts, bevor die Stream-Grenze zählt.
 
 **Recht je Operation:** `createLiveSession` und `tuneLiveSession` prüfen «Live-TV» und die Sichtbarkeit des Senders;
 eine Aufnahme braucht die Zugriffsregel aus `07` 4.3 und für das Hauptprofil eigenes «Live-TV» (`03` DR-03);
@@ -627,7 +644,9 @@ mit `reason: no_right`, und `actions.pause` ist falsch; die Oberfläche blendet 
 409 `live_conflict` (`tune` einer Aufnahme-Sitzung), 410 `live_session_gone`, 422 (`channelId` und `recordingId`
 zugleich oder keines; Spur gehört nicht zur Sitzung), 429 `live_too_fast`, 502 `live_source_unreachable` (nach der
 Leiter ohne Erfolg, nur wenn der Strom noch nie lief), 503 `transcode_busy`, 503 `live_capacity`. Ein gestörter
-Sender liefert beim Einstellen 201 mit `state: reconnecting` (die Wiederverbindung läuft, `14` 4.12).
+Sender liefert beim Einstellen 201 mit `state: reconnecting` (die Wiederverbindung läuft, `14` 4.12). Ein
+deaktivierter Sender ist für das Einstellen 404, eine laufende Wiedergabe auf ihm läuft weiter (T-29), bis der
+Zuschauer geht oder der Administrator «sofort beenden» wählt (dann 410 beim nächsten Herzschlag).
 
 ### 3.5 Aufnahmen
 
@@ -637,12 +656,29 @@ LiveRecordingState:
   type: string
   enum: [scheduled, suspended, waiting, recording, recording_gap, completed, incomplete, failed, cancelled]
   description: 07 3.9; «deleting» is never returned (404).
+LiveRecordingActions:
+  type: object
+  description: |
+    What the active profile may do with this row; the server decides (rule 12, RD-17). The primary profile on a
+    recording of a profile with an age limit gets play (only with its own Live-TV), delete, never edit or stop
+    (03 DR-03). A recording with filesMissing cannot be played; a running one cannot be deleted before stop.
+  required: [play, resume, delete, stop, extend, edit, retention]
+  properties:
+    play: {type: boolean}
+    resume: {type: boolean, description: A stored own position exists (never for another profile's recording, DR-21).}
+    delete: {type: boolean}
+    stop: {type: boolean}
+    extend: {type: boolean, description: Running instant recording with EPG («Bis Sendungsende verlängern»).}
+    edit: {type: boolean, description: Scheduled and pre-roll not yet started.}
+    retention: {type: boolean}
 LiveRecordingBrief:
   type: object
-  required: [id, kind, state, title, channelName, start, end]
+  required: [id, kind, state, title, channelName, start, end, createdAt, actions]
   properties:
     id: {type: string}
     kind: {type: string, enum: [instant, single, manual, rule]}
+    createdAt: {type: integer, format: int64, description: «Einzeln geplant am 20.11.» (LS-09, RD-29).}
+    actions: {$ref: "#/components/schemas/LiveRecordingActions"}
     state: {$ref: "#/components/schemas/LiveRecordingState"}
     title: {type: string}
     subtitle: {type: string}
@@ -665,7 +701,7 @@ LiveRecordingBrief:
         days: {type: integer}
         keepLast: {type: integer}
     failReason: {type: string, enum: [quota_full, server_busy, channel_unavailable, source_unreachable, source_encrypted, storage_full, storage_missing, server_not_running]}
-    cancelReason: {type: string, enum: [profile, right_revoked, channel_deleted, skipped]}
+    cancelReason: {type: string, enum: [profile, right_revoked, channel_deleted, skipped, merged]}
     warnings: {type: array, items: {$ref: "#/components/schemas/LiveWarningKind"}}
     matchState: {type: string, enum: [exact, moved_auto, ambiguous, missing]}
     adjustedFrom: {type: integer, format: int64, description: Core start before the last EPG adjustment (LS-11).}
@@ -686,7 +722,7 @@ LiveRecording:
             properties:
               from: {type: integer, format: int64}
               to: {type: integer, format: int64}
-              reason: {type: string, enum: [source_interrupted, source_switched, source_unreachable, source_encrypted, storage_full, storage_missing, disk_too_slow, server_not_running, stopped_by_admin]}
+              reason: {type: string, enum: [source_interrupted, source_switched, source_unreachable, source_encrypted, storage_full, storage_missing, disk_too_slow, server_not_running, stopped_by_admin, channel_disabled]}
         tracks: {type: object, properties: {audio: {type: array, items: {$ref: "#/components/schemas/LiveTrack"}}, subtitles: {type: array, items: {$ref: "#/components/schemas/LiveTrack"}}}}
         sourceSwitches: {type: array, items: {type: integer, format: int64}, description: Times only, never a source name.}
         candidates: {type: array, items: {$ref: "#/components/schemas/LiveProgrammeBrief"}, description: With matchState ambiguous.}
@@ -750,6 +786,8 @@ LiveRecordingUpdate:
     postMinutes: {type: integer, minimum: 0, maximum: 60}
     start: {type: integer, format: int64, description: manual and scheduled only.}
     end: {type: integer, format: int64}
+    channelId: {type: integer, format: int64, description: manual and scheduled only («Anderen Sender wählen», LS-12, RD-29).}
+    rev: {type: integer, description: Optional; the row's rev the client saw. Another rev answers 409 live_conflict (reason changed).}
     retentionDays: {type: integer, enum: [7, 14, 30, 90], nullable: true}
     keep: {type: boolean}
     extendToProgrammeEnd: {type: boolean, description: Running instant recording («Bis Sendungsende verlängern», 14 4.10).}
@@ -759,21 +797,24 @@ LiveRecordingUpdate:
 
 **`listLiveRecordings` · Parameter:** `view` (`library` Vorgabe: alles ausser `scheduled` und `suspended`;
 `upcoming`: `scheduled`, `suspended`, `waiting`, `recording`, `recording_gap`, nach Beginn), `state` (mehrere,
-Filter `ToggleToolbar` von LS-08), `ruleId` (Serienstapel `?series=`), `q` (Suche in Titel und Untertitel der
-eigenen Aufnahmen, `03` DR-13), `sort` (`newest` Vorgabe, `oldest`, `channel`, `title`, `size`, `expiring`),
-`offset`, `limit` (1 bis 100, Vorgabe 50). Antwort `{items: [LiveRecordingBrief], total, offset, counts: {all,
-recording, completed, incomplete, failed}, series: [{ruleId, title, count}]}`. Ein Hauptprofil sieht hier nur die
-eigenen; die der Profile mit Altersgrenze kommen über `listProfileLiveRecordings` (`03` DR-02 «nicht vermischt»).
+Filter `ToggleToolbar` von LS-08), `kind` (mehrere: LS-11 Abschnitt «Manuell», RD-29), `ruleId` (Serienstapel
+`?series=`), `profileId` (nur das Hauptprofil, nur ein Profil mit Altersgrenze, mit der Bedingung aus `07` 4.3;
+sonst 404), `q` (Suche in Titel und Untertitel, `03` DR-13), `sort` (`newest` Vorgabe, `oldest`, `channel`,
+`title`, `size`, `expiring`), `offset`, `limit` (1 bis 100, Vorgabe 50). Antwort `{items: [LiveRecordingBrief],
+total, offset, counts: {all, recording, completed, incomplete, failed}, series: [{ruleId, title, count}]}`. Ohne
+`profileId` sieht ein Hauptprofil hier nur die eigenen (`03` DR-02 «nicht vermischt»); mit `profileId` gibt es
+keine Termine des Kinds (bis `14` F-4 nur die Zahl).
 
 **`listProfileLiveRecordings` (LS-14):** nur wenn das aktive Profil das Hauptprofil ist und das Konto Profile mit
-Altersgrenze hat; sonst 404. Antwort `{profiles: [{profileId, name, avatar, count, bytes, scheduled,
-recordings: [LiveRecordingBrief]}]}`, je Profil höchstens 50 Aufnahmen, mehr über `profileId`, `offset`, `limit`.
-`scheduled` ist eine Zahl; ob das Hauptprofil die geplanten Termine selbst sieht, ist `14` F-4 (bis zur Antwort
-nur die Zahl). Die Operation verlangt **kein** eigenes Recht «Aufnahmen» des Hauptprofils, damit es Platz frei
-machen kann (`03` DR-03); ob sie auch wirkt, wenn das Konto «Live-TV» nicht mehr hat, ist F-1.
+Altersgrenze (heute, `07` 4.4) hat; sonst 404. Antwort in der üblichen Form `{items: [{profileId, name, avatar,
+count, bytes, scheduled}], total, offset}` (RD-28); die Aufnahmen eines Profils holt der Client mit
+`listLiveRecordings?profileId=`. Die Operation verlangt **kein** eigenes Recht «Aufnahmen» des Hauptprofils, damit
+es Platz frei machen kann (`03` DR-03); ob sie auch wirkt, wenn das Konto «Live-TV» nicht mehr hat, ist F-1.
 
-**`createLiveRecording`:** 201 mit `LiveRecording` und `warnings`. Geplante Aufnahmen werden trotz Warnung
-gespeichert (E-4: der Planer warnt, abgelehnt wird beim Start). Eine **Sofortaufnahme** beginnt sofort; bei
+**`createLiveRecording`:** 201 mit `LiveRecording` und `warnings`; dasselbe noch einmal (gleiche Sendung, gleiche
+manuelle Zeit, laufende Sofortaufnahme auf demselben Sender) ergibt 200 mit der bestehenden Zeile (RD-10).
+Geplante Aufnahmen werden trotz Warnung gespeichert (E-4: der Planer warnt, abgelehnt wird beim Start). Eine
+**Sofortaufnahme** beginnt sofort; bei
 vollem Kontingent 507 `live_quota_full` (die einzige Ablehnung beim Anlegen, weil Planen und Start zusammenfallen).
 `until: programme_end` ohne Programmdaten: 422 `live_no_epg`. Die Sofortaufnahme bei zeitversetzter Wiedergabe
 beginnt an der Live-Kante (`10` F-1 (a)).
@@ -812,8 +853,15 @@ LiveRuleCreate:
     keepLast: {type: integer, minimum: 1, maximum: 50}
 LiveRule:
   type: object
-  required: [id, kind, name, state, counts]
+  required: [id, kind, name, state, counts, actions]
   properties:
+    actions:
+      type: object
+      required: [edit, delete, clearEpisodes]
+      properties:
+        edit: {type: boolean}
+        delete: {type: boolean}
+        clearEpisodes: {type: boolean, description: Only series with a reliable episode mark (RD-17).}
     id: {type: string}
     kind: {type: string, enum: [series, recurring]}
     name: {type: string}
@@ -847,10 +895,14 @@ LiveReminder:
 - Serie aus einer Sendung ohne Programmdaten: 422 `live_no_epg`; aus einer Sendung, deren Sender keine Folgen
   kennzeichnet: 201 mit `episodesDetectable: false` (Hinweis aus `09` 7.2).
 - Felder aus `14` LD-02 und LD-03, die `11` nicht kennt (Zeitfenster und Wochentage einer Serie, «nur
-  Erstausstrahlungen», Ende einer Wiederholung), gibt es nicht (`07` W-10, W-11, O-3).
+  Erstausstrahlungen», Schalter «Folgen nicht doppelt», Ende einer Wiederholung), gibt es nicht; sie sind eine
+  Frage an dich über `11` O-6 (`07` O-3).
+- `createLiveRecordingRule`: dieselbe Serie (gleicher normalisierter Titel und Sender) oder dieselbe wiederkehrende
+  Zeit noch einmal: 200 mit der bestehenden Regel (RD-10).
 - `createLiveReminder`: `{programmeRef, leadMinutes}`; vergangene Sendung 422 `live_programme_past`; Sender ohne
   EPG 422 `live_no_epg`; mehr als 200 offene 422 mit Feld `programmeRef`, Code `limit`; gleiche Sendung zweimal:
-  200 mit der bestehenden (idempotent, Eindeutigkeit aus `07` 3.6).
+  200 mit der bestehenden **offenen** (Eindeutigkeit nur für offene, `07` 3.6). `deleteLiveReminder` löscht die
+  Zeile; wer dieselbe Erinnerung neu setzt, bekommt eine neue (RD-20).
 - `listLiveReminders`: `offset`, `limit` (1 bis 200); vergangene erscheinen nicht (LS-13).
 
 ### 3.7 Verwaltung: Quellen und Importe
@@ -868,13 +920,12 @@ LiveSource:
     enabled: {type: boolean}
     site: {type: string, description: "Scheme, host and port only (T-28)."}
     hasCredentials: {type: boolean}
-    username: {type: string, description: Never returned; write-only in LiveSourceWrite.}
     headerNames: {type: array, items: {type: string}, description: Names only; values are never returned (W-5).}
-    userAgent: {type: string}
+    hasCustomUserAgent: {type: boolean, description: The value is encrypted and never returned (RD-19).}
     origins: {type: array, items: {type: string}}
-    localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTarget"}}   # stage 3
+    localTargets: {type: array, items: {$ref: "#/components/schemas/LiveNetTarget"}}   # stage H
     allowMoreConnections: {type: boolean}                                                # stage 3, T-18
-    listenInterface: {type: string}                                                      # stage 3
+    listenInterface: {type: string}                                                      # stage H
     refresh: {type: object, properties: {everyMinutes: {type: integer}, atMinute: {type: integer}, next: {type: integer, format: int64}}}
     newChannelsEnabled: {type: boolean}
     takeGroups: {type: boolean}
@@ -886,7 +937,10 @@ LiveSource:
     progress: {type: object, properties: {done: {type: integer}, total: {type: integer}}, description: While running (job progress).}
     accessState: {type: string, enum: [ok, check]}
     hostMismatch: {type: boolean}
-    counts: {type: object, properties: {channels: {type: integer}, active: {type: integer}, missing: {type: integer}, groups: {type: integer}}}
+    counts:
+      type: object
+      description: orphans = channels without another source (numbers for the removal question of LA-02, S-6).
+      properties: {channels: {type: integer}, active: {type: integer}, missing: {type: integer}, groups: {type: integer}, orphans: {type: integer}, orphanFavorites: {type: integer}, orphanScheduled: {type: integer}}
 LiveSourceWrite:
   type: object
   description: |
@@ -899,9 +953,9 @@ LiveSourceWrite:
     username: {type: string, maxLength: 256, writeOnly: true}
     password: {type: string, maxLength: 256, writeOnly: true}
     headers: {type: array, maxItems: 16, items: {type: object, required: [name], properties: {name: {type: string}, value: {type: string, writeOnly: true}}}}
-    userAgent: {type: string, maxLength: 256}
-    uploadId: {type: string, description: m3u_file, from uploadLiveFile.}
-    previewId: {type: string, description: Apply this preview (test result) instead of fetching again.}
+    userAgent: {type: string, maxLength: 256, writeOnly: true}
+    uploadId: {type: string, description: m3u_file, from uploadLiveFile (200 MiB, 04 14.9).}
+    previewImportId: {type: integer, format: int64, description: Apply this preview run (outcome preview) instead of fetching again (S-3).}
     excludeEntries: {type: array, items: {type: integer}, description: Preview rows «übernehmen» unchecked (LA-04).}
     single: {type: object, description: single, step 4 of LA-03, properties: {newChannel: {type: object, properties: {name: {type: string}, number: {type: integer}, groupId: {type: integer}}}, addToChannelId: {type: integer, format: int64}}}
     origins: {type: array, items: {type: string}}
@@ -924,8 +978,12 @@ LiveNetTargetWrite:
     portTo: {type: integer}
     confirmToken: {type: string, description: From resolveLiveNetTarget; binds the confirmed resolution (T-5).}
 LiveSourceTestRequest:
+  description: A new source (fields of LiveSourceWrite) or an existing one (sourceId; fields given override).
   allOf:
     - $ref: "#/components/schemas/LiveSourceWrite"
+    - type: object
+      properties:
+        sourceId: {type: integer, format: int64}
 LiveSourceTest:
   type: object
   required: [result]
@@ -936,14 +994,14 @@ LiveSourceTest:
     playlist: {type: object, properties: {entries: {type: integer}, groups: {type: integer}, withLogo: {type: integer}, withEpgId: {type: integer}, epgUrlFound: {type: boolean}, epgSite: {type: string}}}
     xtream: {type: object, properties: {liveChannels: {type: integer}, categories: {type: integer}}}
     stream: {type: object, properties: {video: {type: string}, width: {type: integer}, height: {type: integer}, fps: {type: number}, interlaced: {type: boolean}, audio: {type: array, items: {type: string}}, subtitles: {type: array, items: {type: string}}, bitrateKbps: {type: integer}, firstFrameMs: {type: integer}}}
-    previewId: {type: string, description: Kept 30 minutes in memory (Annahme); for LA-04 and createLiveSource.}
+    previewImportId: {type: integer, format: int64, description: A run with outcome preview, kept 1 hour (07 3.2); read with getLiveSourceImport.}
 LiveImport:
   type: object
   required: [id, outcome, startedAt, counts]
   properties:
     id: {type: integer, format: int64}
-    trigger: {type: string, enum: [schedule, manual, create, upload, apply_held]}
-    outcome: {type: string, enum: [running, ok, unchanged, failed, held]}
+    trigger: {type: string, enum: [schedule, manual, create, upload, apply_held, test]}
+    outcome: {type: string, enum: [running, ok, unchanged, failed, held, preview]}
     startedAt: {type: integer, format: int64}
     finishedAt: {type: integer, format: int64}
     counts: {type: object, properties: {new: {type: integer}, changed: {type: integer}, missing: {type: integer}, duplicates: {type: integer}, faulty: {type: integer}, unchanged: {type: integer}, blockedLocal: {type: integer}, drm: {type: integer}}}
@@ -959,7 +1017,8 @@ LiveImportItem:
     channelId: {type: integer, format: int64}
     entryName: {type: string}
     line: {type: integer}
-    changes: {type: array, items: {type: string, enum: [name_changed, url_changed, logo_changed, group_changed, number_changed]}}
+    changes: {type: array, items: {type: string, enum: [name_changed, url_changed, logo_changed, group_changed, number_changed, identity_conflict]}}
+    excluded: {type: boolean, description: Preview only.}
     kept: {type: array, items: {type: string, enum: [own_name, own_logo, own_number, own_groups]}}
     favorites: {type: integer}
     scheduled: {type: integer}
@@ -967,19 +1026,21 @@ LiveImportItem:
     reason: {type: string}
 ```
 
-- **`testNewLiveSource` und `testLiveSource`** rufen einmal ab (Netzschutz T-5, Grenzen `05` 2.3) und speichern
-  nichts; eine Senderliste ergibt eine **Vorschau** im Arbeitsspeicher (`previewId`, die Datei bleibt in der
-  Zwischenablage). `createLiveSource` mit `previewId` wendet genau diesen Stand an. Test einer lokalen Adresse ohne
-  passendes festes Ziel: `result: error`, `error: local_not_allowed` (kein Abruf).
-- **`uploadLiveFile`** (`PUT`, `kind` = `m3u` oder `xmltv`): Körper roh, höchstens 200 MiB für M3U (`05` 2.3; W-22)
+- **`testLiveSource`** (eine Operation für neue und bestehende Quellen, S-2) ruft einmal ab (Netzschutz T-5,
+  Grenzen `04` 14.9) und ändert keinen Sender; eine Senderliste ergibt einen **Vorschau-Lauf** (`outcome =
+  'preview'`, `previewImportId`, Einträge in `listLiveSourceImportItems`, S-3). `createLiveSource` mit
+  `previewImportId` und dem Formular wendet genau diesen Stand an; `updateLiveSource` ebenso. Test einer lokalen
+  Adresse ohne passendes festes Ziel: `result: error`, `error: local_not_allowed` (kein Abruf).
+- **`uploadLiveFile`** (`PUT`, `kind` = `m3u` oder `xmltv`): Körper roh, höchstens 200 MiB für M3U (`04` 14.9; W-22)
   und 1 GiB für XMLTV (`09` 12), eigene Grenze in `largeBodies` (gebaut: `server/internal/api/limits.go:33-44`).
   Antwort `{uploadId, bytes, sha256}`; die Datei bleibt 1 Stunde, bis eine Quelle sie übernimmt (`07` 9).
 - **`deleteLiveSource`:** `orphans=keep` (Vorgabe) oder `delete` (`07` 10.3); Antwort 204. 409 `live_import_running`
-  während eines Imports.
+  während eines Imports. Die Zahlen für die Rückfrage stehen in `LiveSource.counts` (S-6).
 - **`refreshLiveSource`:** 202 `{jobId}` (Job-Fortschritt in `LiveSource.progress`); 409 `live_import_running`.
 - **`applyHeldLiveSourceImport`:** nur für `outcome: held`, sonst 409 `live_conflict`.
 - **`listLiveSources`:** ohne Seiten (wenige Quellen); `listLiveSourceImports`: die letzten 10.
-  `listLiveSourceImportItems` und `listLiveImportPreviewItems`: `kind`, `offset`, `limit` (1 bis 500).
+  `listLiveSourceImportItems` (Lauf oder Vorschau): `kind`, `offset`, `limit` (1 bis 500); Einträge gibt es nur
+  für den letzten Lauf einer Quelle (`07` 3.2, S-9), ältere Läufe nennen nur Zähler.
 - **`resolveLiveNetTarget`:** `{host, port}` → `{addresses: [..], confirmToken, refused: [{address, reason:
   loopback|link_local|own_address|public}]}`; der Token bindet die gezeigte Auflösung, damit ein späterer Wechsel
   eine neue Rückfrage braucht (`04` 10.9).
@@ -992,12 +1053,39 @@ LiveImportItem:
 
 ```yaml
 # Entwurf
+AdminLiveChannelRow:
+  type: object
+  description: |
+    One row of listAdminLiveChannels: only the columns of LA-05 (RD-28). Streams, technical data, availability
+    and usage come from getAdminLiveChannel.
+  required: [id, name, enabled, status, streamCount]
+  properties:
+    id: {type: integer, format: int64}
+    number: {type: integer}
+    name: {type: string}
+    sourceName: {type: string}
+    logo: {$ref: "#/components/schemas/LiveImageRef"}
+    groupNames: {type: array, items: {type: string}}
+    country: {type: string}
+    language: {type: string}
+    categories: {type: array, items: {$ref: "#/components/schemas/LiveCategory"}}
+    streamCount: {type: integer}
+    activeSourceName: {type: string}
+    epg: {type: string, enum: [mapped, suggested, missing, none]}
+    strategy: {type: string, enum: [default, on_demand, permanent, automatic, scheduled]}
+    enabled: {type: boolean}
+    status: {type: string, enum: [available, disturbed, missing, no_source, inactive, new]}
+    statusSince: {type: integer, format: int64}
 AdminLiveChannel:
   allOf:
     - $ref: "#/components/schemas/LiveChannel"
     - type: object
       required: [enabled, status, locks, streams]
       properties:
+        running:
+          type: object
+          description: What «sofort beenden» would end (T-29); numbers only.
+          properties: {viewers: {type: integer}, recordings: {type: integer}}
         enabled: {type: boolean}
         status: {type: string, enum: [available, disturbed, missing, no_source, inactive, new]}
         missingSince: {type: integer, format: int64}
@@ -1010,7 +1098,10 @@ AdminLiveChannel:
         streams: {type: array, items: {$ref: "#/components/schemas/AdminLiveStream"}}
         technical: {type: object, description: Last stored stream parameters (LA-06 «Technik»).}
         availability: {type: object, properties: {outages7d: {type: integer}, reconnects7d: {type: integer}, switches7d: {type: integer}}}
-        usage: {type: object, properties: {favorites: {type: integer}, scheduled: {type: integer}}, description: Numbers only, no profiles (LA-06 9).}
+        usage:
+          type: object
+          description: Numbers only, no profiles (LA-06 9); also the numbers of the delete question (S-5).
+          properties: {favorites: {type: integer}, reminders: {type: integer}, scheduled: {type: integer}, rules: {type: integer}}
 AdminLiveStream:
   type: object
   required: [id, rank, sourceId, sourceName, site, state]
@@ -1051,6 +1142,7 @@ LiveBulkRequest:
     action: {type: string, enum: [enable, disable, add_group, remove_group, set_country, set_language, add_category, remove_category, set_strategy, assign_numbers]}
     groupId: {type: integer, format: int64}
     value: {type: string}
+    sort: {type: string, enum: [number, name, status], description: Order for assign_numbers («in der aktuellen Sortierung», RD-29).}
     numbers: {type: object, properties: {start: {type: integer, minimum: 1}, step: {type: integer, minimum: 1, maximum: 100}, overwrite: {type: boolean}}}
 LiveBulkResult:
   type: object
@@ -1064,7 +1156,8 @@ LiveMergeRequest:
   properties:
     keepId: {type: integer, format: int64}
     mergeIds: {type: array, items: {type: integer, format: int64}, minItems: 1, maxItems: 20}
-    take: {type: object, properties: {name: {type: integer}, logo: {type: integer}, number: {type: integer}, epg: {type: integer}, countryLanguageCategories: {type: integer}}, description: Channel id per field; groups are always united.}
+    take: {type: object, properties: {name: {type: integer}, logo: {type: integer}, number: {type: integer}, epg: {type: integer}, countryLanguageCategories: {type: integer}}, description: Channel id per field.}
+    unionGroups: {type: boolean, default: true, description: «Gruppen (Vereinigung als Vorgabe)», may be unchecked (15 LA-07, RD-29).}
     streamOrder: {type: array, items: {type: integer, format: int64}}
 ```
 
@@ -1072,15 +1165,24 @@ LiveMergeRequest:
   `disturbed`, `missing`, `no_source`, `inactive`, `new`), `source`, `group`, `country`, `language`, `category`,
   `epg` (`mapped`, `suggested`, `missing`, `none`), `strategy` (`default`, `custom` für LA-09 «Ausnahmen», oder ein
   Wert), `sort` (`number` Vorgabe, `name`, `status`), `offset`, `limit` (1 bis 500, Vorgabe 100). Antwort
-  `{items, total, offset, counts: {active, total, byStatus}}`. 10'000 Zeilen über die virtuelle Tabelle von LA-05.
+  `{items: [AdminLiveChannelRow], total, offset, counts: {active, total, byStatus}}`; eine Zeile kostet keine
+  Teilabfrage auf Ereignisse oder Favoriten (RD-28). 10'000 Zeilen über die virtuelle Tabelle von LA-05.
+- **`endLiveChannelNow` (T-29):** nur für einen deaktivierten oder verschwundenen Sender, sonst 409 `live_conflict`
+  (`reason: active`). Verlangt `?confirm=<viewers>,<recordings>` aus `AdminLiveChannel.running`; stimmt die Zahl
+  nicht mehr, 409 (`reason: changed`). Wiedergaben enden (`ended_by = 'channel'`, Zuschauer «Sender nicht
+  verfügbar»), laufende Aufnahmen enden als `incomplete` mit Lücke `channel_disabled` (`07` 10.4). Antwort
+  `{viewersEnded, recordingsEnded}`.
+- **Logo «eigene Adresse»:** Eine Vorschau vor dem Speichern gibt es nicht, weil nur der Server den fremden Host
+  abrufen darf (4.5); nach dem Speichern zeigt `logo_state` und das Bild über `getLiveChannelLogo` das Ergebnis
+  (RD-29; `15` LA-06 nachziehen).
 - **`bulkUpdateLiveChannels`:** in Stapeln zu 500 (`07` 8.1); doppelte Nummern: Zeile im Ergebnis mit `code:
   number_taken` und `otherChannelId`, die übrigen Änderungen gelten (Teilerfolg, 200). Ein Filter statt `ids`
   wirkt auf den Stand beim Absenden.
 - **`deleteLiveChannel`:** nur ohne Quelle oder verschwunden, sonst 409 `live_conflict` (`reason: has_source`);
-  Wirkung nach `07` 10.4. `getLiveChannelRemovalImpact` → `{favorites, reminders, scheduled, rules}`.
-- **`mergeLiveChannels`:** Wirkung nach `07` 7.4; 409 `live_conflict`, wenn ein Sender gerade aufnimmt und nicht
-  der bleibende ist (`reason: recording`; die Aufnahme läuft am alten Strom weiter, `07` 10.4, Zusammenführen geht
-  danach).
+  Wirkung nach `07` 10.4. Die Zahlen der Rückfrage stehen in `AdminLiveChannel.usage` (S-5).
+- **`mergeLiveChannels`:** Wirkung nach `07` 7.4 (Doppel von Erinnerungen und Terminen fallen weg, Serienregeln
+  werden vereinigt); `previewLiveChannelMerge` nennt `{favoritesMoved, scheduledMoved, duplicatesDropped}`. 409
+  `live_conflict`, wenn ein aufzugebender Sender gerade aufnimmt (`reason: recording`; Zusammenführen geht danach).
 - **`setLiveChannelStreams`:** `{streamIds}` als ganze Rangfolge, sonst 422; setzt die Sperre `streams`.
 - **`testLiveChannelStream`:** verbindet einmal, liest einige Sekunden, höchstens 15 Sekunden je Aufruf; Antwort
   `{reachable, responseMs, firstFrameMs, video, audio, subtitles, bitrateKbps, frozen, noAudio, message}`
@@ -1109,12 +1211,13 @@ LiveConfig:
         preloadMax: {type: integer, minimum: 0, maximum: 16}
         automaticKeep: {type: integer, minimum: 0, maximum: 10}
         automaticFavorites: {type: boolean}
-        graceSeconds: {type: integer, minimum: 15, maximum: 300}
+        graceSeconds: {type: integer, minimum: 15, maximum: 300, description: Only after a viewer leaves (04 14.1).}
         maxIngests: {type: integer, minimum: 1, maximum: 200}
+        ringSeconds: {type: integer, minimum: 4, maximum: 15}
         ringBudgetMb: {type: integer, minimum: 64, maximum: 8192, nullable: true}
         maxSessions: {type: integer, minimum: 1, maximum: 200}
-        transcodeSharePct: {type: integer, minimum: 10, maximum: 100}
-        startbufferMode: {type: string, enum: [memory, folder]}
+        transcodeSharePct: {type: integer, minimum: 0, maximum: 100}
+        startbufferMode: {type: string, enum: [memory, folder], description: Stage 4 and only with 04 F-2 (a).}
     monitoring:
       type: object
       properties:
@@ -1144,7 +1247,7 @@ LiveIngest:
     channelName: {type: string}
     number: {type: integer}
     source: {type: object, properties: {sourceName: {type: string}, rank: {type: integer}, site: {type: string}}}
-    state: {type: string, enum: [connecting, running, reconnecting, disturbed, grace]}
+    state: {type: string, enum: [connecting, running, reconnecting, disturbed, grace, deferred], description: deferred = «zurückgestellt» (04 5.1).}
     attempt: {type: object, properties: {n: {type: integer}, of: {type: integer}}}
     reasons: {type: array, items: {type: string, enum: [viewer, recording, permanent, scheduled, automatic, preload, check]}}
     scheduleName: {type: string}
@@ -1157,11 +1260,12 @@ LiveIngest:
     transcodes: {type: object, properties: {direct: {type: integer}, transcoded: {type: integer}, hardware: {type: string}}}
     memory: {type: object, properties: {ringBytes: {type: integer, format: int64}, timeshiftBytes: {type: integer, format: int64}, timeshiftBuffers: {type: integer}, recordingBytes: {type: integer, format: int64}}}
     errors: {type: string}
-    consumers:
+    viewersDetail:
       type: array
       description: |
-        Viewers with account, profile, device, mode and live/shifted (W-6 rule, 03 DR-17); recordings only as
-        {kind: recording, accountEmail} without profile and title (15 section 4).
+        Viewers only, with account, profile, device, mode and live/shifted (W-6 rule, 03 DR-17). Recordings are
+        never listed here, not even with their account: account plus channel at this time plus the public EPG
+        would reveal the title (RD-06, Leitplanken 4). They are the number in `recordings`.
       items: {type: object}
 LiveStorage:
   type: object
@@ -1189,17 +1293,19 @@ LiveStorage:
   `read_only` (`15` F-17 (A)). `path` muss in `listLiveStorageCandidates` stehen (Regel 4: kein freies Tippen).
   `deleteLiveOrphanRecordingFiles` verlangt `?confirm=<Zahl der Dateien aus getLiveStorage>`, sonst 409; der
   Administrator kann **nie** fremde Aufnahmen mit Zeile löschen (`15` F-18 (A)).
-- **Ströme:** `listLiveIngests` mit `reason` (mehrere) und `state`; `stopLiveIngest` beendet, Zuschauer bekommen
-  410 beim nächsten Herzschlag, Aufnahmen eine Lücke `stopped_by_admin`; permanente Sender startet der Server
-  danach neu (`15` LA-12).
+- **Ströme:** `listLiveIngests` mit `reason` (mehrere) und `state`; `stopLiveIngest` beendet den Eingang,
+  Zuschauer bekommen 410 beim nächsten Herzschlag, Aufnahmen eine Lücke `stopped_by_admin` und verbinden neu;
+  permanente Sender startet der Server danach neu (`15` LA-12). Laufendes endgültig beenden heisst Sender
+  deaktivieren und `endLiveChannelNow` (T-29).
 - **Diagnose:** `getLiveDiagnostics` → `{now: [{channelId, name, kind: unreachable|frozen|no_audio|reconnecting,
   since, nextAttempt}], days7: {outages, reconnects, switches, heat: [[n × 24] × 7]}, perChannel: [...]}`;
   `listLiveEvents` mit `channelId`, `kind` (mehrere), `from`, `to`, `offset`, `limit` (1 bis 500); Texte ohne
   Zugangsdaten, Adressen nur als Host.
 - **Übersicht:** `getLiveOverview` liefert alles von LA-01 in einer Anfrage (Muster gebaut:
   `server/internal/admin/dashboard.go:18-21`), auch `setup: {hasSource, hasChannels, hasEpg, accountsEnabled}`
-  und `resources: {cpuPct, gpuPct, ramBytes}`; nicht lesbare Werte fehlen (Client zeigt «–», `15` F-22).
-  `getLiveUpdateImpact` → `{running, startingWithinMinutes: 15, starting}` (W-28).
+  und `resources: {cpuPct, gpuPct, ramBytes}`; nicht lesbare Werte fehlen (Client zeigt «–», `15` F-22). Der Block
+  `updateImpact: {running, startingWithin15Min}` (Stufe 5) ersetzt die frühere Operation `getLiveUpdateImpact`
+  (S-7, W-28; Warnfenster 15 Minuten, `04` 14.8); LA-27 fragt ihn vor dem Update ab.
 
 ### 3.10 Erweiterungen bestehender Modelle
 
@@ -1246,13 +1352,17 @@ Notification:
   properties:
     live:
       type: object
-      description: For kinds live_*; the target may be gone (then the client shows «nicht mehr vorhanden»).
+      description: |
+        For kinds live_*; the target may be gone (then the client shows «nicht mehr vorhanden»). The kind
+        live_quota_rejected_profile goes to the primary profile: it carries profileName only, and title,
+        channelName and at only for a profile with an age limit (RD-07, 07 3.11).
       properties:
         ref: {type: string}
         title: {type: string}
         channelName: {type: string}
         at: {type: integer, format: int64}
         reason: {type: string}
+        profileName: {type: string}
 AdminStream:
   properties:
     kind: {type: string, enum: [video, audiobook, podcast, radio, live, live_recording]}
@@ -1281,13 +1391,15 @@ AdminStream:
 | `/live/play/{sessionId}/{tune}/seg/{gen}/{n}?lt=` | TS-Segment; beginnt mit PAT, PMT und Keyframe; `gen` = Ausgabe-Generation | `video/mp2t` |
 | `/live/images/channel/{channelId}/{size}?v=` | Senderlogo, quadratisch skaliert, WebP oder PNG | `image/webp`, `image/png` |
 | `/live/images/programme/{imageKey}/{size}?v=` | Sendungsbild (16:9) | `image/webp`, `image/jpeg` |
-| `/admin/live/images/channel/{channelId}/{size}` | wie oben, auch inaktive Sender | wie oben |
 | `PUT /admin/live/channels/{channelId}/logo` | Logo hochladen (roh, höchstens 10 MiB wie Radio) | – |
-| `PUT /admin/live/uploads/{kind}` | M3U- oder XMLTV-Datei | – |
+| `PUT /admin/live/uploads/{kind}` | M3U-Datei (höchstens 200 MiB, `04` 14.9) oder XMLTV-Datei (Grenzen nach `09`) | – |
 
 Alle Zuschauer-Routen: `x-visibility: scoped`, `x-clients: [app, tv]` in `binaryRoutes` (Muster gebaut:
 `server/internal/api/api.go:99-104`, Radio). Pfade mit `{n}` ohne Endung, weil der Router eine Endung im selben
-Abschnitt nicht trennt (gebaut: Hinweis zu `subtitleRoute`, `api.go:37-39`); Typ steht im Kopf.
+Abschnitt nicht trennt (gebaut: Hinweis zu `subtitleRoute`, `api.go:37-39`); Typ steht im Kopf. Das Senderlogo
+liefert dieselbe Route einem Administrator mit Hauptprofil auch für inaktive Sender (S-4: keine zweite
+Admin-Route). Jede Live-Liste trägt `EXT-X-DISCONTINUITY-SEQUENCE`, auch ohne Bruch (Apple 8.17, Nachprüfung Nr. 4),
+und `EXT-X-PROGRAM-DATE-TIME` an jedem Segment (`05` 4.4).
 
 ### 4.2 Token `lt` (T-21)
 
@@ -1296,9 +1408,10 @@ Abschnitt nicht trennt (gebaut: Hinweis zu `subtitleRoute`, `api.go:37-39`); Typ
 | Inhalt | `base64url( sessionId (16 Byte ULID) ‖ tune (uint32) ‖ issuedAt (uint32 Sekunden) ‖ mac (16 Byte) )`, mac = HMAC-SHA256 mit `secrets.Keyring.Derive("live-token")` über alle vorderen Felder und das Kennzeichen `live-v1`, auf 128 Bit gekürzt (Muster Radio: `server/internal/radio/token.go:10-30`) |
 | Bindung | an Live-Sitzung und Einstell-Nummer; Pfad und Token müssen übereinstimmen. Ein Token einer früheren Einstellung gilt für die neue nicht. |
 | Prüfung je Anfrage | zuerst der HMAC (ohne Datenbank), dann Sitzung im Arbeitsspeicher; je **Listenanfrage** höchstens 30 Sekunden alt: Recht «Live-TV» (Aufnahme: Zugriffsregel), Gültigkeit der Anmeldung (Abmelden, Passwortwechsel, Rolle, Ablauf). Segmente prüfen Token und Sitzung, nicht die Anmeldung. |
-| Laufzeit | höchstens 12 Stunden je Einstellen (Annahme in `04` 10.3); ab 11 Stunden liefert der Herzschlag `playlistUrl` mit neuem Token |
-| Was die Sitzung hält | nur der Herzschlag (alle 10 s); Segmentabrufe verlängern nichts; 60 s ohne Herzschlag = Ende |
-| Fehler | ungültig, fremd, abgelaufen, widerrufen, Sitzung beendet: **404** mit demselben Körper wie «kein Recht» (bewusste Abweichung von den gebauten Token-Routen, die 401 antworten: `server/internal/api/stream_token.go:24-30`, Radio `api/openapi.yaml:12006-12007`) |
+| Laufzeit | höchstens 12 Stunden je Einstellen; ab 11 Stunden liefert der Herzschlag `playlistUrl` mit neuem Token (`04` 14.4) |
+| Was die Sitzung hält | nur der Herzschlag (alle 10 s); Segmentabrufe verlängern nichts; 60 s ohne Herzschlag = Ende (`04` 14.4) |
+| Fehler | ungültig, fremd, abgelaufen, widerrufen, Sitzung beendet: **404** mit demselben Körper wie «kein Recht» (bewusste Abweichung von den gebauten Token-Routen, die 401 antworten: `server/internal/api/stream_token.go:24-30`, Radio `api/openapi.yaml:12006-12007`; bestätigt `04` 13.4). Ein Segment ausserhalb von Ring oder Fenster ist ebenfalls **404** |
+| Client-Regel (RD-16) | An `lt`-Routen wertet der Client einen Fehler **nie** selbst als «Sitzung weg»: Ein 404 an einem Segment heisst «zu spät, weiter mit dem nächsten» (hls.js und Media3 springen nach vorn, Wiederholungsgrenzen nach `16`), ein 404 an der Liste löst sofort einen Herzschlag aus; nur dessen **410** heisst «neu anlegen». So braucht keine HLS-Route einen JSON-Körper, den die Player nicht lesen |
 | Protokoll | `lt` kommt in die Schwärzung der Abfrageparameter (gebaut: `server/internal/logging/logging.go:75`), nicht in die Schlüsselnamen (`04` 10.4 Punkt 2) |
 | Kopf | `Referrer-Policy: no-referrer` wie bei `st` (V1 L-1) |
 
@@ -1340,7 +1453,7 @@ Kein SSE, kein WebSocket (gebaut gibt es keinen Push-Kanal, A3 Abschnitt 6). Was
 |---|---|---|---|
 | Sitzungszustand, Fenster, Hinweise, Schauzeit | Player | alle 10 s (`heartbeatLiveSession`) | nur Arbeitsspeicher, keine Datenbank (`07` 8.2); `nowNext` nur bei Wechsel |
 | Störung des Stroms | Player | sieht es an Liste und Segmenten selbst | – |
-| Jetzt/danach in Listen | Senderliste, Zapliste | zum Ende der laufenden Sendung (der Client kennt `stop`), sonst alle 5 min (Annahme) | `getLiveNowNext` für bis zu 200 Sender |
+| Jetzt/danach in Listen | Senderliste, Zapliste | zum Ende der laufenden Sendung (der Client kennt `stop`), sonst alle 5 min (Annahme) | `listLiveChannels?ids=…&now=true` für bis zu 200 Sender |
 | Aufnahmezustände | LS-08 mit laufender Aufnahme, LS-11 | alle 30 s, solange die Seite offen ist und eine Aufnahme läuft oder in 10 min beginnt (Annahme) | `listLiveRecordings` mit `state` gefiltert |
 | Warnungen | LS-01, LS-11 | beim Öffnen | `listLiveRecordingWarnings` |
 | Erinnerung «gleich» | Web und Apps offen | über die Glocke (bestehendes Abfragen der Benachrichtigungen) | – |
@@ -1364,6 +1477,9 @@ Der Client implementiert keine Rechte-, Alters- oder Kontingentregel. Er bekommt
 | Welcher Wiedergabeweg, welche Grenze? | `LiveSession.decision` (`path`, `reason`, `cappedTo`) |
 | Welche Spuren und Qualitäten gibt es? | `LiveSession.tracks` |
 | Darf ich hier aufnehmen, eine Serie anlegen, erinnern? | `LiveProgramme.actions`, `LiveSession.actions.record` |
+| Darf ich diese Aufnahme ändern, stoppen, löschen, verlängern? | `LiveRecordingBrief.actions` (RD-19) |
+| Darf ich diese Regel ändern, pausieren, löschen, Folgen zurücksetzen? | `LiveRule.actions` (RD-19) |
+| Darf ich diese Erinnerung ändern oder löschen? | kein Feld: Erinnerungen gehören immer dem eigenen Profil, offene sind änderbar (`state`) |
 | Reicht das Kontingent? Was steht im Weg? | `previewLiveRecording.warnings`, `listLiveRecordingWarnings` |
 | Folgen erkennbar? | `LiveRule.episodesDetectable`, `previewLiveRecordingRule` |
 | Wann wird gelöscht und warum? | `LiveRecordingBrief.retention` |
@@ -1395,12 +1511,14 @@ ein Umweg).
 
 - Eine App ohne Live-TV ruft keine `/live/…`-Operation auf und sieht nichts.
 - `SessionInfo.live` ist ein neues freiwilliges Feld: alte Apps übergehen es.
-- `listMyMedia` liefert `livetv` nur mit Recht; eine alte App, die den Schlüssel nicht kennt, muss ihn übergehen
-  (Konzept 27 11.5). **Risiko RI-6:** Tut sie das nicht, zeigt sie einen leeren Eintrag. Gegenmassnahme bis zur
-  Prüfung: Der Server liefert `livetv` nur an Clients, deren Kennung (`X-Slouchcat-Client`, gebaut: `AppTooOld`,
-  `api/openapi.yaml:12863-12868`) eine Fassung mit Live-TV nennt, und immer an die Web-App (O-1).
-- Gleiches gilt für Glocke-Einträge `live_*`: an Apps ohne Live-TV-Fassung nicht ausliefern; sie bleiben in der
-  Glocke der Web-App sichtbar.
+- `listMyMedia` liefert `livetv` nur mit Recht; eine alte App, die den Schlüssel nicht kennt, übergeht ihn.
+  Fassung 1 wollte `livetv` und Glocke-Einträge `live_*` nach App-Fassung filtern; das entfällt (RD-27): Die
+  erzeugten Kotlin-Clients der Handy- und TV-App lesen unbekannte Aufzählungswerte als «unbekannt»
+  (Konzept 27 11.5, Bestand der Clients), ein Filter je Client-Kennung wäre eine zweite Verträglichkeitsregel
+  neben `docs/dev/VERTRAEGLICHKEIT.md`. Der Schema-Test aus Stufe 1a prüft, dass jede neue Aufzählung in den
+  App-Clients einen Ausweichwert hat (O-1).
+- Glocke-Einträge `live_*` gehen an alle Clients; eine App ohne Live-TV zeigt sie mit dem allgemeinen Text ihrer
+  Art «unbekannt» oder übergeht sie.
 
 ### 7.3 Offline
 
@@ -1420,7 +1538,7 @@ Paket `ratelimit` (gebaut, `04` 3.2 Abhängigkeit), Antwort 429 `live_too_fast` 
 | `setLiveSessionOutput`, `seekLiveSession` | 2 in 10 Sekunden (Neustarts von FFmpeg) | je Sitzung |
 | `heartbeatLiveSession` | 1 je 2 Sekunden, Stoss 3 | je Sitzung |
 | `searchLiveProgrammes`, `listLiveChannels` mit `q` | 5 je Sekunde, Stoss 10 | je Profil |
-| `testNewLiveSource`, `testLiveSource`, `testLiveEpgSource`, `testLiveChannelStream` | 6 je Minute | je Administrator |
+| `testLiveSource` (auch Stichprobe), `testLiveEpgSource`, `testLiveChannelStream` | 6 je Minute | je Administrator |
 | `refreshLiveSource`, `refreshLiveEpgSource` | einer je Quelle gleichzeitig (409), dazu 6 je Minute | je Quelle |
 | `resolveLiveNetTarget` | 10 je Minute | je Administrator |
 | `uploadLiveFile` | 2 gleichzeitig | je Administrator |
@@ -1457,17 +1575,17 @@ Die Serverdeckel (Eingänge, Sitzungen, Byte-Budget) sind keine Rate-Limits; sie
 | LS-01 Start | `getLiveHome`, `listLiveRecordingWarnings` | `createLiveSession`, `clearLiveRecentChannels` |
 | LS-02 Senderübersicht | `listLiveChannels` (`now=true`), `getLiveChannelFacets` | `createLiveSession`, `addLiveFavorite`, `removeLiveFavorite` |
 | LS-03 Meine Sender | `listLiveFavorites` | `setLiveFavoriteOrder`, `removeLiveFavorite` |
-| LS-04 Programmzeitschrift | `getLiveGuide`; Handy `listLiveChannels` + `getLiveNowNext` | `createLiveSession`, `createLiveRecording`, `createLiveRecordingRule`, `createLiveReminder`, `deleteLiveReminder` |
+| LS-04 Programmzeitschrift | `getLiveGuide`; Handy `listLiveChannels` (`now=true`) | `createLiveSession`, `createLiveRecording`, `createLiveRecordingRule`, `createLiveReminder`, `deleteLiveReminder` |
 | LS-05 Programmsuche | `searchLiveProgrammes` | wie LS-04 |
 | LS-06 Sendungsdetails | `getLiveProgramme`, `getLiveProgrammeImage` | `createLiveSession`, `createLiveRecording`, `updateLiveRecording`, `stopLiveRecording`, `createLiveRecordingRule`, `createLiveReminder`, `updateLiveReminder` |
-| LS-07 Live-Player | `createLiveSession`, `getLivePlay*`, `heartbeatLiveSession`, `getLiveNowNext`, `listLiveChannels` (`ids`) | `tuneLiveSession`, `setLiveSessionOutput`, `seekLiveSession`, `endLiveSession`, `createLiveRecording` (instant), `updateLiveRecording` (`extendToProgrammeEnd`), `stopLiveRecording` |
+| LS-07 Live-Player | `createLiveSession`, `getLivePlay*`, `heartbeatLiveSession`, `listLiveChannels` (`ids`, `now=true`) | `tuneLiveSession`, `setLiveSessionOutput`, `seekLiveSession`, `endLiveSession`, `createLiveRecording` (instant), `updateLiveRecording` (`extendToProgrammeEnd`), `stopLiveRecording` |
 | LS-08 Meine Aufnahmen | `listLiveRecordings`, `getLiveRecordingUsage` | `deleteLiveRecording`, `deleteLiveRecordings` |
 | LS-09 Aufnahme-Detail | `getLiveRecording` | `createLiveSession` (Aufnahme), `updateLiveRecording`, `stopLiveRecording`, `deleteLiveRecording` |
 | LS-10 Aufnahme-Player | `createLiveSession`, `getLivePlay*`, `heartbeatLiveSession` | `setLiveSessionOutput`, `seekLiveSession`, `endLiveSession` |
 | LS-11 Geplante Aufnahmen | `listLiveRecordings` (`view=upcoming`), `listLiveRecordingRules`, `getLiveRecordingRule` | `updateLiveRecording`, `deleteLiveRecording` (`skip`), `updateLiveRecordingRule`, `deleteLiveRecordingRule`, `clearLiveRuleEpisodes` |
 | LS-12 Konflikte und Warnungen | `listLiveRecordingWarnings` | `updateLiveRecording` (`acknowledge`, `chooseCandidate`), `deleteLiveRecording` |
 | LS-13 Erinnerungen | `listLiveReminders` | `updateLiveReminder`, `deleteLiveReminder`, `createLiveSession` |
-| LS-14 Aufnahmen meiner Profile | `listProfileLiveRecordings`, `getLiveRecordingUsage` | `createLiveSession` (Aufnahme), `deleteLiveRecording` |
+| LS-14 Aufnahmen meiner Profile | `listProfileLiveRecordings` (Übersicht je Profil), `listLiveRecordings` (`profileId`), `getLiveRecordingUsage` | `createLiveSession` (Aufnahme), `deleteLiveRecording` |
 | LS-15 Senderprogramm | `getLiveChannel`, `listLiveChannelProgrammes` | `createLiveSession`, `addLiveFavorite`, `createLiveRecording` (manual) |
 | LS-20 Navigation | `getSession` (`live`), `listMyMedia` | – |
 | LS-21 Profilformular | `listProfiles` | `updateProfile`, `createProfile`, `getProfileLiveUsage` (Löschdialog) |
@@ -1477,11 +1595,11 @@ Die Serverdeckel (Eingänge, Sitzungen, Byte-Budget) sind keine Rate-Limits; sie
 | LS-25 Ton-Vorrang | – (Client) | – |
 | LD-01 bis LD-11 | `previewLiveRecording`, `previewLiveRecordingRule` | `createLiveRecording`, `createLiveRecordingRule`, `updateLiveRecording`, `updateLiveRecordingRule`, `deleteLiveRecording`, `deleteLiveRecordingRule`, `createLiveReminder`, `updateLiveReminder`, `deleteLiveReminder`, `tuneLiveSession` (LD-10) |
 | LA-01 Übersicht | `getLiveOverview`, `listLiveIngests` | – (Links) |
-| LA-02 Quellen | `listLiveSources`, `listLiveSourceImports`, `getLiveSourceRemovalImpact` | `refreshLiveSource`, `testLiveSource`, `deleteLiveSource` |
-| LA-03 Quelle anlegen/ändern | `getLiveSource` | `uploadLiveFile`, `testNewLiveSource`, `testLiveSource`, `resolveLiveNetTarget`, `createLiveSource`, `updateLiveSource`, `createLiveEpgSource` (Angebot) |
-| LA-04 Import | `getLiveSourceImport`, `listLiveSourceImportItems`, `getLiveImportPreview`, `listLiveImportPreviewItems` | `applyHeldLiveSourceImport`, `createLiveSource` (`excludeEntries`), `bulkUpdateLiveChannels` (Abschalten), `mergeLiveChannels`, `dismissLiveDuplicate` |
-| LA-05 Sender | `listAdminLiveChannels`, `getAdminLiveChannelLogo` | `updateLiveChannel` (aktiv), `bulkUpdateLiveChannels`, `mergeLiveChannels` |
-| LA-06 Sender bearbeiten | `getAdminLiveChannel`, `getLiveChannelRemovalImpact`, `searchLiveEpgChannels` | `updateLiveChannel`, `uploadLiveChannelLogo`, `setLiveChannelStreams`, `splitLiveChannelStream`, `testLiveChannelStream`, `setLiveEpgMapping`, `deleteLiveChannel` |
+| LA-02 Quellen | `listLiveSources` (`counts.orphans` für die Löschfrage), `listLiveSourceImports` | `refreshLiveSource`, `testLiveSource`, `deleteLiveSource` |
+| LA-03 Quelle anlegen/ändern | `getLiveSource` | `uploadLiveFile`, `testLiveSource` (ohne und mit `sourceId`, auch Stichprobe), `resolveLiveNetTarget`, `createLiveSource`, `updateLiveSource`, `createLiveEpgSource` (Angebot) |
+| LA-04 Import | `getLiveSourceImport`, `listLiveSourceImportItems` (auch Vorschau: Import mit `outcome=preview`) | `applyHeldLiveSourceImport`, `createLiveSource` (`previewImportId`, `excludeEntries`), `bulkUpdateLiveChannels` (Abschalten), `mergeLiveChannels`, `dismissLiveDuplicate` |
+| LA-05 Sender | `listAdminLiveChannels`, Senderlogo über die Bildroute (4.1) | `updateLiveChannel` (aktiv), `bulkUpdateLiveChannels`, `mergeLiveChannels` |
+| LA-06 Sender bearbeiten | `getAdminLiveChannel` (`running` für die Lösch- und Beenden-Frage), `searchLiveEpgChannels` | `updateLiveChannel`, `uploadLiveChannelLogo`, `setLiveChannelStreams`, `splitLiveChannelStream`, `testLiveChannelStream`, `setLiveEpgMapping`, `deleteLiveChannel`, `endLiveChannelNow` (T-29) |
 | LA-07 Duplikate | `listLiveDuplicates`, `previewLiveChannelMerge` | `mergeLiveChannels`, `dismissLiveDuplicate` |
 | LA-08 Gruppen | `listLiveGroups` | `createLiveGroup`, `updateLiveGroup`, `deleteLiveGroup`, `setLiveGroupOrder` |
 | LA-09 Empfang | `getLiveConfig`, `listLiveSchedules`, `listAdminLiveChannels` (`strategy=custom`) | `updateLiveConfig`, `createLiveSchedule`, `updateLiveSchedule`, `deleteLiveSchedule`, `updateLiveChannel` («Auf Standard zurück») |
@@ -1499,13 +1617,13 @@ Die Serverdeckel (Eingänge, Sitzungen, Byte-Budget) sind keine Rate-Limits; sie
 | LA-24 Benachrichtigungen (Verwaltung) | bestehende Operationen (Ereignis «Fehler») | – |
 | LA-25 Seitenleiste, Suchpalette | `getLiveOverview` (Pillen), `listAdminLiveChannels`, `listLiveSources` (Suche ab 3 Buchstaben) | – |
 | LA-26 Meine Medien | `getMyMedia` | `setMyMedia` |
-| LA-27 Update | `getLiveUpdateImpact` | `installUpdate` (`confirmLiveRecordings`) |
+| LA-27 Update | `getLiveOverview` (`updateImpact`) | `installUpdate` (`confirmLiveRecordings`) |
 | LA-28 Sicherung | – (Text) | – |
 
 **Ohne Operation**, bewusst: LS-25 (nur Client), LA-28 (nur Text), LD-08 und LD-09 (Bedienung im Client).
-**Fehlt in den Fachdokumenten** und deshalb nicht als Operation: Zeitfenster und «nur Erstausstrahlungen» einer
-Serie, Ende einer Wiederholung (`07` W-10, W-11), Vorladen je Sender (`07` W-23), Kopfzeilen einer EPG-Quelle
-(W-27).
+**Nicht modelliert**, offen: Zeitfenster, Wochentage, «nur Erstausstrahlungen», Schalter «Folgen nicht doppelt»
+einer Serie und Ende einer Wiederholung (`14` LD-02, LD-03; Frage an dich über `11` O-6, `07` W-10, W-11, O-3),
+Vorladen je Sender (`07` W-23), Kopfzeilen einer EPG-Quelle (W-27).
 
 ### 9.3 Widersprüche (zusätzlich zu `07` 12.3)
 
@@ -1515,19 +1633,21 @@ Serie, Ende einer Wiederholung (`07` W-10, W-11), Vorladen je Sender (`07` W-23)
 | W-26 | Programmsuche in der Beschreibung | `14` LS-05 «Titel, Episodentitel, Beschreibung» gegen `09` 8.4 «Beschreibung nicht in Stufe 2» | `09` |
 | W-27 | Kopfzeilen und User-Agent einer EPG-Quelle | `15` LA-10 «wie LA-03» gegen `09` 13.1 (keine), `03` LTV-003.18 (nur Quellen) | keine; O-3 |
 | W-28 | Vorwarnzeit vor dem Update | `04` 9 und `11` 12 «15 Minuten» gegen `15` LA-27 «30 Minuten» | 15 Minuten |
-| W-29 | Token-Fehler | gebaute Token-Routen 401 gegen `04` T-21 404 | 404 (`04` entscheidet bewusst) |
+| W-29 | Token-Fehler | gebaute Token-Routen 401 gegen `04` T-21 404 | 404 (`04` entscheidet bewusst, bestätigt `04` 13.4) |
+| W-33 | Operationen je Stufe und Verträglichkeit | `18` 4.3 bis 4.9 zählt die Operationen aus Fassung 1 (122) und nennt in den Zeilen zur Verträglichkeit den Filter nach App-Fassung | 2.13 (115) und 7.2 ohne Filter (RD-27); `18` nachziehen |
+| W-34 | Rückschau der Programmzeitschrift | `14` 4.1 «ab heute 00:00» gegen `09` 2.7 «bis gestern Abend» | Vertrag erlaubt beides (`epg_lookback_hours`); die Oberfläche folgt `14` |
 
 ### 9.4 Offene technische Punkte
 
 | Nr. | Punkt | Gehört zu |
 |---|---|---|
-| O-1 | Unbekannte Aufzählungswerte in den Apps (`MyMediaKey`, `NotificationKind`, `AdminStream.kind`): Verhalten der erzeugten Kotlin-Clients prüfen; bis dahin Auslieferung nur an Clients mit Live-TV-Fassung (7.2) | Bau Stufe 1, `16` |
+| O-1 | Unbekannte Aufzählungswerte in den Apps (`MyMediaKey`, `NotificationKind`, `AdminStream.kind`): Ausweichwert in den erzeugten Kotlin-Clients durch einen Schema-Test belegen (7.2); kein Filter nach App-Fassung (RD-27) | Bau Stufe 1a, `16` |
 | O-2 | ETag und `If-None-Match` für `getLiveGuide` und `listLiveChannels`, falls die Messungen `09` M-4, M-5 es verlangen | nach Stufe 2 |
 | O-3 | Kopfzeilen und User-Agent für EPG-Quellen (W-27) | `09` Fassung 2 |
-| O-4 | Hält die erste Anfrage an `media.m3u8` bis 8 Sekunden (4.1), oder kommt die Liste in der Antwort auf `createLiveSession` mit (`05` O-17, `06` O-9) | Bau Stufe 1, M-5 |
+| O-4 | **erledigt durch `04` 14.4:** `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s (mit `state: starting`, wenn das erste Segment noch fehlt); danach holt der Client die Liste, sobald der Herzschlag `live` meldet; Abbruch nach 15 s (3.4). Ob die erste Liste in der Antwort mitkommt, bleibt `05` O-17 | – |
 | O-5 | Form der `programmeRef` bei Sendungen gleichen Beginns und Titels auf einem Sender (Überlappung mit gleicher Prüfsumme): zweite Unterscheidung nötig? | `09` |
 | O-6 | `listProfileLiveRecordings` und `getLiveRecordingUsage` für ein Hauptprofil, dessen Konto Live-TV nicht mehr hat (F-1) | `03` |
-| O-7 | Auslieferung der Glocke-Einträge `live_*` an Apps ohne Live-TV-Fassung (7.2): Filter in `listNotifications` je Client-Kennung | Bau Stufe 2 |
+| O-7 | **erledigt durch RD-27:** kein Filter je Client-Kennung (7.2) | – |
 
 ### 9.5 Fragen an dich (nur neue)
 
@@ -1542,3 +1662,74 @@ Aufnahmen bleiben und belegen das Kontingent. `03` DR-03 erlaubt dem Hauptprofil
 
 Empfehlung: **(a)**, weil sonst Aufnahmen bleiben, die niemand mehr löschen kann (der Administrator sieht keine
 Titel und löscht nicht, `15` F-18 (A)). Bis zu deiner Antwort gilt (b), weil es dem Wortlaut «unsichtbar» folgt.
+
+---
+
+## 10. Änderungen gegenüber Fassung 1
+
+Grundlage wie `07` Abschnitt 13. Hier steht, was die Operationen und Modelle betrifft; was nur das Schema
+betrifft, steht dort.
+
+### 10.1 Befunde aus Review 2
+
+| Befund | Änderung im Vertrag |
+|---|---|
+| RD-01 Verklemmung beim Löschen | keine neue Operation; `deleteProfile` und `deleteAccount` antworten erst nach dem Stoppen (`07` 10.1, 10.2); `getProfileLiveUsage` bleibt für den Löschdialog |
+| RD-02 Wiedererkennung | Import-Einträge mit `changes: identity_conflict`, nicht angewandt (3.7) |
+| RD-03 Import atomar | keine Vertragsänderung; `getLiveSourceImport` zeigt `held` und die Schwelle (3.7) |
+| RD-04 Kindspalten ohne Index | nur Schema (`07`) |
+| RD-05 Werkseinstellung | `Profile.liveCapped` folgt der einen Definition (`07` 4.4); kein neues Feld |
+| RD-06 Konto laufender Aufnahmen | `listLiveIngests.viewersDetail` ohne Aufnahmen und ohne Konto; Aufnahmen nur als Zahl `recordings` (3.9) |
+| RD-07 Meldung an das Hauptprofil | neue Art `live_quota_rejected_profile`, `Notification.live.profileName`, Titel nur bei Profilen mit Altersgrenze (3.10) |
+| RD-08 Sicherung | keine Vertragsänderung |
+| RD-09 `rule_key` | keine Vertragsänderung; `LiveRule.skipped` bleibt nach Zusammenführen richtig |
+| RD-10 Anlegen nicht idempotent | `createLiveRecording`, `createLiveRecordingRule`, `createLiveReminder` antworten bei Gleichem 200 mit dem Bestand (3.1, 3.5, 3.6); ein Gerät, eine Sitzung (3.4) |
+| RD-11 Zusammenführen | `mergeLiveChannels` mit `unionGroups`; Termine und Regeln nach `07` 7.4; `previewLiveChannelMerge` nennt die wegfallenden Doppel (3.8) |
+| RD-12 Sitzungszeilen | keine Vertragsänderung |
+| RD-13 Löschhaken | keine Vertragsänderung |
+| RD-14 Kontingent | `getLiveRecordingUsage`, `Account.live.usedBytes` und `previewLiveRecording.warnings` lesen dieselbe Abfrage `LiveAccountUsage`; 507 `live_quota_full` nur bei der Sofortaufnahme, geplante lehnt der Start ab und meldet es (3.5) |
+| RD-15 Zeitgeber | `LiveRecordingUpdate.rev` (freiwillig): ein anderes `rev` antwortet 409 `live_conflict` (`reason: changed`); den Rest regelt der Server (`07` 8.3) (3.5) |
+| RD-16 404 an `lt`-Routen | Client-Regel in 4.2: nur 410 vom Herzschlag heisst «neu anlegen» |
+| RD-17 Aktionen fehlen | Pflichtfeld `actions` an `LiveRecordingBrief` und `LiveRule` (3.5, 3.6, 6) |
+| RD-18 Zugriff des Hauptprofils | `listProfileLiveRecordings` als Übersicht `{items, total, offset}` je Profil, Einträge über `listLiveRecordings?profileId=`; dieselbe Bedingung für Liste und Einzelabruf (3.5) |
+| RD-19 User-Agent | `hasCustomUserAgent` statt Wert (3.7) |
+| RD-20 Erinnerungen | `deleteLiveReminder` löscht; neues Setzen gibt eine neue Kennung (3.6) |
+| RD-21, RD-22, RD-23 | nur Schema |
+| RD-24 Bild der Aufnahme | keine Vertragsänderung; `getLiveProgrammeImage` liefert das Bild, solange der Cache es hat. Teilweise übernommen, siehe `07` 13.1 |
+| RD-25 Glocke | keine Vertragsänderung ausser RD-07 |
+| RD-26 Widersprüche im Text | Status-Tabelle ohne `getLiveNowNext` (5); Token-Fehler mit `04` 13.4 belegt (4.2, W-29) |
+| RD-27 Filter nach App-Fassung | gestrichen (7.2, O-1, O-7) |
+| RD-28 Antwortmodelle | 200 statt 201 bei Bestehendem (3.1); `AdminLiveChannelRow` für die Liste (3.8); `counts.orphans` an `LiveSource` (3.7) |
+| RD-29 Lücken der Stichprobe | `createdAt` (LS-09), Filter `kind` (LS-11), `channelId` in der Änderung (LS-12), `sort` für Nummern (LA-05), `unionGroups` (LA-07). Logo-Vorschau (LA-06) **nicht übernommen**, weil nur der Server den fremden Host abrufen darf: Vorschau nach dem Speichern (3.8). Grund «Wiederholung» (LS-11) offen mit W-10 |
+| RD-30 Optionen im Schema | `live_recording_deleted` steht nicht im Vertrag, bis `14` F-4 beantwortet ist (3.10) |
+
+### 10.2 Streichungen (Review 2 Abschnitt 2)
+
+| Nr. | Fassung 1 | Fassung 2 |
+|---|---|---|
+| S-1 | `getLiveNowNext` | `listLiveChannels?ids=…&now=true` |
+| S-2 | `testNewLiveSource` und `testLiveSource` | `testLiveSource` mit freiwilliger `sourceId`, auch als Stichprobe |
+| S-3 | `getLiveImportPreview`, `listLiveImportPreviewItems` | Lauf mit `outcome = preview`, gelesen mit `getLiveSourceImport` und `listLiveSourceImportItems`; `previewImportId` in `createLiveSource` und `updateLiveSource` |
+| S-4 | `getAdminLiveChannelLogo` | dieselbe Bildroute mit Ausnahme für Administratoren (4.1) |
+| S-5 | `getLiveChannelRemovalImpact` | `AdminLiveChannel.usage` um `reminders`, `rules` ergänzt |
+| S-6 | `getLiveSourceRemovalImpact` | `LiveSource.counts.orphans` |
+| S-7 | `getLiveUpdateImpact` | `getLiveOverview.updateImpact` |
+| S-11 | Filter nach App-Fassung | gestrichen (RD-27) |
+
+S-8 bis S-10 und S-12 betreffen nur das Schema (`07` 13.2).
+
+### 10.3 Aus `04` Fassung 3, `11` Fassung 2 und `18`
+
+- Neue Operation `endLiveChannelNow` für «sofort beenden» (T-29); `AdminLiveChannel.running` nennt nur Zahlen.
+- `LiveIngest.state` kennt `deferred` («zurückgestellt»).
+- Herzschlag mit `playing` (spielt/Pause); Token-Erneuerung ab 11 Stunden, Ende nach 60 s ohne Herzschlag (4.2).
+- `createLiveSession` und `tuneLiveSession` antworten nach höchstens 3 s, Abbruch nach 15 s (3.4); O-4 erledigt.
+- Grenzen aus `04` 14 im Vertrag: Ring 4 bis 15 s, Anteil der Umwandlung 0 bis 100 %, Upload M3U 200 MiB (3.9, 4.1).
+- Stufen 1a, 1b, 2, 3, H, 4, 5, 6 je Operation (Abschnitt 2); `resolveLiveNetTarget` erst Stufe H (D-4).
+- Felder aus `14` LD-02/LD-03 nicht im Vertrag, offen über `11` O-6 (3.6, 9.2).
+
+### 10.4 Zählung
+
+115 neue Operationen (Fassung 1: 122), davon 7 binär; 20 erweiterte bestehende Operationen. Gestrichen oder
+zusammengelegt: 8 (S-1 bis S-7, `getLiveImportPreview` und `listLiveImportPreviewItems` als zwei); neu: 1
+(`endLiveChannelNow`).
