@@ -1,13 +1,15 @@
 # Konzept 28 · Abläufe und Sequenzdiagramme
 
-Stand: 28. November 2026 · Fassung 1 · Status: Entwurf, nicht freigegeben
+Stand: 28. November 2026 · Fassung 2 · Status: Entwurf nach Konsolidierung 1, nicht freigegeben
 
-Dieses Dokument zeichnet, was `04-architektur.md` und `05-streaming-und-fast-zapping.md` in **Fassung 2**
+Dieses Dokument zeichnet, was `04-architektur.md` und `05-streaming-und-fast-zapping.md` in **Fassung 3**
 festlegen: den Lebenszyklus eines Eingangsstroms, die 18 Situationen aus Auftrag Abschnitt 8.2, drei weitere
 Abläufe und die Stellen, an denen zwei Dinge gleichzeitig geschehen. Es fügt **keine** Regel hinzu. Jeder
-Schritt geht auf einen Entscheid `T-n` oder einen Abschnitt in `04` oder `05` zurück; wo diese beiden
-Dokumente einen Fall nicht oder nicht eindeutig regeln, steht im Diagramm und im Text **«offen in 04»** mit
-einer Nummer `06 O-n` (Liste in Abschnitt 6). Alles hier ist **spezifiziert**, nichts ist gebaut.
+Schritt geht auf einen Entscheid `T-n` (T-1 bis T-29) oder einen Abschnitt in `04` oder `05` zurück; Zahlen
+stammen aus `04` Abschnitt 14 «Massgebliche Werte». Die zwölf Lücken der Fassung 1 (`06` O-1 bis O-12) hat
+`04` Fassung 3 geregelt (`04` 13.4); was dort weiterhin offen ist, steht als Frage `F-n` oder offener Punkt
+`O-n` von `04` und `05` im Diagramm und gesammelt in Abschnitt 6. Alles hier ist **spezifiziert**, nichts
+ist gebaut. Stufen nach `18-umsetzungsplan.md` (1a, 1b, 2, 3, H, 4 Timeshift, 5 Aufnahmen, 6, L, W, E).
 
 Kennungen wie in `04`: `T-n` tragende Entscheide, `F-n` Fragen an dich aus `04` (fremde Dateien mit
 Dateinummer, etwa «`03` F-7»), `O-n` offene Punkte aus `04` und `05`, `M-n` Messpunkte, `DR-n` Detailregeln
@@ -34,7 +36,7 @@ Teilnehmer, die darin vorkommen, aber immer mit demselben Kürzel und Namen.
 | `SES` | Sitzung | `internal/live` | Live-Sitzung (T-9): drei Schalter, Token `lt`, Einstell-Nummer, Herzschlag, Entscheid Original, Ton- oder Bild-Umwandlung (T-14). |
 | `ZUL` | Zulassung | `internal/live` (Teil der Stromverwaltung) | vier Grössen (Eingangsströme, Byte-Budget, Platz, Umwandlungseinheiten), Serverdeckel, Drosselung, Rangfolge bei Mangel (T-19, `04` 8). |
 | `STR` | Stromverwaltung | `internal/live` | Verzeichnis der Eingangsströme, Haltegründe, Zustandsautomat, Empfangsstrategie, Vorladen (T-17, T-18). |
-| `EMP` | Empfang | `internal/live/ingest` | Empfänger je Protokoll, Wiederverbindung, eigener Dialer und Transport je Quelle (T-3, T-5). |
+| `EMP` | Empfang | `internal/live/ingest` | Empfänger je Protokoll, Wiederverbindung, eigener Dialer und Transport je Quelle (T-3, T-5). Im späten Weg W liest FFmpeg nur über **Ersatzpfade** `http://127.0.0.1:<Port>/<Zufall>/…` vom Go-Weiterleiter, ohne Proxy-Einstellung (`05` 2.6); kein Diagramm hier zeigt Weg W. |
 | `VT` | Verteiler | `internal/live/hub` | Ring, GOP-Index, Tabellen, Leser, Messwerte (T-6 bis T-8). |
 | `SP` | Sitzungspuffer | `internal/live/spool` | persönlicher Zeitversatz-Puffer einer Sitzung auf dem Speicherort «Timeshift» (T-10). |
 | `SEG` | Segmentierer | `internal/live/spool` | schneidet Segmente, baut die Wiedergabeliste der Sitzung (T-11, T-12). |
@@ -68,9 +70,10 @@ einer Notiz (für die Ansicht ohne Farbe):
 
 ### 2.1 Zustandsdiagramm
 
-Die Zustände und die ersten Übergänge sind die aus `04` 5.1. Die Übergänge, die `04` nur im Text von
-Abschnitt 5.3 und 8.2 nennt (Deutung von Ablehnungen, Mangel, Deaktivieren), sind ergänzt und in der Tabelle
-2.3 mit ihrer Stelle belegt.
+Die Zustände und Übergänge sind die aus `04` 5.1 (Fassung 3, mit dem neuen Zustand «zurückgestellt»).
+Ergänzt sind die Übergänge, die `04` nur im Text von 5.3 nennt: die Deutung von Ablehnungen, die
+«Gegenrichtung», der Wegfall vorsorglicher Haltegründe bei Mangel und das Herunterfahren. Jeder Übergang ist
+in Tabelle 2.3 mit seiner Stelle belegt.
 
 ```mermaid
 stateDiagram-v2
@@ -80,11 +83,12 @@ stateDiagram-v2
   state "Wartet auf Wiederverbindung" as Wartet
   state "Gestört" as Gestoert
   state "Karenz" as Karenz
+  state "Zurückgestellt" as Zurueck
 
   [*] --> Ruht
   Ruht --> Verbindet: erster Haltegrund und Zulassung erteilt
   Verbindet --> Laeuft: Tabellen und erster Keyframe im Ring
-  Verbindet --> Verbindet: Ablehnung bei offener Nachbarverbindung, einmal sofort neu
+  Verbindet --> Verbindet: Ablehnung bei offener Nachbarverbindung, freigeben, einmal sofort neu
   Verbindet --> Wartet: Verbindung scheitert
   Laeuft --> Wartet: Abbruch, Stillstand oder Programmfehler
   Laeuft --> Verbindet: Abbruch kurz nach vorsorglicher Verbindung, sofort neu
@@ -92,14 +96,18 @@ stateDiagram-v2
   Wartet --> Gestoert: Leiter erschöpft
   Gestoert --> Verbindet: langsamer Wiederversuch bei dauerhaftem Haltegrund
   Gestoert --> Ruht: kein dauerhafter Haltegrund
-  Laeuft --> Karenz: letzter Haltegrund weg durch Sitzungsende
-  Laeuft --> Ruht: letzter Haltegrund weg durch Umschalten, Vorladen oder Prüfung
-  Laeuft --> Ruht: bei Mangel freigegeben, Rangfolge 1 bis 5
+  Laeuft --> Karenz: letzter Haltegrund weg, weil ein Zuschauer von sich aus geht
+  Laeuft --> Ruht: letzter Haltegrund weg aus jedem anderen Anlass
   Karenz --> Laeuft: neuer Haltegrund
-  Karenz --> Ruht: Karenzzeit um oder Platz gebraucht
+  Karenz --> Ruht: Karenzzeit um, Platz gebraucht oder Quelle bricht ab
+  Laeuft --> Zurueck: Mangel, nur dauerhaft oder Zeitplan halten
+  Wartet --> Zurueck: Mangel, nur dauerhaft oder Zeitplan halten
+  Gestoert --> Zurueck: Mangel, nur dauerhaft oder Zeitplan halten
+  Zurueck --> Verbindet: Platz seit 60 s frei, oder ein Abnehmer kommt
+  Zurueck --> Ruht: Haltegrund entfällt
   Verbindet --> Ruht: kein Haltegrund mehr
   Wartet --> Ruht: kein Haltegrund mehr
-  Laeuft --> Ruht: Sender deaktiviert oder Herunterfahren
+  Laeuft --> Ruht: Herunterfahren
 
   note right of Laeuft
     Haltegründe am Strom
@@ -109,7 +117,7 @@ stateDiagram-v2
     Aufnahme
   end note
   note right of Karenz
-    kein Haltegrund
+    kein Haltegrund, nur nach Sitzungsende durch den Zuschauer
     zählt bei der Zulassung nicht
     weicht als Erstes
   end note
@@ -118,45 +126,50 @@ stateDiagram-v2
     dauerhaft, Zeitplan, laufende Aufnahme
     Leiter 60 s, dann 5 min, ab 1 h 15 min
   end note
+  note left of Zurueck
+    Haltegrund dauerhaft oder Zeitplan bleibt
+    keine Verbindung, kein Ring, kein Platz belegt
+  end note
 ```
 
 ### 2.2 Haltegründe im Lebenszyklus
 
 | Art | Besitzer | Entsteht | Endet | Danach ohne weiteren Haltegrund | Leiter bei Störung | Bei Mangel |
 |---|---|---|---|---|---|---|
-| dauerhaft | Sender | Strategie «dauerhaft», beim Serverstart | Strategie geändert, Sender deaktiviert | offen in 04 (06 O-2) | verlängert (zählt als dauerhafter Haltegrund) | weicht Abnehmern, Rangfolge 5, F-4 |
-| Zeitplan | Zeitplan-Eintrag | Beginn des Fensters, beim Serverstart im Fenster | Ende des Fensters | offen in 04 (06 O-2) | verlängert | Rangfolge 5, F-4 |
-| automatisch | Regel `04` 6.2 | Sender unter den ersten N und jemand schaut Live-TV | 10 min nach der letzten Live-Sitzung im Haushalt | offen in 04 (06 O-2) | nur auf Abruf: endet nach der Leiter | Rangfolge 2 |
-| Vorladen | Live-Sitzung, die umschaltet | 2 s Verweilen, Nachbar nach `05` 6 | 3 min nach letztem Umschalten, Sitzungsende, kein Nachbar mehr, Mangel, vor einer anderen Verbindung derselben Quelle | sofort Ruht, keine Karenz | keine: ein Versuch | Rangfolge 1 |
-| Prüfung | Prüfjob | Verfügbarkeitsprüfung eines ruhenden Senders | nach höchstens 10 s | sofort Ruht, keine Karenz | keine: ein Versuch | Rangfolge 3 |
-| Zuschauer | Live-Sitzung | Einstellen | Umschalten, Stopp, Entzug, Ablauf | Umschalten: sofort Ruht. Sitzungsende: Karenz. Entzug: offen in 04 (06 O-3) | nur auf Abruf: endet nach der Leiter mit Fehlercode | **geschützt** |
-| Sitzungspuffer | – (am Haltegrund Zuschauer) | mit dem Einstellen, nur mit Recht «Timeshift» | Umschalten, Sitzungsende, Entzug von «Timeshift», Serverstart | – | – | wird gekürzt, nie der Strom beendet (`04` 8.3) |
-| Aufnahme | Aufnahme | Vorlauf: Öffnen 30 s vor Beginn (Bezug offen, 06 O-10) | Ende mit Nachlauf, Absage, Kontingent | offen in 04 (06 O-2) | verlängert | **geschützt** |
+| dauerhaft | Sender | Strategie «dauerhaft», beim Serverstart | Strategie geändert, Sender deaktiviert (T-29) | sofort Ruht | verlängert (dauerhafter Haltegrund) | Rangfolge 5: zurückgestellt, F-4 |
+| Zeitplan | Zeitplan-Eintrag | Beginn des Fensters, beim Serverstart im Fenster | Ende des Fensters, Sender deaktiviert | sofort Ruht | verlängert | Rangfolge 5: zurückgestellt, F-4 |
+| automatisch | Regel `04` 6.2 | Sender unter den ersten N und jemand schaut Live-TV; nur mit Schalter der Quelle | 10 min nach der letzten Live-Sitzung im Haushalt, Sender fällt aus der Liste, Sender deaktiviert | sofort Ruht | nur auf Abruf: endet nach der Leiter | Rangfolge 2: endet |
+| Vorladen | Live-Sitzung, die umschaltet | 2 s Verweilen, Nachbar nach `05` 6; nur mit Schalter der Quelle | 3 min nach letztem Umschalten, Sitzungsende, kein Nachbar mehr, Mangel, Ablehnung einer Verbindung derselben Quelle für einen Abnehmer, Sender deaktiviert | sofort Ruht | keine: ein Versuch | Rangfolge 1: endet |
+| Prüfung | Prüfjob | Verfügbarkeitsprüfung eines ruhenden Senders | nach höchstens 10 s | sofort Ruht | keine: ein Versuch | Rangfolge 3: endet |
+| Zuschauer | Live-Sitzung | Einstellen | Umschalten, Stopp, Ablauf, Entzug, Stopp durch die Verwaltung | Stopp durch den Client oder 60 s ohne Herzschlag: **Karenz**. Umschalten und jedes Ende durch den Server: sofort Ruht | nur auf Abruf: endet nach der Leiter mit Fehlercode | **geschützt** |
+| Sitzungspuffer | – (am Haltegrund Zuschauer) | mit dem Einstellen, nur mit Recht «Timeshift»; nach Rückkehr des Speicherorts neu (3.13) | Umschalten, Sitzungsende, Entzug von «Timeshift», Ausfall des Speicherorts, Serverstart | – | – | wird gekürzt, nie der Strom beendet (`04` 8.3) |
+| Aufnahme | Aufnahme | Aufwärmzeit 30 s (10 bis 120) **vor dem Beginn des Vorlaufs** | Ende mit Nachlauf, Absage, Kontingent, «sofort beenden» | sofort Ruht | verlängert | **geschützt** |
 
 ### 2.3 Zustand × Ereignis
 
 | Zustand | Ereignis | Folgezustand | Regel |
 |---|---|---|---|
-| Ruht | erster Haltegrund, Zulassung erteilt | Verbindet | `04` 5.3 «Start»; vorher «erst freigeben, dann verbinden» |
+| Ruht | erster Haltegrund, Zulassung erteilt | Verbindet | `04` 5.3 «Start»; vorher enden Ströme derselben Quelle **ohne Haltegrund** |
 | Ruht | erster Haltegrund, Zulassung verweigert | Ruht (Anfrage abgelehnt) | `04` 8.2 Stufe 6 |
 | Verbindet | Programmtabellen und erster Keyframe im Ring | Läuft | `04` 5.3; bei Bildgruppen über 15 s «läuft» ohne schnellen Start (`05` 3.6) |
-| Verbindet | 401, 403 oder 429, während eine andere Verbindung derselben Quelle offen ist oder vor höchstens 10 s geschlossen wurde | Verbindet (vorsorgliche Ströme der Quelle beendet, einmal sofort neu) | `04` 5.3, Tabelle der Ablehnungen |
-| Verbindet | zweiter Versuch nach Limitverdacht scheitert | Ruht für diesen Abnehmer, Fehlercode «Quelle lehnt weitere Verbindung ab» | `04` 5.3 |
-| Verbindet | 401 oder 403 ohne Nachbarverbindung, zweimal im Abstand von mindestens 10 s | Wartet (Quelle «Zugang prüfen», übersprungen) | `04` 5.3 |
+| Verbindet | Versuch für Zuschauer, Aufnahme, dauerhaft oder Zeitplan wird abgelehnt (401, 403, 429), während eine andere Verbindung derselben Quelle offen ist oder vor höchstens 10 s geschlossen wurde | Verbindet: bei dieser Quelle nach Rangfolge freigeben (ohne Haltegrund, Vorgeladenes, Prüfungen, automatisch; für Zuschauer und Aufnahme auch dauerhaft und Zeitplan ohne Abnehmer, die zurückgestellt werden), einmal sofort neu | `04` 5.3, Tabelle der Ablehnungen |
+| Verbindet | zweiter Versuch nach Limitverdacht scheitert | Ruht für diesen Abnehmer, Fehlercode «Quelle lehnt weitere Verbindung ab»; vorsorglicher Empfang der Quelle ruht 30 min | `04` 5.3 |
+| Verbindet | vorsorglicher Versuch (Vorladen, automatisch, Prüfung) wird abgelehnt | Ruht, Versuch entfällt still; war eine andere Verbindung offen, ruht vorsorglicher Empfang der Quelle 30 min; nie «Zugang prüfen» | `04` 5.3 |
+| Verbindet | 401 oder 403 ohne Nachbarverbindung, zweimal im Abstand von mindestens 10 s, Versuch für einen Abnehmer oder Auftrag | Wartet (Quelle «Zugang prüfen», übersprungen) | `04` 5.3 |
 | Verbindet | Verbindungsfehler, 429 ohne Nachbarverbindung | Wartet | `04` 5.3 |
 | Verbindet | DRM oder verschlüsselter Strom erkannt | Wartet (Quelle mit Zustand «DRM» übersprungen) | `04` 5.3, `05` 2.5 |
+| Verbindet | 15 s ohne erstes Segment für eine einstellende Sitzung | Startversuch der Sitzung endet mit Fehlercode | `04` 9 «Start dauert» |
 | Verbindet, Wartet | letzter Haltegrund weg | Ruht | `04` 5.1 |
 | Läuft | Abbruch, 10 s keine Daten, Uhr steht 10 s, HLS-Liste rückt nicht vor | Wartet | `04` 5.3, `05` 9.2 |
 | Läuft | Programmfehler beim Lesen der Quelle | Wartet, Quelle in Quarantäne | T-27, `04` 9 |
 | Läuft | Strom mit Zuschauer oder Aufnahme bricht innert 10 s nach einer vorsorglichen Verbindung zur selben Quelle ab | Verbindet ohne Wartezeit; vorsorgliche Ströme der Quelle enden, vorsorglicher Empfang ruht 30 min | `04` 5.3 «Gegenrichtung» |
-| Läuft | Parameter oder Quelle wechseln | Läuft, neuer Zeitabschnitt | T-6, `05` 3.4 |
-| Läuft | letzter Haltegrund weg durch Umschalten | Ruht, sofort | T-17, `04` 5.3 |
-| Läuft | letzter Haltegrund weg durch Vorladen oder Prüfung | Ruht, sofort | `04` 5.3 «Freigabe» |
-| Läuft | letzter Haltegrund weg durch Sitzungsende (Stopp, App zu, 60 s ohne Herzschlag) | Karenz | `04` 5.3 |
-| Läuft | letzter Haltegrund weg durch Ende einer Aufnahme, eines Zeitfensters, «automatisch», Strategiewechsel | **offen in 04** (06 O-2) | – |
-| Läuft | letzter Haltegrund weg durch Entzug eines Rechts | **offen in 04** (06 O-3) | – |
-| Läuft | Mangel, nur Haltegründe der Rangfolge 1 bis 5 | Ruht; dauerhaft und Zeitplan «starten von selbst wieder» | `04` 8.2; Zustand bis zum Neustart offen in 04 (06 O-4) |
-| Läuft, alle | Sender deaktiviert | Ruht, sofort | `04` 9 |
+| Läuft | Parameter oder Quelle wechseln | Läuft, neuer Zeitabschnitt; reicht das Byte-Budget für den neuen Ring nicht, nach Rangfolge freigeben, sonst bisherigen Ring behalten («Startpuffer verkürzt») | T-6, `04` 5.3, `05` 3.4 |
+| Läuft | letzter Haltegrund weg: Stopp durch den Client, App geschlossen oder im Hintergrund, 60 s ohne Herzschlag | Karenz | T-17, `04` 5.3 «Freigabe» |
+| Läuft | letzter Haltegrund weg: Umschalten, Entzug, Abmelden, Löschen, Tageslimit, Stopp durch die Verwaltung, Token abgelaufen; Ende einer Aufnahme; Ende eines Zeitfensters; Strategiewechsel; Ende von «automatisch», Vorladen oder Prüfung | Ruht, sofort | `04` 5.3 «Freigabe» |
+| Läuft | Sender deaktiviert | Läuft weiter, solange Zuschauer oder Aufnahme halten; vorsorgliche Haltegründe (Vorladen, automatisch, dauerhaft, Zeitplan) enden sofort; danach ohne Haltegrund sofort Ruht | T-29 |
+| Läuft | Befehl «sofort beenden» | Ruht; Zuschauer «Sender nicht verfügbar», Aufnahme «unvollständig, Sender deaktiviert» | T-29 |
+| Läuft | Mangel, nur Haltegründe Vorladen, automatisch oder Prüfung | Ruht (Haltegrund endet) | `04` 8.2 Stufen 1 bis 3 |
+| Läuft, Wartet, Gestört | Mangel, nur Haltegründe dauerhaft oder Zeitplan | Zurückgestellt | `04` 5.1, 5.3, 8.2 Stufe 5 |
 | Läuft, alle | Herunterfahren | Ruht | `04` 5.3 |
 | Wartet | Wartezeit der Leiter um (1, 2, 5, 10, 20 s) | Verbindet, nächste Quelle ohne Quarantäne | `04` 5.3 |
 | Wartet | Leiter erschöpft, nur Haltegründe auf Abruf | Gestört, dann Ruht mit Fehlercode | `04` 5.3 |
@@ -165,10 +178,12 @@ stateDiagram-v2
 | Gestört | 10 min Ausfall | Gestört, Meldung an den Administrator | `04` 5.3, 10.2 |
 | Gestört | kein dauerhafter Haltegrund mehr | Ruht | `04` 5.1 |
 | Karenz | neuer Haltegrund | Läuft | `04` 5.1 |
-| Karenz | Karenzzeit um (Vorgabe 30 s, 15 s bis 5 min) | Ruht | `04` 5.3 |
+| Karenz | Karenzzeit um (Vorgabe 30 s, 15 s bis 5 min) | Ruht | `04` 5.3, 14.1 |
 | Karenz | Platz oder eine Verbindung derselben Quelle gebraucht | Ruht, vorzeitig | `04` 5.3, 8.2 Stufe 0 |
-| Karenz | Abbruch der Quelle | **offen in 04** (06 O-5) | – |
-| Läuft | neuer Zeitabschnitt, Byte-Budget reicht für den neuen Ring nicht | **offen in 04** (06 O-6) | – |
+| Karenz | Quelle bricht ab oder steht still | Ruht, sofort; keine Leiter, keine Quarantäne, Abbruch protokolliert | `04` 5.3 |
+| Zurückgestellt | die fehlende Grösse ist seit 60 s ununterbrochen frei (geprüft bei jeder Freigabe, mindestens je Minute) | Verbindet, nach Kanalnummer, höchstens 2 Starts je Sekunde | `04` 5.3 |
+| Zurückgestellt | ein Zuschauer oder eine Aufnahme braucht den Sender | Verbindet, sofort (gewöhnlicher Start) | `04` 5.3 |
+| Zurückgestellt | Zeitfenster endet, Strategie ändert sich, Sender deaktiviert | Ruht | `04` 5.1, 5.3 |
 
 ## 3. Die 18 Situationen des Auftrags
 
@@ -219,7 +234,7 @@ sequenceDiagram
       SES->>PB: Platz freigeben
       SES-->>CL: Server ist ausgelastet
     end
-    STR->>STR: erst freigeben, dann verbinden, höchstens 1 s
+    STR->>STR: Ströme derselben Quelle ohne Haltegrund beenden, höchstens 1 s
     STR->>CAT: ranghöchste Quelle ohne Quarantäne
     CAT-->>STR: Adresse und Zugang, nur im Speicher
     STR->>EMP: Quelle öffnen
@@ -245,8 +260,16 @@ sequenceDiagram
     end
   end
   rect rgba(66,135,245,0.14)
-    SES-->>API: Sitzung, Token lt, Startstelle
-    Note over SES,API: offen in 04, 06 O-9, ob die Antwort auf das erste Segment wartet
+    SES->>SEG: bis 3 s auf das erste Segment warten
+    alt erstes Segment innert 3 s da
+      SES-->>API: Sitzung, Token lt, Startstelle, Zustand läuft
+    else noch kein Segment
+      SES-->>API: Sitzung, Token lt, Zustand startet, dieselbe Listenadresse
+      Note over SEG: Liste bleibt leer bis zum ersten Segment
+    end
+    break 15 s ohne Segment
+      SES-->>CL: Fehlercode, Startversuch beendet
+    end
     API-->>CL: 200 mit Startstelle
     CL->>API: GET Liste mit lt
     API->>SES: Token, Einstell-Nummer, Recht höchstens 30 s alt
@@ -262,7 +285,9 @@ sequenceDiagram
 **Sichergestellt.** Der Sender wird genau einmal empfangen; das Recht prüft der Server vor allem anderen, und
 ohne Recht gibt es nur 404. Die Stream-Grenze des Kontos ist reserviert, bevor eine Verbindung aufgeht. Passt
 der Strom zum Gerät, läuft kein FFmpeg (Weg «Original»); sonst geht es weiter wie in 3.4. Mit Recht
-«Timeshift» beginnt der Sitzungspuffer beim Einstellen. **Belegt:** T-2, T-5, T-7, T-9, T-10, T-12, T-14,
+«Timeshift» beginnt der Sitzungspuffer beim Einstellen. Die Antwort auf «einstellen» wartet bis 3 Sekunden
+auf das erste Segment, sonst kommt sie mit Zustand «startet»; nach 15 Sekunden ohne Segment endet der Versuch
+(`04` 9 «Start dauert», `05` 4.4). **Belegt:** T-2, T-5, T-7, T-9, T-10, T-12, T-14,
 T-17, T-19, T-21, T-26; LTV-002.03, LTV-004.01, .07, .08, .10, LTV-012.06, .13. **Fehlerzweige:** kein Recht
 (404); Grenze des Kontos erreicht (bestehende Meldung von `playback`); kein Platz (3.14); Verbindung scheitert
 oder Quelle lehnt ab (Leiter und Deutung, 3.9 und 2.3); DRM (Quelle übersprungen); keine vollständige
@@ -514,7 +539,7 @@ sequenceDiagram
     alt B läuft oder ist vorgeladen
       STR-->>SES: Strom läuft, wie Ablauf 3.2
     else B ruht
-      STR->>STR: erst freigeben, dann verbinden, Ende der Verbindung A abwarten, höchstens 1 s
+      STR->>STR: Ströme derselben Quelle ohne Haltegrund beenden, Ende von A abwarten, höchstens 1 s
       STR->>EMP: B öffnen, wie Ablauf 3.1
       EMP->>Q: Verbindung B
       Q-->>EMP: TS-Daten B
@@ -540,7 +565,8 @@ sequenceDiagram
 **Sichergestellt.** Umschalten ist ein Vorgang **in** der Sitzung, keine neue Sitzung; Stream-Platz und
 Umwandlungsreservierung bleiben. Beim Umschalten gibt es keine Karenz, und vor der neuen Verbindung schliesst
 die alte derselben Quelle: Der Server bleibt mit Zugängen verträglich, die nur eine Verbindung erlauben, ohne
-ein Limit zu kennen. Der Puffer von A ist gelöscht. **Belegt:** T-9, T-10, T-13, T-17, T-21; LTV-007.08,
+ein Limit zu kennen. Vorgeladenes derselben Quelle bleibt dabei stehen (es gibt es nur bei Quellen mit dem
+Schalter «weitere gleichzeitige Verbindungen erlaubt», `04` 5.3). Der Puffer von A ist gelöscht. **Belegt:** T-9, T-10, T-13, T-17, T-21; LTV-007.08,
 LTV-002.09, LTV-004.33, LTV-017 (kein Limit verwaltet), Abnahmeprüfung `04` 8.5 (20 Sender in 10 s, höchstens
 zwei Eingangsströme danach). **Fehlerzweige:** zu schnell (Client wiederholt); B lehnt ab, während A noch
 schliesst (Limitverdacht, einmal sofort neu, keine Sperre); kein Platz für B (Ablehnung, A ist dann schon
@@ -577,10 +603,10 @@ sequenceDiagram
     Note over CL,STR: Haltegrund Zuschauer bleibt, der pausierte Zuschauer hält den Strom
     CL->>CL: Pause im Player
     loop alle 10 s
-      CL->>API: Herzschlag mit Abspielstand
-      API->>SES: Sitzung am Leben
+      CL->>API: Herzschlag mit Zustand Pause und Abspielstelle
+      API->>SES: Sitzung am Leben, Anzeige pausiert
     end
-    Note over SES: offen in 04, 06 O-11, wie die Pause bei der Schauzeit ausgenommen wird
+    Note over SES: Schauzeit zählt nur ausgelieferte Segmente, während der gemeldeten Pause keine
     opt mit Umwandlung
       SES->>UW: nur so viel Eingang, wie der Client abholt, plus drei Segmente
       Note over UW: 60 s ohne Anfrage, FFmpeg endet, Reservierung bleibt
@@ -610,7 +636,9 @@ sequenceDiagram
 beginnt beim Einstellen; die Liste reicht höchstens von der Rückspulgrenze bis zum neuesten Segment, jede
 Anfrage ausserhalb ist 404. Ohne Recht «Timeshift» gibt es keinen Sitzungspuffer: Die Liste nennt die drei
 neuesten Segmente aus dem Ring, hält der Player an, sind sie danach 404 und er springt an die Live-Kante
-(T-10). **Belegt:** T-7, T-8, T-10, T-13, T-21; LTV-007.01 bis .07, .10, .11, .14, DR-07, DR-22. **Fehlerzweige:**
+(T-10). Der Herzschlag meldet «spielt» oder «Pause»; die Schauzeit zählt die ausgelieferten, verschiedenen
+Segmente, die Pause zählt also nicht (`04` 10.3, `03` DR-12). **Belegt:** T-7, T-8, T-10, T-13, T-21;
+LTV-007.01 bis .07, .10, .11, .14, DR-07, DR-12, DR-22. **Fehlerzweige:**
 nahtloses Spulen mit Umwandlung nicht belegt (M-9), Rückfall `05` 4.5: jeder Neustart ist eine neue
 Ausgabe-Generation, «spiele ab Uhrzeit» als Operation; Deckel oder Speicherort voll (grösster Puffer wird von
 hinten gekürzt); Speicherort fällt aus (3.13); Herzschlag fehlt 60 s (Sitzungsende, 3.11).
@@ -643,7 +671,7 @@ sequenceDiagram
   end
   rect rgba(220,53,69,0.14)
     Note over PL,DSK: Aufnahme, Haltegrund Aufnahme
-    PL->>PL: Vorlauf fällig, Öffnen 30 s vor Beginn
+    PL->>PL: Aufwärmzeit, 30 s vor dem Beginn des Vorlaufs
     PL->>ZUL: Recht Aufnahmen, Sender aktiv, Kontingent, Platz über der Reserve
     break abgelehnt
       PL->>DB: Aufnahme fehlgeschlagen mit Grund
@@ -663,7 +691,11 @@ sequenceDiagram
     AUF->>DB: Aufnahme fertig
     PL->>NTF: Aufnahme fertig, Kanäle nach 03 F-3
     PL->>STR: Haltegrund Aufnahme lösen
-    STR->>STR: Haltegrund Zuschauer bleibt, Strom läuft weiter
+    alt Haltegrund Zuschauer bleibt
+      STR->>STR: Strom läuft weiter
+    else kein Haltegrund mehr
+      STR->>STR: sofort Ruht, keine Karenz
+    end
   end
 ```
 
@@ -672,7 +704,9 @@ keine zweite Verbindung. Sie schreibt den Quell-TS unverändert mit allen Spuren
 Umwandlungsbudget. **Belegt:** T-1, T-6, T-8, T-16, T-22, T-25; LTV-008.23, .24, .25, LTV-004.06, LTV-020.01,
 .02, .05, LTV-Q-08.26. **Fehlerzweige:** Kontingent voll oder Speicherort unter der Reserve (abgelehnt und
 gemeldet, `03` DR-06); Recht «Aufnahmen» entzogen (`03` F-7); Speicherort fällt aus (3.13); Quelle fällt aus
-(3.9); Ende mit Nachlauf und kein weiterer Haltegrund: Folgezustand offen in 04 (06 O-2).
+(3.9); Sender wird deaktiviert (die Aufnahme läuft bis zu ihrem Ende, T-29; nur «sofort beenden» bricht sie
+ab, dann «unvollständig, Sender deaktiviert»). Nach dem Ende ohne weiteren Haltegrund ruht der Strom sofort;
+folgt eine weitere Aufnahme auf demselben Sender, hält deren Haltegrund ihn schon (`04` 5.3).
 
 ### 3.8 Eine Aufnahme startet ohne angemeldeten Benutzer
 
@@ -701,14 +735,14 @@ sequenceDiagram
     opt nur bei F-5 Variante a
       PL->>ZUL: ab 2 min vor Beginn einen Platz freihalten
     end
-    PL->>PL: Vorlauf fällig
+    PL->>PL: Aufwärmzeit, 30 s vor dem Beginn des Vorlaufs
     PL->>ZUL: Recht Aufnahmen, Kontingent, Platz, Eingangsströme
     break keine Zulassung
       PL->>DB: fehlgeschlagen mit Grund
       PL->>NTF: Meldung an Profil und Hauptprofil
     end
     PL->>STR: Haltegrund Aufnahme
-    STR->>STR: suchen oder anlegen, erst freigeben, dann verbinden
+    STR->>STR: suchen oder anlegen, Ströme der Quelle ohne Haltegrund beenden
     STR->>CAT: ranghöchste Quelle
     STR->>EMP: Quelle öffnen
     EMP->>Q: Verbindung
@@ -728,7 +762,7 @@ sequenceDiagram
       Note over STR,NTF: nach 10 min Ausfall Meldung an den Administrator
     end
     PL->>STR: Haltegrund lösen
-    Note over STR: kein weiterer Haltegrund, Folgezustand offen in 04, 06 O-2
+    STR->>EMP: kein weiterer Haltegrund, sofort Ruht, keine Karenz
   end
 ```
 
@@ -737,8 +771,10 @@ Stream-Grenzen des Kontos (`03` DR-12) und laufen unabhängig vom Jobsystem. Der
 vor dem Beginn. **Belegt:** T-1, T-16, T-17, T-19; LTV-008.15, .25, LTV-002.08, .11, DR-11, DR-12.
 **Fehlerzweige:** Zulassung verweigert (Vorrang offen: F-5 und `03` F-4; Vorgabe nach `04` 8.2 Stufe 6:
 abgelehnt mit Grund); Quelle nicht erreichbar (verlängerte Leiter, Lücke); Sender deaktiviert oder fehlt
-(`03` DR-16, «Sender nicht verfügbar»). Ob «30 s vor Beginn» vor dem Vorlauf oder vor dem geplanten Beginn
-zählt: offen in 04 (06 O-10).
+(`03` DR-16, «Sender nicht verfügbar»); Quelle lehnt ab, während eine andere Verbindung derselben Quelle
+offen ist (bei dieser Quelle wird Vorsorgliches freigegeben, dauerhaft Empfangenes ohne Abnehmer
+zurückgestellt, dann einmal sofort neu, `04` 5.3). Die Aufwärmzeit von 30 Sekunden (10 bis 120) zählt vor
+dem Beginn des Vorlaufs (`04` 5.2, 14.1; wie `11` 3.3).
 
 ### 3.9 Eine Streamquelle fällt aus
 
@@ -833,13 +869,18 @@ sequenceDiagram
   STR->>STR: Q1 in Quarantäne, 30 s, dann 5 min, dann 30 min
   STR->>CAT: nächste Quelle der Rangfolge
   CAT-->>STR: Q2
-  STR->>STR: erst freigeben, dann verbinden
+  STR->>STR: Ströme der Quelle von Q2 ohne Haltegrund beenden
   STR->>EMP: Wiederverbinden im selben Eingangsstrom mit Q2
   EMP->>Q2: Verbindung, keine zweite neben Q1
   Q2-->>EMP: TS-Daten
   EMP->>VT: neuer Zeitabschnitt
   VT->>ZUL: Ring neu reservieren
-  Note over VT,ZUL: reicht das Byte-Budget nicht, offen in 04, 06 O-6
+  alt Byte-Budget reicht, gegebenenfalls nach Rangfolge 0 bis 5
+    ZUL-->>VT: neuer Ring
+  else reicht auch dann nicht
+    ZUL-->>VT: bisheriger Ring bleibt, weniger als 15 s
+    Note over VT,ZUL: Verwaltung zeigt Startpuffer verkürzt, der Strom endet nie deswegen
+  end
   VT->>UW: neue Probe über Pipe
   rect rgba(220,53,69,0.14)
     Note over AUF: Aufnahme, Haltegrund Aufnahme
@@ -867,7 +908,8 @@ sequenceDiagram
 ohne zweite Verbindung; Identität ist der Sender, nicht die Adresse. Eine Probeverbindung zur Hauptquelle
 neben dem laufenden Strom gibt es nicht. Die Aufnahme bricht nicht ab, sie beginnt einen neuen Teil.
 **Belegt:** T-2, T-6, T-16, T-17; LTV-003.22, LTV-004.32, LTV-011.09, .10, LTV-020.13, .14. **Fehlerzweige:**
-alle Quellen in Quarantäne (Leiter wie 3.9); Q2 auf einem anderen Zugang mit Limit (Deutung der Ablehnung);
+neuer Ring passt nicht ins Byte-Budget (Rangfolge, sonst bisheriger, kürzerer Ring, `04` 5.3); alle Quellen
+in Quarantäne (Leiter wie 3.9); Q2 auf einem anderen Zugang mit Limit (Deutung der Ablehnung);
 Q2 hat andere Spuren (Entscheid und Tonspur neu, `05` 3.4).
 
 ### 3.11 Der letzte Zuschauer beendet die Wiedergabe
@@ -899,6 +941,8 @@ sequenceDiagram
     alt Benutzer beendet
       CL->>API: POST beenden mit CSRF-Kopf
       API->>SES: Sitzung beenden
+    else App im Hintergrund oder Bildschirm aus
+      CL->>API: Player hält an, Client beendet die Sitzung
     else App geschlossen oder Verbindung weg
       SES->>SES: 60 s ohne Herzschlag
     end
@@ -922,9 +966,11 @@ sequenceDiagram
     end
   else kein Haltegrund mehr
     STR->>STR: Karenz, Vorgabe 30 s, einstellbar 15 s bis 5 min
-    Note over STR: zählt nicht als belegt, weicht als Erstes
+    Note over STR: nur weil der Zuschauer selbst ging, zählt nicht als belegt, weicht als Erstes
     alt neuer Haltegrund in der Karenz
       STR->>STR: Läuft, Wiedereinstieg mit sofortigem Bild
+    else Quelle bricht in der Karenz ab oder steht still
+      STR->>STR: sofort Ruht, keine Leiter, keine Quarantäne, Abbruch protokolliert
     else Karenz um oder Platz oder Verbindung derselben Quelle gebraucht
       STR->>EMP: Verbindung schliessen
       EMP->>Q: schliessen
@@ -940,8 +986,11 @@ sequenceDiagram
 **Sichergestellt.** Das Ende eines Zuschauers räumt alles ab, was ihm gehört (Token, Puffer, FFmpeg,
 Reservierung, Stream-Platz); andere Haltegründe bleiben unberührt. Ein Strom ohne Haltegrund belegt keinen
 Platz und wird spätestens nach der Karenz beendet. **Belegt:** T-10, T-13, T-17, T-21, T-26; LTV-002.09,
-LTV-004.27, .33, .37, LTV-007.09. **Fehlerzweige:** Herzschlag fällt im Hintergrund oder bei Bildübertragung
-aus (Sitzung endet nach 60 s, M-5); Abbruch der Quelle während der Karenz: offen in 04 (06 O-5).
+LTV-004.27, .33, .37, LTV-007.09. Karenz gibt es nur in diesem Fall, wenn der Zuschauer selbst geht; endet
+die Sitzung durch den Server (Entzug, Abmelden, Tageslimit, Stopp durch die Verwaltung), ruht der Strom
+sofort (3.15). **Fehlerzweige:** Herzschlag fällt im Browser-Tab im Hintergrund oder bei Bildübertragung aus
+(Sitzung endet nach 60 s; offen als `04` O-25, M-3, M-5); Quelle bricht in der Karenz ab (Strom endet
+sofort, keine Wiederverbindung).
 
 ### 3.12 Slouchcat startet neu
 
@@ -981,14 +1030,21 @@ sequenceDiagram
     else Ende vorbei
       PL->>DB: als unvollständig abschliessen
     end
+    Note over STR,Q: Schritt 3, Sender mit weiterzuführender Aufnahme sofort, ohne Staffelung
+    par verschiedene Quellen gleichzeitig
+      STR->>EMP: Sender starten
+      EMP->>Q: Verbindung
+    and mehrere Sender derselben Quelle
+      STR->>EMP: nacheinander ohne Pause
+    end
   end
   rect rgba(128,128,128,0.16)
-    Note over STR,Q: Schritt 3, dauerhafte Sender und laufende Zeitfenster
+    Note over STR,Q: Schritt 4, danach dauerhafte Sender und laufende Zeitfenster
     loop gestaffelt, höchstens 2 Starts je Sekunde, nie zwei gleichzeitig bei derselben Quelle
       STR->>EMP: Sender starten
       EMP->>Q: Verbindung
     end
-    Note over STR: Schritt 4, automatisch und Vorladen entstehen erst aus der Nutzung
+    Note over STR: Schritt 5, automatisch und Vorladen entstehen erst aus der Nutzung
   end
   rect rgba(66,135,245,0.14)
     Note over CL,SES: Zuschauer, alte Sitzung gibt es nicht mehr
@@ -1003,8 +1059,9 @@ gelöscht wird nur unter dem eigenen Marker und nur, was dem eigenen Namensmuste
 nie gelöscht: Erhaltene Teile bleiben abspielbar, die Lücke ist benannt. Dauerhafte und zeitgesteuerte
 Sender laufen von selbst wieder an. **Belegt:** T-7, T-17, T-22, T-25; LTV-002.12, LTV-008.26, LTV-019.19,
 LTV-020.20. **Fehlerzweige:** Speicherort fehlt beim Start (keine Löschung, kein Ausweichen, 3.13); Quelle
-nicht erreichbar (Leiter); Ob die Staffelung aus Schritt 3 auch für die Wiederaufnahmen aus Schritt 2 gilt,
-ist offen in 04 (06 O-12).
+nicht erreichbar (Leiter, für Aufnahmen verlängert). Die Staffelung gilt nur für dauerhafte Sender und
+Zeitfenster; Sender mit weiterzuführenden Aufnahmen verbinden sofort, weil jede Sekunde eine Lücke ist
+(`04` 5.3).
 
 ### 3.13 Ein Datenträger fällt aus
 
@@ -1033,15 +1090,23 @@ sequenceDiagram
       DSK--xSP: Marker fehlt, anderes Dateisystem oder Schreibfehler
       SP->>SP: Rückstau bis 16 MiB fängt kurzes Stocken auf
       SP->>SES: Speicherort fehlt
+      SES->>SP: betroffene Sitzungspuffer enden, Stücke nicht mehr ausliefern
+      SP->>DSK: Stücke löschen, soweit der Ort erreichbar ist
     end
     rect rgba(66,135,245,0.14)
       Note over CL,SES: Zuschauer läuft weiter
       SES->>SEG: ohne Zeitversatz, drei neueste Segmente aus dem Ring
       VT->>SEG: Segmente
-      SES-->>CL: Zustand Zeitversatz gerade nicht möglich
-      Note over SES,CL: Sprung an die Live-Kante und Verbleib des Puffers offen in 04, 06 O-8
+      SEG-->>CL: neue Ausgabe-Generation, zeitversetzte oder pausierte Wiedergabe springt an die Live-Kante
+      SES-->>CL: Herzschlag, Zeitversatz gerade nicht möglich
     end
     SES->>NTF: Meldung an den Administrator
+    rect rgba(46,160,67,0.16)
+      opt Speicherort 60 s lang wieder in Ordnung
+        SES->>SP: neuer Sitzungspuffer für jede laufende Sitzung mit Recht
+        Note over SP: Rückspulgrenze ist dieser Zeitpunkt
+      end
+    end
   else Speicherort Aufnahmen
     rect rgba(220,53,69,0.14)
       Note over AUF,DSK: Aufnahme
@@ -1064,7 +1129,9 @@ sequenceDiagram
 ```
 
 **Sichergestellt.** Ein fehlender Speicherort ist ein Zustand, kein Programmfehler; der Server weicht nie
-auf einen anderen Ordner aus und schreibt nie in einen leeren Einhängepunkt. Der Empfang wartet nicht auf den
+auf einen anderen Ordner aus und schreibt nie in einen leeren Einhängepunkt. Beim Speicherort «Timeshift»
+enden die Puffer, die Wiedergabe springt an die Live-Kante, und 60 Sekunden nach der Rückkehr des Orts
+beginnt je Sitzung mit Recht ein neuer Puffer mit neuer Rückspulgrenze (`04` 9, 14.6). Der Empfang wartet nicht auf den
 Datenträger (T-8). Ein voller Speicherort verhält sich ähnlich: Timeshift kürzt zuerst den grössten Puffer,
 Aufnahmen schliessen den Teil mit Lücke «Speicher voll», neue Aufnahmen starten nicht (`04` 8.3). Liegt der
 Startpuffer in einem Ordner, der stockt, hat der Sender nur keinen schnellen Start. **Belegt:** T-8, T-16,
@@ -1105,8 +1172,17 @@ sequenceDiagram
     end
     ZUL->>UW: Stufe 4, Offline-Downloads und zurückstellbare Jobs
     rect rgba(128,128,128,0.16)
-      ZUL->>STR: Stufe 5, dauerhaft und Zeitplan ohne Abnehmer, F-4
-      Note over STR: Wiederanlauf sobald Platz ist, Zustand offen in 04, 06 O-4
+      ZUL->>STR: Stufe 5, dauerhaft und Zeitplan ohne Abnehmer zurückstellen, F-4
+      Note over STR: Haltegrund bleibt, keine Verbindung, kein Ring, kein Platz belegt
+    end
+  end
+  rect rgba(128,128,128,0.16)
+    opt zurückgestellter Sender
+      alt fehlende Grösse seit 60 s ununterbrochen frei
+        STR->>STR: Wiederanlauf nach Kanalnummer, höchstens 2 Starts je Sekunde
+      else Zuschauer oder Aufnahme braucht ihn
+        STR->>STR: sofort gewöhnlicher Start
+      end
     end
   end
   alt Platz reicht
@@ -1122,7 +1198,10 @@ sequenceDiagram
 ```
 
 **Sichergestellt.** Es gibt genau einen Ort, der zulässt und freigibt, mit fester Rangfolge; Vorsorgliches
-weicht zuerst, Laufendes nie. Unabhängig von den Grenzen der Konten gelten Serverdeckel (Live-Sitzungen,
+weicht zuerst, Laufendes nie. Dauerhafte und zeitgesteuerte Sender werden nicht beendet, sondern
+zurückgestellt; die 60 Sekunden verhindern, dass Durchschalten sie im Sekundentakt verdrängt und zurückholt
+(`04` 5.3). Der Rückstau der Schreiber zählt erst bei Gebrauch; keine Aufnahme und keine Sitzung wird wegen
+des Rückstaus abgelehnt (`04` 8.1). Unabhängig von den Grenzen der Konten gelten Serverdeckel (Live-Sitzungen,
 Drosselung, Neustarts von FFmpeg). Eine fällige Aufnahme bei Mangel: Vorrang offen (F-5, `03` F-4), nach
 `04` 8.2 Stufe 6 bis dahin Ablehnung mit Grund und Meldung. **Belegt:** T-13, T-17, T-19; LTV-002.02, .10,
 .11, LTV-004.20, LTV-017.01, DR-11. **Fehlerzweige:** Umwandlungseinheiten fehlen (warten bis 10 s, dann
@@ -1164,7 +1243,7 @@ sequenceDiagram
       end
       SES->>PB: Platz freigeben
       SES->>STR: Haltegrund lösen
-      Note over STR: Karenz oder sofort offen in 04, 06 O-3
+      Note over STR: Ende durch den Server, ohne anderen Haltegrund sofort Ruht, keine Karenz
     end
     rect rgba(46,160,67,0.16)
       SES->>SP: Sitzungspuffer löschen
@@ -1243,15 +1322,21 @@ sequenceDiagram
   else Quellzeile verschwindet ganz
     Note over STR: Strom läuft weiter bis zum Abbruch, laufende Aufnahme wird nicht abgebrochen
   else Administrator deaktiviert den Sender
-    STR->>EMP: Strom endet sofort
-    Note over STR: Folge für eine laufende Aufnahme offen in 04, 06 O-7
+    CAT->>DB: Sender deaktiviert, für alles Neue sofort 404
+    STR->>STR: Vorladen, automatisch, dauerhaft, Zeitplan dieses Senders enden sofort
+    Note over STR: Wiedergaben laufen, bis der Zuschauer geht, Aufnahmen bis zu ihrem Ende, T-29
+    opt ausdrücklicher Befehl sofort beenden, mit Bestätigung
+      STR->>EMP: Strom endet
+      Note over STR: Zuschauer Sender nicht verfügbar, Aufnahme unvollständig, Sender deaktiviert
+    end
   end
 ```
 
 **Sichergestellt.** Ein aktiver Strom wechselt die Adresse erst an einem sicheren Punkt, nämlich bei der
 nächsten Verbindung; die Identität bleibt der Sender (Favoriten, Planungen bleiben). Netzschutz und feste
-Ursprünge gelten für die neue Adresse neu, der Import probiert keine Adresse aus. **Belegt:** T-2, T-5, T-17,
-T-28; LTV-018.05, .06, .13, .14, .17. **Fehlerzweige:** fehlerhafte oder auffällig kurze Liste (alter Stand
+Ursprünge gelten für die neue Adresse neu, der Import probiert keine Adresse aus. Deaktivieren oder
+Verschwinden eines Senders beendet nichts Laufendes von selbst; nur «sofort beenden» tut das (T-29).
+**Belegt:** T-2, T-5, T-17, T-28, T-29; LTV-002.10, .11, LTV-018.05, .06, .13, .14, .17. **Fehlerzweige:** fehlerhafte oder auffällig kurze Liste (alter Stand
 bleibt, LTV-018.14, .22); Liste nicht erreichbar (nichts ändert sich); neue Adresse mit DRM-Hinweis (beim
 Import markiert).
 
@@ -1316,8 +1401,10 @@ sequenceDiagram
 ```
 
 **Sichergestellt.** Niemand kann den Empfang aufhalten: Der Schreiber des Rings wartet nie und nimmt keine
-Sperre, die ein Leser halten könnte; jeder Leser kopiert und prüft danach. Jeder Rückstau gehört genau einem
-Abnehmer und hat eine feste Grenze, gezählt gegen das Byte-Budget. Der Abwurf trifft nur den langsamen
+Sperre, die ein Leser halten könnte; jeder Leser kopiert in Blöcken von 256 KiB und prüft danach. Jeder
+Rückstau gehört genau einem Abnehmer und hat eine feste Grenze; er zählt erst bei Gebrauch gegen das
+Byte-Budget, und stocken mehrere zugleich, teilen sie sich den Rest des Budgets (mindestens ein Viertel) zu
+gleichen Teilen (`04` 8.1). Der Abwurf trifft nur den langsamen
 Abnehmer. **Belegt:** T-8, T-19; LTV-004.28, .29, .30, .36. **Fehlerzweige:** langsamer Client mit Zeitversatz
 (liest aus seinem eigenen Sitzungspuffer und fällt höchstens aus seinem eigenen Fenster); Zähler der
 Überrundungen in der Verwaltung.
@@ -1466,8 +1553,8 @@ sequenceDiagram
     alt kein Platz
       ZUL-->>STR: Vorladen entfällt still
     else zugelassen
-      STR->>STR: erst freigeben, dann verbinden
-      Note over STR: offen in 04, 06 O-1, beendet diese Regel ein anderes Vorladen derselben Quelle
+      STR->>STR: nur Ströme derselben Quelle ohne Haltegrund beenden
+      Note over STR: Vorgeladenes derselben Quelle, etwa Sender 4, läuft nebeneinander weiter
       STR->>EMP: Sender 6 öffnen, ein Versuch, keine Leiter
       EMP->>Q: Verbindung
       Q-->>EMP: TS-Daten
@@ -1483,21 +1570,28 @@ sequenceDiagram
     rect rgba(255,193,7,0.18)
       Note over STR: sofort, wenn 6 kein Nachbar mehr ist
       Note over STR: 3 min nach dem letzten Umschalten oder beim Sitzungsende
-      Note over STR: bei Mangel, Rangfolge 1, und bevor dieselbe Quelle eine andere Verbindung braucht
+      Note over STR: bei Mangel, Rangfolge 1, oder Sender deaktiviert
       STR->>EMP: Strom beenden, keine Karenz
       EMP->>Q: schliessen
     end
-  else Quelle lehnt ab oder gehaltener Strom bricht kurz danach ab
+  else Quelle lehnt eine Verbindung für einen Zuschauer oder eine Aufnahme ab
     rect rgba(255,193,7,0.18)
-      STR->>STR: kein weiterer Versuch, vorsorglicher Empfang dieser Quelle ruht 30 min
+      STR->>EMP: Vorgeladenes dieser Quelle beenden, dann einmal sofort neu für den Abnehmer
+      STR->>STR: vorsorglicher Empfang dieser Quelle ruht 30 min
+    end
+  else Vorladen selbst wird abgelehnt oder gehaltener Strom bricht kurz danach ab
+    rect rgba(255,193,7,0.18)
+      STR->>STR: Versuch entfällt still, nie Zugang prüfen, vorsorglicher Empfang ruht 30 min
     end
   end
 ```
 
 **Sichergestellt.** Vorladen ist nur Empfang in den Ring: kein Sitzungspuffer, keine Umwandlung, keine
 Leiter, keine Karenz; wer schnell durchschaltet, löst kein Vorladen aus; der Client meldet nur Liste und
-Richtung, der Server entscheidet. **Belegt:** T-17, T-18, T-19; LTV-002.07, LTV-010.05, .08, LTV-010.X-01,
-LTV-017. **Fehlerzweige:** Quelle ohne den Schalter (kein Vorladen); Mangel (Vorladen weicht nach den
+Richtung, der Server entscheidet. Mehrere vorgeladene Sender derselben Quelle laufen nebeneinander; ein neuer
+Verbindungsaufbau beendet vorher nur Ströme ohne Haltegrund, Vorgeladenes weicht erst bei einer Ablehnung,
+bei Mangel oder nach seiner Frist (`04` 5.3, `05` 6). **Belegt:** T-17, T-18, T-19; LTV-002.07, LTV-010.05,
+.08, LTV-010.X-01, LTV-017. **Fehlerzweige:** Quelle ohne den Schalter (kein Vorladen); Mangel (Vorladen weicht nach den
 Strömen ohne Haltegrund als Erstes).
 
 ### 4.3 Herunterfahren in 10 Sekunden
@@ -1548,53 +1642,86 @@ Abschluss braucht länger als 10 s (bis Stufe 5 harter Abbruch, danach 30 s Fris
 
 ## 5. Nebenläufigkeit
 
-Stellen, an denen zwei Dinge gleichzeitig geschehen können, und die Regel aus `04` oder `05`, die sie ordnet.
+Stellen, an denen zwei Dinge gleichzeitig geschehen können, und die Regel aus `04` oder `05` (Fassung 3), die
+sie ordnet.
 
 | Nr. | Was gleichzeitig geschieht | Regel | Stelle |
 |---|---|---|---|
 | N-1 | zwei Erstanfragen auf denselben Sender | «suchen oder anlegen» unter der Sperre des Verzeichnisses, zweite Prüfung nach dem Lesen der Quellen | `04` 5.3, Ablauf 4.1 |
 | N-2 | Abbau eines Stroms gegen neuen Abnehmer | Beitrittszähler schützt vor der Aufräumschleife; Beitritt zu einem endenden Strom wartet auf das Ende und startet neu | `04` 5.3 |
 | N-3 | Karenz gegen neuen Haltegrund | neuer Haltegrund beendet die Karenz, Strom läuft weiter | `04` 5.1 |
-| N-4 | Karenz oder Vorladen gegen neue Verbindung derselben Quelle | erst freigeben, dann verbinden: haltegrundlose und nur vorgeladene Ströme enden, Ende abwarten höchstens 1 s | `04` 5.3, `05` 6 |
-| N-5 | Schreiber des Rings gegen Leser | Schreiber wartet nie; Leser kopiert, prüft danach, verwirft bei Überrundung und setzt am nächsten Keyframe fort; GOP-Index unter kurzer Lesesperre; «neue Daten» als ersetzter Kanal | T-8, `05` 3.5 |
-| N-6 | Quellwechsel gegen Aufnahme | neuer Zeitabschnitt, Aufnahme beginnt einen neuen Teil, bricht nicht ab | T-6, T-16, Ablauf 3.10 |
-| N-7 | Quellwechsel oder Parameterwechsel gegen laufende Umwandlung | Sitzung berechnet den Entscheid neu, FFmpeg startet neu, Ring wird neu reserviert | `05` 3.4 |
-| N-8 | Rechteentzug gegen Segmentabruf | Haken beendet die Sitzung, Token ungültig, jede Anfrage 404; Sicherung: Listenanfrage prüft Recht höchstens 30 s alt | T-21, `04` 9, 10.3 |
-| N-9 | Entzug von «Timeshift» gegen zeitversetzte Wiedergabe | Sitzungspuffer gelöscht, Sitzung läuft aus dem Ring, Sprung an die Live-Kante | `04` 9 |
-| N-10 | Qualitäts- oder Spurwechsel gegen laufenden FFmpeg | neue Ausgabe-Generation; Reservierung umgebucht; neuer Prozess wartet nicht auf das Ende des alten | T-13, `04` 7.5 |
-| N-11 | Spulen mit Umwandlung, mehrere Anfragen ausserhalb des Erzeugten | höchstens 2 Neustarts von FFmpeg je Sitzung in 10 s, weitere Anfragen warten | `04` 8.5 |
-| N-12 | schnelles Umschalten gegen Vorladen und Verbindungen | Drosselung 1 je Sekunde, Stoss 5; Vorladen erst nach 2 s Verweilen; keine Karenz beim Umschalten | `04` 8.5, `05` 6 |
-| N-13 | neue Umwandlungen gegeneinander | Reservieren wartet bis 10 s in Ankunftsreihenfolge, dann «ausgelastet» | `04` 8.1 |
-| N-14 | Start der Stream-Grenze gegen Dateiwiedergabe | `live` reserviert seinen Platz unter derselben Startsperre wie `playback` | T-26 |
-| N-15 | Listen-Abgleich gegen aktiven Strom | laufende Verbindung bleibt; neue Adresse gilt ab der nächsten Verbindung | `04` 9 |
-| N-16 | Haltegrund gegen verschwundenen Besitzer | Abgleich einmal je Minute, verwaiste Einträge entfernt und protokolliert | `04` 5.2 |
-| N-17 | lange Importe gegen Sitzungs- und Aufnahmezeilen | ein Schreiber in SQLite; Stapel bis 500 Zeilen; Zustände nur bei Wechsel | T-22, `04` 4.2 |
-| N-18 | Herunterfahren gegen offene Anfragen | Abschluss von `live` beginnt gleichzeitig mit dem Warten; neue Sitzungen abgelehnt | `04` 5.3, Ablauf 4.3 |
-| N-19 | Serverstart: mehrere dauerhafte Sender derselben Quelle | gestaffelt, höchstens 2 Starts je Sekunde, nie zwei gleichzeitig bei derselben Quelle | `04` 5.3 |
-| N-20 | beginnende Aufnahme gegen neue Zuschauer bei voller Obergrenze | offen: F-5 (a) reserviert ab 2 min vor Beginn; ohne Antwort `04` 8.2 Stufe 6 | `04` 8.2, F-5 |
-| N-21 | Ablehnung der Quelle gegen eigene vorsorgliche Verbindung | Deutung nach Lage: «vermutlich Verbindungslimit», vorsorgliche Ströme enden, einmal sofort neu, keine Sperre | `04` 5.3 |
-| N-22 | Deaktivieren eines Senders gegen laufende Aufnahme | Strom endet sofort; Folge für die Aufnahme **offen in 04** (06 O-7) | `04` 9 |
-| N-23 | neuer Zeitabschnitt gegen volles Byte-Budget | **offen in 04** (06 O-6) | `05` 3.4 |
+| N-4 | Karenz gegen Abbruch der Quelle | Strom endet sofort, keine Leiter, keine Quarantäne | `04` 5.3 |
+| N-5 | neue Verbindung gegen Ströme derselben Quelle | vorher enden nur Ströme **ohne Haltegrund** (Ende abwarten höchstens 1 s); Vorgeladenes und automatisch Gehaltenes bleibt | `04` 5.3, `05` 6 |
+| N-6 | zwei Vorladungen derselben Quelle | laufen nebeneinander (nur mit Schalter der Quelle) | `04` 5.3, `05` 6 |
+| N-7 | Ablehnung für einen Abnehmer gegen vorsorglichen Empfang derselben Quelle | bei dieser Quelle nach Rangfolge freigeben (ohne Haltegrund, Vorgeladenes, Prüfungen, automatisch; für Zuschauer und Aufnahme auch dauerhaft und Zeitplan ohne Abnehmer, zurückgestellt), einmal sofort neu; nie ein Strom mit Zuschauer oder Aufnahme; vorsorglicher Empfang ruht 30 min | `04` 5.3 |
+| N-8 | Abbruch eines gehaltenen Stroms kurz nach einer vorsorglichen Verbindung | «vermutlich Verbindungslimit»: vorsorgliche Ströme der Quelle enden, gehaltener Strom verbindet sofort neu | `04` 5.3 |
+| N-9 | Schreiber des Rings gegen Leser | Schreiber wartet nie; Leser kopiert, prüft danach, verwirft bei Überrundung und setzt am nächsten Keyframe fort; GOP-Index unter kurzer Lesesperre; «neue Daten» als ersetzter Kanal | T-8, `05` 3.5 |
+| N-10 | mehrere stockende Schreiber gegen das Byte-Budget | Rückstau zählt bei Gebrauch; der Rest des Budgets wird zu gleichen Teilen geteilt; wer seinen Teil ausschöpft, bekommt eine Lücke; niemand wird abgelehnt | `04` 8.1 |
+| N-11 | Quellwechsel gegen Aufnahme | neuer Zeitabschnitt, Aufnahme beginnt einen neuen Teil, bricht nicht ab | T-6, T-16, Ablauf 3.10 |
+| N-12 | neuer Zeitabschnitt gegen volles Byte-Budget | Rangfolge 8.2, sonst behält der Strom seinen bisherigen Ring («Startpuffer verkürzt»); ein gehaltener Strom endet nie deswegen | `04` 5.3 |
+| N-13 | Quell- oder Parameterwechsel gegen laufende Umwandlung | Sitzung berechnet den Entscheid neu, FFmpeg startet neu | `05` 3.4 |
+| N-14 | Rechteentzug gegen Segmentabruf | Haken beendet die Sitzung, Token ungültig, jede Anfrage 404; Sicherung: Listenanfrage prüft Recht höchstens 30 s alt; Strom ohne anderen Haltegrund ruht sofort | T-21, `04` 9, 10.3 |
+| N-15 | Entzug von «Timeshift» oder Ausfall des Speicherorts gegen zeitversetzte Wiedergabe | Sitzungspuffer endet, Sitzung läuft aus dem Ring, Sprung an die Live-Kante (neue Ausgabe-Generation); nach Rückkehr des Orts nach 60 s neuer Puffer | `04` 9 |
+| N-16 | Qualitäts- oder Spurwechsel gegen laufenden FFmpeg | neue Ausgabe-Generation; Reservierung umgebucht; neuer Prozess wartet nicht auf das Ende des alten | T-13, `04` 7.5 |
+| N-17 | Spulen mit Umwandlung, mehrere Anfragen ausserhalb des Erzeugten | höchstens 2 Neustarts von FFmpeg je Sitzung in 10 s, weitere Anfragen warten | `04` 8.5 |
+| N-18 | schnelles Umschalten gegen Vorladen und Verbindungen | Drosselung 1 je Sekunde, Stoss 5; Vorladen erst nach 2 s Verweilen; keine Karenz beim Umschalten | `04` 8.5, `05` 6 |
+| N-19 | Einstellen gegen langsamen Start | Antwort wartet bis 3 s auf das erste Segment, sonst Zustand «startet»; Abbruch nach 15 s | `04` 9 |
+| N-20 | neue Umwandlungen gegeneinander | Reservieren wartet bis 10 s in Ankunftsreihenfolge, dann «ausgelastet» | `04` 8.1 |
+| N-21 | Start der Stream-Grenze gegen Dateiwiedergabe | `live` reserviert seinen Platz unter derselben Startsperre wie `playback` | T-26 |
+| N-22 | Listen-Abgleich gegen aktiven Strom | laufende Verbindung bleibt; neue Adresse gilt ab der nächsten Verbindung | `04` 9 |
+| N-23 | Deaktivieren eines Senders gegen laufende Wiedergabe und Aufnahme | nichts Laufendes endet; Vorsorgliches dieses Senders endet sofort; «sofort beenden» ist ein eigener, bestätigter Befehl | T-29 |
+| N-24 | zurückgestellter Sender gegen neuen Abnehmer oder freien Platz | Abnehmer startet ihn sofort; sonst Wiederanlauf erst nach 60 s ununterbrochen freiem Platz | `04` 5.3 |
+| N-25 | Haltegrund gegen verschwundenen Besitzer | Abgleich einmal je Minute, verwaiste Einträge entfernt und protokolliert | `04` 5.2 |
+| N-26 | lange Importe gegen Sitzungs- und Aufnahmezeilen | ein Schreiber in SQLite; Stapel bis 500 Zeilen; Zustände nur bei Wechsel | T-22, `04` 4.2 |
+| N-27 | Herunterfahren gegen offene Anfragen | Abschluss von `live` beginnt gleichzeitig mit dem Warten; neue Sitzungen abgelehnt | `04` 5.3, Ablauf 4.3 |
+| N-28 | Serverstart: weiterzuführende Aufnahmen gegen dauerhafte Sender | Aufnahmen zuerst, sofort, ohne Staffelung (verschiedene Quellen gleichzeitig, dieselbe Quelle nacheinander); danach dauerhaft und Zeitfenster gestaffelt, höchstens 2 Starts je Sekunde, nie zwei gleichzeitig bei derselben Quelle | `04` 5.3 |
+| N-29 | beginnende Aufnahme gegen neue Zuschauer bei voller Obergrenze | **offen: F-5** (a) reserviert ab 2 min vor Beginn; ohne Antwort `04` 8.2 Stufe 6 (Ablehnung mit Grund) | `04` 8.2, F-5 |
 
-## 6. Offen in 04
+## 6. Was nach `04` Fassung 3 offen bleibt
 
-Fälle, die `04` und `05` in Fassung 2 nicht oder nicht eindeutig regeln. Dieses Dokument entscheidet sie
-nicht; sie gehören zur Überarbeitung von `04` oder in die genannte Datei.
+Die zwölf Lücken der Fassung 1 dieses Dokuments sind in `04` Fassung 3 geregelt (13.4); dieses Dokument
+zeichnet die Regeln. Offen bleiben nur die Weichen, die `04`, `05` und `03` selbst als offen führen und die
+in den Abläufen sichtbar werden:
 
-| Nr. | Punkt | Wo es auffällt | Gehört zu |
-|---|---|---|---|
-| 06 O-1 | «Erst freigeben, dann verbinden» beendet vor **jedem** Verbindungsaufbau alle Ströme derselben Quelle, die nur noch Vorladen oder Prüfung halten (`04` 5.3, `05` 6). Wörtlich beendet damit das zweite Vorladen einer Quelle das erste; «1 davor und 1 danach» aus derselben Quelle wäre nie gleichzeitig möglich. Gilt die Regel nur vor Verbindungen für Zuschauer und Aufnahmen? | 4.2, 3.5 | `04` 5.3 |
-| 06 O-2 | Der Automat (`04` 5.1) kennt den Wegfall des letzten Haltegrunds nur «durch Sitzungsende» (Karenz) und «durch Umschalten» (sofort); 5.3 ergänzt Prüfung und Vorladen (sofort). Offen: Ende einer Aufnahme, Ende eines Zeitfensters, Strategie von «dauerhaft» geändert, Ende von «automatisch»: Karenz oder sofort? | 2.2, 3.7, 3.8 | `04` 5.1, 5.3 |
-| 06 O-3 | Entzug eines Rechts löst den Haltegrund Zuschauer (`04` 5.2 «Endet: … Entzug»), die Freigabe in 5.3 nennt den Entzug nicht: Karenz oder sofort? | 3.15 | `04` 5.3 |
-| 06 O-4 | Weicht ein dauerhafter oder zeitgesteuerter Strom bei Mangel (`04` 8.2 Stufe 5, F-4 (a)), «startet er von selbst wieder, sobald Platz ist». Der Automat hat dafür keinen Zustand, und der Auslöser des Wiederanlaufs (Freigabe eines Platzes, Minutentakt) ist nicht festgelegt. | 2.3, 3.14 | `04` 5.1, 8.2 |
-| 06 O-5 | Bricht die Quelle eines Stroms in Karenz ab, gibt es keinen Übergang: Wartet (mit Leiter, obwohl kein Haltegrund) oder Ruht? | 2.3, 3.11 | `04` 5.1 |
-| 06 O-6 | Ein neuer Zeitabschnitt reserviert den Ring neu (`05` 3.4, 3.1). Was geschieht, wenn das Byte-Budget die neue Reservierung nicht deckt (etwa Ersatzquelle mit höherer Bitrate), bei einem Strom mit Zuschauer oder Aufnahme, der nach 8.2 nie freigegeben werden darf? | 3.10 | `04` 8, `05` 3.1 |
-| 06 O-7 | Deaktiviert der Administrator einen Sender, «endet der Strom sofort» (`04` 9). Für eine laufende Aufnahme fehlt die Folge (Lücke, «abgebrochen», Grund, Meldung); `03` DR-16 regelt nur künftige Planungen. | 3.16 | `04` 9, `11` |
-| 06 O-8 | Fällt der Speicherort «Timeshift» aus, «laufen Sitzungen ohne Zeitversatz aus dem Ring weiter» (`04` 9). Nicht festgelegt: dass eine zeitversetzte Wiedergabe an die Live-Kante springt (wie beim Entzug), was mit den noch lesbaren Stücken geschieht, und ob eine laufende Sitzung nach Rückkehr des Speicherorts wieder einen Puffer bekommt. | 3.13 | `04` 9, `10` |
-| 06 O-9 | Wartet die Antwort auf «einstellen», bis das erste Segment bereit ist? `05` 8.5 nennt im Kopf `Server-Timing` die Teilzeit «Server bis erstes Segment bereit», was dafür spricht; festgelegt ist es nicht, ebenso wenig, wie die Liste aussieht, solange der Strom noch verbindet. | 3.1 | `08` |
-| 06 O-10 | Der Haltegrund Aufnahme entsteht «Vorlauf (Öffnen 30 s vor Beginn)» (`04` 5.2), LTV-002.08 verlangt den Empfang «rechtzeitig vor dem Vorlauf». Zählen die 30 s vor dem Beginn des Vorlaufs oder vor dem geplanten Beginn? | 3.7, 3.8 | `04` 5.2, `11` |
-| 06 O-11 | Eine Pause zählt nicht zur Schauzeit (`03` DR-12). `04` nennt den Abspielstand als flüchtigen Zustand der Sitzung (4.2), aber nicht, wie der Server von einer Pause erfährt (Herzschlag mit Zustand?). | 3.6 | `04` T-26, `08` |
-| 06 O-12 | Beim Serverstart werden dauerhafte Sender gestaffelt gestartet (Schritt 3). Ob die Staffelung und «nie zwei gleichzeitig bei derselben Quelle» auch für die sofortige Wiederaufnahme laufender Aufnahmen in Schritt 2 gilt, steht nicht fest. | 3.12 | `04` 5.3 |
+| Punkt | Wo es in den Abläufen auffällt | Stelle |
+|---|---|---|
+| F-4 Vorrang Zuschauer gegen Empfang ohne Abnehmer (gezeichnet ist die Vorgabe «zurückstellen») | 2.1, 3.14 | `04` 12.3 |
+| F-5 Vorrang beginnende Aufnahme gegen Wiedergaben | 3.8, 3.14, N-29 | `04` 12.3, `03` F-4 |
+| F-7 Rückspulgrenze am Tastendruck (gezeichnet ist die Vorgabe (a)) | 3.2, 3.6 | `04` 12.3 |
+| F-8 eigene Kopie des Zeitversatzes je Sitzung (gezeichnet ist die Vorgabe (a)) | 3.3 | `04` 12.3 |
+| F-9 Werkszustand von Vorladen, «automatisch» und Schalter je Quelle | 4.2 | `04` 12.3 |
+| Laufende Aufnahmen und Planungen beim Entzug des Rechts «Aufnahmen» | 3.15 | `03` F-7, `04` O-9 |
+| Herzschlag im Browser-Tab im Hintergrund und bei Bildübertragung | 3.11 | `04` O-25, M-3, M-5 |
+| Bis zu sechs Segmente für native Apple-Player ohne Recht «Timeshift» | 3.6 | `05` O-28, M-5 |
+| Nahtloses Spulen mit Umwandlung über mehrere FFmpeg-Läufe (sonst Rückfall «spiele ab Uhrzeit») | 3.6 | M-9, `05` 4.5 |
 
-Keine dieser Lücken verlangt eine neue Frage an dich, solange `04` sie in der Überarbeitung schliesst. Wo
-eine echte Weiche dahinter liegt (06 O-1, 06 O-4, 06 O-6), gehört sie in `20-offene-entscheidungen.md`.
+## 7. Änderungen gegenüber der vorigen Fassung
+
+Fassung 1 → 2, Grundlage `04` und `05` Fassung 3 (Abschnitt 13.4, 14, 15.1) und
+`.omc/research/live-tv/KONSOLIDIERUNG.md`.
+
+- Kopf, Einleitung: Bezug auf `04`/`05` Fassung 3, T-1 bis T-29, Werte aus `04` 14, Stufen nach `18`.
+- Teilnehmer: Weg W mit Ersatzpfad beim Go-Weiterleiter statt Ersatzname, keine Proxy-Einstellung
+  (`04` 15.1, `05` 2.6).
+- 2.1 Zustandsdiagramm neu: Zustand «zurückgestellt» mit Wiederanlauf; Karenz nur, wenn der Zuschauer selbst
+  geht; Quellabbruch in der Karenz beendet sofort; Ablehnung gibt bei der Quelle Vorsorgliches frei
+  (`06` O-1, O-2, O-3, O-4, O-5).
+- 2.2 und 2.3 neu: Haltegründe mit Freigabe je Anlass, T-29, Aufwärmzeit vor dem Vorlauf, neuer
+  Zeitabschnitt bei knappem Budget, «einstellen» mit 3 s und 15 s (`06` O-6, O-7, O-9, O-10).
+- 3.1: Warten bis 3 s auf das erste Segment, Zustand «startet», Abbruch nach 15 s (`06` O-9).
+- 3.5, 3.8, 3.10, 4.2: vor einem Aufbau enden nur Ströme ohne Haltegrund; Vorgeladenes derselben Quelle läuft
+  nebeneinander und weicht bei Ablehnung (`06` O-1).
+- 3.6: Herzschlag meldet «spielt» oder «Pause»; Schauzeit zählt ausgelieferte Segmente (`06` O-11).
+- 3.7, 3.8: Aufwärmzeit 30 s vor dem Beginn des Vorlaufs; nach dem Ende sofort «ruht» (`06` O-2, O-10).
+- 3.10: neuer Ring nach Rangfolge, sonst bisheriger Ring «Startpuffer verkürzt» (`06` O-6).
+- 3.11: Hintergrund und «Bildschirm aus» beenden die Sitzung (Apps); Quellabbruch in der Karenz (`06` O-5,
+  `04` 10.3).
+- 3.12: Aufnahmen verbinden sofort ohne Staffelung, Staffelung nur für dauerhaft und Zeitfenster (`06` O-12).
+- 3.13: Puffer enden, Sprung an die Live-Kante, neuer Puffer 60 s nach Rückkehr des Orts (`06` O-8).
+- 3.14: Stufe 5 stellt zurück; Wiederanlauf; Rückstau zählt bei Gebrauch (`06` O-4, `13` H-1).
+- 3.15: Ende durch den Server ohne Karenz (`06` O-3).
+- 3.16: T-29, Deaktivieren beendet nichts Laufendes, «sofort beenden» als eigener Befehl (`06` O-7,
+  `07` 12.3).
+- 3.17: Lesen in Blöcken von 256 KiB, Teilung des Rückstaus (`04` 8.1).
+- 5: Nebenläufigkeit neu gefasst (N-1 bis N-29).
+- 6: Liste «offen in 04» ersetzt durch die Weichen, die `04`, `05` und `03` selbst offen führen.
